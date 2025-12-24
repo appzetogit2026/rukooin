@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Calendar, Users, BedDouble, ChevronRight, ChevronLeft,
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 
 const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
+    const navigate = useNavigate();
     const [step, setStep] = useState(1); // 1: Dates | 2: Guests | 3: Rooms
     const [bookingData, setBookingData] = useState({
         checkIn: null,
@@ -93,7 +95,24 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
         if (step < 3) {
             setStep(step + 1);
         } else {
-            onConfirm(bookingData);
+            // Extract only serializable plain data (no React elements/symbols)
+            const hotelInfo = {
+                name: hotelData?.name || '',
+                price: hotelData?.price || '',
+                originalPrice: hotelData?.originalPrice || '',
+                rating: hotelData?.rating || '',
+                address: hotelData?.address || '',
+                image: hotelData?.image || ''
+            };
+
+            // Navigate directly to booking confirmation with celebration
+            navigate('/booking-confirmation', {
+                state: {
+                    animate: true,
+                    booking: bookingData,
+                    hotel: hotelInfo
+                }
+            });
         }
     };
 
@@ -165,10 +184,10 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
                                             onClick={() => step > s.num && setStep(s.num)}
                                         >
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step === s.num
-                                                    ? 'bg-surface text-white scale-110'
-                                                    : step > s.num
-                                                        ? 'bg-green-100 text-green-600'
-                                                        : 'bg-gray-100 text-gray-400'
+                                                ? 'bg-surface text-white scale-110'
+                                                : step > s.num
+                                                    ? 'bg-green-100 text-green-600'
+                                                    : 'bg-gray-100 text-gray-400'
                                                 }`}>
                                                 {step > s.num ? <Check size={16} /> : s.num}
                                             </div>
@@ -241,12 +260,12 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
                                                         key={d.fullDate}
                                                         onClick={() => handleDateSelect(d)}
                                                         className={`py-3 rounded-xl text-center transition-all ${selected === 'checkin'
-                                                                ? 'bg-surface text-white rounded-r-none'
-                                                                : selected === 'checkout'
-                                                                    ? 'bg-surface text-white rounded-l-none'
-                                                                    : selected === 'between'
-                                                                        ? 'bg-surface/10'
-                                                                        : 'bg-gray-50 hover:bg-gray-100'
+                                                            ? 'bg-surface text-white rounded-r-none'
+                                                            : selected === 'checkout'
+                                                                ? 'bg-surface text-white rounded-l-none'
+                                                                : selected === 'between'
+                                                                    ? 'bg-surface/10'
+                                                                    : 'bg-gray-50 hover:bg-gray-100'
                                                             }`}
                                                     >
                                                         <p className={`text-[10px] font-medium ${selected ? 'text-white/70' : 'text-gray-400'}`}>

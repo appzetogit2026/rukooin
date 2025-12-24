@@ -579,14 +579,13 @@ const HotelDetails = () => {
                 onClose={() => setShowBookingSheet(false)}
                 hotelData={hotel}
                 onConfirm={(bookingData) => {
-                    setShowBookingSheet(false);
+                    // Navigate immediately - sheet will unmount as we leave the page
                     navigate('/booking-confirmation', {
                         state: {
                             animate: true,
                             booking: bookingData,
                             hotel: hotel
-                        },
-                        replace: true
+                        }
                     });
                 }}
             />
