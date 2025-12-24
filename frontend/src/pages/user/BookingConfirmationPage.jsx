@@ -70,24 +70,35 @@ const BookingConfirmationPage = () => {
         }
     }, [showSuccess]);
 
-    // Mock Data (In reality, receive via location.state)
+    // Get booking data from navigation state, or use mock data
+    const passedBooking = location.state?.booking;
+    const passedHotel = location.state?.hotel;
+
+    // Generate booking ID
+    const generateBookingId = () => {
+        return "BKID" + Math.floor(100000 + Math.random() * 900000);
+    };
+
+    // Build booking object from passed data or use defaults
     const booking = {
-        id: "BKID882390",
-        amount: "998",
+        id: passedBooking ? generateBookingId() : "BKID882390",
+        amount: passedHotel?.price || "998",
         paymentMethod: "Pay at Hotel",
         status: "Confirmed",
         hotel: {
-            name: "Super Collection O Ring Road",
-            address: "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road, Bhawarkua, Indore, Madhya Pradesh",
-            image: "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
-            rating: "4.6"
+            name: passedHotel?.name || "Super Collection O Ring Road",
+            address: passedHotel?.address || "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road, Bhawarkua, Indore, Madhya Pradesh",
+            image: passedHotel?.image || "https://picsum.photos/seed/hotel1/800/600",
+            rating: passedHotel?.rating || "4.6"
         },
         dates: {
-            checkIn: "23 Dec",
-            checkOut: "24 Dec",
-            checkInDay: "Tue",
-            checkOutDay: "Wed",
-            nights: 1
+            checkIn: passedBooking?.checkIn?.dateNum + " " + passedBooking?.checkIn?.month || "23 Dec",
+            checkOut: passedBooking?.checkOut?.dateNum + " " + passedBooking?.checkOut?.month || "24 Dec",
+            checkInDay: passedBooking?.checkIn?.day || "Tue",
+            checkOutDay: passedBooking?.checkOut?.day || "Wed",
+            nights: passedBooking ?
+                Math.ceil((new Date(passedBooking.checkOut?.fullDate) - new Date(passedBooking.checkIn?.fullDate)) / (1000 * 60 * 60 * 24))
+                : 1
         },
         user: {
             name: guestName,
@@ -95,8 +106,9 @@ const BookingConfirmationPage = () => {
             email: "hritik@example.com"
         },
         guests: {
-            rooms: 1,
-            adults: 2
+            rooms: passedBooking?.rooms || 1,
+            adults: passedBooking?.adults || 2,
+            children: passedBooking?.children || 0
         }
     };
 
