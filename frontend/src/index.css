@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #ACDCD9;
+  /* Much lighter teal for contrast */
+
+  --color-surface: #004F4D;
+  /* Deep Teal Text/Elements */
+  --color-accent: #14B8A6;
+  --color-textLight: #E6F7F6;
+  --color-textDark: #003836;
+  /* New Dark Text variable */
+
+  --color-honey: #FFC107;
+  --color-cardWhite: #FFFFFF;
+
+  --font-sans: "Poppins", sans-serif;
+
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+}
+
+@layer base {
+  body {
+    /* 
+       Reverted Background:
+       Clean Light Gray/White as per "Light Theme" preference.
+       The previous teal gradient was rejected.
+    */
+    @apply bg-slate-50 text-textDark font-sans min-h-screen;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
