@@ -9,9 +9,24 @@ import Lenis from 'lenis';
 // Auth Pages
 import UserLoginPage from './pages/auth/UserLoginPage';
 import UserSignupPage from './pages/auth/UserSignupPage';
-import HotelLoginPage from './pages/auth/HotelLoginPage';
-import HotelSignupPage from './pages/auth/HotelSignupPage';
 import AdminLoginPage from './pages/auth/AdminLoginPage';
+
+// Partner Pages (New Module)
+import HotelLayout from './layouts/HotelLayout';
+import PartnerHome from './app/partner/pages/PartnerHome';
+import JoinRokkooin from './app/partner/pages/JoinRokkooin';
+import PartnerDashboard from './app/partner/pages/PartnerDashboard';
+import PartnerBookings from './app/partner/pages/PartnerBookings';
+import PartnerWallet from './app/partner/pages/PartnerWallet';
+import PartnerReviews from './app/partner/pages/PartnerReviews';
+import PartnerPage from './app/partner/pages/PartnerPage';
+import PartnerNotifications from './app/partner/pages/PartnerNotifications';
+import PartnerKYC from './app/partner/pages/PartnerKYC';
+import PartnerSupport from './app/partner/pages/PartnerSupport';
+import PartnerProfile from './app/partner/pages/PartnerProfile';
+import PartnerTransactions from './app/partner/pages/PartnerTransactions';
+import PartnerTerms from './app/partner/pages/PartnerTerms';
+import PartnerSettings from './app/partner/pages/PartnerSettings';
 
 // User Pages
 import SearchPage from './pages/user/SearchPage';
@@ -28,7 +43,7 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   // Routes where navbars should be completely hidden
-  const hideAllNavRoutes = ['/login', '/signup', '/register', '/admin'];
+  const hideAllNavRoutes = ['/login', '/signup', '/register', '/admin', '/hotel'];
   const shouldHideAllNav = hideAllNavRoutes.some(route => location.pathname.includes(route));
 
   // Routes where only bottom nav should be hidden
@@ -80,9 +95,30 @@ function App() {
           <Route path="/login" element={<UserLoginPage />} />
           <Route path="/signup" element={<UserSignupPage />} />
 
-          {/* Hotel/Vendor Auth Routes */}
-          <Route path="/hotel/login" element={<HotelLoginPage />} />
-          <Route path="/hotel/register" element={<HotelSignupPage />} />
+
+
+          {/* Hotel/Vendor Module Routes - NEW ARCHITECTURE */}
+          <Route path="/hotel" element={<HotelLayout />}>
+            <Route index element={<PartnerHome />} />
+            {/* Wizard Route */}
+            <Route path="join" element={<JoinRokkooin />} />
+            <Route path="partner-dashboard" element={<PartnerDashboard />} />
+            <Route path="dashboard" element={<PartnerDashboard />} />
+
+            {/* Partner Sub-pages */}
+            <Route path="bookings" element={<PartnerBookings />} />
+            <Route path="wallet" element={<PartnerWallet />} />
+            <Route path="reviews" element={<PartnerReviews />} />
+
+            {/* Generic/Placeholder Pages */}
+            <Route path="transactions" element={<PartnerTransactions />} />
+            <Route path="notifications" element={<PartnerNotifications />} />
+            <Route path="kyc" element={<PartnerKYC />} />
+            <Route path="support" element={<PartnerSupport />} />
+            <Route path="terms" element={<PartnerTerms />} />
+            <Route path="settings" element={<PartnerSettings />} />
+            <Route path="profile" element={<PartnerProfile />} />
+          </Route>
 
           {/* Admin Auth Routes */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
