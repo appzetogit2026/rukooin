@@ -64,9 +64,9 @@ const JoinRokkooin = () => {
             const facade = formData.images?.filter(i => i.category === 'facade').length || 0;
             const bedroom = formData.images?.filter(i => i.category === 'bedroom').length || 0;
             const bathroom = formData.images?.filter(i => i.category === 'bathroom').length || 0;
-            if (facade < 1) return setError('Please upload at least 1 Facade photo');
-            if (bedroom < 2) return setError('Please upload at least 2 Bedroom photos');
-            if (bathroom < 2) return setError('Please upload at least 2 Bathroom photos');
+            if (facade < 4) return setError('Please upload at least 4 Facade/Entrance photos');
+            if (bedroom < 6) return setError('Please upload at least 6 Bedroom photos');
+            if (bathroom < 3) return setError('Please upload at least 3 Bathroom photos');
         }
         if (currentStep === 9 && (!formData.kycDocType || !formData.kycIdNumber)) return setError('Please complete KYC details');
         if (currentStep === 10 && (!formData.otpCode || formData.otpCode.length < 4)) return setError('Please enter the 4-digit OTP');
@@ -108,25 +108,25 @@ const JoinRokkooin = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white text-gray-900 flex flex-col font-sans selection:bg-black selection:text-white">
+        <div className="min-h-screen bg-white text-[#003836] flex flex-col font-sans selection:bg-[#004F4D] selection:text-white">
             {/* Top Bar */}
             <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md z-50 px-4 flex items-center justify-between border-b border-gray-100">
                 <button onClick={handleBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <ArrowLeft size={20} className="text-gray-900" />
+                    <ArrowLeft size={20} className="text-[#003836]" />
                 </button>
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Step {currentStep} of {steps.length}</span>
-                    <span className="text-xs md:text-sm font-bold text-gray-900 truncate max-w-[150px] md:max-w-none">{steps[currentStepIndex]?.title}</span>
+                    <span className="text-xs md:text-sm font-bold text-[#003836] truncate max-w-[150px] md:max-w-none">{steps[currentStepIndex]?.title}</span>
                 </div>
                 <button onClick={() => navigate('/hotel')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <X size={20} className="text-gray-900" />
+                    <X size={20} className="text-[#003836]" />
                 </button>
             </header>
 
             {/* Progress Bar */}
             <div className="fixed top-16 left-0 right-0 z-40 bg-gray-100 h-1">
                 <div
-                    className="h-full bg-black transition-all duration-500 ease-out"
+                    className="h-full bg-[#004F4D] transition-all duration-500 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -150,7 +150,7 @@ const JoinRokkooin = () => {
                 <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
                     <button
                         onClick={handleBack}
-                        className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-black transition-colors"
+                        className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-[#004F4D] transition-colors"
                         disabled={currentStep === 1}
                     >
                         Back
@@ -159,7 +159,7 @@ const JoinRokkooin = () => {
                     <div className="flex-1 flex flex-col items-end">
                         <button
                             onClick={handleNext}
-                            className="bg-black text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center"
+                            className="bg-[#004F4D] text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center"
                         >
                             {currentStep === steps.length ? 'Submit Application' : 'Next'}
                             <ArrowRight size={16} />

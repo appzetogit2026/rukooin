@@ -49,10 +49,10 @@ const StepOtp = () => {
             </div>
 
             <div className="anim-item mb-8">
-                <h3 className="text-2xl font-black text-gray-900 mb-2">Confirm it's you</h3>
+                <h3 className="text-2xl font-black text-[#003836] mb-2">Confirm it's you</h3>
                 <p className="text-gray-500 text-sm max-w-[250px] mx-auto">
                     We sent a 4-digit code to
-                    <span className="block font-bold text-gray-900 mt-1">+91 {formData.phone || '98765 43210'}</span>
+                    <span className="block font-bold text-[#003836] mt-1">+91 {formData.phone || '98765 43210'}</span>
                 </p>
             </div>
 
@@ -64,7 +64,7 @@ const StepOtp = () => {
                         ref={el => inputs.current[i] = el}
                         type="tel"
                         maxLength={1}
-                        className="w-14 h-16 rounded-2xl bg-gray-50 border-2 border-gray-200 text-center text-2xl font-bold text-gray-900 focus:border-black focus:bg-white focus:ring-0 transition-all caret-black"
+                        className="w-14 h-16 rounded-2xl bg-gray-50 border-2 border-gray-200 text-center text-2xl font-bold text-[#003836] focus:border-[#004F4D] focus:bg-white focus:ring-0 transition-all caret-[#004F4D]"
                         value={digit}
                         onChange={(e) => handleChange(i, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(i, e)}
@@ -75,7 +75,7 @@ const StepOtp = () => {
             {/* Resend Link */}
             <div className="anim-item">
                 <p className="text-sm text-gray-400 font-medium">
-                    Didn't get it? <button className="text-black font-bold underline ml-1">Resend in 30s</button>
+                    Didn't get it? <button className="text-[#004F4D] font-bold underline ml-1">Resend in 30s</button>
                 </p>
             </div>
 

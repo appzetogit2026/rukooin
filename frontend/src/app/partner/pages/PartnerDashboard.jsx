@@ -45,7 +45,7 @@ const PartnerDashboard = () => {
 
                 {/* Stats / Overview (Optional) */}
                 <div className="grid grid-cols-2 gap-3 mb-8">
-                    <div className="bg-black text-white p-5 rounded-2xl shadow-lg">
+                    <div className="bg-[#004F4D] text-white p-5 rounded-2xl shadow-lg">
                         <span className="text-xs font-bold opacity-60 uppercase tracking-widest">Total Properties</span>
                         <h2 className="text-3xl font-black mt-1">{properties.length}</h2>
                     </div>
@@ -57,8 +57,8 @@ const PartnerDashboard = () => {
 
                 {/* Property List */}
                 <div className="flex justify-between items-end mb-4 px-1">
-                    <h2 className="text-lg font-bold text-gray-900">My Properties</h2>
-                    <button onClick={handleAddNew} className="text-xs font-bold bg-black text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+                    <h2 className="text-lg font-bold text-[#003836]">My Properties</h2>
+                    <button onClick={handleAddNew} className="text-xs font-bold bg-[#004F4D] text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
                         <Plus size={12} /> Add New
                     </button>
                 </div>
@@ -77,12 +77,12 @@ const PartnerDashboard = () => {
                                     </div>
                                 )}
 
-                                <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-black shadow-sm flex items-center gap-1.5">
+                                <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-[#003836] shadow-sm flex items-center gap-1.5">
                                     <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>
                                     {prop.status}
                                 </div>
 
-                                <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12">
+                                <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-[#003836]/90 via-[#003836]/50 to-transparent pt-12">
                                     <h3 className="text-2xl font-black text-white leading-none mb-1">{prop.propertyName || 'Untitled Property'}</h3>
                                     <div className="flex items-center text-white/90 text-sm font-medium gap-1">
                                         <MapPin size={14} className="text-white" />
@@ -140,7 +140,7 @@ const PartnerDashboard = () => {
                                             {prop.facilities?.map((f, i) => (
                                                 <span key={i} className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold text-gray-600 capitalize flex items-center gap-1">
                                                     {/* Icon mapping could go here, simplifying for now */}
-                                                    <div className="w-1 h-1 bg-black rounded-full"></div>
+                                                    <div className="w-1 h-1 bg-[#004F4D] rounded-full"></div>
                                                     {f.replace('_', ' ')}
                                                 </span>
                                             ))}
@@ -185,7 +185,7 @@ const PartnerDashboard = () => {
 
                                 {/* Action Footer */}
                                 <div className="flex gap-3 pt-6 border-t border-dashed border-gray-200">
-                                    <button onClick={() => handleEdit(prop)} className="flex-1 bg-black text-white h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-black/20 hover:shadow-xl hover:bg-gray-900">
+                                    <button onClick={() => handleEdit(prop)} className="flex-1 bg-[#004F4D] text-white h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-[#004F4D]/20 hover:shadow-xl hover:bg-[#003836]">
                                         <Edit size={16} /> Edit Details
                                     </button>
                                     <button onClick={() => handleDelete(prop.id)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 active:scale-95 transition-all">
@@ -200,9 +200,9 @@ const PartnerDashboard = () => {
                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-gray-300">
                                 <LayoutDashboard size={32} />
                             </div>
-                            <h3 className="text-gray-900 font-bold mb-1">No Properties Yet</h3>
+                            <h3 className="text-[#003836] font-bold mb-1">No Properties Yet</h3>
                             <p className="text-gray-400 text-sm mb-6">List your first property to get started.</p>
-                            <button onClick={handleAddNew} className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform">
+                            <button onClick={handleAddNew} className="bg-[#004F4D] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg active:scale-95 transition-transform">
                                 List Your Property
                             </button>
                         </div>

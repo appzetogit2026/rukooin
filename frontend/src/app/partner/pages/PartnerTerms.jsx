@@ -5,8 +5,8 @@ import PartnerHeader from '../components/PartnerHeader';
 
 const Section = ({ title, children }) => (
     <div className="mb-8">
-        <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
+        <h4 className="font-bold text-[#003836] mb-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#004F4D]"></span>
             {title}
         </h4>
         <div className="text-xs text-gray-500 leading-relaxed pl-3.5 border-l border-gray-100">
@@ -37,7 +37,7 @@ const PartnerTerms = () => {
                             <Shield size={24} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-gray-900">Partner Agreement</h2>
+                            <h2 className="text-lg font-black text-[#003836]">Partner Agreement</h2>
                             <p className="text-xs text-gray-400">Last updated: August 15, 2024</p>
                         </div>
                     </div>
@@ -67,7 +67,7 @@ const PartnerTerms = () => {
                             <CheckCircle size={16} />
                             <span className="text-xs font-bold">You accepted these terms on 12 Aug 2024</span>
                         </div>
-                        <button className="flex items-center gap-1 text-xs font-bold text-black hover:underline">
+                        <button className="flex items-center gap-1 text-xs font-bold text-[#004F4D] hover:underline">
                             Download PDF <ExternalLink size={12} />
                         </button>
                     </div>

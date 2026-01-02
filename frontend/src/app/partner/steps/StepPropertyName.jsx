@@ -39,7 +39,7 @@ const StepPropertyName = () => {
 
             {!isSheetOpen && formData.propertyName && (
                 <div className="mt-8 animate-fade-in-up">
-                    <h2 className="text-2xl font-black text-black mb-1">{formData.propertyName}</h2>
+                    <h2 className="text-2xl font-black text-[#004F4D] mb-1">{formData.propertyName}</h2>
                     <p className="text-gray-500 mb-6 text-sm">Great name! Click Next to continue.</p>
                     <button onClick={() => setIsSheetOpen(true)} className="text-xs font-bold underline">Edit Name</button>
                 </div>
@@ -60,7 +60,7 @@ const StepPropertyName = () => {
                             value={formData.propertyName || ''}
                             onChange={(e) => updateFormData({ propertyName: e.target.value })}
                             placeholder="e.g. Ocean View Residency"
-                            className="w-full text-xl font-bold border-b-2 border-gray-200 py-2 focus:outline-none focus:border-black transition-colors placeholder:text-gray-300"
+                            className="w-full text-xl font-bold border-b-2 border-gray-200 py-2 focus:outline-none focus:border-[#004F4D] transition-colors placeholder:text-gray-300"
                             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                         />
                     </div>
@@ -69,7 +69,7 @@ const StepPropertyName = () => {
                         <button
                             onClick={handleSave}
                             disabled={!formData.propertyName || formData.propertyName.length < 3}
-                            className="w-full bg-black text-white font-bold py-3 rounded-xl disabled:bg-gray-200 disabled:text-gray-400 transition-colors text-sm"
+                            className="w-full bg-[#004F4D] text-white font-bold py-3 rounded-xl disabled:bg-gray-200 disabled:text-gray-400 transition-colors text-sm"
                         >
                             Confirm Name
                         </button>

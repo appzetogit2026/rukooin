@@ -17,12 +17,12 @@ const TransactionItem = ({ txn, index }) => {
                     {isCredit ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                 </div>
                 <div>
-                    <h4 className="font-bold text-gray-900 text-sm">{txn.title}</h4>
+                    <h4 className="font-bold text-[#003836] text-sm">{txn.title}</h4>
                     <p className="text-[10px] text-gray-400 font-medium">{txn.date} • {txn.id}</p>
                 </div>
             </div>
             <div className="text-right">
-                <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-black'}`}>
+                <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-[#003836]'}`}>
                     {isCredit ? '+' : '-'}₹{txn.amount}
                 </div>
                 <div className="text-[10px] text-gray-400 font-bold bg-gray-50 px-2 py-0.5 rounded-md inline-block mt-0.5 uppercase tracking-wide">
@@ -71,7 +71,7 @@ const PartnerWallet = () => {
             <div className="max-w-3xl mx-auto px-4 pt-6">
 
                 {/* Balance Card */}
-                <div ref={cardRef} className="bg-black text-white rounded-[2rem] p-6 shadow-xl shadow-black/20 mb-8 relative overflow-hidden">
+                <div ref={cardRef} className="bg-[#004F4D] text-white rounded-[2rem] p-6 shadow-xl shadow-[#004F4D]/20 mb-8 relative overflow-hidden">
                     {/* Abstract Shapes */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500/20 rounded-full blur-xl -ml-5 -mb-5"></div>
@@ -88,7 +88,7 @@ const PartnerWallet = () => {
                         </div>
 
                         <div className="flex gap-3">
-                            <button className="flex-1 bg-white text-black h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
+                            <button className="flex-1 bg-white text-[#003836] h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
                                 Withdraw Now <ArrowUpRight size={16} />
                             </button>
                             <button className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition-colors">
@@ -122,7 +122,7 @@ const PartnerWallet = () => {
 
                 {/* Recent Transactions */}
                 <div className="mb-4 flex items-center justify-between">
-                    <h3 className="font-bold text-gray-900">Recent Transactions</h3>
+                    <h3 className="font-bold text-[#003836]">Recent Transactions</h3>
                     <button className="text-xs font-bold text-blue-600">See All</button>
                 </div>
 

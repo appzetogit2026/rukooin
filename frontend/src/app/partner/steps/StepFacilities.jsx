@@ -52,7 +52,7 @@ const StepFacilities = () => {
                         key={facility.id}
                         onClick={() => toggleFacility(facility.id)}
                         className={`anim-item flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 aspect-square active:scale-95 touch-manipulation relative overflow-hidden ${isSelected
-                            ? 'border-black bg-black text-white shadow-md'
+                            ? 'border-[#004F4D] bg-[#004F4D] text-white shadow-md'
                             : 'border-gray-200 bg-white text-gray-500'
                             }`}
                     >
@@ -73,8 +73,8 @@ const StepFacilities = () => {
             {/* Must Haves Section */}
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
-                    <ShieldCheck size={16} className="text-black" />
-                    <h3 className="text-xs font-black text-black uppercase tracking-wider">Must-Have Essentials</h3>
+                    <ShieldCheck size={16} className="text-[#004F4D]" />
+                    <h3 className="text-xs font-black text-[#004F4D] uppercase tracking-wider">Must-Have Essentials</h3>
                 </div>
                 {renderGrid(MUST_HAVES)}
             </div>

@@ -54,8 +54,8 @@ const StepPropertyImages = () => {
                 {/* 1. Facade (Min 1) */}
                 <div className="anim-item">
                     <div className="flex justify-between items-center mb-2 px-1">
-                        <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Facade / Entrance</label>
-                        <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full font-bold">Min 1</span>
+                        <label className="text-xs font-bold text-[#003836] uppercase tracking-wider">Facade / Entrance</label>
+                        <span className="text-[10px] bg-[#004F4D] text-white px-2 py-0.5 rounded-full font-bold">Min 4</span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                         {/* Add Button for Facade */}
@@ -71,7 +71,7 @@ const StepPropertyImages = () => {
                         {images.filter(img => img.category === 'facade').map((img) => (
                             <div key={img.id} className="shrink-0 w-24 h-24 rounded-xl relative overflow-hidden">
                                 <img src={img.url} className="w-full h-full object-cover" />
-                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1"><X size={10} /></button>
+                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-[#004F4D]/80 text-white rounded-full p-1"><X size={10} /></button>
                             </div>
                         ))}
                     </div>
@@ -80,8 +80,8 @@ const StepPropertyImages = () => {
                 {/* 2. Bedroom (Min 2) */}
                 <div className="anim-item">
                     <div className="flex justify-between items-center mb-2 px-1">
-                        <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Bedroom</label>
-                        <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full font-bold">Min 2</span>
+                        <label className="text-xs font-bold text-[#003836] uppercase tracking-wider">Bedroom</label>
+                        <span className="text-[10px] bg-[#004F4D] text-white px-2 py-0.5 rounded-full font-bold">Min 6</span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                         <button
@@ -94,7 +94,7 @@ const StepPropertyImages = () => {
                         {images.filter(img => img.category === 'bedroom').map((img) => (
                             <div key={img.id} className="shrink-0 w-24 h-24 rounded-xl relative overflow-hidden">
                                 <img src={img.url} className="w-full h-full object-cover" />
-                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1"><X size={10} /></button>
+                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-[#004F4D]/80 text-white rounded-full p-1"><X size={10} /></button>
                             </div>
                         ))}
                     </div>
@@ -103,8 +103,8 @@ const StepPropertyImages = () => {
                 {/* 3. Bathroom (Min 2) */}
                 <div className="anim-item">
                     <div className="flex justify-between items-center mb-2 px-1">
-                        <label className="text-xs font-bold text-gray-900 uppercase tracking-wider">Bathroom</label>
-                        <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full font-bold">Min 2</span>
+                        <label className="text-xs font-bold text-[#003836] uppercase tracking-wider">Bathroom</label>
+                        <span className="text-[10px] bg-[#004F4D] text-white px-2 py-0.5 rounded-full font-bold">Min 3</span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                         <button
@@ -117,7 +117,7 @@ const StepPropertyImages = () => {
                         {images.filter(img => img.category === 'bathroom').map((img) => (
                             <div key={img.id} className="shrink-0 w-24 h-24 rounded-xl relative overflow-hidden">
                                 <img src={img.url} className="w-full h-full object-cover" />
-                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1"><X size={10} /></button>
+                                <button onClick={() => removeImage(img.id)} className="absolute top-1 right-1 bg-[#004F4D]/80 text-white rounded-full p-1"><X size={10} /></button>
                             </div>
                         ))}
                     </div>

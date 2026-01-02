@@ -123,12 +123,12 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                 {/* Header */}
                 <div className="p-6 pb-4 border-b border-gray-100 flex items-start justify-between bg-white z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-lg font-bold">
+                        <div className="w-12 h-12 rounded-full bg-[#004F4D] text-white flex items-center justify-center text-lg font-bold">
                             {/* Initials */}
                             {formData?.propertyName ? formData.propertyName.substring(0, 2).toUpperCase() : 'JD'}
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-black leading-tight">
+                            <h2 className="text-lg font-black text-[#003836] leading-tight">
                                 {formData?.propertyName || 'Partner Account'}
                             </h2>
                             <p className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">
@@ -149,7 +149,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                     {/* View Profile Card */}
                     <div
                         onClick={() => handleNavigation('/hotel/profile')}
-                        className="bg-gray-900 text-white p-4 rounded-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
+                        className="bg-[#004F4D] text-white p-4 rounded-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
                     >
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-white/10 rounded-full">
@@ -177,15 +177,15 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                                         className="w-full p-3 rounded-xl hover:bg-gray-50 flex items-center justify-between group transition-colors active:scale-[0.98]"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="text-gray-400 group-hover:text-black transition-colors">
+                                            <div className="text-gray-400 group-hover:text-[#004F4D] transition-colors">
                                                 <item.icon size={18} />
                                             </div>
-                                            <span className="text-sm font-bold text-gray-700 group-hover:text-black">
+                                            <span className="text-sm font-bold text-gray-700 group-hover:text-[#004F4D]">
                                                 {item.label}
                                             </span>
                                         </div>
                                         {item.badge && (
-                                            <span className="text-[10px] font-bold bg-black text-white px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-bold bg-[#004F4D] text-white px-2 py-0.5 rounded-full">
                                                 {item.badge}
                                             </span>
                                         )}

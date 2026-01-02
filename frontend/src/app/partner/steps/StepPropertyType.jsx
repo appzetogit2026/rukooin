@@ -43,21 +43,21 @@ const StepPropertyType = () => {
                         onClick={() => handleSelect(opt.id)}
                         className={`property-card cursor-pointer p-4 rounded-2xl border transition-all duration-300 flex items-center gap-3 group active:scale-95 touch-manipulation
                             ${formData.propertyType === opt.id
-                                ? 'border-black bg-gray-50 ring-1 ring-black'
+                                ? 'border-[#004F4D] bg-gray-50 ring-1 ring-[#004F4D]'
                                 : 'border-gray-100 hover:border-gray-300'
                             }`}
                     >
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0
-                            ${formData.propertyType === opt.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}`}>
+                            ${formData.propertyType === opt.id ? 'bg-[#004F4D] text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'}`}>
                             <opt.icon size={18} />
                         </div>
-                        <span className={`text-base font-bold ${formData.propertyType === opt.id ? 'text-black' : 'text-gray-600'}`}>
+                        <span className={`text-base font-bold ${formData.propertyType === opt.id ? 'text-[#004F4D]' : 'text-gray-600'}`}>
                             {opt.label}
                         </span>
 
                         {/* Selected Indicator */}
                         <div className={`ml-auto w-5 h-5 rounded-full border flex items-center justify-center
-                            ${formData.propertyType === opt.id ? 'border-black bg-black' : 'border-gray-300'}`}>
+                            ${formData.propertyType === opt.id ? 'border-[#004F4D] bg-[#004F4D]' : 'border-gray-300'}`}>
                             {formData.propertyType === opt.id && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                         </div>
                     </div>

@@ -33,7 +33,7 @@ const BottomSheet = ({ isOpen, onClose, title, children }) => {
             {/* Sheet */}
             <div
                 ref={sheetRef}
-                className="bg-white w-full sm:w-[500px] rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 relative shadow-2xl translate-y-full max-h-[90vh] overflow-y-auto"
+                className="bg-white w-full sm:w-[500px] rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 relative shadow-2xl translate-y-full max-h-[90vh] overflow-y-auto pointer-events-auto"
             >
                 {/* Drag Handle (Mobile only styling visual) */}
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden" />

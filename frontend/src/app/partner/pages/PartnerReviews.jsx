@@ -18,7 +18,7 @@ const ReviewCard = ({ review }) => {
                         </div>
                     </div>
                     <div>
-                        <h4 className="font-bold text-gray-900 text-sm">{review.user}</h4>
+                        <h4 className="font-bold text-[#003836] text-sm">{review.user}</h4>
                         <div className="flex items-center gap-1">
                             <div className="flex text-yellow-500">
                                 {[...Array(5)].map((_, i) => (
@@ -29,7 +29,7 @@ const ReviewCard = ({ review }) => {
                         </div>
                     </div>
                 </div>
-                <button className="text-gray-300 hover:text-black">
+                <button className="text-gray-300 hover:text-[#004F4D]">
                     <MoreHorizontal size={18} />
                 </button>
             </div>
@@ -41,12 +41,12 @@ const ReviewCard = ({ review }) => {
 
             {/* Actions */}
             <div className="flex items-center gap-4 border-t border-dashed border-gray-100 pt-3">
-                <button className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-black transition-colors">
+                <button className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-[#004F4D] transition-colors">
                     <ThumbsUp size={14} /> Helpful
                 </button>
                 <button
                     onClick={() => setIsReplying(!isReplying)}
-                    className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${isReplying ? 'text-black' : 'text-gray-400 hover:text-black'}`}
+                    className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${isReplying ? 'text-[#004F4D]' : 'text-gray-400 hover:text-[#004F4D]'}`}
                 >
                     <MessageCircle size={14} /> Reply
                 </button>
@@ -65,7 +65,7 @@ const ReviewCard = ({ review }) => {
                             />
                         </div>
                         <div className="flex justify-end">
-                            <button className="bg-black text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-transform">
+                            <button className="bg-[#004F4D] text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-transform">
                                 Post Reply
                             </button>
                         </div>
@@ -104,7 +104,7 @@ const PartnerReviews = () => {
             <div className="bg-white sticky top-[73px] z-30 px-6 py-6 border-b border-gray-100 shadow-sm mb-6">
                 <div className="flex items-center gap-6">
                     <div className="text-center">
-                        <div className="text-5xl font-black text-black tracking-tighter">4.8</div>
+                        <div className="text-5xl font-black text-[#003836] tracking-tighter">4.8</div>
                         <div className="flex justify-center text-yellow-500 mt-1">
                             <Star size={12} fill="currentColor" />
                             <Star size={12} fill="currentColor" />
@@ -122,7 +122,7 @@ const PartnerReviews = () => {
                                 <span className="text-[10px] font-bold text-gray-400 w-2">{star}</span>
                                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-black rounded-full"
+                                        className="h-full bg-[#004F4D] rounded-full"
                                         style={{ width: `${star === 5 ? 70 : star === 4 ? 20 : 5}%` }}
                                     ></div>
                                 </div>

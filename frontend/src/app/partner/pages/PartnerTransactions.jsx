@@ -13,7 +13,7 @@ const TransactionRow = ({ txn }) => {
                     {isCredit ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                 </div>
                 <div>
-                    <h4 className="font-bold text-gray-900 text-sm group-hover:text-black transition-colors">{txn.desc}</h4>
+                    <h4 className="font-bold text-[#003836] text-sm group-hover:text-[#004F4D] transition-colors">{txn.desc}</h4>
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium mt-0.5">
                         <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase tracking-wide">{txn.id}</span>
                         <span>•</span>
@@ -22,11 +22,11 @@ const TransactionRow = ({ txn }) => {
                 </div>
             </div>
             <div className="text-right">
-                <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-black'}`}>
+                <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-[#003836]'}`}>
                     {isCredit ? '+' : '-'}₹{txn.amount}
                 </div>
                 <div className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${txn.status === 'Success' ? 'text-green-500' :
-                        txn.status === 'Pending' ? 'text-orange-500' : 'text-red-500'
+                    txn.status === 'Pending' ? 'text-orange-500' : 'text-red-500'
                     }`}>
                     {txn.status}
                 </div>
@@ -71,7 +71,7 @@ const PartnerTransactions = () => {
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                         <button
                             onClick={() => setFilter('all')}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'all' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'all' ? 'bg-white shadow-sm text-[#004F4D]' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             All
                         </button>
@@ -91,10 +91,10 @@ const PartnerTransactions = () => {
 
                     {/* Date / Download */}
                     <div className="flex gap-2">
-                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-black hover:text-white transition-colors">
+                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors">
                             <Calendar size={16} />
                         </button>
-                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-black hover:text-white transition-colors">
+                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors">
                             <Download size={16} />
                         </button>
                     </div>
@@ -108,7 +108,7 @@ const PartnerTransactions = () => {
                     <input
                         type="text"
                         placeholder="Search by ID or Name..."
-                        className="w-full h-12 bg-white rounded-2xl pl-12 pr-4 text-sm font-medium border border-gray-200 shadow-sm focus:outline-none focus:border-black/20 transition-colors"
+                        className="w-full h-12 bg-white rounded-2xl pl-12 pr-4 text-sm font-medium border border-gray-200 shadow-sm focus:outline-none focus:border-[#004F4D]/20 transition-colors"
                     />
                     <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
                 </div>

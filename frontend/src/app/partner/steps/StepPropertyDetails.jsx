@@ -36,7 +36,7 @@ const StepPropertyDetails = () => {
                             key={star}
                             onClick={() => handleRating(star)}
                             className={`flex-shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center border transition-all duration-300 ${formData.propertyRating === star
-                                ? 'border-black bg-black text-white shadow-lg scale-100' // No scale on mobile to save space or tiny scale
+                                ? 'border-[#004F4D] bg-[#004F4D] text-white shadow-lg scale-100' // No scale on mobile to save space or tiny scale
                                 : 'border-gray-200 bg-white text-gray-400'
                                 }`}
                         >
@@ -57,7 +57,7 @@ const StepPropertyDetails = () => {
                 </label>
                 <textarea
                     placeholder="Tell guests what makes your place unique..."
-                    className="w-full h-24 p-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-black focus:ring-0 resize-none text-sm placeholder-gray-400 transition-all font-medium"
+                    className="w-full h-24 p-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-[#004F4D] focus:ring-0 resize-none text-sm placeholder-gray-400 transition-all font-medium"
                     value={formData.propertyDescription || ''}
                     onChange={(e) => updateFormData({ propertyDescription: e.target.value })}
                 ></textarea>
@@ -76,14 +76,14 @@ const StepPropertyDetails = () => {
                         <div className="flex items-center justify-between">
                             <button
                                 onClick={() => updateFormData({ totalFloors: Math.max(1, (formData.totalFloors || 1) - 1) })}
-                                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:border-black active:scale-95 transition-all"
+                                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#004F4D] active:scale-95 transition-all"
                             >
                                 <Minus size={14} />
                             </button>
-                            <span className="text-xl font-black text-gray-900">{formData.totalFloors || 1}</span>
+                            <span className="text-xl font-black text-[#003836]">{formData.totalFloors || 1}</span>
                             <button
                                 onClick={() => updateFormData({ totalFloors: (formData.totalFloors || 1) + 1 })}
-                                className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center active:scale-95 transition-all"
+                                className="w-8 h-8 rounded-full bg-[#004F4D] text-white flex items-center justify-center active:scale-95 transition-all"
                             >
                                 <Plus size={14} />
                             </button>
@@ -127,7 +127,7 @@ const StepPropertyDetails = () => {
                             key={policy.id}
                             onClick={() => updateFormData({ [policy.id]: !formData[policy.id] })}
                             className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 aspect-[4/3] active:scale-95 touch-manipulation relative overflow-hidden ${formData[policy.id]
-                                ? 'border-black bg-black text-white'
+                                ? 'border-[#004F4D] bg-[#004F4D] text-white'
                                 : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
                                 }`}
                         >

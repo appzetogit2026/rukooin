@@ -28,7 +28,7 @@ const StepKyc = () => {
     return (
         <div ref={containerRef} className="pb-24 pt-2 px-1">
             <div className="anim-item mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-1">Verify Identity</h3>
+                <h3 className="text-xl font-bold text-[#003836] mb-1">Verify Identity</h3>
                 <p className="text-gray-500 text-sm">We need to verify your business details.</p>
             </div>
 
@@ -41,7 +41,7 @@ const StepKyc = () => {
                             key={type}
                             onClick={() => updateFormData({ kycDocType: type })}
                             className={`flex-shrink-0 px-5 py-3 rounded-xl text-sm font-bold border transition-all ${formData.kycDocType === type
-                                ? 'bg-black text-white border-black'
+                                ? 'bg-[#004F4D] text-white border-[#004F4D]'
                                 : 'bg-white text-gray-500 border-gray-200'
                                 }`}
                         >
@@ -53,14 +53,14 @@ const StepKyc = () => {
 
             {/* 2. ID Number Input */}
             <div className="anim-item mb-8">
-                <div className="bg-gray-50 rounded-2xl px-5 py-4 border border-gray-100 focus-within:bg-white focus-within:border-black focus-within:ring-1 focus-within:ring-black transition-all shadow-sm">
+                <div className="bg-gray-50 rounded-2xl px-5 py-4 border border-gray-100 focus-within:bg-white focus-within:border-[#004F4D] focus-within:ring-1 focus-within:ring-[#004F4D] transition-all shadow-sm">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 block">
                         {formData.kycDocType ? `${formData.kycDocType} Number` : 'Document Number'}
                     </label>
                     <input
                         type="text"
                         placeholder="ABCDE1234F"
-                        className="w-full bg-transparent border-none p-0 text-lg font-bold text-gray-900 placeholder-gray-300 focus:ring-0 uppercase"
+                        className="w-full bg-transparent border-none p-0 text-lg font-bold text-[#003836] placeholder-gray-300 focus:ring-0 uppercase"
                         value={formData.kycIdNumber || ''}
                         onChange={(e) => updateFormData({ kycIdNumber: e.target.value.toUpperCase() })}
                     />

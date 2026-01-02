@@ -32,7 +32,7 @@ const BookingCard = ({ booking, index }) => {
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">
                         ID: {booking.id}
                     </span>
-                    <h3 className="text-lg font-black text-gray-900 leading-none">
+                    <h3 className="text-lg font-black text-[#003836] leading-none">
                         {booking.guestName}
                     </h3>
                 </div>
@@ -44,19 +44,19 @@ const BookingCard = ({ booking, index }) => {
             {/* Details Grid */}
             <div className="grid grid-cols-2 gap-y-3 text-sm mb-5">
                 <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar size={14} className="text-black" />
+                    <Calendar size={14} className="text-[#004F4D]" />
                     <span className="font-medium">{booking.dates}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                    <Clock size={14} className="text-black" />
+                    <Clock size={14} className="text-[#004F4D]" />
                     <span className="font-medium">{booking.nights} Nights</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                    <User size={14} className="text-black" />
+                    <User size={14} className="text-[#004F4D]" />
                     <span className="font-medium">{booking.guests} Guests</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin size={14} className="text-black" />
+                    <MapPin size={14} className="text-[#004F4D]" />
                     <span className="font-medium">{booking.roomType}</span>
                 </div>
             </div>
@@ -64,19 +64,19 @@ const BookingCard = ({ booking, index }) => {
             {/* Actions */}
             <div className="flex items-center gap-3 pt-4 border-t border-dashed border-gray-200">
                 {booking.status === 'upcoming' && (
-                    <button className="flex-1 bg-black text-white h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
+                    <button className="flex-1 bg-[#004F4D] text-white h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
                         Check In
                     </button>
                 )}
                 {booking.status === 'active' && (
-                    <button className="flex-1 bg-white border border-gray-200 text-gray-900 h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                    <button className="flex-1 bg-white border border-gray-200 text-[#003836] h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
                         Check Out
                     </button>
                 )}
-                <a href={`tel:${booking.phone}`} className="w-10 h-10 rounded-xl bg-gray-50 text-gray-900 flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
+                <a href={`tel:${booking.phone}`} className="w-10 h-10 rounded-xl bg-gray-50 text-[#003836] flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
                     <Phone size={16} />
                 </a>
-                <button className="w-10 h-10 rounded-xl bg-gray-50 text-gray-900 flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
+                <button className="w-10 h-10 rounded-xl bg-gray-50 text-[#003836] flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
                     <ChevronRight size={18} />
                 </button>
             </div>
@@ -130,10 +130,10 @@ const PartnerBookings = () => {
                     <input
                         type="text"
                         placeholder="Search guest name or ID..."
-                        className="w-full h-12 bg-white rounded-2xl pl-12 pr-4 text-sm font-medium border border-gray-100 shadow-sm focus:outline-none focus:border-black/20 transition-colors"
+                        className="w-full h-12 bg-white rounded-2xl pl-12 pr-4 text-sm font-medium border border-gray-100 shadow-sm focus:outline-none focus:border-[#004F4D]/20 transition-colors"
                     />
                     <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
-                    <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-colors">
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-[#004F4D] hover:bg-gray-100 transition-colors">
                         <Filter size={16} />
                     </button>
                 </div>
@@ -147,8 +147,8 @@ const PartnerBookings = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all border ${activeTab === tab.id
-                                    ? 'bg-black text-white border-black shadow-lg shadow-black/20'
-                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100'
+                                ? 'bg-[#004F4D] text-white border-[#004F4D] shadow-lg shadow-[#004F4D]/20'
+                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100'
                                 }`}
                         >
                             {tab.label}

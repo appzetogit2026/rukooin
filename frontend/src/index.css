@@ -20,13 +20,17 @@
   --radius-xl: 16px;
   --radius-2xl: 20px;
 
-  /* Hotel Partner Theme */
+  /* Hotel Partner Theme - Updated to match User Module */
   --color-partner-bg: #FFFFFF;
-  --color-partner-text-primary: #0F0F0F;
-  --color-partner-text-secondary: #6B6B6B;
-  --color-partner-btn: #000000;
+  --color-partner-text-primary: #004F4D;
+  /* var(--color-surface) */
+  --color-partner-text-secondary: #003836;
+  /* var(--color-textDark) */
+  --color-partner-btn: #004F4D;
+  /* var(--color-surface) */
   --color-partner-card: #F5F5F5;
-  --color-partner-border: #E5E5E5;
+  --color-partner-border: #ACDCD9;
+  /* var(--color-background) */
 }
 
 @layer base {

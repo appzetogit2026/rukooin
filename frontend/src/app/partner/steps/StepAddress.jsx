@@ -39,7 +39,7 @@ const StepAddress = () => {
 
                 <div className="form-field">
                     <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1 block">Address Line</label>
-                    <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-1 ring-black transition-all bg-white">
+                    <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-1 ring-[#004F4D] transition-all bg-white">
                         <MapPin size={18} className="text-gray-400 mr-2 shrink-0" />
                         <input
                             type="text"
@@ -56,7 +56,7 @@ const StepAddress = () => {
                         <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1 block">City</label>
                         <input
                             type="text"
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-black transition-colors bg-white text-sm"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-[#004F4D] transition-colors bg-white text-sm"
                             placeholder="City"
                             value={formData.address?.city || ''}
                             onChange={(e) => handleChange('city', e.target.value)}
@@ -68,7 +68,7 @@ const StepAddress = () => {
                             type="text"
                             inputMode="numeric"
                             maxLength={6}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-black transition-colors bg-white text-sm"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-[#004F4D] transition-colors bg-white text-sm"
                             placeholder="000000"
                             value={formData.address?.pincode || ''}
                             onChange={(e) => handleChange('pincode', e.target.value)}
@@ -79,7 +79,7 @@ const StepAddress = () => {
                 <div className="form-field">
                     <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1 block">State</label>
                     <select
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-black transition-colors bg-white appearance-none text-sm bg-transparent"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-[#004F4D] transition-colors bg-white appearance-none text-sm bg-transparent"
                         value={formData.address?.state || ''}
                         onChange={(e) => handleChange('state', e.target.value)}
                     >
@@ -95,7 +95,7 @@ const StepAddress = () => {
                     <label className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1 block">Nearby Landmark (Optional)</label>
                     <input
                         type="text"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-black transition-colors bg-white text-sm"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 outline-none font-medium focus:border-[#004F4D] transition-colors bg-white text-sm"
                         placeholder="e.g. Near Metro Station"
                         value={formData.address?.landmark || ''}
                         onChange={(e) => handleChange('landmark', e.target.value)}

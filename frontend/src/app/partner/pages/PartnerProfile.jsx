@@ -7,17 +7,17 @@ import usePartnerStore from '../store/partnerStore';
 const Field = ({ label, value, icon: Icon, isEditing, onChange }) => (
     <div className="mb-4">
         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block">{label}</label>
-        <div className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${isEditing ? 'bg-white border-black ring-1 ring-black/10' : 'bg-gray-50 border-gray-100'}`}>
+        <div className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${isEditing ? 'bg-white border-[#004F4D] ring-1 ring-[#004F4D]/10' : 'bg-gray-50 border-gray-100'}`}>
             <Icon size={16} className="text-gray-400" />
             {isEditing ? (
                 <input
                     type="text"
                     value={value}
                     onChange={onChange}
-                    className="flex-1 bg-transparent text-sm font-bold text-gray-900 focus:outline-none"
+                    className="flex-1 bg-transparent text-sm font-bold text-[#003836] focus:outline-none"
                 />
             ) : (
-                <span className="flex-1 text-sm font-bold text-gray-900 truncate">{value}</span>
+                <span className="flex-1 text-sm font-bold text-[#003836] truncate">{value}</span>
             )}
         </div>
     </div>
@@ -56,7 +56,7 @@ const PartnerProfile = () => {
 
                 {/* Avatar Section */}
                 <div className="text-center mb-8 relative">
-                    <div className="w-24 h-24 bg-black text-white rounded-full flex items-center justify-center text-3xl font-black mx-auto shadow-xl shadow-black/20 relative group overflow-hidden">
+                    <div className="w-24 h-24 bg-[#004F4D] text-white rounded-full flex items-center justify-center text-3xl font-black mx-auto shadow-xl shadow-[#004F4D]/20 relative group overflow-hidden">
                         {profile.name.substring(0, 2).toUpperCase()}
 
                         {/* Hover Overlay */}
@@ -72,7 +72,7 @@ const PartnerProfile = () => {
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 relative">
                     <button
                         onClick={() => setIsEditing(!isEditing)}
-                        className="absolute top-6 right-6 w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+                        className="absolute top-6 right-6 w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center hover:bg-[#004F4D] hover:text-white transition-colors"
                     >
                         {isEditing ? <Save size={18} /> : <Edit size={18} />}
                     </button>
