@@ -77,7 +77,7 @@ const JoinRokkooin = () => {
         } else {
             // Final Submit Logic
             console.log("Submitting Partner Form:", formData);
-            alert("Application Submitted! Welcome to Rokkooin.");
+            alert("Application Submitted! Welcome to Rukkoo.in.");
             navigate('/hotel/partner-dashboard');
         }
     };

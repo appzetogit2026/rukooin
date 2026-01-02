@@ -86,7 +86,7 @@ const UserLoginPage = () => {
                         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
                             <Sparkles className="text-surface" size={24} />
                         </div>
-                        <span className="text-2xl font-black text-white">RukkoIn</span>
+                        <span className="text-2xl font-black text-white">Rukkoo.in</span>
                     </div>
 
                     <h1 className="text-3xl font-black text-white mb-2">

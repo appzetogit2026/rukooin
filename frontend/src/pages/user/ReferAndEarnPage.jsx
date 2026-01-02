@@ -16,7 +16,7 @@ const ReferAndEarnPage = () => {
     // Mock User Data
     const referralData = {
         code: "HRITIK2024",
-        link: "https://rukkoin.com/r/HRITIK2024",
+        link: "https://rukkoo.in/r/HRITIK2024",
         earnings: {
             total: 1250,
             pending: 350,
@@ -44,9 +44,9 @@ const ReferAndEarnPage = () => {
 
     const shareOptions = [
         { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹200 off! ${referralData.link}`) },
-        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with RukkoIn! Use code: ${referralData.code}`) },
+        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with Rukkoo.in! Use code: ${referralData.code}`) },
         { icon: Facebook, label: "Facebook", color: "bg-[#4267B2]", action: () => { } },
-        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on RukkoIn&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
+        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on Rukkoo.in&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
     ];
 
     const howItWorks = [
@@ -151,8 +151,8 @@ const ReferAndEarnPage = () => {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === tab
-                                    ? 'bg-surface text-white shadow-lg shadow-surface/30'
-                                    : 'bg-white text-gray-500 border border-gray-200'
+                                ? 'bg-surface text-white shadow-lg shadow-surface/30'
+                                : 'bg-white text-gray-500 border border-gray-200'
                                 }`}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -187,8 +187,8 @@ const ReferAndEarnPage = () => {
                                         <button
                                             onClick={handleCopy}
                                             className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-300 ${copied
-                                                    ? 'bg-green-500 text-white scale-95'
-                                                    : 'bg-surface text-white hover:bg-surface/90'
+                                                ? 'bg-green-500 text-white scale-95'
+                                                : 'bg-surface text-white hover:bg-surface/90'
                                                 }`}
                                         >
                                             {copied ? <CheckCircle size={24} /> : <Copy size={24} />}
@@ -362,8 +362,8 @@ const ReferAndEarnPage = () => {
                                                 +₹{item.reward}
                                             </p>
                                             <span className={`text-[10px] font-bold uppercase ${item.status === 'completed'
-                                                    ? 'text-green-600 bg-green-50'
-                                                    : 'text-yellow-600 bg-yellow-50'
+                                                ? 'text-green-600 bg-green-50'
+                                                : 'text-yellow-600 bg-yellow-50'
                                                 } px-2 py-0.5 rounded-full`}>
                                                 {item.status}
                                             </span>

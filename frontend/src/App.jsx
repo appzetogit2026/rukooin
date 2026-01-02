@@ -27,6 +27,7 @@ import PartnerProfile from './app/partner/pages/PartnerProfile';
 import PartnerTransactions from './app/partner/pages/PartnerTransactions';
 import PartnerTerms from './app/partner/pages/PartnerTerms';
 import PartnerSettings from './app/partner/pages/PartnerSettings';
+import RoomManager from './app/partner/pages/RoomManager';
 
 // User Pages
 import SearchPage from './pages/user/SearchPage';
@@ -102,6 +103,7 @@ function App() {
             <Route index element={<PartnerHome />} />
             {/* Wizard Route */}
             <Route path="join" element={<JoinRokkooin />} />
+            <Route path="rooms" element={<RoomManager />} />
             <Route path="partner-dashboard" element={<PartnerDashboard />} />
             <Route path="dashboard" element={<PartnerDashboard />} />
 

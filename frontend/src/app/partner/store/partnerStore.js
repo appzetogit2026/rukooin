@@ -12,6 +12,7 @@ const INITIAL_DATA = {
     images: [],
     kyc: {},
     phone: '',
+    rooms: [],
 };
 
 const usePartnerStore = create(
@@ -26,6 +27,26 @@ const usePartnerStore = create(
                 prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
                 updateFormData: (data) => set((state) => ({ formData: { ...state.formData, ...data } })),
                 resetForm: () => set({ currentStep: 1, formData: INITIAL_DATA }),
+
+                // Room Management Actions
+                addRoom: (room) => set((state) => ({
+                    formData: {
+                        ...state.formData,
+                        rooms: [...(state.formData.rooms || []), { ...room, id: Date.now().toString(), createdAt: new Date() }]
+                    }
+                })),
+                updateRoom: (roomId, updates) => set((state) => ({
+                    formData: {
+                        ...state.formData,
+                        rooms: (state.formData.rooms || []).map(r => r.id === roomId ? { ...r, ...updates } : r)
+                    }
+                })),
+                deleteRoom: (roomId) => set((state) => ({
+                    formData: {
+                        ...state.formData,
+                        rooms: (state.formData.rooms || []).filter(r => r.id !== roomId)
+                    }
+                })),
             }),
             {
                 name: 'partner-registration-storage', // unique name

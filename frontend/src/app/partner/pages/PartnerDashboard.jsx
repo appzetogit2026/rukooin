@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Image, MapPin, List, LayoutDashboard, Plus, Eye, Trash2, Edit, Star, CheckCircle } from 'lucide-react';
+import { Settings, Image, MapPin, List, LayoutDashboard, Plus, Eye, Trash2, Edit, Star, CheckCircle, BedDouble } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
 import { useLenis } from '../../shared/hooks/useLenis';
 
@@ -28,6 +28,11 @@ const PartnerDashboard = () => {
     const handleEdit = (prop) => {
         updateFormData(prop);
         navigate('/hotel/join');
+    };
+
+    const handleManageRooms = (prop) => {
+        updateFormData(prop);
+        navigate('/hotel/rooms');
     };
 
     const handleDelete = (id) => {
@@ -184,13 +189,18 @@ const PartnerDashboard = () => {
                                 )}
 
                                 {/* Action Footer */}
-                                <div className="flex gap-3 pt-6 border-t border-dashed border-gray-200">
-                                    <button onClick={() => handleEdit(prop)} className="flex-1 bg-[#004F4D] text-white h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-[#004F4D]/20 hover:shadow-xl hover:bg-[#003836]">
-                                        <Edit size={16} /> Edit Details
+                                <div className="flex flex-col gap-3 pt-6 border-t border-dashed border-gray-200">
+                                    <button onClick={() => handleManageRooms(prop)} className="w-full bg-[#004F4D] text-white h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-[#004F4D]/20 hover:shadow-xl hover:bg-[#003836]">
+                                        <BedDouble size={16} /> Manage Rooms & Prices
                                     </button>
-                                    <button onClick={() => handleDelete(prop.id)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 active:scale-95 transition-all">
-                                        <Trash2 size={18} />
-                                    </button>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => handleEdit(prop)} className="flex-1 bg-white border-2 border-gray-100 text-gray-900 h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition-all">
+                                            <Edit size={16} /> Edit Details
+                                        </button>
+                                        <button onClick={() => handleDelete(prop.id)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 active:scale-95 transition-all">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

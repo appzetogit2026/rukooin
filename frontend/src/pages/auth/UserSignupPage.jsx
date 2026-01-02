@@ -99,7 +99,7 @@ const UserSignupPage = () => {
                         <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
                             <Sparkles className="text-surface" size={24} />
                         </div>
-                        <span className="text-2xl font-black text-white">RukkoIn</span>
+                        <span className="text-2xl font-black text-white">Rukkoo.in</span>
                     </div>
 
                     <h1 className="text-3xl font-black text-white mb-2">
@@ -107,7 +107,7 @@ const UserSignupPage = () => {
                     </h1>
                     <p className="text-white/70 text-sm">
                         {step === 'details'
-                            ? 'Join RukkoIn for amazing hotel deals'
+                            ? 'Join Rukkoo.in for amazing hotel deals'
                             : `Enter the code sent to +91 ${formData.phone}`
                         }
                     </p>

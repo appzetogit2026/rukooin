@@ -78,7 +78,7 @@ const HotelLoginPage = () => {
                             <Building2 className="text-amber-600" size={28} />
                         </div>
                         <div>
-                            <span className="text-2xl font-black text-white block">RukkoIn</span>
+                            <span className="text-2xl font-black text-white block">Rukkoo.in</span>
                             <span className="text-xs text-white/60 font-medium">Partner Portal</span>
                         </div>
                     </div>
