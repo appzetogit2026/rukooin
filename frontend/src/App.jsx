@@ -12,6 +12,7 @@ import UserSignup from './pages/auth/UserSignup';
 
 // Admin Auth Pages
 import AdminLogin from './app/admin/pages/AdminLogin';
+import AdminSignup from './app/admin/pages/AdminSignup';
 
 
 // Partner Pages (New Module)
