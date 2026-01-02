@@ -75,9 +75,25 @@ const JoinRokkooin = () => {
         if (currentStep < steps.length) {
             nextStep();
         } else {
-            // Final Submit Logic
-            console.log("Submitting Partner Form:", formData);
-            alert("Application Submitted! Welcome to Rukkoo.in.");
+            // Final Submit Logic - Send to Admin for Approval
+            const propertySubmission = {
+                ...formData,
+                status: 'PENDING_APPROVAL',
+                submittedAt: new Date().toISOString(),
+                partnerId: 'PARTNER-' + Math.floor(Math.random() * 10000),
+            };
+
+            console.log("Property Listing Request Submitted to Admin:", propertySubmission);
+
+            // TODO: API Call to backend
+            // await axios.post('/api/admin/property-requests', propertySubmission);
+
+            // Store in localStorage for demo (simulating backend)
+            const existingRequests = JSON.parse(localStorage.getItem('propertyRequests') || '[]');
+            existingRequests.push(propertySubmission);
+            localStorage.setItem('propertyRequests', JSON.stringify(existingRequests));
+
+            alert("✅ Property Listing Request Submitted!\n\nYour property details have been sent to admin for review. You'll be notified once approved.");
             navigate('/hotel/partner-dashboard');
         }
     };

@@ -6,13 +6,44 @@ import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
 import Lenis from 'lenis';
 
-// Auth Pages
-import UserLoginPage from './pages/auth/UserLoginPage';
-import UserSignupPage from './pages/auth/UserSignupPage';
-import AdminLoginPage from './pages/auth/AdminLoginPage';
+// User Auth Pages
+import UserLogin from './pages/auth/UserLogin';
+import UserSignup from './pages/auth/UserSignup';
+
+// Admin Auth Pages
+import AdminLogin from './app/admin/pages/AdminLogin';
+
 
 // Partner Pages (New Module)
+
 import HotelLayout from './layouts/HotelLayout';
+import AdminLayout from './app/admin/layouts/AdminLayout';
+import AdminDashboard from './app/admin/pages/AdminDashboard';
+import AdminHotels from './app/admin/pages/AdminHotels';
+
+import AdminHotelDetail from './app/admin/pages/AdminHotelDetail';
+import AdminUsers from './app/admin/pages/AdminUsers';
+import AdminUserDetail from './app/admin/pages/AdminUserDetail';
+
+import AdminBookings from './app/admin/pages/AdminBookings';
+import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
+
+import AdminPropertyRequests from './app/admin/pages/AdminPropertyRequests';
+import AdminReviews from './app/admin/pages/AdminReviews';
+import AdminFinance from './app/admin/pages/AdminFinance';
+import AdminEarnings from './app/admin/pages/AdminEarnings';
+import AdminSettings from './app/admin/pages/AdminSettings';
+
+
+
+
+
+
+
+
+
+// Hotel Partner Auth & Pages
+import HotelLogin from './app/partner/pages/HotelLogin';
 import PartnerHome from './app/partner/pages/PartnerHome';
 import JoinRokkooin from './app/partner/pages/JoinRokkooin';
 import PartnerDashboard from './app/partner/pages/PartnerDashboard';
@@ -93,12 +124,13 @@ function App() {
       <Layout>
         <Routes>
           {/* User Auth Routes */}
-          <Route path="/login" element={<UserLoginPage />} />
-          <Route path="/signup" element={<UserSignupPage />} />
+          <Route path="/login" element={<UserLogin />} />
+          <Route path="/signup" element={<UserSignup />} />
 
 
 
-          {/* Hotel/Vendor Module Routes - NEW ARCHITECTURE */}
+          {/* Hotel/Partner Module Routes */}
+          <Route path="/hotel/login" element={<HotelLogin />} />
           <Route path="/hotel" element={<HotelLayout />}>
             <Route index element={<PartnerHome />} />
             {/* Wizard Route */}
@@ -123,7 +155,34 @@ function App() {
           </Route>
 
           {/* Admin Auth Routes */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/signup" element={<AdminSignup />} />
+
+          {/* Admin App Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:id" element={<AdminUserDetail />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="bookings/:id" element={<AdminBookingDetail />} />
+            <Route path="property-requests" element={<AdminPropertyRequests />} />
+            <Route path="reviews" element={<AdminReviews />} />
+            <Route path="finance" element={<AdminFinance />} />
+            <Route path="earnings" element={<AdminEarnings />} />
+            <Route path="settings" element={<AdminSettings />} />
+
+
+
+
+            <Route path="hotels" element={<AdminHotels />} />
+
+            <Route path="hotels/:id" element={<AdminHotelDetail />} />
+
+            {/* Add more admin routes here later */}
+          </Route>
+
+
 
           {/* User Pages */}
           <Route path="/" element={<Home />} />
