@@ -4,7 +4,7 @@ import Home from './pages/user/Home';
 import HotelDetails from './pages/user/HotelDetails';
 import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
-import Lenis from 'lenis';
+// import Lenis from 'lenis'; // Removed manual import
 
 // User Auth Pages
 import UserLogin from './pages/auth/UserLogin';
@@ -70,10 +70,24 @@ import WalletPage from './pages/user/WalletPage';
 import PaymentPage from './pages/user/PaymentPage';
 import SupportPage from './pages/user/SupportPage';
 import ReferAndEarnPage from './pages/user/ReferAndEarnPage';
+import SavedPlacesPage from './pages/user/SavedPlacesPage';
+import NotificationsPage from './pages/user/NotificationsPage';
+import SettingsPage from './pages/user/SettingsPage';
+import PartnerLandingPage from './pages/user/PartnerLandingPage';
+import LegalPage from './pages/user/LegalPage';
+import AmenitiesPage from './pages/user/AmenitiesPage';
+import ReviewsPage from './pages/user/ReviewsPage';
+import OffersPage from './pages/user/OffersPage';
 
-// Wrapper to conditionally render Navbars
+import { useLenis } from './app/shared/hooks/useLenis';
+
+// Wrapper to conditionally render Navbars & Handle Lenis
 const Layout = ({ children }) => {
   const location = useLocation();
+
+  // Disable Lenis on Admin routes only (as requested)
+  const isCmsRoute = location.pathname.startsWith('/admin');
+  useLenis(isCmsRoute);
 
   // Routes where navbars should be completely hidden
   const hideAllNavRoutes = ['/login', '/signup', '/register', '/admin', '/hotel'];
@@ -100,26 +114,6 @@ const Layout = ({ children }) => {
 };
 
 function App() {
-  // Initialize Smooth Scrolling (Lenis)
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      infinite: false,
-    });
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
-
   return (
     <Router>
       <Layout>
@@ -188,6 +182,9 @@ function App() {
           {/* User Pages */}
           <Route path="/" element={<Home />} />
           <Route path="/hotel/:id" element={<HotelDetails />} />
+          <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
+          <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
+          <Route path="/hotel/:id/offers" element={<OffersPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/listings" element={<ListingPage />} />
@@ -196,6 +193,11 @@ function App() {
           <Route path="/support" element={<SupportPage />} />
           <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
           <Route path="/refer" element={<ReferAndEarnPage />} />
+          <Route path="/saved-places" element={<SavedPlacesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/partner-landing" element={<PartnerLandingPage />} />
+          <Route path="/legal" element={<LegalPage />} />
 
           {/* Placeholder Routes */}
           <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />

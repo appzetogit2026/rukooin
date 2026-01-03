@@ -64,7 +64,10 @@ const HeroSection = () => {
                 </div>
 
                 {/* Wallet Balance Display */}
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 backdrop-blur-sm border border-white/40 shadow-sm">
+                <button
+                    onClick={() => navigate('/wallet')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 backdrop-blur-sm border border-white/40 shadow-sm active:scale-95 transition-transform"
+                >
                     <div className="w-5 h-5 bg-surface rounded-full flex items-center justify-center">
                         <Wallet size={12} className="text-white" />
                     </div>

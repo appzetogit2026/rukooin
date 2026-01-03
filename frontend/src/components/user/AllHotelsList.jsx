@@ -1,12 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, ShieldCheck } from 'lucide-react';
-import HotelCard from '../cards/HotelCard'; // Reusing your existing card
+import { ChevronDown, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import FilterBottomSheet from '../modals/FilterBottomSheet';
+
+const ListingCard = ({ hotel }) => {
+    const navigate = useNavigate();
+
+    // Check if saved via local storage
+    const [isSaved, setIsSaved] = useState(() => {
+        const saved = localStorage.getItem('savedHotels');
+        if (!saved) return false;
+        return JSON.parse(saved).some(h => h.id === hotel.id);
+    });
+
+    const toggleSave = (e) => {
+        e.stopPropagation(); // Prevent navigation
+        const newState = !isSaved;
+        setIsSaved(newState);
+
+        const currentSaved = JSON.parse(localStorage.getItem('savedHotels') || '[]');
+        if (newState) {
+            // Add
+            const newItem = {
+                id: hotel.id,
+                image: hotel.image,
+                name: hotel.name,
+                location: hotel.location,
+                price: hotel.price,
+                rating: hotel.rating
+            };
+            localStorage.setItem('savedHotels', JSON.stringify([...currentSaved, newItem]));
+        } else {
+            // Remove
+            const filtered = currentSaved.filter(h => h.id !== hotel.id);
+            localStorage.setItem('savedHotels', JSON.stringify(filtered));
+        }
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="w-full"
+            onClick={() => navigate(`/hotel/${hotel.id}`)}
+        >
+            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 w-full group cursor-pointer hover:shadow-md transition-all duration-300">
+                <div className="relative h-48 w-full">
+                    <img src={hotel.image} className="w-full h-full object-cover" alt={hotel.name} />
+                    {/* Badge */}
+                    <div className="absolute top-3 left-3 bg-white/90 px-2 py-1 rounded text-xs font-bold text-surface flex items-center gap-1 shadow-sm">
+                        <ShieldCheck size={12} className="text-surface" /> Company-Serviced
+                    </div>
+
+                    {/* Heart Button */}
+                    <motion.button
+                        whileTap={{ scale: 0.8 }}
+                        onClick={toggleSave}
+                        className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/30 transition-colors z-10"
+                    >
+                        <Heart
+                            size={18}
+                            className={`transition-colors duration-300 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                        />
+                    </motion.button>
+                </div>
+                <div className="p-4">
+                    <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-bold text-surface">{hotel.name}</h3>
+                        <div className="flex items-center gap-1 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-bold">
+                            {hotel.rating} <span className="text-[10px]">★</span>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{hotel.location}</p>
+
+                    <div className="mt-4 flex gap-2 items-center">
+                        <span className="text-xl font-bold text-surface">₹{hotel.price}</span>
+                        <span className="text-xs text-gray-400 line-through">₹{parseInt(hotel.price) + 800}</span>
+                        <span className="text-xs font-bold text-orange-500">38% OFF</span>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
 
 const AllHotelsList = () => {
     const [sortOpen, setSortOpen] = useState(false);
-
     const [activeSort, setActiveSort] = useState("Recommended");
     const [filterSheetOpen, setFilterSheetOpen] = useState(false);
     const [scrollTarget, setScrollTarget] = useState(null);
@@ -65,7 +147,6 @@ const AllHotelsList = () => {
             </div>
 
             {/* 2. Filter / Sort Row */}
-            {/* 2. Filter / Sort Row */}
             <div className="flex gap-3 mb-6 overflow-x-auto no-scrollbar items-center pr-2">
                 {/* Sort Button */}
                 <button
@@ -117,7 +198,7 @@ const AllHotelsList = () => {
                 </button>
             </div>
 
-            {/* 3. Sort Options Dropdown (Simple animation) */}
+            {/* 3. Sort Options Dropdown */}
             <AnimatePresence>
                 {sortOpen && (
                     <motion.div
@@ -144,58 +225,7 @@ const AllHotelsList = () => {
             {/* 4. Vertical List of Large Cards */}
             <div className="flex flex-col gap-6">
                 {hotels.map((hotel, index) => (
-                    /* Using a Wrapper to make card full width in vertical list */
-                    <motion.div
-                        key={hotel.id}
-                        className="w-full"
-                        initial={{ opacity: 0, y: 50 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, amount: 0.2 }}
-                        transition={{ duration: 0.5, ease: "easeOut", delay: index % 3 * 0.1 }}
-                    >
-                        {/* 
-                   Using a slightly modified version of HotelCard or custom UI here. 
-                   Since we have HotelCard reusable, let's wrap it to fit width 
-                   Currently HotelCard has fixed width w-[280px], we might need to override it via class or create a 'ListingCard'
-                   Let's assume Hotel Card accepts className override. We'll edit HotelCard if needed, but for now let's wrap.
-                */}
-                        <div className="w-full transform scale-100 origin-left">
-                            {/* 
-                        Note: Our current HotelCard is fixed width (w-[280px]).
-                        We should probably refactor HotelCard to accept `className` for width.
-                        For now, I will use a simple inline style to force width: 100% via a new component style if needed.
-                        Or better, I'll allow HotelCard to be flexible. 
-                     */}
-                            {/* Temporary: Render a new Listing Card style that matches the vertical list (Image Top, Details Bottom) */}
-                            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 w-full group cursor-pointer hover:shadow-md transition-all duration-300">
-                                <div className="relative h-48 w-full">
-                                    <img src={hotel.image} className="w-full h-full object-cover" />
-                                    {/* Badge */}
-                                    <div className="absolute top-3 left-3 bg-white/90 px-2 py-1 rounded text-xs font-bold text-surface flex items-center gap-1 shadow-sm">
-                                        <ShieldCheck size={12} className="text-surface" /> Company-Serviced
-                                    </div>
-                                    <button className="absolute top-3 right-3 p-1.5 bg-white/50 backdrop-blur-md rounded-full hover:bg-white text-surface transition">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                    </button>
-                                </div>
-                                <div className="p-4">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="text-lg font-bold text-surface">{hotel.name}</h3>
-                                        <div className="flex items-center gap-1 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-bold">
-                                            {hotel.rating} <span className="text-[10px]">★</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-1">{hotel.location}</p>
-
-                                    <div className="mt-4 flex gap-2 items-center">
-                                        <span className="text-xl font-bold text-surface">₹{hotel.price}</span>
-                                        <span className="text-xs text-gray-400 line-through">₹{parseInt(hotel.price) + 800}</span>
-                                        <span className="text-xs font-bold text-orange-500">38% OFF</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
+                    <ListingCard key={hotel.id} hotel={hotel} />
                 ))}
             </div>
 

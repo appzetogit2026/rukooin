@@ -3,34 +3,45 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell } from 'lucide-react';
 import logo from '../../assets/rokologin-removebg-preview.png';
 
+import { useNavigate } from 'react-router-dom';
+
 const MobileMenu = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
+
     // Grouped Menu Items
     const bookingItems = [
-        { icon: BookOpen, label: 'My Bookings' },
-        { icon: Heart, label: 'Saved Places' },
-        { icon: Wallet, label: 'View Wallet' },
+        { icon: BookOpen, label: 'My Bookings', path: '/bookings' },
+        { icon: Heart, label: 'Saved Places', path: '/saved-places' },
+        { icon: Wallet, label: 'View Wallet', path: '/wallet' },
     ];
 
     const growthItems = [
-        { icon: Building, label: 'List your property' },
-        { icon: Briefcase, label: 'Corporates / Partner' },
-        { icon: Gift, label: 'Refer & Earn' },
+        { icon: Building, label: 'List your property', path: '/partner-landing' },
+        { icon: Briefcase, label: 'Corporates / Partner', path: '/partner-landing' },
+        { icon: Gift, label: 'Refer & Earn', path: '/refer' },
     ];
 
     const settingItems = [
-        { icon: Bell, label: 'Notifications' },
-        { icon: Settings, label: 'Settings' },
-        { icon: HelpCircle, label: 'Need Help?' },
+        { icon: Bell, label: 'Notifications', path: '/notifications' },
+        { icon: Settings, label: 'Settings', path: '/settings' },
+        { icon: HelpCircle, label: 'Need Help?', path: '/support' },
     ];
 
     const legalItems = [
-        { icon: Shield, label: 'Privacy Policy', link: '#' },
-        { icon: FileText, label: 'Terms & Conditions', link: '#' },
+        { icon: Shield, label: 'Privacy Policy', path: '/legal' },
+        { icon: FileText, label: 'Terms & Conditions', path: '/legal' },
     ];
 
-    const MenuItem = ({ icon: Icon, label, onClick }) => (
+    const handleNavigation = (path) => {
+        if (path) {
+            navigate(path);
+            onClose();
+        }
+    };
+
+    const MenuItem = ({ icon: Icon, label, path, onClick }) => (
         <button
-            onClick={onClick}
+            onClick={() => handleNavigation(path)}
             className="flex items-center gap-4 w-full p-2.5 hover:bg-gray-50 rounded-xl transition-all group active:scale-95"
         >
             <div className="w-8 h-8 rounded-full bg-surface/5 flex items-center justify-center group-hover:bg-surface/10 transition-colors">
@@ -40,6 +51,15 @@ const MobileMenu = ({ isOpen, onClose }) => {
             <ChevronRight size={14} className="text-gray-300 group-hover:text-surface transition-colors" />
         </button>
     );
+
+    const handleLogout = () => {
+        // Clear local storage or session tokens
+        localStorage.clear();
+        // Close menu
+        onClose();
+        // Navigate to login
+        navigate('/login');
+    };
 
     return (
         <AnimatePresence>
@@ -89,9 +109,14 @@ const MobileMenu = ({ isOpen, onClose }) => {
                                     </div>
                                 </div>
 
-                                <button className="mt-4 w-full py-2 bg-white text-surface text-xs font-bold rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-                                    Login / Signup
-                                </button>
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={() => handleNavigation('/login')} className="flex-1 py-2 bg-white text-surface text-xs font-bold rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
+                                        Login
+                                    </button>
+                                    <button onClick={() => handleNavigation('/signup')} className="flex-1 py-2 bg-white/10 text-white border border-white/20 text-xs font-bold rounded-lg hover:bg-white/20 transition-colors">
+                                        Signup
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -124,11 +149,18 @@ const MobileMenu = ({ isOpen, onClose }) => {
                             {/* Section 4: Legal */}
                             <div className="pt-2 border-t border-gray-100">
                                 {legalItems.map((item, idx) => (
-                                    <button key={idx} className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors">
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleNavigation(item.path)}
+                                        className="flex items-center gap-3 w-full p-2 hover:text-surface transition-colors"
+                                    >
                                         <span className="text-xs font-medium text-gray-400 hover:text-surface">{item.label}</span>
                                     </button>
                                 ))}
-                                <button className="mt-4 flex items-center gap-2 text-red-500 font-medium text-xs px-2 hover:opacity-80">
+                                <button
+                                    onClick={handleLogout}
+                                    className="mt-4 flex items-center gap-2 text-red-500 font-medium text-xs px-2 hover:opacity-80"
+                                >
                                     <LogOut size={14} /> Log Out
                                 </button>
                             </div>

@@ -5,8 +5,10 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export const useLenis = () => {
+export const useLenis = (disabled = false) => {
     useEffect(() => {
+        if (disabled) return;
+
         const lenis = new Lenis({
             duration: 1.2,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -19,15 +21,17 @@ export const useLenis = () => {
         lenis.on('scroll', ScrollTrigger.update);
 
         // Use GSAP ticker to drive Lenis for perfect sync
-        gsap.ticker.add((time) => {
+        const update = (time) => {
             lenis.raf(time * 1000);
-        });
+        };
+
+        gsap.ticker.add(update);
 
         gsap.ticker.lagSmoothing(0);
 
         return () => {
             lenis.destroy();
-            gsap.ticker.remove(lenis.raf);
+            gsap.ticker.remove(update);
         };
-    }, []);
+    }, [disabled]);
 };

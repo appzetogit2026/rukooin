@@ -7,11 +7,28 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BookingBottomSheet from '../../components/modals/BookingBottomSheet';
+import showSaveToast from '../../utils/toastUtils.jsx';
 
 const HotelDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [imgError, setImgError] = useState({});
+    const [currentImgIndex, setCurrentImgIndex] = useState(0);
+    const imageContainerRef = useRef(null);
+
+    // Reset scroll on ID change
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [id]);
+
+    const handleImageScroll = () => {
+        if (imageContainerRef.current) {
+            const scrollLeft = imageContainerRef.current.scrollLeft;
+            const width = imageContainerRef.current.offsetWidth;
+            const index = Math.round(scrollLeft / width);
+            setCurrentImgIndex(index);
+        }
+    };
 
     // Scroll Spy State
     const [activeTab, setActiveTab] = useState('Overview');
@@ -30,53 +47,87 @@ const HotelDetails = () => {
     // Placeholder Image
     const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?w=800&q=80";
 
-    const hotel = {
-        name: "Super Collection O Ring Road Bhawarkua Indore",
-        location: "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road",
-        price: "898",
-        originalPrice: "4386",
-        rating: "4.6",
-        ratingCount: "1139 ratings",
-        checkInRating: "5.0",
-        images: [
-            "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
-            "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400&q=80",
-            "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400&q=80",
-            "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80",
-            "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400&q=80"
-        ],
-        amenities: [
-            { icon: Wifi, name: "Free Wifi" },
-            { icon: Coffee, name: "Breakfast" },
-            { icon: Car, name: "Parking" },
-            { icon: Shield, name: "Sanitized" },
-            { icon: Utensils, name: "Restaurant" },
-            { icon: Users, name: "Reception" }
-        ],
-        whyChoose: [
-            {
-                title: "Express check-in",
-                image: "https://images.unsplash.com/photo-1556740758-90de374c12ad?w=400&q=80",
-                video: true
-            },
-            {
-                title: "Spacious and hygienic rooms",
-                image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80",
-                video: false
-            },
-            {
-                title: "Premium Amenities",
-                image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&q=80",
-                video: false
-            }
-        ],
-        ratings: [
-            { label: "Cleanliness", score: 4.8 },
-            { label: "Location", score: 4.5 },
-            { label: "Check-in", score: 5.0 },
-            { label: "Value", score: 4.7 }
-        ]
+    // Mock Data Generator based on ID
+    const getHotelData = (hotelId) => {
+        const base = {
+            name: "Super Collection O Ring Road Bhawarkua Indore",
+            location: "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road",
+            price: "898",
+            originalPrice: "4386",
+            rating: "4.6",
+            ratingCount: "1139 ratings",
+            checkInRating: "5.0",
+            images: [
+                "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
+                "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400&q=80",
+                "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400&q=80",
+                "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80",
+                "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400&q=80"
+            ],
+            amenities: [
+                { icon: Wifi, name: "Free Wifi" },
+                { icon: Coffee, name: "Breakfast" },
+                { icon: Car, name: "Parking" },
+                { icon: Shield, name: "Sanitized" },
+                { icon: Utensils, name: "Restaurant" },
+                { icon: Users, name: "Reception" }
+            ],
+            whyChoose: [
+                {
+                    title: "Express check-in",
+                    image: "https://images.unsplash.com/photo-1556740758-90de374c12ad?w=400&q=80",
+                    video: true
+                },
+                {
+                    title: "Spacious and hygienic rooms",
+                    image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80",
+                    video: false
+                },
+                {
+                    title: "Premium Amenities",
+                    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&q=80",
+                    video: false
+                }
+            ],
+            ratings: [
+                { label: "Cleanliness", score: 4.8 },
+                { label: "Location", score: 4.5 },
+                { label: "Check-in", score: 5.0 },
+                { label: "Value", score: 4.7 }
+            ]
+        };
+
+        // Simple variation based on ID parity/number
+        const numId = parseInt(hotelId) || 100;
+        if (numId % 2 !== 0) {
+            return {
+                ...base,
+                name: "Rukko Premier: Skyline View " + numId,
+                location: "Vijay Nagar, Near C21 Mall, Indore",
+                price: "1299",
+                originalPrice: "5000",
+                rating: "4.8",
+                images: [...base.images].reverse() // Rotate images for visual difference
+            };
+        }
+        if (numId % 3 === 0) {
+            return {
+                ...base,
+                name: "Rukko Townhouse: Elite " + numId,
+                location: "Bhawarkua Main Road, Indore",
+                price: "1599",
+                originalPrice: "6500",
+                rating: "4.9",
+                images: [
+                    "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
+                    ...base.images
+                ]
+            };
+        }
+        return base;
     };
+
+    const hotel = getHotelData(id);
 
     // Scroll Spy & Sticky Header Logic
     useEffect(() => {
@@ -152,8 +203,16 @@ const HotelDetails = () => {
                     )}
 
                     <div className="flex gap-3">
-                        <button className={`${showStickyHeader ? 'bg-gray-100 text-surface' : 'bg-white/80 backdrop-blur-md text-surface'} p-2 rounded-full shadow-sm transition`}>
-                            <Heart size={20} />
+                        <button
+                            onClick={() => {
+                                // Toggle save (mock)
+                                const saved = localStorage.getItem('isMainHotelSaved') === 'true';
+                                localStorage.setItem('isMainHotelSaved', !saved);
+                                showSaveToast(!saved);
+                            }}
+                            className={`${showStickyHeader ? 'bg-gray-100 text-surface' : 'bg-white/80 backdrop-blur-md text-surface'} p-2 rounded-full shadow-sm transition active:scale-95`}
+                        >
+                            <Heart size={20} className={localStorage.getItem('isMainHotelSaved') === 'true' ? "fill-red-500 text-red-500" : ""} />
                         </button>
                     </div>
                 </div>
@@ -199,45 +258,76 @@ const HotelDetails = () => {
                 )}
             </div>
 
-            {/* 2. Hero Image */}
-            <div className="relative w-full bg-white overflow-hidden pb-4">
-                <div className="w-full h-[320px] relative">
-                    <img
-                        src={getDisplayImage(hotel.images[0], 0)}
-                        onError={() => handleImgError(0)}
-                        alt={hotel.name}
-                        className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">
-                        1 / 37
-                    </div>
-                </div>
-                <div className="mt-4 px-4 flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                    {hotel.images.slice(0, 4).map((img, i) => (
-                        <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border border-gray-100 shadow-sm group cursor-pointer">
+            {/* 2. Hero Image Carousel */}
+            <div className="relative w-full h-[320px] bg-white overflow-hidden">
+                <div
+                    ref={imageContainerRef}
+                    onScroll={handleImageScroll}
+                    className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+                >
+                    {hotel.images.map((img, i) => (
+                        <div key={i} className="relative w-full h-full flex-shrink-0 snap-center">
                             <img
                                 src={getDisplayImage(img, i)}
                                 onError={() => handleImgError(i)}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                alt={`${hotel.name} - ${i + 1}`}
+                                className="w-full h-full object-cover"
                             />
-                            {/* Label Overlay */}
-                            {i !== 3 && (
-                                <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/80 to-transparent p-1 pt-4 text-center">
-                                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">
-                                        {i === 0 ? "Room" : i === 1 ? "Lobby" : "Facade"}
-                                    </span>
-                                </div>
-                            )}
-                            {/* See All Overlay */}
-                            {i === 3 && (
-                                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white p-1">
-                                    <span className="text-xl font-bold">+34</span>
-                                    <span className="text-[8px] font-bold uppercase tracking-wider">Photos</span>
-                                </div>
-                            )}
+                            {/* Image Category Label (moved to top-left with more padding for header) */}
+                            <div className="absolute top-16 left-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
+                                <span className="text-white text-xs font-bold tracking-wide">
+                                    {i === 0 ? "Bedroom" : i === 1 ? "Reception Area" : i === 2 ? "Lobby & Waiting" : i === 3 ? "Washroom" : "Hotel Facade"}
+                                </span>
+                            </div>
                         </div>
                     ))}
+
+                    {/* Gradients */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none"></div>
+                </div>
+
+                {/* Counter Badge (Moved to Top Right) */}
+                <div className="absolute top-16 right-4 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10">
+                    {currentImgIndex + 1} / {hotel.images.length}
+                </div>
+
+                {/* Thumbnails (Overlay at Bottom) */}
+                <div className="absolute bottom-4 left-0 right-0 px-4 z-20">
+                    <p className="text-white text-xs font-bold mb-2 ml-1 drop-shadow-md">Photos</p>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 mask-linear-fade">
+                        {hotel.images.slice(0, 10).map((img, i) => (
+                            <div
+                                key={i}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (imageContainerRef.current) {
+                                        imageContainerRef.current.scrollTo({
+                                            left: i * imageContainerRef.current.offsetWidth,
+                                            behavior: 'smooth'
+                                        });
+                                    }
+                                }}
+                                className={`relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 shadow-lg cursor-pointer transition-all ${currentImgIndex === i ? 'border-surface scale-105 ring-2 ring-black/20' : 'border-white/50 opacity-90'}`}
+                            >
+                                <img
+                                    src={getDisplayImage(img, i)}
+                                    onError={() => handleImgError(i)}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-0.5 text-center">
+                                    <span className="text-[7px] font-bold text-white uppercase tracking-wider block truncate">
+                                        {i === 0 ? "Room" : i === 1 ? "Recep." : i === 2 ? "Lobby" : i === 3 ? "Wash." : "View"}
+                                    </span>
+                                </div>
+                                {/* See All Overlay for last item */}
+                                {i === 9 && hotel.images.length > 10 && (
+                                    <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white p-1">
+                                        <span className="text-lg font-bold">+{hotel.images.length - 10}</span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -291,7 +381,7 @@ const HotelDetails = () => {
                             </div>
                         </div>
                     </div>
-                    <p className="text-xs font-bold text-blue-600 mt-2 ml-1">View all offers</p>
+                    <button onClick={() => navigate(`/hotel/${id || 1}/offers`)} className="text-xs font-bold text-blue-600 mt-2 ml-1 hover:underline">View all offers</button>
                 </section>
 
                 {/* 5. Booking Details Section */}
@@ -391,7 +481,10 @@ const HotelDetails = () => {
                     </div>
 
                     <div className="mt-4">
-                        <button className="w-full py-3 bg-white border border-gray-200 text-surface font-bold text-sm rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+                        <button
+                            onClick={() => navigate(`/hotel/${id || 1}/reviews`)}
+                            className="w-full py-3 bg-white border border-gray-200 text-surface font-bold text-sm rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                        >
                             View all 1,139 reviews
                         </button>
                     </div>
@@ -414,14 +507,15 @@ const HotelDetails = () => {
                                 <span className="text-[10px] text-gray-600 font-bold leading-tight">{am.name}</span>
                             </motion.div>
                         ))}
-                        <motion.div
+                        <motion.button
+                            onClick={() => navigate(`/hotel/${id || 1}/amenities`)}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="flex flex-col items-center justify-center gap-1 p-3 rounded-2xl border border-blue-100 bg-blue-50 cursor-pointer"
+                            className="flex flex-col items-center justify-center gap-1 p-3 rounded-2xl border border-blue-100 bg-blue-50 cursor-pointer w-full"
                         >
                             <span className="text-lg font-black text-blue-600">+12</span>
                             <span className="text-[10px] font-bold text-blue-600">More</span>
-                        </motion.div>
+                        </motion.button>
                     </div>
                 </section>
 
@@ -432,7 +526,11 @@ const HotelDetails = () => {
                         {[1, 2, 3, 4].map((_, i) => (
                             <motion.div
                                 key={i}
-                                className="min-w-[240px] bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-lg shadow-gray-100/50"
+                                onClick={() => {
+                                    navigate(`/hotel/${100 + i}`);
+                                    window.scrollTo(0, 0);
+                                }} // Mock ID
+                                className="min-w-[240px] bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-lg shadow-gray-100/50 cursor-pointer"
                                 whileHover={{ y: -5 }}
                                 transition={{ type: "spring", stiffness: 300 }}
                             >
@@ -441,8 +539,45 @@ const HotelDetails = () => {
                                         src={hotel.images[i] || hotel.images[0]}
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
-                                    <div className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full shadow-sm cursor-pointer hover:bg-red-50 hover:text-red-500 transition-colors">
-                                        <Heart size={16} />
+                                    <div
+                                        className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full shadow-sm cursor-pointer hover:bg-red-50 hover:text-red-500 transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Define mockItem again as it is needed for saving
+                                            const mockItem = {
+                                                id: 100 + i,
+                                                name: "Super Collection O",
+                                                location: "Vijay Nagar, Indore",
+                                                image: hotel.images[i] || hotel.images[0],
+                                                rating: 4.5,
+                                                price: 799
+                                            };
+
+                                            // Updated Save Logic with State Update
+                                            const currentSaved = JSON.parse(localStorage.getItem('savedHotels') || '[]');
+                                            const isAlreadySaved = currentSaved.some(h => h.id === mockItem.id);
+
+                                            let newSaved;
+                                            if (isAlreadySaved) {
+                                                newSaved = currentSaved.filter(h => h.id !== mockItem.id);
+                                                showSaveToast(false);
+                                            } else {
+                                                newSaved = [...currentSaved, mockItem];
+                                                showSaveToast(true);
+                                            }
+                                            localStorage.setItem('savedHotels', JSON.stringify(newSaved));
+
+                                            // Trigger re-render
+                                            setImgError(prev => ({ ...prev }));
+                                        }}
+                                    >
+                                        <Heart
+                                            size={16}
+                                            className={`${JSON.parse(localStorage.getItem('savedHotels') || '[]').some(h => h.id === 100 + i)
+                                                ? "fill-red-500 text-red-500"
+                                                : "text-gray-400"
+                                                } active:scale-90 transition-transform`}
+                                        />
                                     </div>
                                     <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded">
                                         4.5 ★
@@ -456,7 +591,16 @@ const HotelDetails = () => {
                                             <span className="text-[10px] text-gray-400 line-through">₹2400</span>
                                             <span className="font-black text-surface text-lg leading-none">₹799</span>
                                         </div>
-                                        <button className="text-xs font-bold text-white bg-surface px-3 py-1.5 rounded-lg">View</button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/hotel/${100 + i}`);
+                                                window.scrollTo(0, 0);
+                                            }}
+                                            className="text-xs font-bold text-white bg-surface px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+                                        >
+                                            View
+                                        </button>
                                     </div>
                                 </div>
                             </motion.div>

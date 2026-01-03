@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Star, BedDouble, Wifi, Dumbbell, ImageOff } from 'lucide-react';
+import { MapPin, Star, BedDouble, Wifi, Dumbbell, ImageOff, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
 
@@ -19,7 +19,31 @@ const HotelCard = ({
     const navigate = useNavigate();
     const [imgError, setImgError] = useState(false);
 
+    // Check if saved via local storage (simple implementation)
+    const [isSaved, setIsSaved] = useState(() => {
+        const saved = localStorage.getItem('savedHotels');
+        if (!saved) return false;
+        return JSON.parse(saved).some(h => h.id === id);
+    });
+
     const displayImage = (image && !imgError) ? image : PLACEHOLDER_IMAGE;
+
+    const toggleSave = (e) => {
+        e.stopPropagation(); // Prevent navigation
+        const newState = !isSaved;
+        setIsSaved(newState);
+
+        const currentSaved = JSON.parse(localStorage.getItem('savedHotels') || '[]');
+        if (newState) {
+            // Add
+            const newItem = { id, image, name, location, price, rating };
+            localStorage.setItem('savedHotels', JSON.stringify([...currentSaved, newItem]));
+        } else {
+            // Remove
+            const filtered = currentSaved.filter(h => h.id !== id);
+            localStorage.setItem('savedHotels', JSON.stringify(filtered));
+        }
+    };
 
     return (
         <motion.div
@@ -40,6 +64,18 @@ const HotelCard = ({
                 />
 
                 {/* Price Tag */}
+
+                {/* Heart Icon for Saved Places */}
+                <motion.button
+                    whileTap={{ scale: 0.8 }}
+                    onClick={toggleSave}
+                    className="absolute top-3 left-3 p-2 bg-white/20 backdrop-blur-md rounded-full shadow-lg z-10 hover:bg-white/30 transition-colors"
+                >
+                    <Heart
+                        size={18}
+                        className={`transition-colors duration-300 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                    />
+                </motion.button>
 
                 {/* Price Tag */}
                 <div className="absolute top-4 right-4 bg-gray-900/60 backdrop-blur-md px-3 py-1.5 rounded-xl">

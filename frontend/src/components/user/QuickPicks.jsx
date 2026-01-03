@@ -86,7 +86,7 @@ const QuickPicks = () => {
             <div className="flex justify-between items-center px-5 mb-2 mt-1">
                 <h2 className="text-xl font-bold text-surface">Nearby Hotels</h2>
                 <button
-                    onClick={() => navigate('/listings', { state: { category: activeTab } })}
+                    onClick={() => navigate('/listings')}
                     className="text-accent text-sm font-semibold hover:underline"
                 >
                     See All

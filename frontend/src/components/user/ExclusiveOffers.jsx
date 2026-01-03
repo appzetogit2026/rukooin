@@ -2,7 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight } from 'lucide-react';
 
+import { useNavigate } from 'react-router-dom';
+
 const ExclusiveOffers = () => {
+    const navigate = useNavigate();
     const offers = [
         {
             id: 1,
@@ -39,6 +42,7 @@ const ExclusiveOffers = () => {
                     <motion.div
                         key={offer.id}
                         whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/search', { state: { offerId: offer.id } })}
                         className={`
                             relative 
                             min-w-[300px] 
