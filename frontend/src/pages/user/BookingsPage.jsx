@@ -6,108 +6,49 @@ import {
     Star, Phone, MessageCircle, MoreHorizontal,
     CheckCircle, XCircle, AlertCircle, Ticket
 } from 'lucide-react';
+import { bookingService } from '../../services/apiService';
 
 const BookingsPage = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('upcoming');
+    const [bookings, setBookings] = useState({ upcoming: [], completed: [], cancelled: [] });
+    const [loading, setLoading] = useState(true);
 
-    // Mock Bookings Data
-    const bookings = {
-        upcoming: [
-            {
-                id: "BKID882390",
-                hotel: {
-                    name: "Super Collection O Ring Road",
-                    location: "Bhawarkua, Indore",
-                    image: "https://picsum.photos/seed/hotel1/400/300",
-                    rating: "4.6"
-                },
-                dates: {
-                    checkIn: "24 Dec",
-                    checkOut: "25 Dec",
-                    checkInTime: "12:00 PM",
-                    checkOutTime: "11:00 AM"
-                },
-                guests: { rooms: 1, adults: 2 },
-                price: "998",
-                status: "confirmed",
-                paymentStatus: "pending" // pending | paid
-            },
-            {
-                id: "BKID772891",
-                hotel: {
-                    name: "Rukko Premium Vijay Nagar",
-                    location: "Vijay Nagar, Indore",
-                    image: "https://picsum.photos/seed/hotel2/400/300",
-                    rating: "4.8"
-                },
-                dates: {
-                    checkIn: "31 Dec",
-                    checkOut: "02 Jan",
-                    checkInTime: "02:00 PM",
-                    checkOutTime: "11:00 AM"
-                },
-                guests: { rooms: 2, adults: 4 },
-                price: "3498",
-                status: "confirmed",
-                paymentStatus: "paid"
+    // Fetch Bookings
+    React.useEffect(() => {
+        const fetchBookings = async () => {
+            try {
+                setLoading(true);
+                const data = await bookingService.getMyBookings();
+
+                // Categorize bookings
+                const categorized = {
+                    upcoming: [],
+                    completed: [],
+                    cancelled: []
+                };
+
+                data.forEach(booking => {
+                    const status = booking.status.toLowerCase();
+                    if (status === 'confirmed' || status === 'pending') {
+                        categorized.upcoming.push(booking);
+                    } else if (status === 'completed') {
+                        categorized.completed.push(booking);
+                    } else if (status === 'cancelled') {
+                        categorized.cancelled.push(booking);
+                    }
+                });
+
+                setBookings(categorized);
+            } catch (err) {
+                console.error("Failed to fetch bookings", err);
+            } finally {
+                setLoading(false);
             }
-        ],
-        completed: [
-            {
-                id: "BKID552123",
-                hotel: {
-                    name: "Townhouse Elite Central",
-                    location: "Old Palasia, Indore",
-                    image: "https://picsum.photos/seed/hotel3/400/300",
-                    rating: "4.5"
-                },
-                dates: {
-                    checkIn: "15 Dec",
-                    checkOut: "17 Dec"
-                },
-                guests: { rooms: 1, adults: 2 },
-                price: "2199",
-                status: "completed",
-                canReview: true
-            },
-            {
-                id: "BKID441290",
-                hotel: {
-                    name: "Collection O Rau Road",
-                    location: "Rau, Indore",
-                    image: "https://picsum.photos/seed/hotel4/400/300",
-                    rating: "4.2"
-                },
-                dates: {
-                    checkIn: "10 Dec",
-                    checkOut: "11 Dec"
-                },
-                guests: { rooms: 1, adults: 1 },
-                price: "799",
-                status: "completed",
-                canReview: false
-            }
-        ],
-        cancelled: [
-            {
-                id: "BKID331098",
-                hotel: {
-                    name: "Flagship Stay Airport",
-                    location: "Airport Road, Indore",
-                    image: "https://picsum.photos/seed/hotel5/400/300",
-                    rating: "4.0"
-                },
-                dates: {
-                    checkIn: "05 Dec",
-                    checkOut: "06 Dec"
-                },
-                price: "1299",
-                status: "cancelled",
-                refundStatus: "processed"
-            }
-        ]
-    };
+        };
+
+        fetchBookings();
+    }, []);
 
     const currentBookings = bookings[activeTab] || [];
 
@@ -171,7 +112,11 @@ const BookingsPage = () => {
             {/* Content */}
             <div className="px-5 py-6 pb-32">
                 <AnimatePresence mode="wait">
-                    {currentBookings.length === 0 ? (
+                    {loading ? (
+                        <div className="flex justify-center items-center py-20">
+                            <div className="w-8 h-8 border-4 border-surface border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : currentBookings.length === 0 ? (
                         // Empty State
                         <motion.div
                             key="empty"

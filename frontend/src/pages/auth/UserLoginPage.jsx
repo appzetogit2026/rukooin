@@ -1,29 +1,53 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Phone, ArrowRight, Shield, ChevronLeft, Sparkles } from 'lucide-react';
+import { Phone, Mail, ArrowRight, Shield } from 'lucide-react';
+import { authService } from '../../services/apiService';
+import logo from '../../assets/logo.png'; // Assuming logo exists, or use text
 
 const UserLoginPage = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState('phone'); // phone | otp
+    const [loginMethod, setLoginMethod] = useState('phone'); // phone | email
+    const [step, setStep] = useState('input'); // input | otp
     const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handlePhoneSubmit = (e) => {
+    const handleSendOtp = async (e) => {
         e.preventDefault();
-        if (phone.length !== 10) {
+        console.log("Login: Attempting to send OTP...", { phone, loginMethod });
+
+        // Validation
+        if (loginMethod === 'phone' && phone.length !== 10) {
             setError('Please enter a valid 10-digit phone number');
             return;
         }
+        if (loginMethod === 'email' && !email.includes('@')) {
+            setError('Please enter a valid email address');
+            return;
+        }
+
         setError('');
         setLoading(true);
-        // Simulate OTP send
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            // Currently backend only supports phone OTP. 
+            // For email, we might need backend update, but let's try standard flow or mock for now if needed.
+            if (loginMethod === 'email') {
+                throw new Error("Email login is coming soon. Please use Phone.");
+            }
+
+            console.log("Calling authService.sendOtp...");
+            await authService.sendOtp(phone);
             setStep('otp');
-        }, 1500);
+        } catch (err) {
+            console.error("Login Error:", err);
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOtpChange = (index, value) => {
@@ -31,14 +55,12 @@ const UserLoginPage = () => {
         const newOtp = [...otp];
         newOtp[index] = value;
         setOtp(newOtp);
-
-        // Auto-focus next input
         if (value && index < 5) {
             document.getElementById(`otp-${index + 1}`).focus();
         }
     };
 
-    const handleOtpSubmit = (e) => {
+    const handleVerifyOtp = async (e) => {
         e.preventDefault();
         const otpValue = otp.join('');
         if (otpValue.length !== 6) {
@@ -47,11 +69,15 @@ const UserLoginPage = () => {
         }
         setError('');
         setLoading(true);
-        // Simulate verification
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            await authService.verifyOtp({ phone, otp: otpValue });
             navigate('/');
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Invalid OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleKeyDown = (index, e) => {
@@ -61,107 +87,100 @@ const UserLoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-surface via-[#005856] to-[#003836] flex flex-col">
+        <div className="min-h-screen bg-[#F0F4F4] flex flex-col items-center justify-center p-4 font-sans">
 
-            {/* Header */}
-            <div className="px-5 pt-8 pb-4">
-                <button
-                    onClick={() => step === 'otp' ? setStep('phone') : navigate(-1)}
-                    className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-                >
-                    <ChevronLeft size={24} />
-                </button>
+            {/* Header / Logo Section */}
+            <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                    <span className="text-2xl font-black text-teal-800 flex items-center gap-1">
+                        RUKKO <span className="text-teal-600 bg-teal-100 px-1 rounded">in</span>
+                    </span>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+                <p className="text-gray-500">Login to continue your journey</p>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 px-6 flex flex-col">
+            {/* Main Card */}
+            <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden relative">
+                <div className="p-8">
 
-                {/* Logo/Brand */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
-                >
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-                            <Sparkles className="text-surface" size={24} />
-                        </div>
-                        <span className="text-2xl font-black text-white">Rukkoo.in</span>
-                    </div>
+                    {step === 'input' ? (
+                        <>
+                            <h2 className="text-xl font-bold text-gray-900 mb-6">Login with OTP</h2>
 
-                    <h1 className="text-3xl font-black text-white mb-2">
-                        {step === 'phone' ? 'Welcome Back!' : 'Verify OTP'}
-                    </h1>
-                    <p className="text-white/70 text-sm">
-                        {step === 'phone'
-                            ? 'Enter your phone number to continue'
-                            : `We've sent a 6-digit code to +91 ${phone}`
-                        }
-                    </p>
-                </motion.div>
-
-                {/* Form */}
-                <motion.div
-                    key={step}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex-1"
-                >
-                    {step === 'phone' ? (
-                        <form onSubmit={handlePhoneSubmit} className="space-y-6">
-                            {/* Phone Input */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-2">
-                                    Phone Number
-                                </label>
-                                <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/30 transition-all">
-                                    <div className="px-4 py-4 bg-white/5 border-r border-white/10 flex items-center gap-2">
-                                        <span className="text-lg">🇮🇳</span>
-                                        <span className="text-white font-bold">+91</span>
-                                    </div>
-                                    <input
-                                        type="tel"
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                        placeholder="Enter 10-digit number"
-                                        className="flex-1 bg-transparent px-4 py-4 text-white font-bold text-lg placeholder:text-white/30 outline-none"
-                                        autoFocus
-                                    />
-                                    {phone.length === 10 && (
-                                        <div className="pr-4">
-                                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                                <Shield size={14} className="text-white" />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                            {/* Tabs */}
+                            <div className="flex bg-gray-100 p-1 rounded-xl mb-8">
+                                <button
+                                    onClick={() => setLoginMethod('phone')}
+                                    className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${loginMethod === 'phone' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <Phone size={18} /> Phone
+                                </button>
+                                <button
+                                    onClick={() => setLoginMethod('email')}
+                                    className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${loginMethod === 'email' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    <Mail size={18} /> Email
+                                </button>
                             </div>
 
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={loading || phone.length !== 10}
-                                className="w-full bg-white text-surface font-bold py-4 rounded-2xl shadow-lg shadow-black/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
-                            >
-                                {loading ? (
-                                    <div className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        Get OTP <ArrowRight size={18} />
-                                    </>
-                                )}
-                            </button>
-                        </form>
+                            <form onSubmit={handleSendOtp}>
+                                <div className="mb-8">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        {loginMethod === 'phone' ? 'Phone Number' : 'Email Address'}
+                                    </label>
+                                    <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all bg-white">
+                                        {loginMethod === 'phone' ? (
+                                            <>
+                                                <Phone className="text-gray-400 mr-3" size={20} />
+                                                <input
+                                                    type="tel"
+                                                    value={phone}
+                                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                                    placeholder="9876543210"
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                    autoFocus
+                                                />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Mail className="text-gray-400 mr-3" size={20} />
+                                                <input
+                                                    type="email"
+                                                    value={email}
+                                                    onChange={(e) => setEmail(e.target.value)}
+                                                    placeholder="john@example.com"
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                    autoFocus
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+                                    {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-[#009688] hover:bg-[#00796B] text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>Send OTP <ArrowRight size={20} /></>
+                                    )}
+                                </button>
+                            </form>
+                        </>
                     ) : (
-                        <form onSubmit={handleOtpSubmit} className="space-y-6">
-                            {/* OTP Input */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-4">
-                                    Enter 6-digit OTP
-                                </label>
-                                <div className="flex gap-3 justify-center">
+                        <>
+                            <h2 className="text-xl font-bold text-gray-900 mb-2">Verify OTP</h2>
+                            <p className="text-gray-500 text-sm mb-8">
+                                Enter the code sent to <span className="font-bold text-gray-800">+91 {phone}</span>
+                            </p>
+
+                            <form onSubmit={handleVerifyOtp}>
+                                <div className="flex gap-2 justify-center mb-8">
                                     {otp.map((digit, index) => (
                                         <input
                                             key={index}
@@ -172,48 +191,62 @@ const UserLoginPage = () => {
                                             value={digit}
                                             onChange={(e) => handleOtpChange(index, e.target.value)}
                                             onKeyDown={(e) => handleKeyDown(index, e)}
-                                            className="w-12 h-14 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl text-center text-white text-2xl font-black focus:border-accent focus:ring-2 focus:ring-accent/30 outline-none transition-all"
+                                            className="w-12 h-14 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-800 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all bg-gray-50"
                                             autoFocus={index === 0}
                                         />
                                     ))}
                                 </div>
-                                {error && <p className="text-red-400 text-xs mt-3 text-center">{error}</p>}
-                            </div>
+                                {error && <p className="text-red-500 text-xs mt-[-20px] mb-6 text-center font-medium">{error}</p>}
 
-                            {/* Resend Timer */}
-                            <div className="text-center">
-                                <p className="text-white/50 text-sm">
-                                    Didn't receive code? <button type="button" className="text-accent font-bold">Resend</button>
-                                </p>
-                            </div>
+                                <div className="text-center mb-6">
+                                    <p className="text-gray-400 text-sm">
+                                        Didn't receive code?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={handleSendOtp}
+                                            className="text-teal-600 font-bold hover:underline"
+                                        >
+                                            Resend
+                                        </button>
+                                    </p>
+                                </div>
 
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={loading || otp.join('').length !== 6}
-                                className="w-full bg-white text-surface font-bold py-4 rounded-2xl shadow-lg shadow-black/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
-                            >
-                                {loading ? (
-                                    <div className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        Verify & Continue <ArrowRight size={18} />
-                                    </>
-                                )}
-                            </button>
-                        </form>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-[#009688] hover:bg-[#00796B] text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>Verify & Login <ArrowRight size={20} /></>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('input')}
+                                    className="w-full mt-4 text-gray-400 text-sm font-semibold hover:text-gray-600"
+                                >
+                                    Change Phone Number
+                                </button>
+                            </form>
+                        </>
                     )}
-                </motion.div>
 
-                {/* Footer */}
-                <div className="py-8 text-center">
-                    <p className="text-white/40 text-xs">
-                        By continuing, you agree to our{' '}
-                        <span className="text-white/60 underline">Terms of Service</span> and{' '}
-                        <span className="text-white/60 underline">Privacy Policy</span>
-                    </p>
                 </div>
             </div>
+
+            {/* Footer */}
+            <div className="mt-8 text-center">
+                <p className="text-gray-500 text-sm">
+                    New to Rukkoo.in?{' '}
+                    <button onClick={() => navigate('/signup')} className="text-teal-600 font-bold hover:underline">
+                        Create Account
+                    </button>
+                </p>
+            </div>
+
         </div>
     );
 };

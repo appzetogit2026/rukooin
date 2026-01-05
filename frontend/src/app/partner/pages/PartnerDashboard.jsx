@@ -5,20 +5,33 @@ import usePartnerStore from '../store/partnerStore';
 import { useLenis } from '../../shared/hooks/useLenis';
 
 import PartnerHeader from '../components/PartnerHeader';
+import { hotelService } from '../../../services/apiService';
 
 const PartnerDashboard = () => {
     useLenis();
     const navigate = useNavigate();
     const { formData, resetForm, updateFormData } = usePartnerStore();
 
-    // Simulate list of properties. If formData is populated, show it.
+    // State management
     const [properties, setProperties] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (formData && formData.propertyName) {
-            setProperties([{ ...formData, id: 1, status: 'Pending Review' }]);
-        }
+        fetchMyHotels();
     }, []);
+
+    const fetchMyHotels = async () => {
+        try {
+            setLoading(true);
+            const data = await hotelService.getMyHotels();
+            setProperties(data);
+        } catch (error) {
+            console.error("Failed to fetch hotels:", error);
+            // Optionally set error state here if UI needs to show it
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAddNew = () => {
         resetForm();
@@ -35,11 +48,22 @@ const PartnerDashboard = () => {
         navigate('/hotel/rooms');
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this property?')) {
-            setProperties(properties.filter(p => p.id !== id));
+    const handleDelete = async (id) => {
+        if (confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+            // TODO: Add delete API call here once available in frontend service
+            // await hotelService.delete(id); 
+            // fetchMyHotels();
+            alert("Delete functionality coming soon.");
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#004F4D]"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24 font-sans text-gray-900">
@@ -56,7 +80,7 @@ const PartnerDashboard = () => {
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pending Review</span>
-                        <h2 className="text-3xl font-black mt-1 text-orange-500">{properties.filter(p => p.status === 'Pending Review').length}</h2>
+                        <h2 className="text-3xl font-black mt-1 text-orange-500">{properties.filter(p => p.status === 'pending').length}</h2>
                     </div>
                 </div>
 
@@ -70,7 +94,7 @@ const PartnerDashboard = () => {
 
                 <div className="flex flex-col gap-6">
                     {properties.length > 0 ? properties.map((prop) => (
-                        <div key={prop.id} className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-xl shadow-gray-100/50 relative group transition-all hover:shadow-2xl">
+                        <div key={prop._id} className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-xl shadow-gray-100/50 relative group transition-all hover:shadow-2xl">
 
                             {/* 1. Card Header & Cover */}
                             <div className="h-56 w-full relative bg-gray-100">
@@ -82,8 +106,14 @@ const PartnerDashboard = () => {
                                     </div>
                                 )}
 
-                                <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-[#003836] shadow-sm flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>
+                                <div className={`absolute top-4 right-4 px-3 py-1.5 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm flex items-center gap-1.5 ${prop.status === 'approved' ? 'bg-green-100/90 text-green-700' :
+                                        prop.status === 'rejected' ? 'bg-red-100/90 text-red-700' :
+                                            'bg-orange-100/90 text-orange-700'
+                                    }`}>
+                                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${prop.status === 'approved' ? 'bg-green-500' :
+                                            prop.status === 'rejected' ? 'bg-red-500' :
+                                                'bg-orange-500'
+                                        }`}></div>
                                     {prop.status}
                                 </div>
 
@@ -197,7 +227,7 @@ const PartnerDashboard = () => {
                                         <button onClick={() => handleEdit(prop)} className="flex-1 bg-white border-2 border-gray-100 text-gray-900 h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition-all">
                                             <Edit size={16} /> Edit Details
                                         </button>
-                                        <button onClick={() => handleDelete(prop.id)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 active:scale-95 transition-all">
+                                        <button onClick={() => handleDelete(prop._id)} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-red-500 border-2 border-red-50 hover:bg-red-50 hover:border-red-100 active:scale-95 transition-all">
                                             <Trash2 size={18} />
                                         </button>
                                     </div>

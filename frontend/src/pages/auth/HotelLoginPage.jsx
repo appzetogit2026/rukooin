@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, ArrowRight, Building2, ChevronLeft, MapPin, Briefcase } from 'lucide-react';
+import { authService } from '../../services/apiService';
 
 const HotelLoginPage = () => {
     const navigate = useNavigate();
@@ -11,7 +12,7 @@ const HotelLoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handlePhoneSubmit = (e) => {
+    const handlePhoneSubmit = async (e) => {
         e.preventDefault();
         if (phone.length !== 10) {
             setError('Please enter a valid 10-digit phone number');
@@ -19,10 +20,15 @@ const HotelLoginPage = () => {
         }
         setError('');
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            await authService.sendOtp(phone);
             setStep('otp');
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOtpChange = (index, value) => {
@@ -35,17 +41,31 @@ const HotelLoginPage = () => {
         }
     };
 
-    const handleOtpSubmit = (e) => {
+    const handleOtpSubmit = async (e) => {
         e.preventDefault();
-        if (otp.join('').length !== 6) {
+        const otpValue = otp.join('');
+        if (otpValue.length !== 6) {
             setError('Please enter complete OTP');
             return;
         }
         setLoading(true);
-        setTimeout(() => {
+
+        try {
+            const data = await authService.verifyOtp({ phone, otp: otpValue });
+
+            // Optional: Strict Role Check
+            if (data.user.role !== 'partner' && data.user.role !== 'admin') {
+                setError("This account is not registered as a Hotel Partner.");
+                authService.logout(); // Clear token
+                return;
+            }
+
+            navigate('/hotel/dashboard');
+        } catch (err) {
+            setError(err.message || 'Invalid OTP');
+        } finally {
             setLoading(false);
-            navigate('/hotel/dashboard'); // Hotel dashboard route
-        }, 1500);
+        }
     };
 
     return (

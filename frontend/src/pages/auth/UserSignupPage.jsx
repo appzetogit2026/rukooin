@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Phone, ArrowRight, User, Mail, ChevronLeft, Sparkles, CheckCircle } from 'lucide-react';
+import { Phone, Mail, ArrowRight, User, CheckCircle } from 'lucide-react';
+import { authService } from '../../services/apiService';
 
 const UserSignupPage = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState('details'); // details | otp
+    const [signupMethod, setSignupMethod] = useState('phone'); // phone | email
+    const [step, setStep] = useState('input'); // input | otp
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -24,22 +25,43 @@ const UserSignupPage = () => {
         }
     };
 
-    const handleDetailsSubmit = (e) => {
+    const handleSendOtp = async (e) => {
         e.preventDefault();
+        console.log("Attempting to send OTP...", { formData, signupMethod });
+
+        // Validation
         if (!formData.name.trim()) {
-            setError('Please enter your name');
+            setError('Please enter your full name');
             return;
         }
-        if (formData.phone.length !== 10) {
-            setError('Please enter a valid phone number');
+        if (signupMethod === 'phone' && formData.phone.length !== 10) {
+            setError('Please enter a valid 10-digit phone number');
             return;
         }
+        if (signupMethod === 'email' && !formData.email.includes('@')) {
+            setError('Please enter a valid email address');
+            return;
+        }
+
         setError('');
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            // Currently backend only supports phone OTP. 
+            if (signupMethod === 'email') {
+                throw new Error("Email signup is coming soon. Please use Phone.");
+            }
+
+            console.log("Calling authService.sendOtp with:", formData.phone);
+            await authService.sendOtp(formData.phone);
+            console.log("OTP sent successfully");
             setStep('otp');
-        }, 1500);
+        } catch (err) {
+            console.error("Signup Error:", err);
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOtpChange = (index, value) => {
@@ -52,170 +74,149 @@ const UserSignupPage = () => {
         }
     };
 
-    const handleOtpSubmit = (e) => {
+    const handleRegister = async (e) => {
         e.preventDefault();
-        if (otp.join('').length !== 6) {
+        const otpValue = otp.join('');
+        if (otpValue.length !== 6) {
             setError('Please enter complete OTP');
             return;
         }
+        setError('');
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            await authService.verifyOtp({
+                phone: formData.phone,
+                otp: otpValue,
+                name: formData.name,
+                email: formData.email // Optional if collected
+            });
             navigate('/');
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Invalid OTP');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleKeyDown = (index, e) => {
+        if (e.key === 'Backspace' && !otp[index] && index > 0) {
+            document.getElementById(`signup-otp-${index - 1}`).focus();
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-surface via-[#005856] to-[#003836] flex flex-col">
+        <div className="min-h-screen bg-[#F0F4F4] flex flex-col items-center justify-center p-4 font-sans">
 
-            {/* Header */}
-            <div className="px-5 pt-8 pb-4">
-                <button
-                    onClick={() => step === 'otp' ? setStep('details') : navigate(-1)}
-                    className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-                >
-                    <ChevronLeft size={24} />
-                </button>
+            {/* Header Section */}
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+                <p className="text-gray-500">Join thousands of happy travelers</p>
             </div>
 
-            {/* Progress Indicator */}
-            <div className="px-6 mb-6">
-                <div className="flex gap-2">
-                    <div className={`h-1 flex-1 rounded-full ${step === 'details' || step === 'otp' ? 'bg-accent' : 'bg-white/20'}`} />
-                    <div className={`h-1 flex-1 rounded-full ${step === 'otp' ? 'bg-accent' : 'bg-white/20'}`} />
-                </div>
-            </div>
+            {/* Main Card */}
+            <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden relative">
+                <div className="p-8">
 
-            {/* Content */}
-            <div className="flex-1 px-6 flex flex-col overflow-y-auto">
+                    {step === 'input' ? (
+                        <>
+                            <h2 className="text-xl font-bold text-gray-900 mb-6">Sign Up</h2>
 
-                {/* Header Text */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
-                >
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-                            <Sparkles className="text-surface" size={24} />
-                        </div>
-                        <span className="text-2xl font-black text-white">Rukkoo.in</span>
-                    </div>
-
-                    <h1 className="text-3xl font-black text-white mb-2">
-                        {step === 'details' ? 'Create Account' : 'Verify Phone'}
-                    </h1>
-                    <p className="text-white/70 text-sm">
-                        {step === 'details'
-                            ? 'Join Rukkoo.in for amazing hotel deals'
-                            : `Enter the code sent to +91 ${formData.phone}`
-                        }
-                    </p>
-                </motion.div>
-
-                {/* Form */}
-                <motion.div
-                    key={step}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex-1"
-                >
-                    {step === 'details' ? (
-                        <form onSubmit={handleDetailsSubmit} className="space-y-5">
-                            {/* Name Input */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-2">
-                                    Full Name
-                                </label>
-                                <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden focus-within:border-accent transition-all">
-                                    <div className="pl-4">
-                                        <User size={20} className="text-white/50" />
+                            <form onSubmit={handleSendOtp}>
+                                {/* Full Name */}
+                                <div className="mb-6">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        Full Name
+                                    </label>
+                                    <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all bg-white">
+                                        <User className="text-gray-400 mr-3" size={20} />
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            placeholder="John Doe"
+                                            className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                            autoFocus
+                                        />
                                     </div>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        placeholder="Enter your full name"
-                                        className="flex-1 bg-transparent px-4 py-4 text-white font-medium placeholder:text-white/30 outline-none"
-                                    />
                                 </div>
-                            </div>
 
-                            {/* Email Input (Optional) */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-2">
-                                    Email <span className="text-white/30">(Optional)</span>
-                                </label>
-                                <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden focus-within:border-accent transition-all">
-                                    <div className="pl-4">
-                                        <Mail size={20} className="text-white/50" />
+                                {/* Tabs */}
+                                <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSignupMethod('phone')}
+                                        className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${signupMethod === 'phone' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                    >
+                                        <Phone size={18} /> Phone
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSignupMethod('email')}
+                                        className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${signupMethod === 'email' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                    >
+                                        <Mail size={18} /> Email
+                                    </button>
+                                </div>
+
+                                {/* Contact Input */}
+                                <div className="mb-8">
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        {signupMethod === 'phone' ? 'Phone Number' : 'Email Address'}
+                                    </label>
+                                    <div className="flex items-center border border-gray-200 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all bg-white">
+                                        {signupMethod === 'phone' ? (
+                                            <>
+                                                <Phone className="text-gray-400 mr-3" size={20} />
+                                                <input
+                                                    type="tel"
+                                                    name="phone"
+                                                    value={formData.phone}
+                                                    onChange={handleChange}
+                                                    placeholder="9876543210"
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Mail className="text-gray-400 mr-3" size={20} />
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    value={formData.email}
+                                                    onChange={handleChange}
+                                                    placeholder="john@example.com"
+                                                    className="flex-1 outline-none text-gray-900 font-medium placeholder:text-gray-300"
+                                                />
+                                            </>
+                                        )}
                                     </div>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        placeholder="Enter your email"
-                                        className="flex-1 bg-transparent px-4 py-4 text-white font-medium placeholder:text-white/30 outline-none"
-                                    />
+                                    {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
                                 </div>
-                            </div>
 
-                            {/* Phone Input */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-2">
-                                    Phone Number
-                                </label>
-                                <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden focus-within:border-accent transition-all">
-                                    <div className="px-4 py-4 bg-white/5 border-r border-white/10 flex items-center gap-2">
-                                        <span className="text-lg">🇮🇳</span>
-                                        <span className="text-white font-bold">+91</span>
-                                    </div>
-                                    <input
-                                        type="tel"
-                                        name="phone"
-                                        value={formData.phone}
-                                        onChange={handleChange}
-                                        placeholder="10-digit number"
-                                        className="flex-1 bg-transparent px-4 py-4 text-white font-bold placeholder:text-white/30 outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            {error && <p className="text-red-400 text-xs">{error}</p>}
-
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-white text-surface font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                            >
-                                {loading ? (
-                                    <div className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        Continue <ArrowRight size={18} />
-                                    </>
-                                )}
-                            </button>
-
-                            {/* Login Link */}
-                            <p className="text-center text-white/60 text-sm">
-                                Already have an account?{' '}
-                                <button type="button" onClick={() => navigate('/login')} className="text-accent font-bold">
-                                    Login
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-[#009688] hover:bg-[#00796B] text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>Continue <ArrowRight size={20} /></>
+                                    )}
                                 </button>
-                            </p>
-                        </form>
+                            </form>
+                        </>
                     ) : (
-                        <form onSubmit={handleOtpSubmit} className="space-y-6">
-                            {/* OTP Input */}
-                            <div>
-                                <label className="text-xs font-bold text-white/60 uppercase tracking-wider block mb-4">
-                                    Enter 6-digit OTP
-                                </label>
-                                <div className="flex gap-3 justify-center">
+                        <>
+                            <h2 className="text-xl font-bold text-gray-900 mb-2">Verify Phone</h2>
+                            <p className="text-gray-500 text-sm mb-8">
+                                Enter the code sent to <span className="font-bold text-gray-800">+91 {formData.phone}</span>
+                            </p>
+
+                            <form onSubmit={handleRegister}>
+                                <div className="flex gap-2 justify-center mb-8">
                                     {otp.map((digit, index) => (
                                         <input
                                             key={index}
@@ -225,44 +226,63 @@ const UserSignupPage = () => {
                                             maxLength={1}
                                             value={digit}
                                             onChange={(e) => handleOtpChange(index, e.target.value)}
-                                            className="w-12 h-14 bg-white/10 border-2 border-white/20 rounded-xl text-center text-white text-2xl font-black focus:border-accent outline-none transition-all"
+                                            onKeyDown={(e) => handleKeyDown(index, e)}
+                                            className="w-12 h-14 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-800 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all bg-gray-50"
                                             autoFocus={index === 0}
                                         />
                                     ))}
                                 </div>
-                                {error && <p className="text-red-400 text-xs mt-3 text-center">{error}</p>}
-                            </div>
+                                {error && <p className="text-red-500 text-xs mt-[-20px] mb-6 text-center font-medium">{error}</p>}
 
-                            <div className="text-center">
-                                <p className="text-white/50 text-sm">
-                                    Didn't receive? <button type="button" className="text-accent font-bold">Resend OTP</button>
-                                </p>
-                            </div>
+                                <div className="text-center mb-6">
+                                    <p className="text-gray-400 text-sm">
+                                        Didn't receive code?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={handleSendOtp}
+                                            className="text-teal-600 font-bold hover:underline"
+                                        >
+                                            Resend
+                                        </button>
+                                    </p>
+                                </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-white text-surface font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                            >
-                                {loading ? (
-                                    <div className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        Create Account <CheckCircle size={18} />
-                                    </>
-                                )}
-                            </button>
-                        </form>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-[#009688] hover:bg-[#00796B] text-white font-bold py-4 rounded-xl shadow-lg shadow-teal-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>Create Account <CheckCircle size={20} /></>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStep('input')}
+                                    className="w-full mt-4 text-gray-400 text-sm font-semibold hover:text-gray-600"
+                                >
+                                    Back to Details
+                                </button>
+                            </form>
+                        </>
                     )}
-                </motion.div>
 
-                {/* Footer */}
-                <div className="py-6 text-center">
-                    <p className="text-white/40 text-xs">
-                        By signing up, you agree to our Terms & Privacy Policy
-                    </p>
                 </div>
             </div>
+
+            {/* Footer */}
+            <div className="mt-8 text-center">
+                <p className="text-gray-500 text-sm">
+                    Already have an account?{' '}
+                    <button onClick={() => navigate('/login')} className="text-teal-600 font-bold hover:underline">
+                        Login
+                    </button>
+                </p>
+            </div>
+
         </div>
     );
 };

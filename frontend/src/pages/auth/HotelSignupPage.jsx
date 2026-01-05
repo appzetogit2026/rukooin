@@ -5,6 +5,7 @@ import {
     Building2, ChevronLeft, ArrowRight, MapPin, Phone, Mail,
     User, FileText, CheckCircle, Camera
 } from 'lucide-react';
+import { authService } from '../../services/apiService';
 
 const HotelSignupPage = () => {
     const navigate = useNavigate();
@@ -44,7 +45,7 @@ const HotelSignupPage = () => {
         setStep(2);
     };
 
-    const handleStep2Submit = (e) => {
+    const handleStep2Submit = async (e) => {
         e.preventDefault();
         if (!formData.hotelName.trim() || !formData.hotelAddress.trim() || !formData.city.trim()) {
             setError('Please fill all required fields');
@@ -52,10 +53,16 @@ const HotelSignupPage = () => {
         }
         setError('');
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            await authService.sendOtp(formData.phone);
             setStep(3);
-        }, 1500);
+        } catch (err) {
+            console.error("OTP Error:", err);
+            setError(err.message || "Failed to send OTP");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOtpChange = (index, value) => {
@@ -68,17 +75,29 @@ const HotelSignupPage = () => {
         }
     };
 
-    const handleOtpSubmit = (e) => {
+    const handleOtpSubmit = async (e) => {
         e.preventDefault();
-        if (otp.join('').length !== 6) {
+        const otpValue = otp.join('');
+        if (otpValue.length !== 6) {
             setError('Please enter complete OTP');
             return;
         }
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+
+        try {
+            // Call the special partner verification endpoint
+            await authService.verifyPartnerOtp({
+                ...formData,
+                otp: otpValue
+            });
+            // On success, token is set by apiService. Redirect to dashboard.
             navigate('/hotel/dashboard');
-        }, 1500);
+        } catch (err) {
+            console.error("Verification Error:", err);
+            setError(err.message || 'Invalid OTP or Registration Failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

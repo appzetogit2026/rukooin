@@ -1,24 +1,39 @@
 import React, { useRef, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import gsap from 'gsap';
-import { Wifi, Tv, Car, Utensils, Wine, Waves, Dumbbell, Sparkles, ConciergeBell, Zap, ArrowUpFromLine, Coffee, Check, ShieldCheck } from 'lucide-react';
+import { Wifi, Tv, Car, Utensils, Wine, Waves, Dumbbell, Sparkles, ConciergeBell, Zap, ArrowUpFromLine, Coffee, Check, ShieldCheck, ThermometerSun, Building2, MonitorDot, Shirt, Stethoscope, Eye, Flame, PlusSquare } from 'lucide-react';
 
 const MUST_HAVES = [
     { id: 'wifi', label: 'Free Wifi', icon: Wifi },
     { id: 'ac', label: 'AC', icon: Zap },
     { id: 'tv', label: 'TV', icon: Tv },
-    { id: 'room_service', label: 'Room Service', icon: ConciergeBell },
+    { id: 'room_service', label: 'Service', icon: ConciergeBell },
+    { id: 'power_backup', label: 'Backup', icon: Zap },
+    { id: 'housekeeping', label: 'Cleaning', icon: Sparkles },
+    { id: 'hot_water', label: 'Hot Water', icon: ThermometerSun },
+    { id: 'reception', label: '24h Front', icon: ShieldCheck },
 ];
 
 const EXTRAS = [
     { id: 'parking', label: 'Parking', icon: Car },
-    { id: 'restaurant', label: 'Restaurant', icon: Utensils },
+    { id: 'restaurant', label: 'Dine-in', icon: Utensils },
     { id: 'bar', label: 'Bar', icon: Wine },
     { id: 'pool', label: 'Pool', icon: Waves },
     { id: 'gym', label: 'Gym', icon: Dumbbell },
-    { id: 'elevator', label: 'Elevator', icon: ArrowUpFromLine },
+    { id: 'elevator', label: 'Lift', icon: ArrowUpFromLine },
     { id: 'breakfast', label: 'Breakfast', icon: Coffee },
     { id: 'spa', label: 'Spa', icon: Sparkles },
+    { id: 'banquet', label: 'Banquet', icon: Building2 },
+    { id: 'conference', label: 'Meeting', icon: MonitorDot },
+    { id: 'laundry', label: 'Laundry', icon: Shirt },
+    { id: 'doctor', label: 'Doctor', icon: Stethoscope },
+];
+
+const SAFETY_LIST = [
+    { id: 'cctv', label: 'CCTV', icon: Eye },
+    { id: 'security', label: 'Guard', icon: ShieldCheck },
+    { id: 'fire', label: 'Fire Ext.', icon: Flame },
+    { id: 'first_aid', label: 'First Aid', icon: PlusSquare },
 ];
 
 const StepFacilities = () => {
@@ -80,12 +95,21 @@ const StepFacilities = () => {
             </div>
 
             {/* Extras Section */}
-            <div>
-                <div className="flex items-center gap-2 mb-3">
-                    <Sparkles size={16} className="text-gray-400" />
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Additional Perks</h3>
+            <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                    <Sparkles size={16} className="text-amber-500" />
+                    <h3 className="text-xs font-black text-[#004F4D] uppercase tracking-wider">Additional Perks</h3>
                 </div>
                 {renderGrid(EXTRAS)}
+            </div>
+
+            {/* Safety Section */}
+            <div>
+                <div className="flex items-center gap-2 mb-3 px-1">
+                    <Eye size={16} className="text-gray-400" />
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Safety & Security</h3>
+                </div>
+                {renderGrid(SAFETY_LIST)}
             </div>
 
         </div>

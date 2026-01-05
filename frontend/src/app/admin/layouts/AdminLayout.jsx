@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
     Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
+import useAdminStore from '../store/adminStore';
+import toast from 'react-hot-toast';
 
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const location = useLocation();
+    const navigate = useNavigate();
+    const logout = useAdminStore(state => state.logout);
+
+    const handleLogout = () => {
+        logout();
+        toast.success('Logged out successfully');
+        navigate('/admin/login');
+    };
 
     const MENU_ITEMS = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
@@ -79,7 +89,10 @@ const AdminLayout = () => {
                     >
                         {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
                     </button>
-                    <button className={`mt-2 w-full flex items-center gap-3 p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors ${!isSidebarOpen && 'justify-center'}`}>
+                    <button
+                        onClick={handleLogout}
+                        className={`mt-2 w-full flex items-center gap-3 p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors ${!isSidebarOpen && 'justify-center'}`}
+                    >
                         <LogOut size={20} />
                         {isSidebarOpen && <span>Logout</span>}
                     </button>

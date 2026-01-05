@@ -1,10 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import gsap from 'gsap';
-import { Star, FileText, Info, HeartHandshake, PawPrint, Cigarette, CheckCircle, Building, Minus, Plus } from 'lucide-react';
+import { Star, FileText, Info, HeartHandshake, PawPrint, Cigarette, CheckCircle, Building, Minus, Plus, ShieldCheck, GlassWater, PartyPopper, UtensilsCrossed } from 'lucide-react';
 
 const StepPropertyDetails = () => {
-    const { formData, updateFormData } = usePartnerStore();
+    const { formData, updateFormData, updatePolicies, updateDetails } = usePartnerStore();
     const containerRef = useRef(null);
 
     useEffect(() => {
@@ -17,40 +17,15 @@ const StepPropertyDetails = () => {
         return () => ctx.revert();
     }, []);
 
-    const handleRating = (rating) => {
-        updateFormData({ propertyRating: rating });
+    const handlePolicyToggle = (id) => {
+        const currentPolicies = formData.policies || {};
+        updatePolicies({ [id]: !currentPolicies[id] });
     };
 
     return (
-
         <div ref={containerRef} className="pb-10 pt-2 px-1">
 
-            {/* 1. Star Rating Section */}
-            <div className="anim-item mb-5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1.5">
-                    <Star size={14} /> Hotel Star Rating
-                </label>
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                            key={star}
-                            onClick={() => handleRating(star)}
-                            className={`flex-shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center border transition-all duration-300 ${formData.propertyRating === star
-                                ? 'border-[#004F4D] bg-[#004F4D] text-white shadow-lg scale-100' // No scale on mobile to save space or tiny scale
-                                : 'border-gray-200 bg-white text-gray-400'
-                                }`}
-                        >
-                            <span className="text-lg font-black leading-none mb-0.5">{star}</span>
-                            <Star
-                                size={10}
-                                className={formData.propertyRating === star ? 'fill-white' : 'fill-transparent'}
-                            />
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* 2. Description Section */}
+            {/* 1. Description Section */}
             <div className="anim-item mb-5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1.5">
                     <FileText size={14} /> About Property
@@ -58,31 +33,32 @@ const StepPropertyDetails = () => {
                 <textarea
                     placeholder="Tell guests what makes your place unique..."
                     className="w-full h-24 p-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-[#004F4D] focus:ring-0 resize-none text-sm placeholder-gray-400 transition-all font-medium"
-                    value={formData.propertyDescription || ''}
-                    onChange={(e) => updateFormData({ propertyDescription: e.target.value })}
+                    value={formData.description || ''}
+                    onChange={(e) => updateFormData({ description: e.target.value })}
                 ></textarea>
                 <p className="text-right text-[10px] text-gray-400 mt-1">Min. 50 characters</p>
             </div>
 
-            {/* 3. Building Layout (Floors & Rooms) */}
+            {/* 2. Building Info & Timings */}
             <div className="anim-item mb-5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1.5">
-                    <Building size={14} /> Building Layout
+                    <Building size={14} /> Property Configuration
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                    {/* Floors Counter */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col justify-center">
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Floors</span>
-                        <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+
+                    {/* Total Floors */}
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                        <span className="text-xs font-bold text-gray-600">Total Floors</span>
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={() => updateFormData({ totalFloors: Math.max(1, (formData.totalFloors || 1) - 1) })}
-                                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:border-[#004F4D] active:scale-95 transition-all"
+                                onClick={() => updateDetails({ totalFloors: Math.max(1, (formData.details?.totalFloors || 1) - 1) })}
+                                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 active:scale-95 transition-all"
                             >
                                 <Minus size={14} />
                             </button>
-                            <span className="text-xl font-black text-[#003836]">{formData.totalFloors || 1}</span>
+                            <span className="text-lg font-black text-[#003836] w-6 text-center">{formData.details?.totalFloors || 1}</span>
                             <button
-                                onClick={() => updateFormData({ totalFloors: (formData.totalFloors || 1) + 1 })}
+                                onClick={() => updateDetails({ totalFloors: (formData.details?.totalFloors || 1) + 1 })}
                                 className="w-8 h-8 rounded-full bg-[#004F4D] text-white flex items-center justify-center active:scale-95 transition-all"
                             >
                                 <Plus size={14} />
@@ -90,61 +66,78 @@ const StepPropertyDetails = () => {
                         </div>
                     </div>
 
-                    {/* Rooms Counter */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col justify-center">
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Rooms</span>
-                        <div className="flex items-center justify-between">
-                            <button
-                                onClick={() => updateFormData({ totalRooms: Math.max(1, (formData.totalRooms || 1) - 1) })}
-                                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:border-black active:scale-95 transition-all"
+                    {/* Check-in / Check-out */}
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Check-in Time</label>
+                            <select
+                                value={formData.policies?.checkInTime || '12:00 PM'}
+                                onChange={(e) => updatePolicies({ checkInTime: e.target.value })}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm font-bold focus:border-[#004F4D] outline-none"
                             >
-                                <Minus size={14} />
-                            </button>
-                            <span className="text-xl font-black text-gray-900">{formData.totalRooms || 1}</span>
-                            <button
-                                onClick={() => updateFormData({ totalRooms: (formData.totalRooms || 1) + 1 })}
-                                className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center active:scale-95 transition-all"
+                                <option value="12:00 PM">12:00 PM</option>
+                                <option value="01:00 PM">01:00 PM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="11:00 AM">11:00 AM</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Check-out Time</label>
+                            <select
+                                value={formData.policies?.checkOutTime || '11:00 AM'}
+                                onChange={(e) => updatePolicies({ checkOutTime: e.target.value })}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm font-bold focus:border-[#004F4D] outline-none"
                             >
-                                <Plus size={14} />
-                            </button>
+                                <option value="11:00 AM">11:00 AM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="12:00 PM">12:00 PM</option>
+                                <option value="09:00 AM">09:00 AM</option>
+                            </select>
                         </div>
                     </div>
+
                 </div>
             </div>
 
-            {/* 4. Property Policies (Highlights) */}
+            {/* 3. Property Policies */}
             <div className="anim-item">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block flex items-center gap-1.5">
                     <Info size={14} /> Property Policies
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                     {[
-                        { id: 'coupleFriendly', label: 'Couple Friendly', icon: HeartHandshake },
-                        { id: 'petsAllowed', label: 'Pets Allowed', icon: PawPrint },
-                        { id: 'smokingAllowed', label: 'Smoking Allowed', icon: Cigarette },
-                    ].map((policy) => (
-                        <button
-                            key={policy.id}
-                            onClick={() => updateFormData({ [policy.id]: !formData[policy.id] })}
-                            className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 aspect-[4/3] active:scale-95 touch-manipulation relative overflow-hidden ${formData[policy.id]
-                                ? 'border-[#004F4D] bg-[#004F4D] text-white'
-                                : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
-                                }`}
-                        >
-                            <policy.icon size={20} className={`mb-1.5 z-10 ${formData[policy.id] ? 'stroke-white' : 'stroke-gray-400'}`} />
-                            <span className="text-[10px] font-bold leading-tight text-center z-10">{policy.label}</span>
+                        { id: 'coupleFriendly', label: 'Couples', icon: HeartHandshake },
+                        { id: 'petsAllowed', label: 'Pets', icon: PawPrint },
+                        { id: 'smokingAllowed', label: 'Smoking', icon: Cigarette },
+                        { id: 'localIdsAllowed', label: 'Local ID', icon: ShieldCheck },
+                        { id: 'alcoholAllowed', label: 'Alcohol', icon: GlassWater },
+                        { id: 'forEvents', label: 'Events', icon: PartyPopper },
+                        { id: 'outsideFoodAllowed', label: 'Food', icon: UtensilsCrossed },
+                    ].map((policy) => {
+                        const isActive = !!formData.policies?.[policy.id];
+                        return (
+                            <button
+                                key={policy.id}
+                                type="button"
+                                onClick={() => handlePolicyToggle(policy.id)}
+                                className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all duration-200 active:scale-95 touch-manipulation relative overflow-hidden ${isActive
+                                    ? 'border-[#004F4D] bg-[#004F4D] text-white shadow-md'
+                                    : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200 shadow-sm'
+                                    }`}
+                            >
+                                <policy.icon size={16} className={`shrink-0 ${isActive ? 'stroke-white' : 'stroke-gray-300'}`} />
+                                <span className="text-[10px] font-bold leading-tight uppercase tracking-tight">{policy.label}</span>
 
-                            {/* Selected Checkmark Watermark */}
-                            {formData[policy.id] && (
-                                <div className="absolute -bottom-2 -right-2 text-white/10 rotate-[-15deg]">
-                                    <CheckCircle size={40} />
-                                </div>
-                            )}
-                        </button>
-                    ))}
+                                {isActive && (
+                                    <CheckCircle size={10} className="absolute top-1 right-1 text-white/40" />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2 italic px-1">
-                    * Tap to enable specific policies for your property.
+                <p className="text-[10px] text-gray-400 mt-4 italic px-1 font-medium">
+                    * Tap to enable features or permissions for your property.
                 </p>
             </div>
 

@@ -5,11 +5,11 @@ import StepWrapper from '../components/StepWrapper';
 import ProgressBar from '../components/ProgressBar';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useLenis } from '../../shared/hooks/useLenis';
+import { authService, hotelService } from '../../../services/apiService';
 
 // Steps Components
 import StepPropertyType from '../steps/StepPropertyType';
 import StepSpaceType from '../steps/StepSpaceType';
-import StepLocationCheck from '../steps/StepLocationCheck';
 import StepPropertyName from '../steps/StepPropertyName';
 import StepAddress from '../steps/StepAddress';
 import StepPropertyDetails from '../steps/StepPropertyDetails';
@@ -18,19 +18,20 @@ import StepPropertyImages from '../steps/StepPropertyImages';
 import StepKyc from '../steps/StepKyc';
 import StepOtp from '../steps/StepOtp';
 import StepTerms from '../steps/StepTerms';
+import StepRoomDetails from '../steps/StepRoomDetails';
 
 const steps = [
-    { id: 1, title: 'Property Type', desc: 'What kind of place will you host?' },
-    { id: 2, title: 'Space Type', desc: 'Who will guests stay with?' },
-    { id: 3, title: 'Location', desc: 'Where is your property located?' },
-    { id: 4, title: 'Property Name', desc: 'Give your property a name' },
-    { id: 5, title: 'Address', desc: 'Confirm your property address' },
-    { id: 6, title: 'Property Details', desc: 'Add essential details' },
-    { id: 7, title: 'Facilities', desc: 'What amenities do you offer?' },
-    { id: 8, title: 'Photos', desc: 'Add some photos' },
-    { id: 9, title: 'KYC Verification', desc: 'Verify your ID' },
-    { id: 10, title: 'Verification', desc: 'Enter OTP sent to your phone' },
-    { id: 11, title: 'Agreement', desc: 'Terms & Conditions' },
+    { id: 1, title: 'Basics', desc: 'Property Type' },
+    { id: 2, title: 'Space', desc: 'Who will guests stay with?' },
+    { id: 3, title: 'Identity', desc: 'Give your property a name' },
+    { id: 4, title: 'Address', desc: 'Confirm your property address' },
+    { id: 5, title: 'Details', desc: 'Configuration and policies' },
+    { id: 6, title: 'Photos', desc: 'Property-wide photos' },
+    { id: 7, title: 'Amenities', desc: 'Property facilities' },
+    { id: 8, title: 'Rooms', desc: 'Add room categories & pricing' },
+    { id: 9, title: 'KYC', desc: 'Identity verification' },
+    { id: 10, title: 'Verify', desc: 'OTP Verification' },
+    { id: 11, title: 'Launch', desc: 'Review & Publish' },
 ];
 
 const JoinRokkooin = () => {
@@ -43,58 +44,86 @@ const JoinRokkooin = () => {
     // Calculate progress based on steps array
     const progress = (currentStep / steps.length) * 100;
 
-    const handleNext = () => {
+    const handleNext = async () => {
         setError('');
 
         // VALIDATION LOGIC
         if (currentStep === 1 && !formData.propertyType) return setError('Please select a property type');
         if (currentStep === 2 && !formData.spaceType) return setError('Please select a space type');
-        // Location validation (manual or coords)
-        if (currentStep === 3 && !formData.location?.type) return setError('Please confirm your location');
-        if (currentStep === 4 && (!formData.propertyName || formData.propertyName.length < 3)) return setError('Please enter a valid property name');
-        if (currentStep === 5 && (!formData.address?.line1 || !formData.address?.city)) return setError('Please enter a complete address');
+        if (currentStep === 3 && (!formData.propertyName || formData.propertyName.length < 3)) return setError('Please enter a valid property name');
+        if (currentStep === 4 && (!formData.address?.street || !formData.address?.city)) return setError('Please enter a complete address');
 
+        if (currentStep === 5) {
+            if (!formData.details?.totalFloors) updateFormData({ details: { ...formData.details, totalFloors: 1 } });
+            if (!formData.description || formData.description.length < 50) return setError('Description must be at least 50 characters');
+        }
         if (currentStep === 6) {
-            if (!formData.totalFloors) updateFormData({ totalFloors: 1 });
-            if (!formData.totalRooms) updateFormData({ totalRooms: 1 });
-            if (!formData.propertyRating || !formData.propertyDescription) return setError('Please rate your property and add a description');
+            const facade = formData.images?.filter(i => i.category === 'facade').length || 0;
+            if (facade < 4) return setError('Please upload at least 4 Facade/Entrance photos');
         }
         if (currentStep === 7 && (!formData.facilities || formData.facilities.length === 0)) return setError('Please select at least one facility');
-        if (currentStep === 8) {
-            const facade = formData.images?.filter(i => i.category === 'facade').length || 0;
-            const bedroom = formData.images?.filter(i => i.category === 'bedroom').length || 0;
-            const bathroom = formData.images?.filter(i => i.category === 'bathroom').length || 0;
-            if (facade < 4) return setError('Please upload at least 4 Facade/Entrance photos');
-            if (bedroom < 6) return setError('Please upload at least 6 Bedroom photos');
-            if (bathroom < 3) return setError('Please upload at least 3 Bathroom photos');
-        }
-        if (currentStep === 9 && (!formData.kycDocType || !formData.kycIdNumber)) return setError('Please complete KYC details');
-        if (currentStep === 10 && (!formData.otpCode || formData.otpCode.length < 4)) return setError('Please enter the 4-digit OTP');
+        if (currentStep === 8 && (!formData.rooms || formData.rooms.length === 0)) return setError('Please add at least one room category');
+
+        if (currentStep === 9 && (!formData.kyc?.docType || !formData.kyc?.idNumber)) return setError('Please complete KYC details');
+
+        if (currentStep === 10 && (!formData.otpCode || formData.otpCode.length < 6)) return setError('Please enter the 6-digit OTP');
         if (currentStep === 11 && !formData.termsAccepted) return setError('Please accept the Terms & Conditions');
+
+        // SAVE DRAFT STEP (Before moving next)
+        if (currentStep < steps.length && currentStep !== 10) {
+            try {
+                // Prepare Payload with proper mapping
+                const payload = {
+                    ...formData,
+                    step: currentStep,
+                    hotelDraftId: formData.hotelDraftId,
+                    propertyName: formData.propertyName || 'Incomplete Property',
+                    propertyType: formData.propertyType || 'Unknown'
+                };
+
+                // Map coordinates
+                if (formData.location?.lat && formData.location?.lng) {
+                    payload.address = {
+                        ...formData.address,
+                        coordinates: {
+                            lat: formData.location.lat,
+                            lng: formData.location.lng
+                        }
+                    };
+                }
+
+                const draftResponse = await authService.saveOnboardingStep(payload);
+
+                if (draftResponse && draftResponse.hotelId) {
+                    updateFormData({ hotelDraftId: draftResponse.hotelId });
+                }
+            } catch (err) {
+                console.warn("Failed to save draft:", err);
+            }
+        }
 
         if (currentStep < steps.length) {
             nextStep();
         } else {
-            // Final Submit Logic - Send to Admin for Approval
-            const propertySubmission = {
-                ...formData,
-                status: 'PENDING_APPROVAL',
-                submittedAt: new Date().toISOString(),
-                partnerId: 'PARTNER-' + Math.floor(Math.random() * 10000),
-            };
+            // Final Submit Logic
+            try {
+                const response = await authService.verifyPartnerOtp({
+                    ...formData,
+                    // Ensure these are mapped if needed, or backend handles it
+                    otp: formData.otpCode,
+                    phone: formData.phone, // Ensure phone is passed
+                    hotelDraftId: formData.hotelDraftId // Link to draft
+                });
 
-            console.log("Property Listing Request Submitted to Admin:", propertySubmission);
-
-            // TODO: API Call to backend
-            // await axios.post('/api/admin/property-requests', propertySubmission);
-
-            // Store in localStorage for demo (simulating backend)
-            const existingRequests = JSON.parse(localStorage.getItem('propertyRequests') || '[]');
-            existingRequests.push(propertySubmission);
-            localStorage.setItem('propertyRequests', JSON.stringify(existingRequests));
-
-            alert("✅ Property Listing Request Submitted!\n\nYour property details have been sent to admin for review. You'll be notified once approved.");
-            navigate('/hotel/partner-dashboard');
+                console.log("Registration Success:", response);
+                alert("✅ Registration Successful! Redirecting to Dashboard...");
+                navigate('/hotel/dashboard');
+                // You might want to reset the store here
+                // resetForm();
+            } catch (err) {
+                console.error("Registration Failed:", err);
+                setError(err.message || "Registration Failed. Please try again.");
+            }
         }
     };
 
@@ -110,12 +139,12 @@ const JoinRokkooin = () => {
         switch (currentStep) {
             case 1: return <StepPropertyType />;
             case 2: return <StepSpaceType />;
-            case 3: return <StepLocationCheck />;
-            case 4: return <StepPropertyName />;
-            case 5: return <StepAddress />;
-            case 6: return <StepPropertyDetails />;
+            case 3: return <StepPropertyName />;
+            case 4: return <StepAddress />;
+            case 5: return <StepPropertyDetails />;
+            case 6: return <StepPropertyImages />;
             case 7: return <StepFacilities />;
-            case 8: return <StepPropertyImages />;
+            case 8: return <StepRoomDetails />;
             case 9: return <StepKyc />;
             case 10: return <StepOtp />;
             case 11: return <StepTerms />;

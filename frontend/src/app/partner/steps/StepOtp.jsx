@@ -2,12 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import gsap from 'gsap';
 import { ShieldCheck } from 'lucide-react';
+import { authService } from '../../../services/apiService';
 
 const StepOtp = () => {
     const { formData, updateFormData } = usePartnerStore();
     const containerRef = useRef(null);
-    const [otp, setOtp] = useState(['', '', '', '']);
+    const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const inputs = useRef([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         const ctx = gsap.context(() => {
@@ -18,6 +20,21 @@ const StepOtp = () => {
         }, containerRef);
         // Focus first input on mount
         inputs.current[0]?.focus();
+
+        // Send OTP on Mount
+        const sendOtp = async () => {
+            if (formData.phone && formData.phone.length === 10) {
+                try {
+                    await authService.sendOtp(formData.phone);
+                    console.log("OTP Sent via StepOtp");
+                } catch (err) {
+                    console.error("Failed to send OTP:", err);
+                    alert("Failed to send OTP. Please try again.");
+                }
+            }
+        };
+        sendOtp();
+
         return () => ctx.revert();
     }, []);
 
@@ -30,7 +47,7 @@ const StepOtp = () => {
         updateFormData({ otpCode: newOtp.join('') });
 
         // Auto-advance
-        if (value && index < 3) {
+        if (value && index < 5) {
             inputs.current[index + 1].focus();
         }
     };
@@ -51,20 +68,20 @@ const StepOtp = () => {
             <div className="anim-item mb-8">
                 <h3 className="text-2xl font-black text-[#003836] mb-2">Confirm it's you</h3>
                 <p className="text-gray-500 text-sm max-w-[250px] mx-auto">
-                    We sent a 4-digit code to
+                    We sent a 6-digit code to
                     <span className="block font-bold text-[#003836] mt-1">+91 {formData.phone || '98765 43210'}</span>
                 </p>
             </div>
 
             {/* OTP Inputs */}
-            <div className="anim-item flex gap-4 mb-10">
+            <div className="anim-item flex gap-2 mb-10 justify-center">
                 {otp.map((digit, i) => (
                     <input
                         key={i}
                         ref={el => inputs.current[i] = el}
                         type="tel"
                         maxLength={1}
-                        className="w-14 h-16 rounded-2xl bg-gray-50 border-2 border-gray-200 text-center text-2xl font-bold text-[#003836] focus:border-[#004F4D] focus:bg-white focus:ring-0 transition-all caret-[#004F4D]"
+                        className="w-10 h-14 md:w-12 md:h-16 rounded-xl bg-gray-50 border-2 border-gray-200 text-center text-xl font-bold text-[#003836] focus:border-[#004F4D] focus:bg-white focus:ring-0 transition-all caret-[#004F4D]"
                         value={digit}
                         onChange={(e) => handleChange(i, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(i, e)}

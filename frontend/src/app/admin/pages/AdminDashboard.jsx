@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, Building2, Loader2 } from 'lucide-react';
+import { TrendingUp, Users, ShoppingBag, DollarSign, ArrowUpRight, ArrowDownRight, Building2, Loader2, Clock } from 'lucide-react';
 import AddHotelModal from '../components/AddHotelModal';
+import adminService from '../../../services/adminService';
+import toast from 'react-hot-toast';
 
 // Stat Card Component
-const StatCard = ({ title, value, change, isPositive, icon: Icon, color }) => (
+const StatCard = ({ title, value, change, isPositive, icon: Icon, color, loading }) => (
     <motion.div
         whileHover={{ y: -5 }}
         className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"
@@ -15,14 +17,18 @@ const StatCard = ({ title, value, change, isPositive, icon: Icon, color }) => (
 
         <div className="relative z-10">
             <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">{value}</h3>
+            {loading ? (
+                <div className="h-8 w-24 bg-gray-100 animate-pulse rounded-md mb-2"></div>
+            ) : (
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{value}</h3>
+            )}
 
             <div className="flex items-center gap-2">
                 <span className={`flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {isPositive ? <ArrowUpRight size={12} className="mr-1" /> : <ArrowDownRight size={12} className="mr-1" />}
                     {change}
                 </span>
-                <span className="text-xs text-gray-400">vs last month</span>
+                <span className="text-xs text-gray-400">total overall</span>
             </div>
         </div>
     </motion.div>
@@ -31,13 +37,37 @@ const StatCard = ({ title, value, change, isPositive, icon: Icon, color }) => (
 const AdminDashboard = () => {
     const [isExporting, setIsExporting] = useState(false);
     const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState(null);
+    const [recentBookings, setRecentBookings] = useState([]);
+    const [recentRequests, setRecentRequests] = useState([]);
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const data = await adminService.getDashboardStats();
+            if (data.success) {
+                setStats(data.stats);
+                setRecentBookings(data.recentBookings);
+                setRecentRequests(data.recentPropertyRequests);
+            }
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            toast.error('Failed to load dashboard stats');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleDownloadReport = () => {
         setIsExporting(true);
-        // Simulate Download
         setTimeout(() => {
             setIsExporting(false);
-            alert("Monthly Report downloaded successfully.");
+            toast.success("Monthly Report generated successfully.");
         }, 1500);
     };
 
@@ -72,95 +102,118 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Total Revenue"
-                    value="₹45,231.89"
-                    change="+20.1%"
+                    value={`₹${stats?.totalRevenue?.toLocaleString() || 0}`}
+                    change="+0%"
                     isPositive={true}
                     icon={DollarSign}
                     color="text-emerald-500"
+                    loading={loading}
                 />
                 <StatCard
-                    title="Active Bookings"
-                    value="2,345"
-                    change="+15.2%"
+                    title="Total Bookings"
+                    value={stats?.totalBookings || 0}
+                    change="+0%"
                     isPositive={true}
                     icon={ShoppingBag}
                     color="text-blue-500"
+                    loading={loading}
                 />
                 <StatCard
-                    title="New Users"
-                    value="12,345"
-                    change="+5.4%"
+                    title="Total Users"
+                    value={stats?.totalUsers || 0}
+                    change="+0%"
                     isPositive={true}
                     icon={Users}
                     color="text-purple-500"
+                    loading={loading}
                 />
                 <StatCard
-                    title="Hotel Growth"
-                    value="34"
-                    change="-2.3%"
+                    title="Pending Properties"
+                    value={stats?.pendingHotels || 0}
+                    change="Review needed"
                     isPositive={false}
                     icon={Building2}
                     color="text-orange-500"
+                    loading={loading}
                 />
             </div>
 
-            {/* Charts Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-96 flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-gray-900">Revenue Analytics</h3>
-                        <select className="text-xs border border-gray-200 rounded-md p-1 bg-gray-50 text-gray-600 outline-none">
-                            <option>This Week</option>
-                            <option>This Month</option>
-                            <option>This Year</option>
-                        </select>
-                    </div>
+            {/* Content Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Bookings */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <Clock size={20} className="text-gray-400" />
+                        Recent Bookings
+                    </h3>
 
-                    {/* CSS Bar Chart Simulation */}
-                    <div className="flex-1 flex items-end justify-between gap-2 px-2 pb-2">
-                        {[40, 65, 45, 80, 55, 90, 70, 85, 60, 75, 50, 95].map((height, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                                <div
-                                    className="w-full bg-gray-100 rounded-t-sm relative overflow-hidden group-hover:bg-blue-50 transition-colors"
-                                    style={{ height: '100%' }}
-                                >
-                                    <motion.div
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${height}%` }}
-                                        transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
-                                        className="absolute bottom-0 w-full bg-black rounded-t-sm opacity-80 group-hover:opacity-100"
-                                    ></motion.div>
+                    <div className="flex-1 space-y-4">
+                        {loading ? (
+                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
+                        ) : recentBookings.length > 0 ? (
+                            recentBookings.map((booking, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
+                                            {booking.userId?.name?.charAt(0) || 'U'}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">{booking.userId?.name || 'Guest User'}</p>
+                                            <p className="text-xs text-gray-500">{booking.hotelId?.name || 'Unknown Hotel'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm font-bold text-gray-900">₹{booking.totalAmount}</p>
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                            booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                            {booking.status}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] text-gray-400 font-medium">
-                                    {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}
-                                </span>
+                            ))
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                <ShoppingBag size={48} className="mb-2 opacity-20" />
+                                <p>No recent bookings found</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
 
-                {/* Recent Activity */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-96 flex flex-col">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                        {[
-                            { type: '🚀', msg: 'New Hotel "Grand Palace" registered', time: '2 mins ago' },
-                            { type: '💰', msg: 'Payout of ₹45,000 released', time: '1 hour ago' },
-                            { type: '👤', msg: 'New User "Rahul S." verified', time: '3 hours ago' },
-                            { type: '⚠️', msg: 'Dispute raised for Booking #9012', time: '5 hours ago' },
-                            { type: '⭐', msg: '5-Star review received for Hotel XYZ', time: '1 day ago' }
-                        ].map((item, i) => (
-                            <div key={i} className="flex gap-3 items-start p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-xs">
-                                    {item.type}
+                {/* Property Requests */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <Building2 size={20} className="text-gray-400" />
+                        Pending Property Requests
+                    </h3>
+
+                    <div className="flex-1 space-y-4">
+                        {loading ? (
+                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
+                        ) : recentRequests.length > 0 ? (
+                            recentRequests.map((hotel, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                                            <Building2 size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-900">{hotel.name}</p>
+                                            <p className="text-xs text-gray-500">by {hotel.ownerId?.name || 'Partner'}</p>
+                                        </div>
+                                    </div>
+                                    <button className="text-xs font-bold text-black bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+                                        View Details
+                                    </button>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-900">{item.msg}</p>
-                                    <p className="text-xs text-gray-500 mt-1">{item.time}</p>
-                                </div>
+                            ))
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                <Building2 size={48} className="mb-2 opacity-20" />
+                                <p>No pending requests</p>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             </div>

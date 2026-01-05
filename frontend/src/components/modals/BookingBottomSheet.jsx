@@ -5,6 +5,8 @@ import {
     X, Calendar, Users, BedDouble, ChevronRight, ChevronLeft,
     Minus, Plus, Check, Sun, Moon
 } from 'lucide-react';
+import { bookingService } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
 const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
     const navigate = useNavigate();
@@ -91,28 +93,55 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
         return false;
     };
 
-    const handleNext = () => {
+    const [loading, setLoading] = useState(false);
+
+    const handleNext = async () => {
         if (step < 3) {
             setStep(step + 1);
         } else {
-            // Extract only serializable plain data (no React elements/symbols)
-            const hotelInfo = {
-                name: hotelData?.name || '',
-                price: hotelData?.price || '',
-                originalPrice: hotelData?.originalPrice || '',
-                rating: hotelData?.rating || '',
-                address: hotelData?.address || '',
-                image: hotelData?.image || ''
-            };
+            // Confirm Booking
+            try {
+                setLoading(true);
+                const bookingPayload = {
+                    hotelId: hotelData.id || hotelData._id,
+                    checkIn: bookingData.checkIn.fullDate,
+                    checkOut: bookingData.checkOut.fullDate,
+                    guests: {
+                        rooms: bookingData.rooms,
+                        adults: bookingData.adults,
+                        children: bookingData.children
+                    },
+                    totalAmount: hotelData.price * calculateNights() // Simple logic
+                };
 
-            // Navigate directly to booking confirmation with celebration
-            navigate('/booking-confirmation', {
-                state: {
-                    animate: true,
-                    booking: bookingData,
-                    hotel: hotelInfo
-                }
-            });
+                const response = await bookingService.create(bookingPayload);
+
+                // Extract only serializable plain data (no React elements/symbols)
+                const hotelInfo = {
+                    name: hotelData?.name || '',
+                    price: hotelData?.price || '',
+                    address: typeof hotelData?.address === 'string' ? hotelData.address : hotelData.address?.street + ", " + hotelData.address?.city || '',
+                    image: hotelData?.image || '' // Use first image or thumbnail
+                };
+
+                // Navigate directly to booking confirmation with celebration
+                navigate('/booking-confirmation', {
+                    state: {
+                        animate: true,
+                        booking: {
+                            ...bookingPayload,
+                            id: response.bookingId, // Use ID from backend
+                            status: response.status
+                        },
+                        hotel: hotelInfo
+                    }
+                });
+            } catch (err) {
+                console.error("Booking Error:", err);
+                toast.error(err.message || "Failed to create booking");
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -446,11 +475,11 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
                             )}
                             <button
                                 onClick={handleNext}
-                                disabled={!canProceed()}
+                                disabled={!canProceed() || loading}
                                 className="flex-1 bg-surface text-white font-bold py-3.5 rounded-xl shadow-lg shadow-surface/30 disabled:opacity-50 disabled:shadow-none active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                             >
                                 {step === 3 ? (
-                                    <>Confirm Booking</>
+                                    loading ? "Creating..." : "Confirm Booking"
                                 ) : (
                                     <>Next <ChevronRight size={18} /></>
                                 )}

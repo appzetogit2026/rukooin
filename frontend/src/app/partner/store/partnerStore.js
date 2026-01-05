@@ -10,9 +10,21 @@ const INITIAL_DATA = {
     details: {},
     facilities: [],
     images: [],
-    kyc: {},
+    kyc: { docType: 'Aadhaar Card' },
     phone: '',
     rooms: [],
+    policies: {
+        checkInTime: '12:00 PM',
+        checkOutTime: '11:00 AM',
+        coupleFriendly: false,
+        petsAllowed: false,
+        smokingAllowed: false,
+        localIdsAllowed: false,
+        alcoholAllowed: false,
+        forEvents: false,
+        outsideFoodAllowed: false
+    },
+    hotelDraftId: null, // Stores the draft ID from backend
 };
 
 const usePartnerStore = create(
@@ -26,13 +38,30 @@ const usePartnerStore = create(
                 nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, state.totalSteps) })),
                 prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
                 updateFormData: (data) => set((state) => ({ formData: { ...state.formData, ...data } })),
+                updatePolicies: (updates) => set((state) => ({
+                    formData: {
+                        ...state.formData,
+                        policies: { ...(state.formData.policies || {}), ...updates }
+                    }
+                })),
+                updateDetails: (updates) => set((state) => ({
+                    formData: {
+                        ...state.formData,
+                        details: { ...(state.formData.details || {}), ...updates }
+                    }
+                })),
                 resetForm: () => set({ currentStep: 1, formData: INITIAL_DATA }),
 
                 // Room Management Actions
                 addRoom: (room) => set((state) => ({
                     formData: {
                         ...state.formData,
-                        rooms: [...(state.formData.rooms || []), { ...room, id: Date.now().toString(), createdAt: new Date() }]
+                        rooms: [...(state.formData.rooms || []), {
+                            ...room,
+                            id: room.id || Date.now().toString(),
+                            images: room.images || [],
+                            createdAt: new Date()
+                        }]
                     }
                 })),
                 updateRoom: (roomId, updates) => set((state) => ({

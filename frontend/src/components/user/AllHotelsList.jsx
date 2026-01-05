@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FilterBottomSheet from '../modals/FilterBottomSheet';
+import { hotelService } from '../../services/apiService';
 
 const ListingCard = ({ hotel }) => {
     const navigate = useNavigate();
@@ -93,56 +94,43 @@ const AllHotelsList = () => {
     const [filterSheetOpen, setFilterSheetOpen] = useState(false);
     const [scrollTarget, setScrollTarget] = useState(null);
 
-    // Mock Data (simulating a larger list)
-    const hotels = [
-        {
-            id: 101,
-            image: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
-            name: "Rukko Premier: Skyline",
-            location: "Indore, Vijay Nagar",
-            price: "1299",
-            rating: "4.5",
-            isVerified: true,
-            amenities: ["Wifi", "AC", "TV"]
-        },
-        {
-            id: 102,
-            image: "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
-            name: "Rukko Townhouse: Elite",
-            location: "Bhawarkua, Indore",
-            price: "999",
-            rating: "4.2",
-            isVerified: true,
-            amenities: ["Wifi", "Parking"]
-        },
-        {
-            id: 103,
-            image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
-            name: "Hotel Sai Palace",
-            location: "Near Railway Station",
-            price: "850",
-            rating: "4.0",
-            isVerified: false,
-            amenities: ["Geyser", "CCTV"]
-        },
-        {
-            id: 104,
-            image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80",
-            name: "Rukko Flagship: Central",
-            location: "MG Road, Indore",
-            price: "1500",
-            rating: "4.8",
-            isVerified: true,
-            amenities: ["Elevator", "Breakfast"]
-        }
-    ];
+    const [hotels, setHotels] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch Hotels
+    useEffect(() => {
+        const fetchHotels = async () => {
+            try {
+                setLoading(true);
+                const data = await hotelService.getAll();
+                setHotels(data);
+            } catch (err) {
+                console.error("Failed to fetch hotels", err);
+                setError(err.message);
+                // Fallback to mock data if API fails (optional, but good for dev if backend empty)
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHotels();
+    }, []);
+
+    if (loading) {
+        return <div className="p-10 text-center text-gray-500">Loading hotels...</div>;
+    }
+
+    if (error) {
+        return <div className="p-10 text-center text-red-500">Error loading hotels: {error}</div>;
+    }
 
     return (
         <section className="w-full px-5 py-2 pb-24">
 
             {/* 1. Results Count & Price Info */}
             <div className="flex justify-between items-end mb-4">
-                <h2 className="text-xl font-bold text-surface">87 Rukkos found</h2>
+                <h2 className="text-xl font-bold text-surface">{hotels.length} Rukkos found</h2>
                 <p className="text-xs text-gray-500 mb-1">Price per room per night</p>
             </div>
 
@@ -224,9 +212,18 @@ const AllHotelsList = () => {
 
             {/* 4. Vertical List of Large Cards */}
             <div className="flex flex-col gap-6">
-                {hotels.map((hotel, index) => (
-                    <ListingCard key={hotel.id} hotel={hotel} />
-                ))}
+                {hotels.length > 0 ? hotels.map((hotel) => (
+                    <ListingCard key={hotel._id || hotel.id} hotel={{
+                        id: hotel._id || hotel.id,
+                        name: hotel.name,
+                        location: hotel.address?.city || hotel.location || 'Unknown Location',
+                        price: hotel.price,
+                        image: hotel.images?.[0] || "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
+                        rating: hotel.rating?.average || hotel.rating || 4.5
+                    }} />
+                )) : (
+                    <p className="text-center text-gray-500">No hotels found.</p>
+                )}
             </div>
 
             {/* Filter Bottom Sheet */}

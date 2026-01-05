@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/rokologin-removebg-preview.png';
+import useAdminStore from '../store/adminStore';
+import toast from 'react-hot-toast';
 
 const AdminLogin = () => {
     const navigate = useNavigate();
+    const login = useAdminStore(state => state.login);
+    const isAuthenticated = useAdminStore(state => state.isAuthenticated);
+    const checkAuth = useAdminStore(state => state.checkAuth);
+
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -14,7 +20,18 @@ const AdminLogin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleLogin = (e) => {
+    useEffect(() => {
+        // If already logged in, redirect to dashboard
+        const checkExistingAuth = async () => {
+            await checkAuth();
+            if (localStorage.getItem('adminToken')) {
+                navigate('/admin/dashboard');
+            }
+        };
+        checkExistingAuth();
+    }, []);
+
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -29,16 +46,16 @@ const AdminLogin = () => {
         }
 
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
-            // Simple demo check
-            if (formData.email === 'admin@rukkoo.in' && formData.password === 'admin123') {
-                navigate('/admin/dashboard');
-            } else {
-                setError('Invalid credentials. Try: admin@rukkoo.in / admin123');
-            }
-        }, 1500);
+        const result = await login(formData.email, formData.password);
+        setLoading(false);
+
+        if (result.success) {
+            toast.success('Admin login successful!');
+            navigate('/admin/dashboard');
+        } else {
+            setError(result.message);
+            toast.error(result.message);
+        }
     };
 
     return (

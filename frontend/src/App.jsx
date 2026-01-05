@@ -4,6 +4,7 @@ import Home from './pages/user/Home';
 import HotelDetails from './pages/user/HotelDetails';
 import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
+import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
 // import Lenis from 'lenis'; // Removed manual import
 
 // User Auth Pages
@@ -30,10 +31,12 @@ import AdminBookings from './app/admin/pages/AdminBookings';
 import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
 
 import AdminPropertyRequests from './app/admin/pages/AdminPropertyRequests';
+import AdminPropertyRequestDetail from './app/admin/pages/AdminPropertyRequestDetail';
 import AdminReviews from './app/admin/pages/AdminReviews';
 import AdminFinance from './app/admin/pages/AdminFinance';
 import AdminEarnings from './app/admin/pages/AdminEarnings';
 import AdminSettings from './app/admin/pages/AdminSettings';
+import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
 
 
 
@@ -44,7 +47,8 @@ import AdminSettings from './app/admin/pages/AdminSettings';
 
 
 // Hotel Partner Auth & Pages
-import HotelLogin from './app/partner/pages/HotelLogin';
+import HotelLogin from './pages/auth/HotelLoginPage';
+import HotelSignup from './pages/auth/HotelSignupPage';
 import PartnerHome from './app/partner/pages/PartnerHome';
 import JoinRokkooin from './app/partner/pages/JoinRokkooin';
 import PartnerDashboard from './app/partner/pages/PartnerDashboard';
@@ -89,33 +93,51 @@ const Layout = ({ children }) => {
   const isCmsRoute = location.pathname.startsWith('/admin');
   useLenis(isCmsRoute);
 
-  // Routes where navbars should be completely hidden
-  const hideAllNavRoutes = ['/login', '/signup', '/register', '/admin', '/hotel'];
-  const shouldHideAllNav = hideAllNavRoutes.some(route => location.pathname.includes(route));
+  // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
+  // These pages control their own layout fully.
+  // Note: '/login' will match '/hotel/login', '/register' matches '/hotel/register'
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join'];
+  const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
 
-  // Routes where only bottom nav should be hidden
-  const hideBottomNavRoutes = ['/hotel/', '/booking-confirmation', '/payment', '/search', '/support', '/refer'];
-  const shouldHideBottomNav = hideBottomNavRoutes.some(route => location.pathname.includes(route));
-
-  // If auth page, render without any navbars
-  if (shouldHideAllNav) {
+  if (shouldGlobalHide) {
     return <>{children}</>;
   }
 
+  // 2. CONTEXT DETECTION
+  const isPartnerApp = location.pathname.startsWith('/hotel');
+
+  // 3. NAVBAR VISIBILITY
+  // User Top/Bottom Navs should NOT show in Partner App
+  const showUserNavs = !isPartnerApp;
+
+  // Specific user pages where BottomNav is hidden (e.g. detailed flows)
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/search', '/support', '/refer'];
+  const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
+
+  // Partner Bottom Nav should show in Partner App (authenticated pages)
+  // We exclude the root '/hotel' as it's likely a landing page without app navigation needs
+  const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel';
+
   return (
     <>
-      <TopNavbar />
-      <div className={`min-h-screen md:pt-16 ${!shouldHideBottomNav ? 'pb-20 md:pb-0' : ''}`}>
+      {showUserNavs && <TopNavbar />}
+
+      <div className={`min-h-screen md:pt-16 ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         {children}
       </div>
-      {!shouldHideBottomNav && <BottomNavbar />}
+
+      {showUserBottomNav && <BottomNavbar />}
+      {showPartnerBottomNav && <PartnerBottomNavbar />}
     </>
   );
 };
 
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   return (
     <Router>
+      <Toaster position="top-center" reverseOrder={false} />
       <Layout>
         <Routes>
           {/* User Auth Routes */}
@@ -126,6 +148,7 @@ function App() {
 
           {/* Hotel/Partner Module Routes */}
           <Route path="/hotel/login" element={<HotelLogin />} />
+          <Route path="/hotel/register" element={<HotelSignup />} />
           <Route path="/hotel" element={<HotelLayout />}>
             <Route index element={<PartnerHome />} />
             {/* Wizard Route */}
@@ -154,27 +177,23 @@ function App() {
           <Route path="/admin/signup" element={<AdminSignup />} />
 
           {/* Admin App Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="users/:id" element={<AdminUserDetail />} />
-            <Route path="bookings" element={<AdminBookings />} />
-            <Route path="bookings/:id" element={<AdminBookingDetail />} />
-            <Route path="property-requests" element={<AdminPropertyRequests />} />
-            <Route path="reviews" element={<AdminReviews />} />
-            <Route path="finance" element={<AdminFinance />} />
-            <Route path="earnings" element={<AdminEarnings />} />
-            <Route path="settings" element={<AdminSettings />} />
-
-
-
-
-            <Route path="hotels" element={<AdminHotels />} />
-
-            <Route path="hotels/:id" element={<AdminHotelDetail />} />
-
-            {/* Add more admin routes here later */}
+          <Route element={<AdminProtectedRoute />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:id" element={<AdminUserDetail />} />
+              <Route path="bookings" element={<AdminBookings />} />
+              <Route path="bookings/:id" element={<AdminBookingDetail />} />
+              <Route path="property-requests" element={<AdminPropertyRequests />} />
+              <Route path="property-requests/:id" element={<AdminPropertyRequestDetail />} />
+              <Route path="reviews" element={<AdminReviews />} />
+              <Route path="finance" element={<AdminFinance />} />
+              <Route path="earnings" element={<AdminEarnings />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="hotels" element={<AdminHotels />} />
+              <Route path="hotels/:id" element={<AdminHotelDetail />} />
+            </Route>
           </Route>
 
 

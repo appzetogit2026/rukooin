@@ -1,0 +1,99 @@
+import { create } from 'zustand';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const axiosInstance = axios.create({
+  baseURL: API_URL
+});
+
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+const useAdminStore = create((set, get) => ({
+  admin: null,
+  token: localStorage.getItem('adminToken') || null,
+  isAuthenticated: false,
+  loading: true,
+
+  setToken: (token) => {
+    if (token) {
+      localStorage.setItem('adminToken', token);
+      set({ token, isAuthenticated: true });
+    } else {
+      localStorage.removeItem('adminToken');
+      set({ token: null, isAuthenticated: false, admin: null });
+    }
+  },
+
+  login: async (email, password) => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/admin/login`, { email, password });
+      const { token, user } = response.data;
+
+      localStorage.setItem('adminToken', token);
+      set({ admin: user, token, isAuthenticated: true, loading: false });
+      return { success: true };
+    } catch (error) {
+      console.error('Admin Login Error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed'
+      };
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('adminToken');
+    set({ admin: null, token: null, isAuthenticated: false });
+  },
+
+  checkAuth: async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      set({ isAuthenticated: false, admin: null, loading: false });
+      return;
+    }
+
+    try {
+      const response = await axiosInstance.get('/auth/me');
+
+      if (response.data.user && response.data.user.role === 'admin') {
+        set({
+          admin: response.data.user,
+          token,
+          isAuthenticated: true,
+          loading: false
+        });
+      } else {
+        get().logout();
+        set({ loading: false });
+      }
+    } catch (error) {
+      console.error('Check Auth Error:', error);
+      if (error.response?.status === 401) {
+        get().logout();
+      }
+      set({ loading: false });
+    }
+  }
+}));
+
+// Add response interceptor to handle 401 globally for this instance
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      useAdminStore.getState().logout();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export { axiosInstance };
+export default useAdminStore;

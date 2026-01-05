@@ -8,13 +8,59 @@ import {
 import { motion } from 'framer-motion';
 import BookingBottomSheet from '../../components/modals/BookingBottomSheet';
 import showSaveToast from '../../utils/toastUtils.jsx';
+import { hotelService, userService } from '../../services/apiService';
 
 const HotelDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [imgError, setImgError] = useState({});
     const [currentImgIndex, setCurrentImgIndex] = useState(0);
+    const [isSaved, setIsSaved] = useState(false);
     const imageContainerRef = useRef(null);
+
+    // Initial check if hotel is saved (requires fetching profile or passing prop)
+    useEffect(() => {
+        const checkSavedStatus = async () => {
+            try {
+                // Ideally this should be checked against user profile
+                // For now, we rely on local state or simple check if we had user object
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user && user.savedHotels && user.savedHotels.includes(id)) {
+                    setIsSaved(true);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        checkSavedStatus();
+    }, [id]);
+
+    const handleToggleSave = async () => {
+        try {
+            await userService.toggleSavedHotel(id);
+            setIsSaved(!isSaved);
+            showSaveToast(!isSaved);
+
+            // Update local user object to reflect change immediately (optional)
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                if (!isSaved) {
+                    user.savedHotels = [...(user.savedHotels || []), id];
+                } else {
+                    user.savedHotels = (user.savedHotels || []).filter(hid => hid !== id);
+                }
+                localStorage.setItem('user', JSON.stringify(user));
+            }
+
+        } catch (err) {
+            console.error(err);
+            // If error is 401, maybe redirect to login or show toast
+            if (err.message && err.message.includes('token')) {
+                // simple alert for now
+                alert("Please login to save hotels");
+            }
+        }
+    };
 
     // Reset scroll on ID change
     useEffect(() => {
@@ -47,87 +93,74 @@ const HotelDetails = () => {
     // Placeholder Image
     const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?w=800&q=80";
 
-    // Mock Data Generator based on ID
-    const getHotelData = (hotelId) => {
-        const base = {
-            name: "Super Collection O Ring Road Bhawarkua Indore",
-            location: "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road",
-            price: "898",
-            originalPrice: "4386",
-            rating: "4.6",
-            ratingCount: "1139 ratings",
-            checkInRating: "5.0",
-            images: [
-                "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
-                "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400&q=80",
-                "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400&q=80",
-                "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80",
-                "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400&q=80"
-            ],
-            amenities: [
-                { icon: Wifi, name: "Free Wifi" },
-                { icon: Coffee, name: "Breakfast" },
-                { icon: Car, name: "Parking" },
-                { icon: Shield, name: "Sanitized" },
-                { icon: Utensils, name: "Restaurant" },
-                { icon: Users, name: "Reception" }
-            ],
-            whyChoose: [
-                {
-                    title: "Express check-in",
-                    image: "https://images.unsplash.com/photo-1556740758-90de374c12ad?w=400&q=80",
-                    video: true
-                },
-                {
-                    title: "Spacious and hygienic rooms",
-                    image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80",
-                    video: false
-                },
-                {
-                    title: "Premium Amenities",
-                    image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&q=80",
-                    video: false
-                }
-            ],
-            ratings: [
-                { label: "Cleanliness", score: 4.8 },
-                { label: "Location", score: 4.5 },
-                { label: "Check-in", score: 5.0 },
-                { label: "Value", score: 4.7 }
-            ]
+    const [hotel, setHotel] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchHotel = async () => {
+            try {
+                setLoading(true);
+                const data = await hotelService.getById(id);
+                // Transform API data to Component state format if needed
+                const transformed = {
+                    ...data,
+                    name: data.name,
+                    location: data.address?.city || data.location,
+                    price: data.price,
+                    originalPrice: data.originalPrice || (data.price + 500),
+                    rating: data.rating?.average || 4.5,
+                    ratingCount: data.rating?.count + " ratings" || "100+ ratings",
+                    images: data.images?.length > 0 ? data.images : [
+                        "https://images.unsplash.com/photo-1590490360182-c583ca46fd08?w=800&q=80",
+                        "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400&q=80"
+                    ],
+                    amenities: [
+                        { icon: Wifi, name: "Free Wifi" },
+                        { icon: Coffee, name: "Breakfast" },
+                        { icon: Car, name: "Parking" },
+                        { icon: Shield, name: "Sanitized" },
+                        { icon: Utensils, name: "Restaurant" },
+                        { icon: Users, name: "Reception" }
+                    ],
+                    whyChoose: [
+                        {
+                            title: "Express check-in",
+                            image: "https://images.unsplash.com/photo-1556740758-90de374c12ad?w=400&q=80",
+                            video: true
+                        },
+                        {
+                            title: "Spacious and hygienic rooms",
+                            image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&q=80",
+                            video: false
+                        },
+                        {
+                            title: "Premium Amenities",
+                            image: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&q=80",
+                            video: false
+                        }
+                    ],
+                    ratings: [
+                        { label: "Cleanliness", score: data.rating?.breakdown?.cleanliness || 4.8 },
+                        { label: "Location", score: data.rating?.breakdown?.location || 4.5 },
+                        { label: "Check-in", score: data.rating?.breakdown?.checkIn || 5.0 },
+                        { label: "Value", score: data.rating?.breakdown?.value || 4.7 }
+                    ]
+                };
+                setHotel(transformed);
+            } catch (err) {
+                console.error("Fetch Hotel Details Error:", err);
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        // Simple variation based on ID parity/number
-        const numId = parseInt(hotelId) || 100;
-        if (numId % 2 !== 0) {
-            return {
-                ...base,
-                name: "Rukko Premier: Skyline View " + numId,
-                location: "Vijay Nagar, Near C21 Mall, Indore",
-                price: "1299",
-                originalPrice: "5000",
-                rating: "4.8",
-                images: [...base.images].reverse() // Rotate images for visual difference
-            };
-        }
-        if (numId % 3 === 0) {
-            return {
-                ...base,
-                name: "Rukko Townhouse: Elite " + numId,
-                location: "Bhawarkua Main Road, Indore",
-                price: "1599",
-                originalPrice: "6500",
-                rating: "4.9",
-                images: [
-                    "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
-                    ...base.images
-                ]
-            };
-        }
-        return base;
-    };
+        if (id) fetchHotel();
+    }, [id]);
 
-    const hotel = getHotelData(id);
+    if (loading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
+    if (error || !hotel) return <div className="h-screen flex items-center justify-center">Hotel not found</div>;
 
     // Scroll Spy & Sticky Header Logic
     useEffect(() => {
@@ -204,15 +237,10 @@ const HotelDetails = () => {
 
                     <div className="flex gap-3">
                         <button
-                            onClick={() => {
-                                // Toggle save (mock)
-                                const saved = localStorage.getItem('isMainHotelSaved') === 'true';
-                                localStorage.setItem('isMainHotelSaved', !saved);
-                                showSaveToast(!saved);
-                            }}
+                            onClick={handleToggleSave}
                             className={`${showStickyHeader ? 'bg-gray-100 text-surface' : 'bg-white/80 backdrop-blur-md text-surface'} p-2 rounded-full shadow-sm transition active:scale-95`}
                         >
-                            <Heart size={20} className={localStorage.getItem('isMainHotelSaved') === 'true' ? "fill-red-500 text-red-500" : ""} />
+                            <Heart size={20} className={isSaved ? "fill-red-500 text-red-500" : ""} />
                         </button>
                     </div>
                 </div>
