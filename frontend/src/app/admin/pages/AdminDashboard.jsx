@@ -47,6 +47,9 @@ const AdminDashboard = () => {
     }, []);
 
     const fetchDashboardData = async () => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return; // Don't even try if no token
+
         try {
             setLoading(true);
             const data = await adminService.getDashboardStats();
@@ -56,8 +59,11 @@ const AdminDashboard = () => {
                 setRecentRequests(data.recentPropertyRequests);
             }
         } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-            toast.error('Failed to load dashboard stats');
+            // Only show error if it's not a 401 (which is handled by logout)
+            if (error.response?.status !== 401) {
+                console.error('Error fetching dashboard data:', error);
+                toast.error('Failed to load dashboard stats');
+            }
         } finally {
             setLoading(false);
         }

@@ -102,6 +102,9 @@ const AdminPropertyRequests = () => {
     }, []);
 
     const fetchRequests = async () => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
         try {
             setLoading(true);
             const data = await adminService.getPropertyRequests();
@@ -109,8 +112,10 @@ const AdminPropertyRequests = () => {
                 setRequests(data.hotels || []);
             }
         } catch (error) {
-            console.error('Error fetching property requests:', error);
-            toast.error('Failed to load pending requests');
+            if (error.response?.status !== 401) {
+                console.error('Error fetching property requests:', error);
+                toast.error('Failed to load pending requests');
+            }
         } finally {
             setLoading(false);
         }

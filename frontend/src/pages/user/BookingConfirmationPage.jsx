@@ -74,6 +74,70 @@ const BookingConfirmationPage = () => {
     const passedBooking = location.state?.booking;
     const passedHotel = location.state?.hotel;
 
+    // Get real user data from localStorage
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // Helper to format date
+    const formatDate = (dateInput) => {
+        if (!dateInput) return { dateNum: '', month: '', day: '', full: '' };
+
+        // If it's already the custom object from HotelDetails (check if dateNum exists)
+        if (dateInput.dateNum && dateInput.month) {
+            return {
+                dateNum: dateInput.dateNum,
+                month: dateInput.month,
+                day: dateInput.day || '',
+                full: dateInput.fullDate || `${dateInput.dateNum} ${dateInput.month}`
+            };
+        }
+
+        // Parse string or Date object
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return { dateNum: '?', month: '?', day: '?', full: '' };
+
+        return {
+            dateNum: date.getDate(),
+            month: date.toLocaleDateString('en-US', { month: 'short' }),
+            day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+            full: date.toISOString().split('T')[0]
+        };
+    };
+
+    const checkInDate = formatDate(passedBooking?.checkIn);
+    const checkOutDate = formatDate(passedBooking?.checkOut);
+
+    // Calculate nights
+    const calculateNights = () => {
+        if (!passedBooking) return 1;
+
+        let start, end;
+        if (passedBooking.checkIn?.fullDate) {
+            start = new Date(passedBooking.checkIn.fullDate);
+            end = new Date(passedBooking.checkOut?.fullDate);
+        } else {
+            start = new Date(passedBooking.checkIn);
+            end = new Date(passedBooking.checkOut);
+        }
+
+        if (isNaN(start) || isNaN(end)) return 1;
+        return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    };
+
+    // Helper for address
+    const getAddress = (addr) => {
+        if (!addr) return "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road, Bhawarkua, Indore, Madhya Pradesh";
+        if (typeof addr === 'string') return addr;
+        // Backend address object
+        return `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}`.replace(/^, /, '').replace(/, $/, '').replace(/, ,/g, ',');
+    };
+
+    // Helper for Image
+    const getImage = (imgData) => {
+        if (typeof imgData === 'string') return imgData;
+        if (imgData?.url) return imgData.url; // Backend image object
+        return "https://picsum.photos/seed/hotel1/800/600";
+    }
+
     // Generate booking ID
     const generateBookingId = () => {
         return "BKID" + Math.floor(100000 + Math.random() * 900000);
@@ -81,34 +145,37 @@ const BookingConfirmationPage = () => {
 
     // Build booking object from passed data or use defaults
     const booking = {
-        id: passedBooking ? generateBookingId() : "BKID882390",
-        amount: passedHotel?.price || "998",
-        paymentMethod: "Pay at Hotel",
-        status: "Confirmed",
+        id: passedBooking?.bookingId || passedBooking?.id || generateBookingId(),
+        amount: passedBooking?.pricing?.userPayableAmount || passedBooking?.totalAmount || passedHotel?.price || "998",
+        paymentMethod: passedBooking?.paymentStatus === "paid" ? "Paid Online" : "Pay at Hotel",
+        status: passedBooking?.status || "Confirmed",
         hotel: {
-            name: passedHotel?.name || "Super Collection O Ring Road",
-            address: passedHotel?.address || "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road, Bhawarkua, Indore, Madhya Pradesh",
-            image: passedHotel?.image || "https://picsum.photos/seed/hotel1/800/600",
-            rating: passedHotel?.rating || "4.6"
+            name: passedBooking?.hotelId?.name || passedHotel?.name || "Super Collection O Ring Road",
+            address: getAddress(passedBooking?.hotelId?.address) || passedHotel?.address,
+            image: getImage(passedBooking?.hotelId?.images?.[0]) || passedHotel?.image,
+            rating: passedBooking?.hotelId?.propertyRating || passedBooking?.hotelId?.rating || passedHotel?.rating || 3
         },
         dates: {
-            checkIn: passedBooking?.checkIn?.dateNum + " " + passedBooking?.checkIn?.month || "23 Dec",
-            checkOut: passedBooking?.checkOut?.dateNum + " " + passedBooking?.checkOut?.month || "24 Dec",
-            checkInDay: passedBooking?.checkIn?.day || "Tue",
-            checkOutDay: passedBooking?.checkOut?.day || "Wed",
-            nights: passedBooking ?
-                Math.ceil((new Date(passedBooking.checkOut?.fullDate) - new Date(passedBooking.checkIn?.fullDate)) / (1000 * 60 * 60 * 24))
-                : 1
+            checkIn: `${checkInDate.dateNum} ${checkInDate.month}`,
+            checkOut: `${checkOutDate.dateNum} ${checkOutDate.month}`,
+            checkInDay: checkInDate.day,
+            checkOutDay: checkOutDate.day,
+            nights: calculateNights()
         },
         user: {
-            name: guestName,
-            phone: "+91 98765 43210",
-            email: "hritik@example.com"
+            name: passedBooking?.userId?.name || userData.name || guestName,
+            phone: passedBooking?.userId?.phone || userData.phone || "+91 00000 00000",
+            email: passedBooking?.userId?.email || userData.email || "user@example.com"
         },
         guests: {
-            rooms: passedBooking?.rooms || 1,
-            adults: passedBooking?.adults || 2,
-            children: passedBooking?.children || 0
+            rooms: passedBooking?.guests?.rooms || passedBooking?.rooms || 1,
+            adults: passedBooking?.guests?.adults || passedBooking?.adults || 2,
+            children: passedBooking?.guests?.children || passedBooking?.children || 0
+        },
+        pricing: passedBooking?.pricing || {
+            baseAmount: passedBooking?.totalAmount || 0,
+            discountAmount: 0,
+            userPayableAmount: passedBooking?.totalAmount || 0
         }
     };
 
@@ -128,7 +195,30 @@ const BookingConfirmationPage = () => {
     };
 
     const handlePayment = () => {
-        navigate('/payment');
+        // Ensure we have a proper booking object with all required fields
+        const paymentBooking = passedBooking || {
+            bookingId: booking.id,
+            amount: booking.amount,
+            pricing: {
+                baseAmount: parseInt(booking.amount) || 0,
+                discountAmount: 0,
+                userPayableAmount: parseInt(booking.amount) || 0
+            },
+            hotelId: booking.hotel,
+            checkIn: booking.dates.checkIn,
+            checkOut: booking.dates.checkOut,
+            guests: booking.guests,
+            userId: booking.user
+        };
+
+        console.log('Navigating to payment with booking:', paymentBooking);
+
+        // Pass booking data to payment page
+        navigate('/payment', {
+            state: {
+                booking: paymentBooking
+            }
+        });
     };
 
     return (
@@ -275,6 +365,45 @@ const BookingConfirmationPage = () => {
                         </div>
                     </div>
 
+                    {/* 2.5. Pricing Breakdown Card - NEW */}
+                    {passedBooking?.pricing && (
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-surface mb-4 flex items-center gap-2">
+                                <CreditCard size={18} />
+                                Payment Breakdown
+                            </h3>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-600">Base Amount</span>
+                                    <span className="font-bold text-surface">₹{passedBooking.pricing.baseAmount?.toLocaleString('en-IN')}</span>
+                                </div>
+
+                                {passedBooking.pricing.discountAmount > 0 && (
+                                    <>
+                                        <div className="flex justify-between items-center text-green-600">
+                                            <span className="text-sm">Coupon Discount ({passedBooking.couponApplied?.code})</span>
+                                            <span className="font-bold">-₹{passedBooking.pricing.discountAmount?.toLocaleString('en-IN')}</span>
+                                        </div>
+
+                                        <div className="bg-green-50 border border-green-100 rounded-lg p-3">
+                                            <p className="text-xs text-green-700 font-medium">
+                                                🎉 You saved ₹{passedBooking.pricing.discountAmount?.toLocaleString('en-IN')}!
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
+                                    <span className="font-bold text-surface">You Paid</span>
+                                    <span className="text-2xl font-black text-green-600">₹{passedBooking.pricing.userPayableAmount?.toLocaleString('en-IN')}</span>
+                                </div>
+
+                                {/* Partner & Admin Split Info Removed */}
+                            </div>
+                        </div>
+                    )}
+
                     {/* 4. Booking Details */}
                     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-5">
 
@@ -330,33 +459,22 @@ const BookingConfirmationPage = () => {
                             </div>
 
                             {/* Contact Info */}
-                            <div className="flex justify-between items-center bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                                <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Contact Information</p>
-                                    <p className="text-xs font-bold text-surface">{booking.user.phone}</p>
-                                    <p className="text-xs text-gray-500">{booking.user.email}</p>
-                                </div>
-                                <button onClick={() => setShowEditModal(true)} className="text-xs font-bold text-accent">Edit</button>
+                            <div className="bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Contact Information</p>
+                                <p className="text-xs font-bold text-surface">{booking.user.phone}</p>
+                                <p className="text-xs text-gray-500">{booking.user.email}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* 5. WhatsApp Update */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-green-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg shadow-green-200">
-                                <MessageCircle size={20} fill="currentColor" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-surface">Get updates on WhatsApp</h3>
-                                <p className="text-[10px] text-gray-500">Booking details, maps & directions</p>
-                            </div>
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-green-100 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg shadow-green-200">
+                            <MessageCircle size={20} fill="currentColor" />
                         </div>
-                        <div
-                            onClick={() => setWhatsappEnabled(!whatsappEnabled)}
-                            className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors duration-300 ${whatsappEnabled ? 'bg-[#25D366]' : 'bg-gray-300'}`}
-                        >
-                            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${whatsappEnabled ? 'left-[22px]' : 'left-0.5'}`} />
+                        <div>
+                            <h3 className="text-sm font-bold text-surface">Get updates on WhatsApp</h3>
+                            <p className="text-[10px] text-gray-500">Booking details, maps & directions</p>
                         </div>
                     </div>
 
@@ -392,14 +510,6 @@ const BookingConfirmationPage = () => {
 
                     {/* 7. Manage Booking Buttons */}
                     <div className="space-y-3 pb-8">
-                        <button
-                            onClick={() => setShowEditModal(true)}
-                            className="w-full bg-white border border-gray-200 text-surface font-bold py-3.5 rounded-xl text-sm shadow-sm active:scale-[0.98] transition-all hover:bg-gray-50 flex items-center justify-center gap-2"
-                        >
-                            <Users size={16} />
-                            Modify Guest Name
-                        </button>
-
                         <button
                             onClick={() => setShowCancelModal(true)}
                             className="w-full bg-red-50 text-red-600 font-bold py-3.5 rounded-xl text-sm active:scale-[0.98] transition-all hover:bg-red-100 flex items-center justify-center gap-2"

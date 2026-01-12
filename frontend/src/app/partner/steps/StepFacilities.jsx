@@ -1,117 +1,78 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import usePartnerStore from '../store/partnerStore';
-import gsap from 'gsap';
-import { Wifi, Tv, Car, Utensils, Wine, Waves, Dumbbell, Sparkles, ConciergeBell, Zap, ArrowUpFromLine, Coffee, Check, ShieldCheck, ThermometerSun, Building2, MonitorDot, Shirt, Stethoscope, Eye, Flame, PlusSquare } from 'lucide-react';
+import { Check } from 'lucide-react';
 
-const MUST_HAVES = [
-    { id: 'wifi', label: 'Free Wifi', icon: Wifi },
-    { id: 'ac', label: 'AC', icon: Zap },
-    { id: 'tv', label: 'TV', icon: Tv },
-    { id: 'room_service', label: 'Service', icon: ConciergeBell },
-    { id: 'power_backup', label: 'Backup', icon: Zap },
-    { id: 'housekeeping', label: 'Cleaning', icon: Sparkles },
-    { id: 'hot_water', label: 'Hot Water', icon: ThermometerSun },
-    { id: 'reception', label: '24h Front', icon: ShieldCheck },
-];
+const AMENITIES_CATEGORIES = {
+    "Basic": ["Free WiFi", "Power Backup", "Parking", "Lift", "Reception"],
+    "Comfort": ["AC", "Heater", "Housekeeping", "Laundry Service", "Wheelchair Access"],
+    "Kitchen & Dining": ["Stove", "Refrigerator", "Microwave", "Restaurant", "Cafeteria", "Bar"],
+    "Outdoor & Relax": ["Swimming Pool", "Garden", "BBQ", "Bonfire", "Gym"],
+    "Safety & Security": ["CCTV Cameras", "Security Guard", "Caretaker", "First Aid Kit", "Fire Extinguisher"]
+};
 
-const EXTRAS = [
-    { id: 'parking', label: 'Parking', icon: Car },
-    { id: 'restaurant', label: 'Dine-in', icon: Utensils },
-    { id: 'bar', label: 'Bar', icon: Wine },
-    { id: 'pool', label: 'Pool', icon: Waves },
-    { id: 'gym', label: 'Gym', icon: Dumbbell },
-    { id: 'elevator', label: 'Lift', icon: ArrowUpFromLine },
-    { id: 'breakfast', label: 'Breakfast', icon: Coffee },
-    { id: 'spa', label: 'Spa', icon: Sparkles },
-    { id: 'banquet', label: 'Banquet', icon: Building2 },
-    { id: 'conference', label: 'Meeting', icon: MonitorDot },
-    { id: 'laundry', label: 'Laundry', icon: Shirt },
-    { id: 'doctor', label: 'Doctor', icon: Stethoscope },
-];
+// Hostel Specific Categories
+const HOSTEL_AMENITIES_CATEGORIES = {
+    "Basic": ["WiFi", "Power Backup", "Parking", "Water Cooler"],
+    "Common Areas": ["Common Lounge", "TV Room", "Study Room", "Library", "Terrace", "Co-working Space"],
+    "Food & Drink": ["Cafe", "Mess", "Kitchen Access", "Vending Machine", "Breakfast Included"],
+    "Safety & Security": ["CCTV Cameras", "24/7 Security", "Biometric Access", "Warden"],
+    "Services & Utilities": ["Laundry", "Housekeeping", "Ironing Facilities", "Lockers"]
+};
 
-const SAFETY_LIST = [
-    { id: 'cctv', label: 'CCTV', icon: Eye },
-    { id: 'security', label: 'Guard', icon: ShieldCheck },
-    { id: 'fire', label: 'Fire Ext.', icon: Flame },
-    { id: 'first_aid', label: 'First Aid', icon: PlusSquare },
-];
-
+// Flatten for easy checking, or just check implementation below
 const StepFacilities = () => {
     const { formData, updateFormData } = usePartnerStore();
-    const containerRef = useRef(null);
-    const selectedFacilities = formData.facilities || [];
+    const { amenities = [], propertyCategory } = formData;
 
-    useEffect(() => {
-        const ctx = gsap.context(() => {
-            gsap.fromTo('.anim-item',
-                { opacity: 0, scale: 0.95 },
-                { opacity: 1, scale: 1, duration: 0.4, stagger: 0.03, ease: 'back.out(1.2)' }
-            );
-        }, containerRef);
-        return () => ctx.revert();
-    }, []);
+    // Select categories based on type
+    const categoriesToRender = (propertyCategory === 'Hostel' || propertyCategory === 'PG')
+        ? HOSTEL_AMENITIES_CATEGORIES
+        : AMENITIES_CATEGORIES;
 
-    const toggleFacility = (id) => {
-        const newFacilities = selectedFacilities.includes(id)
-            ? selectedFacilities.filter(f => f !== id)
-            : [...selectedFacilities, id];
-        updateFormData({ facilities: newFacilities });
+    const toggleAmenity = (amenity) => {
+        if (amenities.includes(amenity)) {
+            updateFormData({ amenities: amenities.filter(a => a !== amenity) });
+        } else {
+            updateFormData({ amenities: [...amenities, amenity] });
+        }
     };
 
-    const renderGrid = (items) => (
-        <div className="grid grid-cols-4 md:grid-cols-4 gap-2">
-            {items.map((facility) => {
-                const isSelected = selectedFacilities.includes(facility.id);
-                return (
-                    <button
-                        key={facility.id}
-                        onClick={() => toggleFacility(facility.id)}
-                        className={`anim-item flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 aspect-square active:scale-95 touch-manipulation relative overflow-hidden ${isSelected
-                            ? 'border-[#004F4D] bg-[#004F4D] text-white shadow-md'
-                            : 'border-gray-200 bg-white text-gray-500'
-                            }`}
-                    >
-                        <facility.icon size={18} strokeWidth={2} className={`mb-1 ${isSelected ? 'stroke-white' : 'stroke-gray-400'}`} />
-                        <span className="text-[9px] md:text-[10px] font-bold leading-tight text-center px-1 truncate w-full">{facility.label}</span>
-                        {isSelected && (
-                            <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        )}
-                    </button>
-                );
-            })}
-        </div>
-    );
-
     return (
-        <div ref={containerRef} className="pb-10 pt-2 px-1">
+        <div className="space-y-8">
+            {Object.entries(categoriesToRender).map(([category, items]) => (
+                <div key={category} className="space-y-3">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2">
+                        {category}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {items.map(opt => (
+                            <div
+                                key={opt}
+                                onClick={() => toggleAmenity(opt)}
+                                className={`
+                                    relative cursor-pointer px-3 py-2 rounded-xl border flex items-center gap-3 transition-all select-none
+                                    min-h-[50px] hover:shadow-sm active:scale-[0.98]
+                                    ${amenities.includes(opt)
+                                        ? 'border-[#004F4D] bg-[#004F4D]/5 text-[#004F4D]'
+                                        : 'border-gray-200 hover:border-[#004F4D]/30 text-gray-600 bg-white'
+                                    }
+                                `}
+                            >
+                                {/* Custom Checkbox */}
+                                <div className={`
+                                    shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors
+                                    ${amenities.includes(opt) ? 'bg-[#004F4D] border-[#004F4D]' : 'border-gray-300 bg-gray-50'}
+                                `}>
+                                    {amenities.includes(opt) && <Check size={10} className="text-white" strokeWidth={4} />}
+                                </div>
 
-            {/* Must Haves Section */}
-            <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                    <ShieldCheck size={16} className="text-[#004F4D]" />
-                    <h3 className="text-xs font-black text-[#004F4D] uppercase tracking-wider">Must-Have Essentials</h3>
+                                {/* Text */}
+                                <span className="text-xs font-bold leading-tight">{opt}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                {renderGrid(MUST_HAVES)}
-            </div>
-
-            {/* Extras Section */}
-            <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3 px-1">
-                    <Sparkles size={16} className="text-amber-500" />
-                    <h3 className="text-xs font-black text-[#004F4D] uppercase tracking-wider">Additional Perks</h3>
-                </div>
-                {renderGrid(EXTRAS)}
-            </div>
-
-            {/* Safety Section */}
-            <div>
-                <div className="flex items-center gap-2 mb-3 px-1">
-                    <Eye size={16} className="text-gray-400" />
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Safety & Security</h3>
-                </div>
-                {renderGrid(SAFETY_LIST)}
-            </div>
-
+            ))}
         </div>
     );
 };

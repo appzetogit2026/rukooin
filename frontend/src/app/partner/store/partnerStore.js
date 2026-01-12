@@ -2,29 +2,105 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
 const INITIAL_DATA = {
-    propertyType: '',
-    propertyOwnership: '',
-    location: null,
-    propertyName: '',
-    address: {},
-    details: {},
-    facilities: [],
-    images: [],
-    kyc: { docType: 'Aadhaar Card' },
+    // --- User Registration (HotelSignup) ---
+    full_name: '',
+    email: '',
     phone: '',
-    rooms: [],
+    role: 'partner',
+    termsAccepted: false,
+    otpCode: '', // Shared with auth
+
+    // Owner Details
+    owner_name: '',
+    aadhaar_number: '',
+    aadhaar_front: '',
+    aadhaar_back: '',
+    pan_number: '',
+    pan_card_image: '',
+    owner_address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: 'India'
+    },
+
+    // --- Property Onboarding (JoinRokkooin) ---
+    hotelDraftId: null,
+
+    // Step 1
+    propertyCategory: '',
+    bookingType: '',
+    inventoryType: '',
+
+    // Step 2
+    name: '', // Property Name
+    description: '',
+    shortDescription: '',
+
+    // Step 3
+    address: {
+        addressLine: '',
+        city: '',
+        state: '',
+        pincode: '',
+        coordinates: { lat: 20.5937, lng: 78.9629 }
+    },
+
+    // Step 4
+    config: {},
+
+    // Step 5
+    inventory: [],
+    pricing: {
+        basePrice: '',
+        extraGuestPrice: '',
+        cleaningFee: ''
+    },
+    availabilityRules: {
+        minStay: 1,
+        maxStay: 30,
+        blockedDates: []
+    },
+
+    // Step 6
+    amenities: [],
+
+    // Step 7
+    images: {
+        cover: '',
+        gallery: [],
+        inventory: [] // Optional if tracking inventory images separately here
+    },
+
+    // Step 8
+    contacts: {
+        receptionPhone: '',
+        managerPhone: '',
+        emergencyContact: ''
+    },
+
+    // Step 9
     policies: {
-        checkInTime: '12:00 PM',
-        checkOutTime: '11:00 AM',
-        coupleFriendly: false,
+        checkInPolicy: '',
+        cancellationPolicy: '',
+        idRequirement: '',
+        genderRules: '',
+        partiesAllowed: false,
         petsAllowed: false,
         smokingAllowed: false,
-        localIdsAllowed: false,
-        alcoholAllowed: false,
-        forEvents: false,
-        outsideFoodAllowed: false
+        alcoholAllowed: false
     },
-    hotelDraftId: null, // Stores the draft ID from backend
+
+    // Step 10
+    documents: {
+        ownershipProof: '',
+        businessRegistration: '',
+        fireSafety: ''
+    },
+
+    status: 'draft',
+    isLive: false
 };
 
 const usePartnerStore = create(

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL configuration
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:6769/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -16,16 +16,16 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`, config.data);
+  console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
   return config;
 }, (error) => Promise.reject(error));
 
 // User Auth Services
 export const authService = {
   // Send OTP
-  sendOtp: async (phone) => {
+  sendOtp: async (phone, type = 'login') => {
     try {
-      const response = await api.post('/auth/send-otp', { phone });
+      const response = await api.post('/auth/send-otp', { phone, type });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -63,14 +63,25 @@ export const authService = {
     }
   },
 
-  // Save Onboarding Step (Draft)
-  saveOnboardingStep: async (data) => {
+  // Initiate Partner Registration (Step 1 & 2)
+  registerPartner: async (data) => {
     try {
-      const response = await api.post('/hotels/onboarding/step', data);
+      const response = await api.post('/auth/partner/register', data);
       return response.data;
     } catch (error) {
-      console.warn("Draft Save Error:", error);
-      return null;
+      throw error.response?.data || error.message;
+    }
+  },
+
+
+
+  // Update Profile
+  updateProfile: async (data) => {
+    try {
+      const response = await api.put('/auth/update-profile', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
     }
   },
 
@@ -100,6 +111,14 @@ export const bookingService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  getPartnerBookings: async () => {
+    try {
+      const response = await api.get('/bookings/partner/all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 
@@ -108,7 +127,8 @@ export const hotelService = {
   getAll: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const response = await api.get(`/hotels?${params}`);
+      const url = params ? `/hotels?${params}` : '/hotels';
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -149,6 +169,50 @@ export const hotelService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  getAddressFromCoordinates: async (lat, lng) => {
+    try {
+      const response = await api.post('/hotels/location/address', { lat, lng });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  saveOnboardingStep: async (data) => {
+    try {
+      const response = await api.post('/hotels/onboarding/save-step', data);
+      return response.data;
+    } catch (error) {
+      console.warn("Draft Save Error:", error);
+      // Return null or throw depending on how you want to handle it. 
+      // JoinRokkooin expects a response or throws.
+      // If we throw here, the component catches it.
+      throw error.response?.data || error.message;
+    }
+  },
+  searchLocation: async (query) => {
+    try {
+      const response = await api.get(`/hotels/location/search?query=${encodeURIComponent(query)}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  calculateDistance: async (originLat, originLng, destLat, destLng) => {
+    try {
+      const response = await api.get(`/hotels/location/distance?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteHotel: async (id) => {
+    try {
+      const response = await api.delete(`/hotels/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 
@@ -170,6 +234,16 @@ export const userService = {
       throw error.response?.data || error.message;
     }
   },
+  // Get Saved Hotels
+  getSavedHotels: async () => {
+    try {
+      const response = await api.get('/users/saved-hotels');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Toggle Saved Hotel
   toggleSavedHotel: async (hotelId) => {
     try {
       const response = await api.post(`/users/saved-hotels/${hotelId}`);
@@ -180,4 +254,45 @@ export const userService = {
   }
 };
 
+// Offer & Coupon Services
+export const offerService = {
+  // Use by users to see available coupons
+  getActive: async () => {
+    try {
+      const response = await api.get('/offers');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Validate coupon before booking
+  validate: async (code, bookingAmount) => {
+    try {
+      const response = await api.post('/offers/validate', { code, bookingAmount });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Get all for admin management
+  getAll: async () => {
+    try {
+      const response = await api.get('/offers/all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  // Create new (Admin)
+  create: async (offerData) => {
+    try {
+      const response = await api.post('/offers', offerData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;
+

@@ -52,6 +52,9 @@ const AdminHotels = () => {
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
     const fetchHotels = useCallback(async (page, currentFilters) => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
         try {
             setLoading(true);
             const params = {
@@ -67,8 +70,10 @@ const AdminHotels = () => {
                 setTotalPages(Math.ceil(data.total / limit));
             }
         } catch (error) {
-            console.error('Error fetching hotels:', error);
-            toast.error('Failed to load hotels');
+            if (error.response?.status !== 401) {
+                console.error('Error fetching hotels:', error);
+                toast.error('Failed to load hotels');
+            }
         } finally {
             setLoading(false);
         }

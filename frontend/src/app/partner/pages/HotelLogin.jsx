@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { authService } from '../../../services/apiService';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
 const HotelLogin = () => {
@@ -13,7 +14,7 @@ const HotelLogin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSendOTP = (e) => {
+    const handleSendOTP = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -27,10 +28,15 @@ const HotelLogin = () => {
         }
 
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            // Use authService
+            await authService.sendOtp(contact, 'login');
             setStep(2);
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOTPChange = (index, value) => {
@@ -44,7 +50,7 @@ const HotelLogin = () => {
         }
     };
 
-    const handleVerifyOTP = (e) => {
+    const handleVerifyOTP = async (e) => {
         e.preventDefault();
         const otpString = otp.join('');
         if (otpString.length !== 6) {
@@ -53,10 +59,18 @@ const HotelLogin = () => {
         }
 
         setLoading(true);
-        setTimeout(() => {
+        try {
+            await authService.verifyOtp({
+                phone: method === 'phone' ? contact : undefined, // Currently backend focuses on phone for OTP, email flow might need distinct check if supported
+                email: method === 'email' ? contact : undefined,
+                otp: otpString
+            });
+            navigate('/hotel/dashboard');
+        } catch (err) {
+            setError(err.message || 'Invalid OTP');
+        } finally {
             setLoading(false);
-            navigate('/hotel/partner-dashboard');
-        }, 1500);
+        }
     };
 
     return (

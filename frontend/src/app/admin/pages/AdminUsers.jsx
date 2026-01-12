@@ -40,6 +40,9 @@ const AdminUsers = () => {
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
     const fetchUsers = useCallback(async (page, currentFilters) => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
         try {
             setLoading(true);
             const params = {
@@ -56,8 +59,10 @@ const AdminUsers = () => {
                 setTotalPages(Math.ceil(data.total / limit));
             }
         } catch (error) {
-            console.error('Error fetching users:', error);
-            toast.error('Failed to load users');
+            if (error.response?.status !== 401) {
+                console.error('Error fetching users:', error);
+                toast.error('Failed to load users');
+            }
         } finally {
             setLoading(false);
         }

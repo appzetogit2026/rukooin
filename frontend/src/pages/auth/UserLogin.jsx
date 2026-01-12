@@ -3,35 +3,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
+import { authService } from '../../services/apiService';
 
 const UserLogin = () => {
     const navigate = useNavigate();
-    const [step, setStep] = useState(1); // 1: Enter Phone/Email, 2: Enter OTP
-    const [method, setMethod] = useState('phone'); // 'phone' or 'email'
-    const [contact, setContact] = useState('');
+    const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
+    const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSendOTP = (e) => {
+    const handleSendOTP = async (e) => {
         e.preventDefault();
         setError('');
 
-        if (method === 'phone' && contact.length !== 10) {
+        if (phone.length !== 10) {
             setError('Please enter a valid 10-digit phone number');
             return;
         }
-        if (method === 'email' && !contact.includes('@')) {
-            setError('Please enter a valid email address');
-            return;
-        }
 
-        setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            setLoading(true);
+            await authService.sendOtp(phone, 'login');
             setStep(2);
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Failed to send OTP');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOTPChange = (index, value) => {
@@ -46,7 +46,7 @@ const UserLogin = () => {
         }
     };
 
-    const handleVerifyOTP = (e) => {
+    const handleVerifyOTP = async (e) => {
         e.preventDefault();
         const otpString = otp.join('');
         if (otpString.length !== 6) {
@@ -54,12 +54,16 @@ const UserLogin = () => {
             return;
         }
 
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            // Navigate to user dashboard or home
+        try {
+            setLoading(true);
+            await authService.verifyOtp({ phone, otp: otpString });
             navigate('/');
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Verification failed');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -99,48 +103,21 @@ const UserLogin = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                             >
-                                <h2 className="text-xl font-bold text-gray-900 mb-6">Login with OTP</h2>
-
-                                {/* Method Toggle */}
-                                <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
-                                    <button
-                                        onClick={() => setMethod('phone')}
-                                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${method === 'phone'
-                                            ? 'bg-white text-emerald-600 shadow-md'
-                                            : 'text-gray-500'
-                                            }`}
-                                    >
-                                        <Phone size={16} className="inline mr-2" />
-                                        Phone
-                                    </button>
-                                    <button
-                                        onClick={() => setMethod('email')}
-                                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${method === 'email'
-                                            ? 'bg-white text-emerald-600 shadow-md'
-                                            : 'text-gray-500'
-                                            }`}
-                                    >
-                                        <Mail size={16} className="inline mr-2" />
-                                        Email
-                                    </button>
-                                </div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">Login with Phone</h2>
 
                                 <form onSubmit={handleSendOTP} className="space-y-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            {method === 'phone' ? 'Phone Number' : 'Email Address'}
+                                            Phone Number
                                         </label>
                                         <div className="relative">
-                                            {method === 'phone' ? (
-                                                <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            ) : (
-                                                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            )}
+                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input
-                                                type={method === 'phone' ? 'tel' : 'email'}
-                                                value={contact}
-                                                onChange={(e) => setContact(e.target.value)}
-                                                placeholder={method === 'phone' ? '9876543210' : 'you@example.com'}
+                                                type="tel"
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                placeholder="9876543210"
+                                                maxLength={10}
                                                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                                 required
                                             />
@@ -186,7 +163,7 @@ const UserLogin = () => {
                                     </div>
                                     <h2 className="text-xl font-bold text-gray-900">Enter OTP</h2>
                                     <p className="text-sm text-gray-500 mt-2">
-                                        Code sent to {method === 'phone' ? `+91 ${contact}` : contact}
+                                        Code sent to +91 {phone}
                                     </p>
                                 </div>
 
@@ -233,7 +210,7 @@ const UserLogin = () => {
                                         onClick={() => setStep(1)}
                                         className="w-full text-gray-500 text-sm hover:text-gray-700"
                                     >
-                                        Change {method === 'phone' ? 'number' : 'email'}
+                                        Change number
                                     </button>
                                 </form>
                             </motion.div>

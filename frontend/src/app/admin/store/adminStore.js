@@ -9,7 +9,7 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken');
-  if (token) {
+  if (token && token !== 'undefined' && token !== 'null') {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -55,7 +55,8 @@ const useAdminStore = create((set, get) => ({
 
   checkAuth: async () => {
     const token = localStorage.getItem('adminToken');
-    if (!token) {
+    if (!token || token === 'undefined' || token === 'null') {
+      localStorage.removeItem('adminToken');
       set({ isAuthenticated: false, admin: null, loading: false });
       return;
     }
@@ -63,7 +64,7 @@ const useAdminStore = create((set, get) => ({
     try {
       const response = await axiosInstance.get('/auth/me');
 
-      if (response.data.user && response.data.user.role === 'admin') {
+      if (response.data.user && ['admin', 'superadmin'].includes(response.data.user.role)) {
         set({
           admin: response.data.user,
           token,
@@ -75,7 +76,10 @@ const useAdminStore = create((set, get) => ({
         set({ loading: false });
       }
     } catch (error) {
-      console.error('Check Auth Error:', error);
+      // Only log non-401 errors (401 is expected when not logged in)
+      if (error.response?.status !== 401) {
+        console.error('Check Auth Error:', error);
+      }
       if (error.response?.status === 401) {
         get().logout();
       }

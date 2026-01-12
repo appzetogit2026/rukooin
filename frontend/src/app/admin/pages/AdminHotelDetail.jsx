@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
     ChevronLeft, Star, Bed, Calendar, ShieldCheck, AlertCircle,
-    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Camera, Image as ImageIcon
+    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Camera, Image as ImageIcon, Users
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -279,7 +279,7 @@ const RoomsTab = ({ rooms }) => (
                         <div className="flex-1 w-full text-center md:text-left">
                             <h4 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{room.title}</h4>
                             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-[10px] font-bold uppercase text-gray-400">
-                                <span className="flex items-center gap-1"><User size={12} /> Max {room.occupancy} People</span>
+                                <span className="flex items-center gap-1"><Users size={12} /> Max {room.occupancy} People</span>
                                 <span className="flex items-center gap-1"><Building2 size={12} /> {room.qty} Rooms Total</span>
                                 <span className="flex items-center gap-1 text-green-600"><ShieldCheck size={12} /> Verified Category</span>
                             </div>

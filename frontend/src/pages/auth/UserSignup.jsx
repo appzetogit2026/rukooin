@@ -3,20 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
+import { authService } from '../../services/apiService';
 
 const UserSignup = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1); // 1: Enter Details, 2: Enter OTP
-    const [method, setMethod] = useState('phone');
     const [formData, setFormData] = useState({
         name: '',
-        contact: ''
+        phone: '',
+        email: ''
     });
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSendOTP = (e) => {
+    const handleSendOTP = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -25,20 +26,20 @@ const UserSignup = () => {
             return;
         }
 
-        if (method === 'phone' && formData.contact.length !== 10) {
+        if (formData.phone.length !== 10) {
             setError('Please enter a valid 10-digit phone number');
             return;
         }
-        if (method === 'email' && !formData.contact.includes('@')) {
-            setError('Please enter a valid email address');
-            return;
-        }
 
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            setLoading(true);
+            await authService.sendOtp(formData.phone, 'register');
             setStep(2);
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Failed to send OTP');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOTPChange = (index, value) => {
@@ -52,7 +53,7 @@ const UserSignup = () => {
         }
     };
 
-    const handleVerifyOTP = (e) => {
+    const handleVerifyOTP = async (e) => {
         e.preventDefault();
         const otpString = otp.join('');
         if (otpString.length !== 6) {
@@ -60,11 +61,21 @@ const UserSignup = () => {
             return;
         }
 
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            setLoading(true);
+            // Send name (required), phone, otp, and email (optional)
+            await authService.verifyOtp({
+                phone: formData.phone,
+                otp: otpString,
+                name: formData.name,
+                email: formData.email || undefined // Only send if provided
+            });
             navigate('/');
-        }, 1500);
+        } catch (err) {
+            setError(err.message || 'Verification failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -107,7 +118,7 @@ const UserSignup = () => {
                                     {/* Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Full Name
+                                            Full Name <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
                                             <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -122,50 +133,38 @@ const UserSignup = () => {
                                         </div>
                                     </div>
 
-                                    {/* Method Toggle */}
-                                    <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-                                        <button
-                                            type="button"
-                                            onClick={() => setMethod('phone')}
-                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${method === 'phone'
-                                                ? 'bg-white text-emerald-600 shadow-md'
-                                                : 'text-gray-500'
-                                                }`}
-                                        >
-                                            <Phone size={16} className="inline mr-2" />
-                                            Phone
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setMethod('email')}
-                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${method === 'email'
-                                                ? 'bg-white text-emerald-600 shadow-md'
-                                                : 'text-gray-500'
-                                                }`}
-                                        >
-                                            <Mail size={16} className="inline mr-2" />
-                                            Email
-                                        </button>
-                                    </div>
-
-                                    {/* Contact */}
+                                    {/* Phone */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            {method === 'phone' ? 'Phone Number' : 'Email Address'}
+                                            Phone Number <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
-                                            {method === 'phone' ? (
-                                                <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            ) : (
-                                                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            )}
+                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input
-                                                type={method === 'phone' ? 'tel' : 'email'}
-                                                value={formData.contact}
-                                                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                                                placeholder={method === 'phone' ? '9876543210' : 'you@example.com'}
+                                                type="tel"
+                                                value={formData.phone}
+                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                placeholder="9876543210"
+                                                maxLength={10}
                                                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                                 required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Email (Optional) */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Email Address <span className="text-gray-400 text-xs">(Optional)</span>
+                                        </label>
+                                        <div className="relative">
+                                            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <input
+                                                type="email"
+                                                value={formData.email}
+                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                                placeholder="you@example.com"
+                                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                             />
                                         </div>
                                     </div>
@@ -209,7 +208,7 @@ const UserSignup = () => {
                                     </div>
                                     <h2 className="text-xl font-bold text-gray-900">Verify OTP</h2>
                                     <p className="text-sm text-gray-500 mt-2">
-                                        Code sent to {method === 'phone' ? `+91 ${formData.contact}` : formData.contact}
+                                        Code sent to +91 {formData.phone}
                                     </p>
                                 </div>
 

@@ -2,103 +2,125 @@ import React, { useState } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { useNavigate } from 'react-router-dom';
 import StepWrapper from '../components/StepWrapper';
-import ProgressBar from '../components/ProgressBar';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useLenis } from '../../shared/hooks/useLenis';
 import { authService, hotelService } from '../../../services/apiService';
 
 // Steps Components
-import StepPropertyType from '../steps/StepPropertyType';
-import StepSpaceType from '../steps/StepSpaceType';
-import StepPropertyName from '../steps/StepPropertyName';
-import StepAddress from '../steps/StepAddress';
-import StepPropertyDetails from '../steps/StepPropertyDetails';
-import StepFacilities from '../steps/StepFacilities';
-import StepPropertyImages from '../steps/StepPropertyImages';
-import StepKyc from '../steps/StepKyc';
-import StepOtp from '../steps/StepOtp';
-import StepTerms from '../steps/StepTerms';
-import StepRoomDetails from '../steps/StepRoomDetails';
-
-const steps = [
-    { id: 1, title: 'Basics', desc: 'Property Type' },
-    { id: 2, title: 'Space', desc: 'Who will guests stay with?' },
-    { id: 3, title: 'Identity', desc: 'Give your property a name' },
-    { id: 4, title: 'Address', desc: 'Confirm your property address' },
-    { id: 5, title: 'Details', desc: 'Configuration and policies' },
-    { id: 6, title: 'Photos', desc: 'Property-wide photos' },
-    { id: 7, title: 'Amenities', desc: 'Property facilities' },
-    { id: 8, title: 'Rooms', desc: 'Add room categories & pricing' },
-    { id: 9, title: 'KYC', desc: 'Identity verification' },
-    { id: 10, title: 'Verify', desc: 'OTP Verification' },
-    { id: 11, title: 'Launch', desc: 'Review & Publish' },
-];
+import StepCategory from '../steps/StepCategory';
+import StepBasicInfo from '../steps/StepBasicInfo';
+import StepLocation from '../steps/StepLocation';
+import StepConfiguration from '../steps/StepConfiguration';
+import StepInventory from '../steps/StepInventory';
+import StepFacilities from '../steps/StepFacilities'; // Amenities
+import StepPropertyImages from '../steps/StepPropertyImages'; // Media
+import StepContacts from '../steps/StepContacts';
+import StepPolicies from '../steps/StepPolicies';
+import StepKyc from '../steps/StepKyc'; // Documents
+import StepReview from '../steps/StepReview';
 
 const JoinRokkooin = () => {
     useLenis();
     const navigate = useNavigate();
     const { currentStep, nextStep, prevStep, formData, updateFormData } = usePartnerStore();
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isVilla = formData.propertyCategory === 'Villa';
+
+    const steps = [
+        { id: 1, title: 'Category', desc: 'Select Property Type' },
+        { id: 2, title: 'Basics', desc: 'Property Info' },
+        { id: 3, title: 'Location', desc: 'Address & Map' },
+        { id: 4, title: 'Config', desc: 'Property Configuration' },
+        { id: 5, title: isVilla ? 'Pricing' : 'Inventory', desc: isVilla ? 'Rates & Availability' : 'Rooms & Units' },
+        { id: 6, title: 'Amenities', desc: 'Facilities' },
+        { id: 7, title: 'Media', desc: 'Photos' },
+        { id: 8, title: 'Contacts', desc: 'Contact Info' },
+        { id: 9, title: 'Policies', desc: 'Rules & Check-in' },
+        { id: 10, title: 'Documents', desc: 'Legal Compliance' },
+        { id: 11, title: 'Submit', desc: 'Review & Publish' },
+    ];
 
     const currentStepIndex = currentStep - 1;
-    // Calculate progress based on steps array
     const progress = (currentStep / steps.length) * 100;
 
     const handleNext = async () => {
         setError('');
 
         // VALIDATION LOGIC
-        if (currentStep === 1 && !formData.propertyType) return setError('Please select a property type');
-        if (currentStep === 2 && !formData.spaceType) return setError('Please select a space type');
-        if (currentStep === 3 && (!formData.propertyName || formData.propertyName.length < 3)) return setError('Please enter a valid property name');
-        if (currentStep === 4 && (!formData.address?.street || !formData.address?.city)) return setError('Please enter a complete address');
+        if (currentStep === 1 && !formData.propertyCategory) return setError('Please select a property category');
+
+        if (currentStep === 2) {
+            if (!formData.name) return setError('Property name is required');
+            if (!formData.shortDescription) return setError('Short description is required');
+            if (!formData.description) return setError('Detailed description is required');
+        }
+
+        if (currentStep === 3) {
+            if (!formData.address?.addressLine) return setError('Address Line is required');
+            if (!formData.address?.city) return setError('City is required');
+            if (!formData.address?.coordinates?.lat) return setError('Location on map is required');
+        }
 
         if (currentStep === 5) {
-            if (!formData.details?.totalFloors) updateFormData({ details: { ...formData.details, totalFloors: 1 } });
-            if (!formData.description || formData.description.length < 50) return setError('Description must be at least 50 characters');
+            const isVilla = formData.propertyCategory === 'Villa';
+            if (isVilla) {
+                if (!formData.pricing?.basePrice) return setError('Base Price is required');
+            } else {
+                if (!formData.inventory || formData.inventory.length === 0) {
+                    return setError('Please add at least one room/unit/bed type');
+                }
+            }
         }
-        if (currentStep === 6) {
-            const facade = formData.images?.filter(i => i.category === 'facade').length || 0;
-            if (facade < 4) return setError('Please upload at least 4 Facade/Entrance photos');
+
+        if (currentStep === 6 && (!formData.amenities || formData.amenities.length === 0)) {
+            return setError('Select at least one amenity');
         }
-        if (currentStep === 7 && (!formData.facilities || formData.facilities.length === 0)) return setError('Please select at least one facility');
-        if (currentStep === 8 && (!formData.rooms || formData.rooms.length === 0)) return setError('Please add at least one room category');
 
-        if (currentStep === 9 && (!formData.kyc?.docType || !formData.kyc?.idNumber)) return setError('Please complete KYC details');
+        if (currentStep === 7) {
+            if (!formData.images?.cover) return setError('Cover image is required');
+            if (!formData.images?.gallery || formData.images.gallery.length < 5) return setError('Please upload at least 5 gallery images');
+        }
 
-        if (currentStep === 10 && (!formData.otpCode || formData.otpCode.length < 6)) return setError('Please enter the 6-digit OTP');
-        if (currentStep === 11 && !formData.termsAccepted) return setError('Please accept the Terms & Conditions');
+        if (currentStep === 8 && !formData.contacts?.receptionPhone) return setError('Reception phone is required');
+
+        if (currentStep === 9) {
+            if (!formData.policies?.cancellationPolicy) return setError('Cancellation policy is required');
+            if (!formData.policies?.checkInPolicy) return setError('Check-in policy description is required');
+        }
+
+        if (currentStep === 10 && !formData.documents?.ownershipProof) return setError('Ownership proof is required');
 
         // SAVE DRAFT STEP (Before moving next)
-        if (currentStep < steps.length && currentStep !== 10) {
-            try {
-                // Prepare Payload with proper mapping
-                const payload = {
-                    ...formData,
-                    step: currentStep,
-                    hotelDraftId: formData.hotelDraftId,
-                    propertyName: formData.propertyName || 'Incomplete Property',
-                    propertyType: formData.propertyType || 'Unknown'
-                };
+        try {
+            // Determine the ID to use: either from an existing draft or an actual property being edited
+            const activeId = formData._id || formData.hotelDraftId;
 
-                // Map coordinates
-                if (formData.location?.lat && formData.location?.lng) {
-                    payload.address = {
-                        ...formData.address,
-                        coordinates: {
-                            lat: formData.location.lat,
-                            lng: formData.location.lng
-                        }
-                    };
-                }
+            const payload = {
+                ...formData,
+                step: currentStep,
+                hotelDraftId: activeId // Pass this ID to backend
+            };
 
-                const draftResponse = await authService.saveOnboardingStep(payload);
-
+            // Don't save on Step 11 submit (handled separately) unless we want to autosave draft first
+            if (currentStep < 11) {
+                const draftResponse = await hotelService.saveOnboardingStep(payload);
                 if (draftResponse && draftResponse.hotelId) {
-                    updateFormData({ hotelDraftId: draftResponse.hotelId });
+                    // Update store with the draft ID if we didn't have one
+                    if (!activeId) {
+                        updateFormData({ hotelDraftId: draftResponse.hotelId });
+                    }
                 }
-            } catch (err) {
-                console.warn("Failed to save draft:", err);
+            }
+        } catch (err) {
+            console.warn("Failed to save draft:", err);
+            // If we fail to create the INITIAL draft (Step 1), block progress.
+            // But if we are editing an existing property or subsequent steps fail to autosave, valid to warn but maybe proceed?
+            // Prioritizing data integrity: block if on Step 1.
+            const activeId = formData._id || formData.hotelDraftId;
+            if (!activeId && currentStep === 1) {
+                return setError('Failed to create draft. Please try again.');
             }
         }
 
@@ -106,23 +128,27 @@ const JoinRokkooin = () => {
             nextStep();
         } else {
             // Final Submit Logic
+            setIsSubmitting(true);
             try {
-                const response = await authService.verifyPartnerOtp({
-                    ...formData,
-                    // Ensure these are mapped if needed, or backend handles it
-                    otp: formData.otpCode,
-                    phone: formData.phone, // Ensure phone is passed
-                    hotelDraftId: formData.hotelDraftId // Link to draft
-                });
+                // Use the correct ID (either editing existing property or new draft)
+                const activeId = formData._id || formData.hotelDraftId;
 
-                console.log("Registration Success:", response);
-                alert("✅ Registration Successful! Redirecting to Dashboard...");
+                // Submit status = submitted
+                const finalPayload = {
+                    hotelDraftId: activeId,
+                    status: 'submitted'
+                    // ...formData is already saved in previous steps
+                };
+
+                await hotelService.saveOnboardingStep(finalPayload);
+
+                alert("✅ Application Submitted for Approval!");
                 navigate('/hotel/dashboard');
-                // You might want to reset the store here
-                // resetForm();
             } catch (err) {
-                console.error("Registration Failed:", err);
-                setError(err.message || "Registration Failed. Please try again.");
+                console.error("Submission Failed:", err);
+                setError(err.message || "Submission Failed. Please try again.");
+            } finally {
+                setIsSubmitting(false);
             }
         }
     };
@@ -131,23 +157,23 @@ const JoinRokkooin = () => {
         if (currentStep > 1) {
             prevStep();
         } else {
-            navigate('/hotel'); // Exit wizard
+            navigate('/hotel');
         }
     };
 
     const renderStep = () => {
         switch (currentStep) {
-            case 1: return <StepPropertyType />;
-            case 2: return <StepSpaceType />;
-            case 3: return <StepPropertyName />;
-            case 4: return <StepAddress />;
-            case 5: return <StepPropertyDetails />;
-            case 6: return <StepPropertyImages />;
-            case 7: return <StepFacilities />;
-            case 8: return <StepRoomDetails />;
-            case 9: return <StepKyc />;
-            case 10: return <StepOtp />;
-            case 11: return <StepTerms />;
+            case 1: return <StepCategory />;
+            case 2: return <StepBasicInfo />;
+            case 3: return <StepLocation />;
+            case 4: return <StepConfiguration />;
+            case 5: return <StepInventory />;
+            case 6: return <StepFacilities />;
+            case 7: return <StepPropertyImages />;
+            case 8: return <StepContacts />;
+            case 9: return <StepPolicies />;
+            case 10: return <StepKyc />;
+            case 11: return <StepReview />;
             default: return <div>Unknown Step</div>;
         }
     };
@@ -196,7 +222,7 @@ const JoinRokkooin = () => {
                     <button
                         onClick={handleBack}
                         className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-[#004F4D] transition-colors"
-                        disabled={currentStep === 1}
+                        disabled={currentStep === 1 || isSubmitting}
                     >
                         Back
                     </button>
@@ -204,10 +230,11 @@ const JoinRokkooin = () => {
                     <div className="flex-1 flex flex-col items-end">
                         <button
                             onClick={handleNext}
-                            className="bg-[#004F4D] text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center"
+                            disabled={isSubmitting}
+                            className={`bg-[#004F4D] text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center ${isSubmitting ? 'opacity-70 cursor-wait' : ''}`}
                         >
-                            {currentStep === steps.length ? 'Submit Application' : 'Next'}
-                            <ArrowRight size={16} />
+                            {isSubmitting ? 'Processing...' : currentStep === steps.length ? 'Submit Application' : 'Next'}
+                            {!isSubmitting && <ArrowRight size={16} />}
                         </button>
                     </div>
                 </div>

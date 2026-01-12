@@ -19,7 +19,11 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         if (isOpen) {
-            // Document body lock
+            // Save current scroll position and lock body
+            const scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = '100%';
             document.body.style.overflow = 'hidden';
 
             // Animation In
@@ -51,7 +55,17 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             const tl = gsap.timeline({
                 onComplete: () => {
                     if (backdropRef.current) backdropRef.current.style.display = 'none';
+
+                    // Restore scroll position
+                    const scrollY = document.body.style.top;
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.width = '';
                     document.body.style.overflow = '';
+
+                    if (scrollY) {
+                        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+                    }
                 }
             });
             tl.to(sidebarRef.current, {
@@ -90,7 +104,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
         {
             title: 'Management',
             items: [
-                { icon: Building, label: 'My Properties', path: '/hotel/dashboard' },
+                { icon: Building, label: 'My Properties', path: '/hotel/properties' },
                 { icon: List, label: 'Reviews & Ratings', path: '/hotel/reviews' },
                 { icon: Bell, label: 'Notifications', path: '/hotel/notifications', badge: '2' },
             ]
@@ -118,7 +132,8 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             {/* Sidebar */}
             <div
                 ref={sidebarRef}
-                className="absolute top-0 right-0 bottom-0 w-[85%] max-w-md bg-white shadow-2xl translate-x-full pointer-events-auto flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-0 right-0 bottom-0 w-[85%] max-w-md bg-white shadow-2xl translate-x-full pointer-events-auto flex flex-col z-[101]"
             >
                 {/* Header */}
                 <div className="p-6 pb-4 border-b border-gray-100 flex items-start justify-between bg-white z-10">
@@ -145,7 +160,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Scrollable Content */}
-                <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div ref={contentRef} className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-6" style={{ touchAction: 'pan-y' }}>
                     {/* View Profile Card */}
                     <div
                         onClick={() => handleNavigation('/hotel/profile')}

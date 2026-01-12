@@ -1,116 +1,192 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { MapPin, Star, BedDouble, Wifi, Dumbbell, ImageOff, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    MapPin, Star, Wifi, Tv, Car, Wine, Shield, Flame,
+    Dumbbell, Wind, Waves, Utensils, Heart, ChevronLeft, ChevronRight
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { twMerge } from 'tailwind-merge';
+import { userService } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1625244724120-1fd1d34d00f6?w=800&q=80";
 
+const FACILITY_ICONS = {
+    wifi: <Wifi size={14} />,
+    tv: <Tv size={14} />,
+    parking: <Car size={14} />,
+    bar: <Wine size={14} />,
+    cctv: <Shield size={14} />,
+    fire: <Flame size={14} />,
+    gym: <Dumbbell size={14} />,
+    ac: <Wind size={14} />,
+    pool: <Waves size={14} />,
+    restaurant: <Utensils size={14} />
+};
+
 const HotelCard = ({
     id,
-    image,
+    images = [],
     name,
     location,
-    price,
-    rating,
-    amenities = [],
+    rating = 0,
+    facilities = [],
     className
 }) => {
     const navigate = useNavigate();
-    const [imgError, setImgError] = useState(false);
+    const [currentImgIndex, setCurrentImgIndex] = useState(0);
+    const [isSaved, setIsSaved] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    // Check if saved via local storage (simple implementation)
-    const [isSaved, setIsSaved] = useState(() => {
-        const saved = localStorage.getItem('savedHotels');
-        if (!saved) return false;
-        return JSON.parse(saved).some(h => h.id === id);
-    });
+    const gallery = images.filter(img =>
+        ['facade', 'reception', 'common'].includes(img.category?.toLowerCase()) || !img.category
+    ).map(img => img.url || img);
 
-    const displayImage = (image && !imgError) ? image : PLACEHOLDER_IMAGE;
+    const displayImages = gallery.length > 0 ? gallery : [PLACEHOLDER_IMAGE];
 
-    const toggleSave = (e) => {
-        e.stopPropagation(); // Prevent navigation
-        const newState = !isSaved;
-        setIsSaved(newState);
+    // Check if saved on mount
+    useEffect(() => {
+        const checkSavedStatus = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
 
-        const currentSaved = JSON.parse(localStorage.getItem('savedHotels') || '[]');
-        if (newState) {
-            // Add
-            const newItem = { id, image, name, location, price, rating };
-            localStorage.setItem('savedHotels', JSON.stringify([...currentSaved, newItem]));
-        } else {
-            // Remove
-            const filtered = currentSaved.filter(h => h.id !== id);
-            localStorage.setItem('savedHotels', JSON.stringify(filtered));
+            try {
+                // We can't easily check for a single hotel without fetching all saved or having the user object
+                // For now, check local storage cache if available, or just rely on state
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                if (user?.savedHotels?.includes(id)) {
+                    setIsSaved(true);
+                }
+            } catch (err) {
+                console.error("Failed to check saved status", err);
+            }
+        };
+        checkSavedStatus();
+    }, [id]);
+
+    const handleScroll = (e) => {
+        const width = e.target.offsetWidth;
+        const scrollLeft = e.target.scrollLeft;
+        const index = Math.round(scrollLeft / width);
+        setCurrentImgIndex(index);
+    };
+
+    const toggleSave = async (e) => {
+        e.stopPropagation();
+        const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Please login to save hotels');
+            return;
+        }
+
+        if (loading) return;
+
+        try {
+            setLoading(true);
+            const res = await userService.toggleSavedHotel(id);
+            setIsSaved(!isSaved);
+
+            // Update local user object to keep it in sync
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (res.savedHotels) {
+                user.savedHotels = res.savedHotels;
+                localStorage.setItem('user', JSON.stringify(user));
+            }
+
+            toast.success(isSaved ? 'Removed from saved places' : 'Added to saved places');
+        } catch (error) {
+            console.error('Save error:', error);
+            toast.error('Failed to update saved places');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate(`/hotel/${id}`)}
             className={twMerge(
-                "bg-white rounded-[20px] overflow-hidden shadow-sm border border-gray-100 flex-shrink-0 w-[240px] cursor-pointer group transition-shadow hover:shadow-md",
+                "bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-100 flex-shrink-0 w-[260px] cursor-pointer group transition-all duration-300 hover:shadow-lg",
                 className
             )}
         >
-            {/* Image Container */}
-            <div className="relative h-40 w-full bg-gray-200">
-                <img
-                    src={displayImage}
-                    alt={name}
-                    onError={() => setImgError(true)}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+            {/* Image Scroller */}
+            <div className="relative h-40 w-full bg-gray-100 overflow-hidden">
+                <div
+                    onScroll={handleScroll}
+                    className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full scroll-smooth"
+                >
+                    {displayImages.map((src, i) => (
+                        <div key={i} className="min-w-full h-full snap-center">
+                            <img
+                                src={src}
+                                className="h-full w-full object-cover"
+                                alt={`${name} - ${i + 1}`}
+                                loading="lazy"
+                            />
+                        </div>
+                    ))}
+                </div>
 
-                {/* Price Tag */}
+                {/* Dots Indicator */}
+                {displayImages.length > 1 && (
+                    <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1 px-1.5 py-1 bg-black/20 backdrop-blur-md rounded-full pointer-events-none">
+                        {displayImages.map((_, i) => (
+                            <div
+                                key={i}
+                                className={twMerge(
+                                    "w-1 h-1 rounded-full transition-all duration-300",
+                                    currentImgIndex === i ? "bg-white w-2.5" : "bg-white/40"
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
 
-                {/* Heart Icon for Saved Places */}
+                {/* Heart Icon */}
                 <motion.button
                     whileTap={{ scale: 0.8 }}
+                    disabled={loading}
                     onClick={toggleSave}
-                    className="absolute top-3 left-3 p-2 bg-white/20 backdrop-blur-md rounded-full shadow-lg z-10 hover:bg-white/30 transition-colors"
+                    className="absolute top-2.5 left-2.5 p-2 bg-black/10 backdrop-blur-md rounded-full shadow-lg z-10 hover:bg-black/20 transition-all border border-white/20"
                 >
                     <Heart
-                        size={18}
+                        size={16}
                         className={`transition-colors duration-300 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white'}`}
                     />
                 </motion.button>
-
-                {/* Price Tag */}
-                <div className="absolute top-4 right-4 bg-gray-900/60 backdrop-blur-md px-3 py-1.5 rounded-xl">
-                    <span className="text-white font-bold text-sm">
-                        ₹{price}<span className="text-[10px] font-normal opacity-80 pl-1">/night</span>
-                    </span>
-                </div>
             </div>
 
-            {/* Content */}
+            {/* Content Body */}
             <div className="p-4 pt-3 text-surface">
-                <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-bold leading-tight line-clamp-1 group-hover:text-accent transition-colors">{name}</h3>
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 bg-surface/5 px-1.5 py-0.5 rounded-md">
+                <div className="flex justify-between items-start mb-0.5">
+                    <h3 className="text-lg font-bold tracking-tight text-surface leading-snug line-clamp-1">{name}</h3>
+                    <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded-lg border border-yellow-100">
                         <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                        <span className="text-xs font-bold">{rating}</span>
+                        <span className="text-[10px] font-bold text-yellow-700">{rating || 3}</span>
                     </div>
                 </div>
 
-                <p className="text-xs text-gray-400 mt-1 truncate flex items-center gap-1">
-                    <MapPin size={12} /> {location}
+                <p className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
+                    <MapPin size={10} /> {location}
                 </p>
 
-                {/* Amenities Row */}
-                <div className="flex gap-3 mt-4 text-gray-400 border-t border-gray-50 pt-3">
-                    <div className="flex items-center gap-1 text-[10px] font-medium bg-gray-50 px-2 py-1 rounded-md">
-                        <BedDouble size={14} className="text-accent" /> 2 Beds
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-medium bg-gray-50 px-2 py-1 rounded-md">
-                        <Wifi size={14} className="text-accent" /> Wifi
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] font-medium bg-gray-50 px-2 py-1 rounded-md">
-                        <Dumbbell size={14} className="text-accent" /> Gym
-                    </div>
+                {/* Facilities Row */}
+                <div className="flex flex-wrap gap-1.5 mt-3 border-t border-gray-50 pt-3">
+                    {facilities.slice(0, 3).map((facility, idx) => (
+                        <div key={idx} className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-lg text-gray-500 border border-transparent">
+                            <span className="text-accent">{FACILITY_ICONS[facility.toLowerCase()] || <Shield size={10} />}</span>
+                            {facility}
+                        </div>
+                    ))}
+                    {facilities.length > 3 && (
+                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase bg-gray-50 px-1.5 py-1 rounded-lg text-gray-400">
+                            +{facilities.length - 3}
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>

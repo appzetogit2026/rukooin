@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
@@ -25,6 +25,7 @@ const AdminLayout = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: ClipboardCheck, label: 'Property Requests', path: '/admin/property-requests', badge: true },
         { icon: Star, label: 'Review Moderation', path: '/admin/reviews' },
+        { icon: Tag, label: 'Promotions & Offers', path: '/admin/offers' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Building2, label: 'Hotel Partners', path: '/admin/hotels' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },

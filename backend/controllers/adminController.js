@@ -1,5 +1,5 @@
 import User from '../models/User.js';
-import Hotel from '../models/Hotel.js';
+import Property from '../models/Property.js';
 import Booking from '../models/Booking.js';
 import Review from '../models/Review.js';
 
@@ -7,8 +7,8 @@ export const getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: 'user' });
     const totalPartners = await User.countDocuments({ role: 'partner' });
-    const totalHotels = await Hotel.countDocuments();
-    const pendingHotels = await Hotel.countDocuments({ status: 'pending' });
+    const totalHotels = await Property.countDocuments();
+    const pendingHotels = await Property.countDocuments({ status: 'pending' });
     const totalBookings = await Booking.countDocuments();
     const confirmedBookings = await Booking.countDocuments({ status: 'confirmed' });
 
@@ -27,7 +27,7 @@ export const getDashboardStats = async (req, res) => {
       .limit(5);
 
     // Get recent property requests
-    const recentPropertyRequests = await Hotel.find({ status: 'pending' })
+    const recentPropertyRequests = await Property.find({ status: 'pending' })
       .populate('ownerId', 'name email')
       .sort({ createdAt: -1 })
       .limit(5);
@@ -97,8 +97,8 @@ export const getAllHotels = async (req, res) => {
     }
     if (status) query.status = status;
 
-    const total = await Hotel.countDocuments(query);
-    const hotels = await Hotel.find(query)
+    const total = await Property.countDocuments(query);
+    const hotels = await Property.find(query)
       .populate('ownerId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -139,7 +139,7 @@ export const getAllBookings = async (req, res) => {
 
 export const getPropertyRequests = async (req, res) => {
   try {
-    const hotels = await Hotel.find({ status: 'pending' })
+    const hotels = await Property.find({ status: 'pending' })
       .populate('ownerId', 'name email')
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, hotels });
@@ -150,15 +150,24 @@ export const getPropertyRequests = async (req, res) => {
 
 export const updateHotelStatus = async (req, res) => {
   try {
-    const { hotelId, status } = req.body;
-    if (!['approved', 'rejected', 'suspended'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
+    const { hotelId, status, isCompanyServiced } = req.body;
+    let updateData = {};
+
+    if (status) {
+      if (!['approved', 'rejected', 'suspended'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+      }
+      updateData.status = status;
     }
 
-    const hotel = await Hotel.findByIdAndUpdate(hotelId, { status }, { new: true });
+    if (isCompanyServiced !== undefined) {
+      updateData.isCompanyServiced = isCompanyServiced;
+    }
+
+    const hotel = await Property.findByIdAndUpdate(hotelId, updateData, { new: true });
     if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
 
-    res.status(200).json({ success: true, message: `Hotel status updated to ${status}`, hotel });
+    res.status(200).json({ success: true, message: 'Hotel updated successfully', hotel });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
   }
@@ -191,10 +200,18 @@ export const getReviewModeration = async (req, res) => {
 export const deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.body;
-    const review = await Review.findByIdAndDelete(reviewId);
+    const review = await Review.findById(reviewId);
     if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
+
+    const hotelId = review.hotelId;
+    await Review.findByIdAndDelete(reviewId);
+
+    // Recalculate rating
+    await Review.updateHotelRating(hotelId);
+
     res.status(200).json({ success: true, message: 'Review deleted successfully' });
   } catch (error) {
+    console.error('Delete Review Error:', error);
     res.status(500).json({ success: false, message: 'Server error deleting review' });
   }
 };
@@ -204,8 +221,13 @@ export const updateReviewStatus = async (req, res) => {
     const { reviewId, status } = req.body;
     const review = await Review.findByIdAndUpdate(reviewId, { status }, { new: true });
     if (!review) return res.status(404).json({ message: 'Review not found' });
+
+    // Recalculate rating
+    await Review.updateHotelRating(review.hotelId);
+
     res.status(200).json({ success: true, message: `Review status updated to ${status}`, review });
   } catch (error) {
+    console.error('Update Review Status Error:', error);
     res.status(500).json({ success: false, message: 'Server error updating review status' });
   }
 };
@@ -235,7 +257,7 @@ export const deleteUser = async (req, res) => {
 export const deleteHotel = async (req, res) => {
   try {
     const { hotelId } = req.body;
-    const hotel = await Hotel.findByIdAndDelete(hotelId);
+    const hotel = await Property.findByIdAndDelete(hotelId);
     if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
     res.status(200).json({ success: true, message: 'Hotel deleted successfully' });
   } catch (error) {
@@ -273,7 +295,7 @@ export const getUserDetails = async (req, res) => {
 export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const hotel = await Hotel.findById(id).populate('ownerId', 'name email phone');
+    const hotel = await Property.findById(id).populate('ownerId', 'name email phone');
     if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
 
     const bookings = await Booking.find({ hotelId: id })

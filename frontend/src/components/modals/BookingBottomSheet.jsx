@@ -8,15 +8,15 @@ import {
 import { bookingService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
-const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
+const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData, onConfirm }) => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1); // 1: Dates | 2: Guests | 3: Rooms
     const [bookingData, setBookingData] = useState({
-        checkIn: null,
-        checkOut: null,
-        adults: 2,
+        checkIn: initialBookingData ? { fullDate: initialBookingData.checkIn, dateNum: new Date(initialBookingData.checkIn).getDate(), month: new Date(initialBookingData.checkIn).toLocaleDateString('en-US', { month: 'short' }) } : null,
+        checkOut: initialBookingData ? { fullDate: initialBookingData.checkOut, dateNum: new Date(initialBookingData.checkOut).getDate(), month: new Date(initialBookingData.checkOut).toLocaleDateString('en-US', { month: 'short' }) } : null,
+        adults: initialBookingData?.guests || 2,
         children: 0,
-        rooms: 1
+        rooms: initialBookingData?.rooms || 1
     });
 
     // Generate next 14 days for date selection
@@ -103,7 +103,8 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
             try {
                 setLoading(true);
                 const bookingPayload = {
-                    hotelId: hotelData.id || hotelData._id,
+                    hotelId: hotelData._id || hotelData.id,
+                    roomId: hotelData.selectedRoomId,
                     checkIn: bookingData.checkIn.fullDate,
                     checkOut: bookingData.checkOut.fullDate,
                     guests: {
@@ -111,7 +112,7 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, onConfirm }) => {
                         adults: bookingData.adults,
                         children: bookingData.children
                     },
-                    totalAmount: hotelData.price * calculateNights() // Simple logic
+                    totalAmount: (hotelData.price || 0) * calculateNights() * bookingData.rooms
                 };
 
                 const response = await bookingService.create(bookingPayload);

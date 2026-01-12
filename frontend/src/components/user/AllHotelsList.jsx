@@ -1,86 +1,148 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
+import {
+    ChevronDown, ArrowRight, ShieldCheck, Heart, Star, MapPin,
+    Wifi, Tv, Car, Wine, Shield, Flame, Dumbbell, Wind, Waves, Utensils
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { twMerge } from 'tailwind-merge';
 import FilterBottomSheet from '../modals/FilterBottomSheet';
-import { hotelService } from '../../services/apiService';
+import { hotelService, userService } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
-const ListingCard = ({ hotel }) => {
+const FACILITY_ICONS = {
+    wifi: <Wifi size={14} />,
+    tv: <Tv size={14} />,
+    parking: <Car size={14} />,
+    bar: <Wine size={14} />,
+    cctv: <Shield size={14} />,
+    fire: <Flame size={14} />,
+    gym: <Dumbbell size={14} />,
+    ac: <Wind size={14} />,
+    pool: <Waves size={14} />,
+    restaurant: <Utensils size={14} />
+};
+
+const ListingCard = ({ hotel, onSaveToggle }) => {
     const navigate = useNavigate();
+    const [isSaved, setIsSaved] = useState(hotel.isSaved || false);
+    const [saving, setSaving] = useState(false);
+    const [currentImgIndex, setCurrentImgIndex] = useState(0);
 
-    // Check if saved via local storage
-    const [isSaved, setIsSaved] = useState(() => {
-        const saved = localStorage.getItem('savedHotels');
-        if (!saved) return false;
-        return JSON.parse(saved).some(h => h.id === hotel.id);
-    });
-
-    const toggleSave = (e) => {
-        e.stopPropagation(); // Prevent navigation
-        const newState = !isSaved;
-        setIsSaved(newState);
-
-        const currentSaved = JSON.parse(localStorage.getItem('savedHotels') || '[]');
-        if (newState) {
-            // Add
-            const newItem = {
-                id: hotel.id,
-                image: hotel.image,
-                name: hotel.name,
-                location: hotel.location,
-                price: hotel.price,
-                rating: hotel.rating
-            };
-            localStorage.setItem('savedHotels', JSON.stringify([...currentSaved, newItem]));
-        } else {
-            // Remove
-            const filtered = currentSaved.filter(h => h.id !== hotel.id);
-            localStorage.setItem('savedHotels', JSON.stringify(filtered));
+    const toggleSave = async (e) => {
+        e.stopPropagation();
+        const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Please login to save hotels');
+            return;
         }
+
+        if (saving) return;
+        try {
+            setSaving(true);
+            const res = await userService.toggleSavedHotel(hotel.id);
+            const newState = !isSaved;
+            setIsSaved(newState);
+
+            // Sync local storage
+            const userData = JSON.parse(localStorage.getItem('user') || '{}');
+            if (res.savedHotels) {
+                userData.savedHotels = res.savedHotels;
+                localStorage.setItem('user', JSON.stringify(userData));
+            }
+
+            if (onSaveToggle) onSaveToggle(hotel.id, newState);
+            toast.success(newState ? 'Added to saved places' : 'Removed from saved places');
+        } catch (error) {
+            console.error('Error toggling save:', error);
+            toast.error('Failed to update saved places');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const displayImages = hotel.images && hotel.images.length > 0
+        ? hotel.images.filter(img => ['facade', 'reception', 'common'].includes(img.category?.toLowerCase()) || !img.category).map(img => img.url || img)
+        : ["https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80"];
+
+    const handleScroll = (e) => {
+        const width = e.target.offsetWidth;
+        const scrollLeft = e.target.scrollLeft;
+        const index = Math.round(scrollLeft / width);
+        setCurrentImgIndex(index);
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            viewport={{ once: true }}
             className="w-full"
             onClick={() => navigate(`/hotel/${hotel.id}`)}
         >
-            <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 w-full group cursor-pointer hover:shadow-md transition-all duration-300">
-                <div className="relative h-48 w-full">
-                    <img src={hotel.image} className="w-full h-full object-cover" alt={hotel.name} />
-                    {/* Badge */}
-                    <div className="absolute top-3 left-3 bg-white/90 px-2 py-1 rounded text-xs font-bold text-surface flex items-center gap-1 shadow-sm">
-                        <ShieldCheck size={12} className="text-surface" /> Company-Serviced
+            <div className="bg-white rounded-[24px] overflow-hidden shadow-sm border border-gray-100 w-full group cursor-pointer hover:shadow-lg transition-all duration-300">
+                <div className="relative h-40 w-full bg-gray-100 overflow-hidden">
+                    <div
+                        onScroll={handleScroll}
+                        className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-full w-full scroll-smooth"
+                    >
+                        {displayImages.map((src, i) => (
+                            <div key={i} className="min-w-full h-full snap-center">
+                                <img
+                                    src={src}
+                                    className="w-full h-full object-cover"
+                                    alt={`${hotel.name} - ${i + 1}`}
+                                    loading="lazy"
+                                />
+                            </div>
+                        ))}
                     </div>
+
+                    {/* Dots */}
+                    {displayImages.length > 1 && (
+                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1 px-1.5 py-1 bg-black/20 backdrop-blur-md rounded-full pointer-events-none">
+                            {displayImages.map((_, i) => (
+                                <div key={i} className={twMerge(
+                                    "w-1 h-1 rounded-full transition-all duration-300",
+                                    currentImgIndex === i ? "bg-white w-2.5" : "bg-white/40"
+                                )} />
+                            ))}
+                        </div>
+                    )}
 
                     {/* Heart Button */}
                     <motion.button
                         whileTap={{ scale: 0.8 }}
+                        disabled={saving}
                         onClick={toggleSave}
-                        className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md rounded-full hover:bg-white/30 transition-colors z-10"
+                        className="absolute top-2.5 left-2.5 p-2 bg-black/10 backdrop-blur-md rounded-full shadow-lg z-10 hover:bg-black/20 transition-all border border-white/20"
                     >
                         <Heart
-                            size={18}
+                            size={16}
                             className={`transition-colors duration-300 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white'}`}
                         />
                     </motion.button>
                 </div>
+
                 <div className="p-4">
-                    <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-bold text-surface">{hotel.name}</h3>
-                        <div className="flex items-center gap-1 bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-bold">
-                            {hotel.rating} <span className="text-[10px]">★</span>
+                    <div className="flex justify-between items-start mb-1">
+                        <h3 className="text-lg font-bold text-surface tracking-tight">{hotel.name}</h3>
+                        <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded-lg border border-yellow-100 shadow-sm">
+                            <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                            <span className="text-[10px] font-bold text-yellow-700">{hotel.rating}</span>
                         </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{hotel.location}</p>
+                    <p className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
+                        <ShieldCheck size={10} className="text-accent" /> {hotel.location}
+                    </p>
 
-                    <div className="mt-4 flex gap-2 items-center">
-                        <span className="text-xl font-bold text-surface">₹{hotel.price}</span>
-                        <span className="text-xs text-gray-400 line-through">₹{parseInt(hotel.price) + 800}</span>
-                        <span className="text-xs font-bold text-orange-500">38% OFF</span>
+                    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-gray-50 pt-3">
+                        {hotel.facilities?.slice(0, 3).map((f, i) => (
+                            <div key={i} className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-lg text-gray-500 border border-transparent">
+                                <span className="text-accent">{FACILITY_ICONS[f.toLowerCase()] || <Shield size={10} />}</span>
+                                {f}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -217,9 +279,9 @@ const AllHotelsList = () => {
                         id: hotel._id || hotel.id,
                         name: hotel.name,
                         location: hotel.address?.city || hotel.location || 'Unknown Location',
-                        price: hotel.price,
-                        image: hotel.images?.[0] || "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&q=80",
-                        rating: hotel.rating?.average || hotel.rating || 4.5
+                        images: hotel.images || [],
+                        rating: hotel.rating?.average || hotel.rating || 0,
+                        facilities: hotel.facilities || []
                     }} />
                 )) : (
                     <p className="text-center text-gray-500">No hotels found.</p>

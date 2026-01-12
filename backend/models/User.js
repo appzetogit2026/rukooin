@@ -25,8 +25,16 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'partner', 'admin'],
+    enum: ['user', 'partner'],
     default: 'user'
+  },
+  // Partner-specific fields
+  isPartner: {
+    type: Boolean,
+    default: false
+  },
+  partnerSince: {
+    type: Date
   },
   fcmToken: {
     type: String,
@@ -38,8 +46,31 @@ const userSchema = new mongoose.Schema({
   },
   savedHotels: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hotel'
+    ref: 'Property'
   }],
+  address: {
+    street: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    zipCode: { type: String, trim: true },
+    country: { type: String, default: 'India', trim: true },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number }
+    }
+  },
+  aadhaarNumber: { type: String, trim: true },
+  aadhaarFront: { type: String }, // URL
+  aadhaarBack: { type: String }, // URL
+  panNumber: { type: String, trim: true },
+  panCardImage: { type: String }, // URL
+  termsAccepted: { type: Boolean, default: false },
+
+  // Status tracking
+  registrationStep: {
+    type: Number,
+    default: 1 // 1: Basic, 2: Details, 3: Completed
+  },
   otp: {
     type: String,
     select: false // Do not return OTP in queries by default

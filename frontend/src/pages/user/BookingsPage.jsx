@@ -152,107 +152,115 @@ const BookingsPage = () => {
                             exit={{ opacity: 0, y: -20 }}
                             className="space-y-4"
                         >
-                            {currentBookings.map((booking, index) => (
-                                <motion.div
-                                    key={booking.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    onClick={() => navigate('/booking-confirmation')}
-                                    className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
-                                >
-                                    {/* Top Section */}
-                                    <div className="flex">
-                                        {/* Hotel Image */}
-                                        <div className="w-28 h-32 bg-gray-200 shrink-0 relative">
-                                            <img
-                                                src={booking.hotel.image}
-                                                alt={booking.hotel.name}
-                                                className={`w-full h-full object-cover ${activeTab === 'cancelled' ? 'grayscale' : ''}`}
-                                            />
-                                            {/* Rating Badge */}
-                                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                <Star size={8} fill="currentColor" /> {booking.hotel.rating}
-                                            </div>
-                                        </div>
+                            {currentBookings.map((booking, index) => {
+                                // Map backend data to UI format
+                                const hotel = booking.hotelId || {};
+                                const price = booking.totalAmount || 0;
+                                const checkIn = new Date(booking.checkIn).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                                const checkOut = new Date(booking.checkOut).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-                                        {/* Details */}
-                                        <div className="flex-1 p-4">
-                                            {/* Status & ID */}
-                                            <div className="flex justify-between items-start mb-2">
-                                                {getStatusBadge(booking.status, booking.paymentStatus)}
-                                                <span className="text-[10px] text-gray-400 font-medium">#{booking.id}</span>
-                                            </div>
-
-                                            {/* Hotel Name */}
-                                            <h3 className="font-bold text-surface text-sm leading-tight mb-1 line-clamp-1">
-                                                {booking.hotel.name}
-                                            </h3>
-
-                                            {/* Location */}
-                                            <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                                                <MapPin size={10} /> {booking.hotel.location}
-                                            </p>
-
-                                            {/* Dates */}
-                                            <div className="flex items-center gap-2 text-xs">
-                                                <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
-                                                    {booking.dates.checkIn}
-                                                </div>
-                                                <span className="text-gray-300">→</span>
-                                                <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
-                                                    {booking.dates.checkOut}
+                                return (
+                                    <motion.div
+                                        key={booking._id || booking.id || index}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        onClick={() => navigate('/booking-confirmation', { state: { booking: booking } })}
+                                        className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
+                                    >
+                                        {/* Top Section */}
+                                        <div className="flex">
+                                            {/* Hotel Image */}
+                                            <div className="w-28 h-32 bg-gray-200 shrink-0 relative">
+                                                <img
+                                                    src={hotel.images?.[0] || 'https://via.placeholder.com/150'}
+                                                    alt={hotel.name || 'Hotel'}
+                                                    className={`w-full h-full object-cover ${activeTab === 'cancelled' ? 'grayscale' : ''}`}
+                                                />
+                                                {/* Rating Badge */}
+                                                <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                    <Star size={8} fill="currentColor" /> {hotel.rating || 4.5}
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Bottom Section */}
-                                    <div className="border-t border-gray-100 px-4 py-3 flex justify-between items-center bg-gray-50/50">
-                                        <div>
-                                            <p className="text-[10px] text-gray-400 font-medium">Total Amount</p>
-                                            <p className="text-lg font-black text-surface">₹{booking.price}</p>
+                                            {/* Details */}
+                                            <div className="flex-1 p-4">
+                                                {/* Status & ID */}
+                                                <div className="flex justify-between items-start mb-2">
+                                                    {getStatusBadge(booking.status, booking.paymentStatus)}
+                                                    <span className="text-[10px] text-gray-400 font-medium">#{booking.bookingId}</span>
+                                                </div>
+
+                                                {/* Hotel Name */}
+                                                <h3 className="font-bold text-surface text-sm leading-tight mb-1 line-clamp-1">
+                                                    {hotel.name || 'Unknown Hotel'}
+                                                </h3>
+
+                                                {/* Location */}
+                                                <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
+                                                    <MapPin size={10} /> {hotel.address?.city || hotel.location || 'Location'}
+                                                </p>
+
+                                                {/* Dates */}
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
+                                                        {checkIn}
+                                                    </div>
+                                                    <span className="text-gray-300">→</span>
+                                                    <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
+                                                        {checkOut}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
-                                            {/* Action Buttons */}
-                                            {activeTab === 'upcoming' && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); window.location.href = 'tel:+919876543210'; }}
-                                                        className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-surface hover:bg-gray-50"
-                                                    >
-                                                        <Phone size={16} />
-                                                    </button>
+                                        {/* Bottom Section */}
+                                        <div className="border-t border-gray-100 px-4 py-3 flex justify-between items-center bg-gray-50/50">
+                                            <div>
+                                                <p className="text-[10px] text-gray-400 font-medium">Total Amount</p>
+                                                <p className="text-lg font-black text-surface">₹{price}</p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                {/* Action Buttons */}
+                                                {activeTab === 'upcoming' && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); window.location.href = 'tel:+919876543210'; }}
+                                                            className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-surface hover:bg-gray-50"
+                                                        >
+                                                            <Phone size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); }}
+                                                            className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300"
+                                                        >
+                                                            <MessageCircle size={16} fill="currentColor" />
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {activeTab === 'completed' && booking.canReview && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); }}
-                                                        className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300"
+                                                        className="bg-accent text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md shadow-accent/30"
                                                     >
-                                                        <MessageCircle size={16} fill="currentColor" />
+                                                        Rate Stay
                                                     </button>
-                                                </>
-                                            )}
+                                                )}
 
-                                            {activeTab === 'completed' && booking.canReview && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); }}
-                                                    className="bg-accent text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md shadow-accent/30"
-                                                >
-                                                    Rate Stay
-                                                </button>
-                                            )}
+                                                {activeTab === 'cancelled' && (
+                                                    <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">
+                                                        Refund {booking.refundStatus || 'N/A'}
+                                                    </span>
+                                                )}
 
-                                            {activeTab === 'cancelled' && (
-                                                <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">
-                                                    Refund {booking.refundStatus}
-                                                </span>
-                                            )}
-
-                                            <ChevronRight size={20} className="text-gray-300" />
+                                                <ChevronRight size={20} className="text-gray-300" />
+                                            </div>
                                         </div>
-                                    </div>
-                                </motion.div>
-                            ))}
+                                    </motion.div>
+                                );
+                            })}
                         </motion.div>
                     )}
                 </AnimatePresence>

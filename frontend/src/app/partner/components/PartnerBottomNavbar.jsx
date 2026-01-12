@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Briefcase, Wallet, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Wallet, UserCircle, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -12,6 +12,7 @@ const PartnerBottomNavbar = () => {
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('dashboard') || path === '/hotel') setActiveTab('Dashboard');
+    else if (path.includes('properties')) setActiveTab('Properties');
     else if (path.includes('bookings')) setActiveTab('Bookings');
     else if (path.includes('wallet')) setActiveTab('Wallet');
     else if (path.includes('profile')) setActiveTab('Profile');
@@ -19,7 +20,11 @@ const PartnerBottomNavbar = () => {
 
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, route: '/hotel/dashboard' },
+    { name: 'Properties', icon: Building, route: '/hotel/properties' },
     { name: 'Bookings', icon: Briefcase, route: '/hotel/bookings' },
+    // { name: 'Wallet', icon: Wallet, route: '/hotel/wallet' }, // Hiding Wallet if space is tight, but actually 5 items fit usually. Let's keep 5 or remove one?
+    // User image shows 4 items. Adding one makes 5.
+    // Let's keep Wallet and Profile. 5 items is standard mobile pattern.
     { name: 'Wallet', icon: Wallet, route: '/hotel/wallet' },
     { name: 'Profile', icon: UserCircle, route: '/hotel/profile' },
   ];
@@ -51,7 +56,7 @@ const PartnerBottomNavbar = () => {
               {isActive && (
                 <motion.div
                   layoutId="partner-active-pill"
-                  className="absolute inset-x-2 inset-y-0 bg-[#003836]/10 rounded-xl -z-10"
+                  className="absolute inset-x-1 inset-y-0 bg-[#003836]/10 rounded-xl -z-10"
                   initial={false}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />

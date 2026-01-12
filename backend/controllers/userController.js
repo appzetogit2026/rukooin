@@ -51,6 +51,44 @@ export const updateUserProfile = async (req, res) => {
 };
 
 /**
+ * @desc    Get user's saved hotels
+ * @route   GET /api/users/saved-hotels
+ * @access  Private
+ */
+export const getSavedHotels = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: 'savedHotels',
+      select: 'name location images pricing rating isActive',
+      match: { isActive: true } // Only return active hotels
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Format the response
+    const savedHotels = user.savedHotels.map(hotel => ({
+      id: hotel._id,
+      name: hotel.name,
+      location: hotel.location?.city || hotel.location?.street || 'N/A',
+      image: hotel.images?.[0]?.url || '/placeholder-hotel.jpg',
+      rating: hotel.rating || 0,
+      price: hotel.pricing?.basePrice || 0
+    }));
+
+    res.json({
+      success: true,
+      savedHotels
+    });
+
+  } catch (error) {
+    console.error('Get Saved Hotels Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
  * @desc    Toggle Saved Hotel (Wishlist)
  * @route   POST /api/users/saved-hotels/:id
  * @access  Private

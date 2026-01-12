@@ -13,8 +13,11 @@ const bookingSchema = new mongoose.Schema({
   },
   hotelId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hotel',
+    ref: 'Property',
     required: true
+  },
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId
   },
   checkIn: {
     type: Date,
@@ -28,6 +31,61 @@ const bookingSchema = new mongoose.Schema({
     rooms: { type: Number, default: 1 },
     adults: { type: Number, default: 1 },
     children: { type: Number, default: 0 }
+  },
+  // Pricing Breakdown (New Structure)
+  pricing: {
+    baseAmount: {
+      type: Number,
+      required: true
+    },
+    discountAmount: {
+      type: Number,
+      default: 0
+    },
+    userPayableAmount: {
+      type: Number,
+      required: true
+    },
+    adminCommissionRate: {
+      type: Number,
+      default: 10 // percentage
+    },
+    adminCommissionOnBase: {
+      type: Number,
+      required: true
+    },
+    partnerEarning: {
+      type: Number,
+      required: true
+    },
+    adminNetEarning: {
+      type: Number,
+      required: true // Can be negative!
+    }
+  },
+
+  // Coupon Details
+  couponApplied: {
+    code: {
+      type: String,
+      uppercase: true
+    },
+    discountType: {
+      type: String,
+      enum: ['percentage', 'flat']
+    },
+    discountValue: Number,
+    discountAmount: Number
+  },
+
+  // Legacy fields for backward compatibility
+  couponCode: {
+    type: String,
+    uppercase: true
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
   },
   totalAmount: {
     type: Number,

@@ -6,23 +6,45 @@ import {
 } from 'lucide-react';
 import gsap from 'gsap';
 import PartnerHeader from '../components/PartnerHeader';
+import { bookingService } from '../../../services/apiService';
 
 // --- Components ---
 
 const BookingCard = ({ booking, index }) => {
     const statusColors = {
-        upcoming: 'bg-blue-50 text-blue-600 border-blue-100',
-        active: 'bg-green-50 text-green-600 border-green-100',
-        completed: 'bg-gray-50 text-gray-500 border-gray-100',
+        pending: 'bg-yellow-50 text-yellow-600 border-yellow-100',
+        confirmed: 'bg-blue-50 text-blue-600 border-blue-100',
+        completed: 'bg-green-50 text-green-600 border-green-100',
         cancelled: 'bg-red-50 text-red-500 border-red-100',
     };
 
     const statusLabels = {
-        upcoming: 'Confirmed',
-        active: 'Checked In',
+        pending: 'Pending',
+        confirmed: 'Confirmed',
         completed: 'Completed',
         cancelled: 'Cancelled',
     };
+
+    // Helper to format dates
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    };
+
+    // Calculate nights
+    const calculateNights = (checkIn, checkOut) => {
+        const start = new Date(checkIn);
+        const end = new Date(checkOut);
+        return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    };
+
+    const guestName = booking.userId?.name || 'Guest';
+    const checkInDate = formatDate(booking.checkIn);
+    const checkOutDate = formatDate(booking.checkOut);
+    const nights = calculateNights(booking.checkIn, booking.checkOut);
+    const guestCount = booking.guests?.adults + (booking.guests?.children || 0);
+    const roomsCount = booking.guests?.rooms || 1;
+    const hotelName = booking.hotelId?.name || 'Hotel';
 
     return (
         <div className="booking-card bg-white rounded-3xl p-5 mb-4 border border-gray-100 shadow-sm relative active:scale-[0.98] transition-all">
@@ -30,11 +52,12 @@ const BookingCard = ({ booking, index }) => {
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">
-                        ID: {booking.id}
+                        ID: {booking.bookingId}
                     </span>
                     <h3 className="text-lg font-black text-[#003836] leading-none">
-                        {booking.guestName}
+                        {guestName}
                     </h3>
+                    <p className="text-xs text-gray-500 mt-1">{hotelName}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${statusColors[booking.status]}`}>
                     {statusLabels[booking.status]}
@@ -45,37 +68,38 @@ const BookingCard = ({ booking, index }) => {
             <div className="grid grid-cols-2 gap-y-3 text-sm mb-5">
                 <div className="flex items-center gap-2 text-gray-600">
                     <Calendar size={14} className="text-[#004F4D]" />
-                    <span className="font-medium">{booking.dates}</span>
+                    <span className="font-medium">{checkInDate} - {checkOutDate}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                     <Clock size={14} className="text-[#004F4D]" />
-                    <span className="font-medium">{booking.nights} Nights</span>
+                    <span className="font-medium">{nights} Night{nights > 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                     <User size={14} className="text-[#004F4D]" />
-                    <span className="font-medium">{booking.guests} Guests</span>
+                    <span className="font-medium">{guestCount} Guest{guestCount > 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                     <MapPin size={14} className="text-[#004F4D]" />
-                    <span className="font-medium">{booking.roomType}</span>
+                    <span className="font-medium">{roomsCount} Room{roomsCount > 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600 col-span-2 mt-1 pt-3 border-t border-gray-100">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Earning</span>
+                    <span className="font-black text-[#004F4D] text-lg ml-auto">₹{booking.partnerEarning || 0}</span>
                 </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-4 border-t border-dashed border-gray-200">
-                {booking.status === 'upcoming' && (
+                {booking.status === 'confirmed' && (
                     <button className="flex-1 bg-[#004F4D] text-white h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
-                        Check In
+                        View Details
                     </button>
                 )}
-                {booking.status === 'active' && (
-                    <button className="flex-1 bg-white border border-gray-200 text-[#003836] h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                        Check Out
-                    </button>
+                {booking.userId?.phone && (
+                    <a href={`tel:${booking.userId.phone}`} className="w-10 h-10 rounded-xl bg-gray-50 text-[#003836] flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
+                        <Phone size={16} />
+                    </a>
                 )}
-                <a href={`tel:${booking.phone}`} className="w-10 h-10 rounded-xl bg-gray-50 text-[#003836] flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
-                    <Phone size={16} />
-                </a>
                 <button className="w-10 h-10 rounded-xl bg-gray-50 text-[#003836] flex items-center justify-center border border-gray-100 active:scale-95 transition-transform">
                     <ChevronRight size={18} />
                 </button>
@@ -87,20 +111,34 @@ const BookingCard = ({ booking, index }) => {
 // --- Main Page ---
 
 const PartnerBookings = () => {
-    const [activeTab, setActiveTab] = useState('upcoming');
+    const [activeTab, setActiveTab] = useState('confirmed');
+    const [allBookings, setAllBookings] = useState([]);
+    const [loading, setLoading] = useState(true);
     const containerRef = useRef(null);
 
-    // Mock Data
-    const allBookings = [
-        { id: 'BK-8821', guestName: 'Arjun Mehta', dates: '12 Aug - 14 Aug', nights: 2, guests: 2, roomType: 'Deluxe Room', status: 'upcoming', phone: '+919876543210' },
-        { id: 'BK-8822', guestName: 'Sarah Smith', dates: '10 Aug - 15 Aug', nights: 5, guests: 1, roomType: 'Suite', status: 'active', phone: '+919876543210' },
-        { id: 'BK-8820', guestName: 'Rahul Verma', dates: '05 Aug - 06 Aug', nights: 1, guests: 2, roomType: 'Standard', status: 'completed', phone: '+919876543210' },
-        { id: 'BK-8819', guestName: 'Priya Singh', dates: '01 Aug - 03 Aug', nights: 2, guests: 2, roomType: 'Deluxe Room', status: 'cancelled', phone: '+919876543210' },
-        { id: 'BK-8823', guestName: 'Amit Kumar', dates: '14 Aug - 16 Aug', nights: 2, guests: 2, roomType: 'Standard', status: 'upcoming', phone: '+919876543210' },
-    ];
+    // Fetch bookings from API
+    useEffect(() => {
+        const fetchBookings = async () => {
+            try {
+                setLoading(true);
+                const data = await bookingService.getPartnerBookings();
+                console.log('Partner Bookings:', data);
+                setAllBookings(data);
+            } catch (error) {
+                console.error('Failed to fetch partner bookings:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchBookings();
+    }, []);
 
     // Filter Logic
-    const filteredBookings = allBookings.filter(b => b.status === activeTab);
+    const filteredBookings = allBookings.filter(b => {
+        if (activeTab === 'all') return true;
+        return b.status === activeTab;
+    });
 
     // Animation Effect
     useEffect(() => {
@@ -111,12 +149,12 @@ const PartnerBookings = () => {
                 { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out', clearProps: 'all' }
             );
         }
-    }, [activeTab]);
+    }, [activeTab, filteredBookings.length]);
 
     const tabs = [
-        { id: 'upcoming', label: 'Upcoming' },
-        { id: 'active', label: 'Hosting' },
-        { id: 'completed', label: 'Past' },
+        { id: 'confirmed', label: 'Upcoming' },
+        { id: 'pending', label: 'Pending' },
+        { id: 'completed', label: 'Completed' },
         { id: 'cancelled', label: 'Cancelled' },
     ];
 
@@ -161,7 +199,7 @@ const PartnerBookings = () => {
             <main ref={containerRef} className="max-w-3xl mx-auto px-4">
                 {filteredBookings.length > 0 ? (
                     filteredBookings.map((booking, idx) => (
-                        <BookingCard key={booking.id} booking={booking} index={idx} />
+                        <BookingCard key={booking._id || booking.id || idx} booking={booking} index={idx} />
                     ))
                 ) : (
                     <div className="text-center py-16 opacity-50">

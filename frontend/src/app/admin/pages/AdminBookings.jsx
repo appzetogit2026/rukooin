@@ -74,34 +74,40 @@ const AdminBookings = () => {
     const [globalStats, setGlobalStats] = useState({ total: 0, confirmed: 0, completed: 0, pending: 0 });
 
     const fetchBookings = useCallback(async (page, currentFilters) => {
+        const token = localStorage.getItem('adminToken');
+        if (!token) return;
+
         try {
             setLoading(true);
-            const params = {
-                page,
-                limit,
-                search: currentFilters.search,
-                status: currentFilters.status
-            };
-            const data = await adminService.getBookings(params);
-            if (data.success) {
-                setBookings(data.bookings);
-                setTotalBookings(data.total);
-                setTotalPages(Math.ceil(data.total / limit));
+            const [bookingsRes, statsRes] = await Promise.all([
+                adminService.getBookings({
+                    page,
+                    limit,
+                    search: currentFilters.search,
+                    status: currentFilters.status
+                }),
+                adminService.getDashboardStats()
+            ]);
+
+            if (bookingsRes.success) {
+                setBookings(bookingsRes.bookings);
+                setTotalBookings(bookingsRes.total);
+                setTotalPages(Math.ceil(bookingsRes.total / limit));
             }
 
-            // Also fetch dashboard stats for metrics
-            const statsRes = await adminService.getDashboardStats();
             if (statsRes.success) {
                 setGlobalStats({
                     total: statsRes.stats.totalBookings,
                     confirmed: statsRes.stats.confirmedBookings,
-                    completed: 0, // Placeholder if not in dashboard stats
+                    completed: 0,
                     pending: statsRes.stats.totalBookings - statsRes.stats.confirmedBookings
                 });
             }
         } catch (error) {
-            console.error('Error fetching bookings:', error);
-            toast.error('Failed to load bookings');
+            if (error.response?.status !== 401) {
+                console.error('Error fetching bookings:', error);
+                toast.error('Failed to load bookings');
+            }
         } finally {
             setLoading(false);
         }

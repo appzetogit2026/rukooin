@@ -21,9 +21,9 @@ import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// All admin routes are protected and restricted to admin role
+// All admin routes are protected and restricted to admin roles
 router.use(protect);
-router.use(authorizedRoles('admin'));
+router.use(authorizedRoles('admin', 'superadmin'));
 
 router.get('/dashboard-stats', getDashboardStats);
 router.get('/users', getAllUsers);
