@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Shield, FileText, CheckCircle, ExternalLink } from 'lucide-react';
 import gsap from 'gsap';
 import PartnerHeader from '../components/PartnerHeader';
+import { legalService } from '../../../services/apiService';
 
 const Section = ({ title, children }) => (
     <div className="mb-8">
@@ -17,12 +18,35 @@ const Section = ({ title, children }) => (
 
 const PartnerTerms = () => {
     const contentRef = useRef(null);
+    const [page, setPage] = useState(null);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         gsap.fromTo(contentRef.current,
             { y: 20, opacity: 0 },
             { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' }
         );
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const load = async () => {
+            try {
+                const res = await legalService.getPage('partner', 'terms');
+                if (!isMounted) return;
+                setPage(res.page);
+            } catch (e) {
+                if (!isMounted) return;
+                setError('Using default partner agreement until admin configures legal copy.');
+            }
+        };
+
+        load();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     return (
@@ -37,30 +61,48 @@ const PartnerTerms = () => {
                             <Shield size={24} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-[#003836]">Partner Agreement</h2>
+                            <h2 className="text-lg font-black text-[#003836]">
+                                {page?.title || 'Partner Agreement'}
+                            </h2>
                             <p className="text-xs text-gray-400">Last updated: August 15, 2024</p>
                         </div>
                     </div>
 
-                    <Section title="1. Relationship with Rokkooin">
-                        By listing your property on Rokkooin, you agree to act as an independent service provider.
-                        Rokkooin acts solely as an intermediary platform to connect you with potential guests.
-                    </Section>
+                    {error && (
+                        <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-4 py-2">
+                            {error}
+                        </div>
+                    )}
 
-                    <Section title="2. Payouts & Commission">
-                        Rokkooin charges a flat commission of 15% on every completed booking. Payouts are processed
-                        weekly (every Wednesday) for the previous week's check-outs, subject to a minimum withdrawal limit of ₹1,000.
-                    </Section>
+                    {page?.content ? (
+                        <Section title="">
+                            <p className="whitespace-pre-line">
+                                {page.content}
+                            </p>
+                        </Section>
+                    ) : (
+                        <>
+                            <Section title="1. Relationship with Rokkooin">
+                                By listing your property on Rokkooin, you agree to act as an independent service provider.
+                                Rokkooin acts solely as an intermediary platform to connect you with potential guests.
+                            </Section>
 
-                    <Section title="3. Cancellation Policy">
-                        Partners must adhere to the cancellation policy selected during property listing.
-                        Any penalties for guest cancellations will be shared as per the platform rules.
-                    </Section>
+                            <Section title="2. Payouts & Commission">
+                                Rokkooin charges a flat commission of 15% on every completed booking. Payouts are processed
+                                weekly (every Wednesday) for the previous week's check-outs, subject to a minimum withdrawal limit of ₹1,000.
+                            </Section>
 
-                    <Section title="4. Quality Standards">
-                        You agree to maintain the property standards as verified during onboarding.
-                        Consistent negative feedback or failure to honor bookings may result in delisting.
-                    </Section>
+                            <Section title="3. Cancellation Policy">
+                                Partners must adhere to the cancellation policy selected during property listing.
+                                Any penalties for guest cancellations will be shared as per the platform rules.
+                            </Section>
+
+                            <Section title="4. Quality Standards">
+                                You agree to maintain the property standards as verified during onboarding.
+                                Consistent negative feedback or failure to honor bookings may result in delisting.
+                            </Section>
+                        </>
+                    )}
 
                     <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-green-600">

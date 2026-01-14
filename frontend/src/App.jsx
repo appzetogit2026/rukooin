@@ -38,6 +38,8 @@ import AdminSettings from './app/admin/pages/AdminSettings';
 import AdminOffers from './app/admin/pages/AdminOffers';
 import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
 import AdminProperties from './app/admin/pages/AdminProperties';
+import AdminLegalPages from './app/admin/pages/AdminLegalPages';
+import AdminContactMessages from './app/admin/pages/AdminContactMessages';
 
 // Hotel Partner Auth & Pages
 import HotelLogin from './pages/auth/HotelLoginPage';
@@ -59,6 +61,9 @@ import PartnerSettings from './app/partner/pages/PartnerSettings';
 import RoomManager from './app/partner/pages/RoomManager';
 import MyPropertiesPage from './app/partner/pages/MyPropertiesPage';
 import PropertyDetailsPage from './app/partner/pages/PropertyDetailsPage';
+import PartnerAbout from './app/partner/pages/PartnerAbout';
+import PartnerPrivacy from './app/partner/pages/PartnerPrivacy';
+import PartnerContact from './app/partner/pages/PartnerContact';
 
 // User Pages
 import SearchPage from './pages/user/SearchPage';
@@ -74,16 +79,27 @@ import NotificationsPage from './pages/user/NotificationsPage';
 import SettingsPage from './pages/user/SettingsPage';
 import PartnerLandingPage from './pages/user/PartnerLandingPage';
 import LegalPage from './pages/user/LegalPage';
+import AboutPage from './pages/user/AboutPage';
+import ContactPage from './pages/user/ContactPage';
 import AmenitiesPage from './pages/user/AmenitiesPage';
 import ReviewsPage from './pages/user/ReviewsPage';
 import OffersPage from './pages/user/OffersPage';
 import ProfileEdit from './pages/user/ProfileEdit';
 
 import { useLenis } from './app/shared/hooks/useLenis';
+import { legalService } from './services/apiService';
+import { Clock } from 'lucide-react';
+import logo from './assets/rokologin-removebg-preview.png';
 
 // Wrapper to conditionally render Navbars & Handle Lenis
 const Layout = ({ children }) => {
   const location = useLocation();
+  const [platformStatus, setPlatformStatus] = React.useState({
+    loading: true,
+    maintenanceMode: false,
+    maintenanceTitle: '',
+    maintenanceMessage: ''
+  });
 
   // Disable Lenis on Admin routes only (as requested)
   const isCmsRoute = location.pathname.startsWith('/admin');
@@ -98,6 +114,31 @@ const Layout = ({ children }) => {
   if (shouldGlobalHide) {
     return <>{children}</>;
   }
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchStatus = async () => {
+      try {
+        const data = await legalService.getPlatformStatus();
+        if (isMounted) {
+          setPlatformStatus({
+            loading: false,
+            maintenanceMode: !!data.maintenanceMode,
+            maintenanceTitle: data.maintenanceTitle || 'We will be back soon.',
+            maintenanceMessage: data.maintenanceMessage || 'The platform is under scheduled maintenance. Please check back in some time.'
+          });
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPlatformStatus(prev => ({ ...prev, loading: false }));
+        }
+      }
+    };
+    fetchStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(location.pathname);
   const isPartnerApp = location.pathname.startsWith('/hotel') && !isUserHotelDetail;
@@ -114,12 +155,44 @@ const Layout = ({ children }) => {
   // We exclude the root '/hotel' as it's likely a landing page without app navigation needs
   const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel';
 
+  const isAuthRoute = ['/login', '/signup', '/hotel/login', '/hotel/register'].some(route =>
+    location.pathname.startsWith(route)
+  );
+
+  const showMaintenanceOverlay =
+    platformStatus.maintenanceMode &&
+    !isCmsRoute &&
+    !isAuthRoute;
+
   return (
     <>
       {showUserNavs && <TopNavbar />}
 
       <div className={`min-h-screen md:pt-16 ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
-        {children}
+        {showMaintenanceOverlay ? (
+          <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-6 py-10 text-center bg-gradient-to-b from-[#111827] via-[#0f172a] to-black">
+            <div className="flex flex-col items-center justify-center max-w-md w-full">
+              <div className="mb-6 flex flex-col items-center justify-center gap-3">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <Clock className="w-8 h-8 md:w-9 md:h-9 text-teal-400" />
+                </div>
+                <img
+                  src={logo}
+                  alt="Rukkoin"
+                  className="h-10 md:h-12 object-contain"
+                />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black text-white mb-3 leading-snug">
+                {platformStatus.maintenanceTitle}
+              </h1>
+              <p className="text-sm md:text-base text-gray-300 mb-8 leading-relaxed">
+                {platformStatus.maintenanceMessage}
+              </p>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
       </div>
 
       {showUserBottomNav && <BottomNavbar />}
@@ -222,6 +295,9 @@ function App() {
               <Route path="kyc" element={<PartnerKYC />} />
               <Route path="support" element={<PartnerSupport />} />
               <Route path="terms" element={<PartnerTerms />} />
+              <Route path="about" element={<PartnerAbout />} />
+              <Route path="privacy" element={<PartnerPrivacy />} />
+              <Route path="contact" element={<PartnerContact />} />
               <Route path="settings" element={<PartnerSettings />} />
               <Route path="profile" element={<PartnerProfile />} />
             </Route>
@@ -244,6 +320,8 @@ function App() {
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="finance" element={<AdminFinance />} />
               <Route path="earnings" element={<AdminEarnings />} />
+              <Route path="legal" element={<AdminLegalPages />} />
+              <Route path="contact-messages" element={<AdminContactMessages />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="properties" element={<AdminProperties />} />
               <Route path="properties/:id" element={<AdminHotelDetail />} />
@@ -275,6 +353,8 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/partner-landing" element={<PartnerLandingPage />} />
             <Route path="/legal" element={<LegalPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
           </Route>
         </Routes>

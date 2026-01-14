@@ -16,7 +16,13 @@ import {
   getHotelDetails,
   getBookingDetails,
   deleteReview,
-  updatePartnerApprovalStatus
+  updatePartnerApprovalStatus,
+  getLegalPages,
+  upsertLegalPage,
+  getContactMessages,
+  updateContactStatus,
+  getPlatformSettings,
+  updatePlatformSettings
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -43,5 +49,11 @@ router.get('/user-details/:id', getUserDetails);
 router.get('/hotel-details/:id', getHotelDetails);
 router.get('/booking-details/:id', getBookingDetails);
 router.delete('/delete-review', deleteReview);
+router.get('/legal-pages', getLegalPages);
+router.post('/legal-pages', upsertLegalPage);
+router.get('/contact-messages', getContactMessages);
+router.put('/contact-messages/:id/status', updateContactStatus);
+router.get('/platform-settings', getPlatformSettings);
+router.put('/platform-settings', updatePlatformSettings);
 
 export default router;

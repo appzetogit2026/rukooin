@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Lock, Globe, Moon, CreditCard, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowLeft, Bell, Lock, Globe, Moon, CreditCard, ChevronRight, LogOut, FileText, Shield, Info, Phone } from 'lucide-react';
 
 const SettingsPage = () => {
     const navigate = useNavigate();
@@ -21,7 +21,16 @@ const SettingsPage = () => {
                 { icon: Lock, label: "Privacy Settings", type: "link" },
                 { icon: CreditCard, label: "Saved Cards", type: "link" },
             ]
-        }
+        },
+        {
+            title: "About & Legal",
+            items: [
+                { icon: Info, label: "About Rukko", type: "nav", path: "/about" },
+                { icon: Phone, label: "Contact Us", type: "nav", path: "/contact" },
+                { icon: Shield, label: "Privacy Policy", type: "nav", path: "/legal" },
+                { icon: FileText, label: "Terms & Conditions", type: "nav", path: "/legal" },
+            ]
+        },
     ];
 
     const handleLogout = () => {
@@ -51,7 +60,11 @@ const SettingsPage = () => {
                         <h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider mb-3 ml-2">{section.title}</h3>
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             {section.items.map((item, i) => (
-                                <div key={i} className={`flex items-center justify-between p-4 ${i !== section.items.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                                <div
+                                    key={i}
+                                    onClick={() => item.type === 'nav' && item.path && navigate(item.path)}
+                                    className={`flex items-center justify-between p-4 ${i !== section.items.length - 1 ? 'border-b border-gray-50' : ''} ${item.type === 'nav' ? 'active:scale-95 transition-transform' : ''}`}
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-surface/5 flex items-center justify-center text-surface">
                                             <item.icon size={16} />

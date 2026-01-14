@@ -81,6 +81,8 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import offerRoutes from './routes/offerRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
+import infoRoutes from './routes/infoRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -91,6 +93,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/offers', offerRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/info', infoRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

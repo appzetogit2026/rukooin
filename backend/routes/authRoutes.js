@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, registerPartner } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -11,6 +11,6 @@ router.post('/partner/verify-otp', verifyPartnerOtp);
 router.post('/admin/login', adminLogin);
 router.get('/me', protect, getMe);
 router.put('/update-profile', protect, updateProfile);
-
+router.put('/admin/update-profile', protect, updateAdminProfile);
 
 export default router;

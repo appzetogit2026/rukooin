@@ -543,3 +543,59 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Update Admin Profile
+ * @route   PUT /api/auth/admin/update-profile
+ * @access  Private (Admin/Superadmin)
+ */
+export const updateAdminProfile = async (req, res) => {
+  try {
+    if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only admins can update this profile' });
+    }
+
+    const { name, email, phone } = req.body;
+
+    const admin = await Admin.findById(req.user.id);
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    if (name) {
+      admin.name = name;
+    }
+
+    if (email && email !== admin.email) {
+      const existingEmail = await Admin.findOne({ email, _id: { $ne: admin._id } });
+      if (existingEmail) {
+        return res.status(409).json({ message: 'Email already in use' });
+      }
+      admin.email = email;
+    }
+
+    if (phone && phone !== admin.phone) {
+      const existingPhone = await Admin.findOne({ phone, _id: { $ne: admin._id } });
+      if (existingPhone) {
+        return res.status(409).json({ message: 'Phone number already in use' });
+      }
+      admin.phone = phone;
+    }
+
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      admin: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        phone: admin.phone,
+        role: admin.role
+      }
+    });
+  } catch (error) {
+    console.error('Update Admin Profile Error:', error);
+    res.status(500).json({ message: 'Server error updating admin profile' });
+  }
+};
+

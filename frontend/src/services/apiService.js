@@ -289,4 +289,31 @@ export const offerService = {
   }
 };
 
+export const legalService = {
+  getPage: async (audience, slug) => {
+    try {
+      const response = await api.get(`/info/${audience}/${slug}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getPlatformStatus: async () => {
+    try {
+      const response = await api.get('/info/platform/status');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  submitContact: async (audience, payload) => {
+    try {
+      const response = await api.post(`/contact/${audience}`, payload);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;

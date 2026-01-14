@@ -83,6 +83,41 @@ const adminService = {
   getBookingDetails: async (bookingId) => {
     const response = await axiosInstance.get(`/admin/booking-details/${bookingId}`);
     return response.data;
+  },
+
+  getLegalPages: async (params) => {
+    const response = await axiosInstance.get('/admin/legal-pages', { params });
+    return response.data;
+  },
+
+  saveLegalPage: async (payload) => {
+    const response = await axiosInstance.post('/admin/legal-pages', payload);
+    return response.data;
+  },
+
+  getContactMessages: async (params) => {
+    const response = await axiosInstance.get('/admin/contact-messages', { params });
+    return response.data;
+  },
+
+  updateContactStatus: async (id, status) => {
+    const response = await axiosInstance.put(`/admin/contact-messages/${id}/status`, { status });
+    return response.data;
+  },
+
+  getPlatformSettings: async () => {
+    const response = await axiosInstance.get('/admin/platform-settings');
+    return response.data;
+  },
+
+  updatePlatformSettings: async (payload) => {
+    const response = await axiosInstance.put('/admin/platform-settings', payload);
+    return response.data;
+  },
+
+  updateAdminProfile: async (payload) => {
+    const response = await axiosInstance.put('/auth/admin/update-profile', payload);
+    return response.data;
   }
 };
 

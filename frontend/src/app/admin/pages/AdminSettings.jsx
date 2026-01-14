@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Settings, Shield, Bell, CreditCard, ToggleLeft,
     ToggleRight, Save, Globe, Lock
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import useAdminStore from '../store/adminStore';
+import adminService from '../../../services/adminService';
 
 const ToggleSwitch = ({ enabled, onChange }) => (
     <button
@@ -28,17 +31,152 @@ const Section = ({ title, icon: Icon, children }) => (
 );
 
 const AdminSettings = () => {
+    const admin = useAdminStore(state => state.admin);
+    const checkAuth = useAdminStore(state => state.checkAuth);
+
+    const [profile, setProfile] = useState({
+        name: '',
+        email: '',
+        phone: ''
+    });
+
     const [platformOpen, setPlatformOpen] = useState(true);
     const [maintenance, setMaintenance] = useState(false);
+    const [bookingMessage, setBookingMessage] = useState('');
+    const [maintenanceTitle, setMaintenanceTitle] = useState('');
+    const [maintenanceMessage, setMaintenanceMessage] = useState('');
+
+    const [loadingSettings, setLoadingSettings] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [savingSettings, setSavingSettings] = useState(false);
+
     const [autoPayout, setAutoPayout] = useState(false);
+
+    useEffect(() => {
+        if (admin) {
+            setProfile({
+                name: admin.name || '',
+                email: admin.email || '',
+                phone: admin.phone || ''
+            });
+        }
+    }, [admin]);
+
+    useEffect(() => {
+        const loadSettings = async () => {
+            try {
+                setLoadingSettings(true);
+                const res = await adminService.getPlatformSettings();
+                if (res.settings) {
+                    setPlatformOpen(res.settings.platformOpen);
+                    setMaintenance(res.settings.maintenanceMode);
+                    setBookingMessage(res.settings.bookingDisabledMessage || '');
+                    setMaintenanceTitle(res.settings.maintenanceTitle || '');
+                    setMaintenanceMessage(res.settings.maintenanceMessage || '');
+                }
+            } catch (error) {
+                toast.error('Failed to load platform settings');
+            } finally {
+                setLoadingSettings(false);
+            }
+        };
+        loadSettings();
+    }, []);
+
+    const handleProfileChange = (field, value) => {
+        setProfile(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleSaveProfile = async () => {
+        try {
+            setSavingProfile(true);
+            await adminService.updateAdminProfile(profile);
+            toast.success('Admin profile updated');
+            if (checkAuth) {
+                await checkAuth();
+            }
+        } catch (error) {
+            const message = error.response?.data?.message || error.message || 'Failed to update profile';
+            toast.error(message);
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
+    const handleSavePlatformSettings = async () => {
+        try {
+            setSavingSettings(true);
+            await adminService.updatePlatformSettings({
+                platformOpen,
+                maintenanceMode: maintenance,
+                bookingDisabledMessage: bookingMessage,
+                maintenanceTitle,
+                maintenanceMessage
+            });
+            toast.success('Platform settings updated');
+        } catch (error) {
+            const message = error.response?.data?.message || error.message || 'Failed to update platform settings';
+            toast.error(message);
+        } finally {
+            setSavingSettings(false);
+        }
+    };
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-20">
-            {/* Header */}
             <div>
                 <h2 className="text-2xl font-bold text-gray-900">Platform Settings</h2>
                 <p className="text-gray-500 text-sm">Configure global rules, commission rates, and system preferences.</p>
             </div>
+
+            <Section title="Admin Profile" icon={Settings}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Full Name</label>
+                        <input
+                            type="text"
+                            value={profile.name}
+                            onChange={(e) => handleProfileChange('name', e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="Admin Name"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                        <input
+                            type="email"
+                            value={profile.email}
+                            onChange={(e) => handleProfileChange('email', e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="admin@example.com"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                        <input
+                            type="tel"
+                            value={profile.phone}
+                            onChange={(e) => handleProfileChange('phone', e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="10 digit number"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60"
+                    >
+                        <Save size={16} />
+                        {savingProfile ? 'Saving...' : 'Save Profile'}
+                    </button>
+                </div>
+            </Section>
 
             <Section title="General Configuration" icon={Globe}>
                 <div className="flex items-center justify-between">
@@ -55,36 +193,48 @@ const AdminSettings = () => {
                     </div>
                     <ToggleSwitch enabled={maintenance} onChange={setMaintenance} />
                 </div>
-            </Section>
-
-            <Section title="Subscription Management" icon={CreditCard}>
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 pt-2">
                     <div>
-                        <h4 className="text-sm font-bold text-gray-900 mb-4">Platform Access Plans</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Basic Plan (₹)</label>
-                                <input type="number" defaultValue={5000} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Premium Plan (₹)</label>
-                                <input type="number" defaultValue={15000} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                            </div>
-                        </div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">User message when booking is disabled</label>
+                        <input
+                            type="text"
+                            value={bookingMessage}
+                            onChange={(e) => setBookingMessage(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="Bookings are temporarily disabled. Please try again later."
+                        />
                     </div>
-                    <div className="pt-4 border-t border-gray-100">
-                        <h4 className="text-sm font-bold text-orange-600 mb-4">Market Intelligence Plans</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Market Lite (₹)</label>
-                                <input type="number" defaultValue={3000} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Market Pro (₹)</label>
-                                <input type="number" defaultValue={8000} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                            </div>
-                        </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Maintenance title</label>
+                        <input
+                            type="text"
+                            value={maintenanceTitle}
+                            onChange={(e) => setMaintenanceTitle(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="We will be back soon."
+                        />
                     </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Maintenance description</label>
+                        <textarea
+                            rows={3}
+                            value={maintenanceMessage}
+                            onChange={(e) => setMaintenanceMessage(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm resize-none"
+                            placeholder="The platform is under scheduled maintenance. Please check back in some time."
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onClick={handleSavePlatformSettings}
+                        disabled={savingSettings || loadingSettings}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60"
+                    >
+                        <Save size={16} />
+                        {savingSettings || loadingSettings ? 'Saving...' : 'Save Configuration'}
+                    </button>
                 </div>
             </Section>
 
@@ -126,12 +276,6 @@ const AdminSettings = () => {
                 </div>
             </Section>
 
-            {/* Save Button */}
-            <div className="flex justify-end pt-4">
-                <button className="flex items-center gap-2 px-8 py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:scale-95">
-                    <Save size={18} /> Save Changes
-                </button>
-            </div>
         </div>
     );
 };

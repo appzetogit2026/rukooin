@@ -5,7 +5,7 @@ import {
     X, Calendar, Users, BedDouble, ChevronRight, ChevronLeft,
     Minus, Plus, Check, Sun, Moon
 } from 'lucide-react';
-import { bookingService } from '../../services/apiService';
+import { bookingService, legalService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
 const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData }) => {
@@ -102,6 +102,18 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData }) 
             // Confirm Booking
             try {
                 setLoading(true);
+
+                try {
+                    const status = await legalService.getPlatformStatus();
+                    if (!status.platformOpen) {
+                        toast.error(status.bookingDisabledMessage || 'Bookings are temporarily disabled.');
+                        setLoading(false);
+                        return;
+                    }
+                } catch (statusError) {
+                    console.error('Platform Status Error:', statusError);
+                }
+
                 const bookingPayload = {
                     hotelId: hotelData._id || hotelData.id,
                     roomId: hotelData.selectedRoomId,

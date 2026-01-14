@@ -6,7 +6,7 @@ import {
     CreditCard, History, Shield,
     FileText, HelpCircle, LogOut,
     LayoutDashboard,
-    ChevronRight, Wallet, Bell, Settings, Edit3
+    ChevronRight, Wallet, Bell, Settings, Edit3, Info, Phone
 } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
 import logo from '../../../assets/rokologin-removebg-preview.png';
@@ -101,6 +101,9 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             items: [
                 { icon: HelpCircle, label: 'Help & Support', path: '/hotel/support' },
                 { icon: FileText, label: 'Terms & Conditions', path: '/hotel/terms' },
+                { icon: Shield, label: 'Privacy Policy', path: '/hotel/privacy' },
+                { icon: Info, label: 'About Rukko Partner', path: '/hotel/about' },
+                { icon: Phone, label: 'Contact Rukko Team', path: '/hotel/contact' },
                 { icon: Settings, label: 'Settings', path: '/hotel/settings' },
             ]
         }

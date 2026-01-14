@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, User, MapPin, Search, History, Sparkles, Calendar as CalendarIcon, Map } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PropertyCard from '../../components/user/PropertyCard';

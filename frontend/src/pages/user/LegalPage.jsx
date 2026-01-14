@@ -1,13 +1,73 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Shield } from 'lucide-react';
+import { legalService } from '../../services/apiService';
 
 const LegalPage = () => {
     const navigate = useNavigate();
+    const [privacy, setPrivacy] = useState(null);
+    const [terms, setTerms] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadData = async () => {
+            try {
+                const [privacyRes, termsRes] = await Promise.allSettled([
+                    legalService.getPage('user', 'privacy'),
+                    legalService.getPage('user', 'terms')
+                ]);
+
+                if (!isMounted) return;
+
+                if (privacyRes.status === 'fulfilled' && privacyRes.value?.page) {
+                    setPrivacy(privacyRes.value.page);
+                }
+                if (termsRes.status === 'fulfilled' && termsRes.value?.page) {
+                    setTerms(termsRes.value.page);
+                }
+            } catch (e) {
+                if (!isMounted) return;
+                setError('Unable to load latest legal content. Showing default copy.');
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const renderContent = (fallbackTitle, fallbackContent, page) => {
+        const title = page?.title || fallbackTitle;
+        const content = page?.content || fallbackContent;
+        const paragraphs = typeof content === 'string' ? content.split('\n').filter(Boolean) : [];
+
+        return (
+            <>
+                <h3 className="font-bold text-lg">{title}</h3>
+                <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+                    {paragraphs.length > 0 ? (
+                        paragraphs.map((p, idx) => (
+                            <p key={idx}>{p}</p>
+                        ))
+                    ) : (
+                        <p>{content}</p>
+                    )}
+                </div>
+            </>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Header */}
             <div className="bg-surface text-white p-6 pb-12 rounded-b-[30px] shadow-lg sticky top-0 z-20">
                 <div className="flex items-center gap-4 mb-4">
                     <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
@@ -20,32 +80,38 @@ const LegalPage = () => {
 
             <div className="px-5 -mt-6 relative z-10 space-y-4 pb-24">
 
+                {error && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-4 py-2">
+                        {error}
+                    </div>
+                )}
+
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3 mb-4 text-surface border-b border-gray-100 pb-3">
                         <Shield size={24} />
-                        <h3 className="font-bold text-lg">Privacy Policy</h3>
+                        <span className="font-bold text-lg">
+                            {privacy?.title || 'Privacy Policy'}
+                        </span>
                     </div>
-                    <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
-                        <p>At Rukko, we take your privacy seriously. This policy describes how we collect, use, and handle your data.</p>
-                        <p><strong>1. Data Collection:</strong> We collect basic profile information and booking history to improve your experience.</p>
-                        <p><strong>2. Usage:</strong> Your data is used to process bookings and send relevant offers.</p>
-                        <p><strong>3. Protection:</strong> We use industry-standard encryption to protect your personal information.</p>
-                    </div>
+                    {renderContent(
+                        'Privacy Policy',
+                        'At Rukko, we take your privacy seriously. This policy describes how we collect, use, and handle your data.',
+                        privacy
+                    )}
                 </div>
 
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3 mb-4 text-surface border-b border-gray-100 pb-3">
                         <FileText size={24} />
-                        <h3 className="font-bold text-lg">Terms & Conditions</h3>
+                        <span className="font-bold text-lg">
+                            {terms?.title || 'Terms & Conditions'}
+                        </span>
                     </div>
-                    <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
-                        <p>By using Rukko, you agree to the following terms:</p>
-                        <ul className="list-disc pl-5 space-y-1">
-                            <li>Bookings are subject to hotel availability.</li>
-                            <li>Cancellation policies vary by property.</li>
-                            <li>Users must be at least 18 years old.</li>
-                        </ul>
-                    </div>
+                    {renderContent(
+                        'Terms & Conditions',
+                        'By using Rukko, you agree to the latest booking, cancellation and usage terms defined by the platform.',
+                        terms
+                    )}
                 </div>
 
             </div>

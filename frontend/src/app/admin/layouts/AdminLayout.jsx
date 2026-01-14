@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
@@ -30,6 +30,8 @@ const AdminLayout = () => {
         { icon: DollarSign, label: 'My Earnings', path: '/admin/earnings' },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
         { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
+        { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
+        { icon: MessageSquare, label: 'Contact Messages', path: '/admin/contact-messages' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 

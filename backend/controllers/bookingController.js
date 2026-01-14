@@ -4,6 +4,7 @@ import Inventory from '../models/Inventory.js';
 import VillaDetails from '../models/details/VillaDetails.js';
 import Offer from '../models/Offer.js';
 import PaymentConfig from '../config/payment.config.js';
+import PlatformSettings from '../models/PlatformSettings.js';
 
 // Random Booking ID Generator
 const generateBookingId = () => 'BKID' + Math.floor(100000 + Math.random() * 900000);
@@ -64,6 +65,14 @@ const calculateCouponDiscount = async (couponCode, baseAmount, userId) => {
 
 export const createBooking = async (req, res) => {
   try {
+    const platformSettings = await PlatformSettings.getSettings();
+    if (!platformSettings.platformOpen) {
+      return res.status(423).json({
+        message: platformSettings.bookingDisabledMessage || 'Bookings are temporarily disabled.',
+        code: 'BOOKING_DISABLED'
+      });
+    }
+
     const {
       hotelId,
       inventoryId, // Changed from roomId to inventoryId generally, or support both

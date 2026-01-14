@@ -9,6 +9,9 @@ import VillaDetails from '../models/details/VillaDetails.js';
 import HomestayDetails from '../models/details/HomestayDetails.js';
 import HostelDetails from '../models/details/HostelDetails.js';
 import PGDetails from '../models/details/PGDetails.js';
+import InfoPage from '../models/InfoPage.js';
+import ContactMessage from '../models/ContactMessage.js';
+import PlatformSettings from '../models/PlatformSettings.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -388,5 +391,153 @@ export const updatePartnerApprovalStatus = async (req, res) => {
     res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating partner approval status' });
+  }
+};
+
+export const getLegalPages = async (req, res) => {
+  try {
+    const { audience } = req.query;
+    const query = {};
+
+    if (audience) {
+      query.audience = audience;
+    }
+
+    const pages = await InfoPage.find(query).sort({ audience: 1, slug: 1 });
+
+    res.status(200).json({ success: true, pages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching legal pages' });
+  }
+};
+
+export const upsertLegalPage = async (req, res) => {
+  try {
+    const { audience, slug, title, content, isActive } = req.body;
+
+    if (!['user', 'partner'].includes(audience)) {
+      return res.status(400).json({ success: false, message: 'Invalid audience' });
+    }
+
+    if (!['terms', 'privacy', 'about', 'contact'].includes(slug)) {
+      return res.status(400).json({ success: false, message: 'Invalid page type' });
+    }
+
+    if (!title || !content) {
+      return res.status(400).json({ success: false, message: 'Title and content are required' });
+    }
+
+    const update = {
+      audience,
+      slug,
+      title,
+      content
+    };
+
+    if (typeof isActive === 'boolean') {
+      update.isActive = isActive;
+    }
+
+    const page = await InfoPage.findOneAndUpdate(
+      { audience, slug },
+      update,
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({ success: true, page });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error saving legal page' });
+  }
+};
+
+export const getContactMessages = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { audience, status } = req.query;
+
+    const query = {};
+
+    if (audience) {
+      query.audience = audience;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    const total = await ContactMessage.countDocuments(query);
+    const messages = await ContactMessage.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, messages, total, page, limit });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching contact messages' });
+  }
+};
+
+export const updateContactStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['new', 'in_progress', 'resolved'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const message = await ContactMessage.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Status updated successfully', contact: message });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating contact status' });
+  }
+};
+
+export const getPlatformSettings = async (req, res) => {
+  try {
+    const settings = await PlatformSettings.getSettings();
+    res.status(200).json({ success: true, settings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching platform settings' });
+  }
+};
+
+export const updatePlatformSettings = async (req, res) => {
+  try {
+    const { platformOpen, maintenanceMode, bookingDisabledMessage, maintenanceTitle, maintenanceMessage } = req.body;
+    const settings = await PlatformSettings.getSettings();
+
+    if (typeof platformOpen === 'boolean') {
+      settings.platformOpen = platformOpen;
+    }
+    if (typeof maintenanceMode === 'boolean') {
+      settings.maintenanceMode = maintenanceMode;
+    }
+    if (typeof bookingDisabledMessage === 'string') {
+      settings.bookingDisabledMessage = bookingDisabledMessage;
+    }
+    if (typeof maintenanceTitle === 'string') {
+      settings.maintenanceTitle = maintenanceTitle;
+    }
+    if (typeof maintenanceMessage === 'string') {
+      settings.maintenanceMessage = maintenanceMessage;
+    }
+
+    await settings.save();
+
+    res.status(200).json({ success: true, settings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating platform settings' });
   }
 };
