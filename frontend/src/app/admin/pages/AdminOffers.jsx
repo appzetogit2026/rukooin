@@ -44,7 +44,7 @@ const AdminOffers = () => {
       setLoading(true);
       const res = await axiosInstance.get('/offers/all');
       setOffers(res.data);
-    } catch (err) {
+    } catch {
       toast.error("Failed to fetch offers");
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ const AdminOffers = () => {
       await axiosInstance.delete(`/offers/${id}`);
       toast.success("Offer deleted successfully");
       fetchOffers();
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete offer");
     }
   };

@@ -67,12 +67,12 @@ const ExclusiveOffers = () => {
                         }}
                         className={`
                             relative 
-                            min-w-[300px] 
-                            h-[180px] 
+                            min-w-[280px] md:min-w-[320px] 
+                            h-[160px] 
                             rounded-2xl 
                             overflow-hidden 
                             snap-center 
-                            shadow-lg shadow-gray-200/50
+                            shadow-md shadow-gray-200/50
                             cursor-pointer
                         `}
                     >
@@ -84,20 +84,20 @@ const ExclusiveOffers = () => {
                         />
 
                         {/* Dark Gradient Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-5 text-white`}>
+                        <div className={`absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-5 text-white items-start`}>
                             <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-accent text-[10px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase">
+                                <span className="bg-accent text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase">
                                     {offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}
                                 </span>
                             </div>
-                            <h3 className="text-2xl font-black leading-tight max-w-[70%] drop-shadow-md">{offer.title}</h3>
-                            <p className="text-xs font-semibold text-gray-300 mt-2 max-w-[60%] leading-relaxed drop-shadow-md">{offer.subtitle}</p>
+                            <h3 className="text-xl font-black leading-tight max-w-[80%] drop-shadow-md">{offer.title}</h3>
+                            <p className="text-[10px] font-semibold text-gray-300 mt-1 max-w-[70%] leading-relaxed drop-shadow-md line-clamp-2">{offer.subtitle}</p>
 
-                            <div className="mt-4 flex items-center gap-3">
-                                <button className="px-5 py-2 bg-white text-black text-xs font-black rounded-xl hover:shadow-xl transition-all shadow-md active:scale-95">
+                            <div className="mt-3 flex items-center gap-2">
+                                <button className="px-4 py-1.5 bg-white text-black text-[10px] font-black rounded-lg hover:shadow-xl transition-all shadow-md active:scale-95">
                                     {offer.btnText || "Copy Code"}
                                 </button>
-                                <span className="text-[10px] text-white/60 font-medium border-l border-white/20 pl-3">Code: <span className="text-white font-bold">{offer.code}</span></span>
+                                <span className="text-[9px] text-white/60 font-medium border-l border-white/20 pl-2">Code: <span className="text-white font-bold">{offer.code}</span></span>
                             </div>
                         </div>
 

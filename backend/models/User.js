@@ -28,10 +28,14 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'partner'],
     default: 'user'
   },
-  // Partner-specific fields
   isPartner: {
     type: Boolean,
     default: false
+  },
+  partnerApprovalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   partnerSince: {
     type: Date

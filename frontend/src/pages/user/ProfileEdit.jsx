@@ -255,210 +255,157 @@ const ProfileEdit = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16 pb-24 md:pb-0">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Edit Profile</h1>
-              <p className="text-sm text-gray-500">Update your personal information</p>
+    <div className="min-h-screen bg-white flex flex-col items-center pt-safe-top px-6 pb-24 md:pb-0">
+
+
+      {/* 1. Header Removed - Spacer for top padding */}
+      <div className="h-6"></div>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md space-y-6"
+      >
+
+        {/* Profile Picture */}
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full bg-surface text-white flex items-center justify-center shadow-lg shadow-surface/20">
+              <User size={32} />
+            </div>
+            <div className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full border border-gray-100 shadow-sm cursor-pointer">
+              <Save size={12} className="text-surface" />
             </div>
           </div>
+          <h2 className="mt-3 text-lg font-bold text-gray-900">{formData.name || 'User'}</h2>
+          <p className="text-xs text-gray-400 font-medium">+91 {formData.phone}</p>
         </div>
-      </div>
 
-      {/* Form */}
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
-        >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Profile Picture (Placeholder) */}
-            <div className="flex flex-col items-center pb-6 border-b border-gray-100">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-surface to-emerald-600 flex items-center justify-center mb-3">
-                <User size={40} className="text-white" />
-              </div>
-              <p className="text-sm text-gray-500">Profile Picture</p>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
 
+          {/* Section: Personal Info */}
+          <div className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                  <User size={18} className="text-gray-400" />
-                </div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Full Name</label>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-2 focus-within:border-surface transition-colors">
+                <User size={16} className="text-gray-300" />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                  placeholder="Enter your name"
-                  required
+                  className="flex-1 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300"
+                  placeholder="Your Name"
                 />
               </div>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                  <Phone size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                  placeholder="9876543210"
-                  maxLength={10}
-                  required
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Phone cannot be changed if already verified</p>
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address <span className="text-gray-400 text-xs">(Optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                  <Mail size={18} className="text-gray-400" />
-                </div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Email Address</label>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-2 focus-within:border-surface transition-colors">
+                <Mail size={16} className="text-gray-300" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                  placeholder="you@example.com"
+                  className="flex-1 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300"
+                  placeholder="email@example.com"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Address Section */}
-            <div className="pt-4 border-t border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Home size={18} />
-                  Address <span className="text-gray-400 text-xs">(Optional)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleGetCurrentLocation}
-                  disabled={fetchingLocation}
-                  className="text-xs font-bold text-emerald-600 flex items-center gap-1 hover:underline disabled:opacity-50"
-                >
-                  {fetchingLocation ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Getting location...
-                    </>
-                  ) : (
-                    <>
-                      <Navigation size={14} />
-                      Use Current Location
-                    </>
-                  )}
-                </button>
+
+          {/* Section: Address */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Address Details</label>
+              <button
+                type="button"
+                onClick={handleGetCurrentLocation}
+                disabled={fetchingLocation}
+                className="flex items-center gap-1 text-[10px] font-bold text-surface bg-surface/5 px-2 py-1 rounded-md"
+              >
+                {fetchingLocation ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
+                Auto-Detect
+              </button>
+            </div>
+
+            {/* Address Inputs - Minimalist Style */}
+            <div className="space-y-4 pt-1">
+              {/* Street */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Street Address</label>
+                <div className="border-b border-gray-100 focus-within:border-surface transition-colors">
+                  <input
+                    type="text"
+                    value={formData.address.street}
+                    onChange={(e) => handleAddressChange('street', e.target.value)}
+                    className="w-full py-2 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300 bg-transparent"
+                    placeholder="House No, Street, Area"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {/* Street */}
+              <div className="grid grid-cols-2 gap-5">
+                {/* City */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Street/Building</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                      <MapPin size={16} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      value={formData.address.street}
-                      onChange={(e) => handleAddressChange('street', e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                      placeholder="e.g. 102, Green Valley Apartments"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* City */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">City</label>
+                  <div className="border-b border-gray-100 focus-within:border-surface transition-colors">
                     <input
                       type="text"
                       value={formData.address.city}
                       onChange={(e) => handleAddressChange('city', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                      className="w-full py-2 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300 bg-transparent"
                       placeholder="City"
                     />
                   </div>
+                </div>
 
-                  {/* Pincode */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Pincode</label>
+                {/* Pincode */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Pincode</label>
+                  <div className="border-b border-gray-100 focus-within:border-surface transition-colors">
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
                       value={formData.address.zipCode}
                       onChange={(e) => handleAddressChange('zipCode', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                      className="w-full py-2 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300 bg-transparent"
                       placeholder="000000"
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* State */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">State</label>
+              {/* State */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">State</label>
+                <div className="border-b border-gray-100 focus-within:border-surface transition-colors">
                   <input
                     type="text"
                     value={formData.address.state}
                     onChange={(e) => handleAddressChange('state', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
+                    className="w-full py-2 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300 bg-transparent"
                     placeholder="State"
                   />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Save Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={20} className="animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save size={20} />
-                  Save Changes
-                </>
-              )}
-            </button>
-          </form>
-        </motion.div>
-      </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-surface text-white py-3.5 rounded-2xl font-bold text-sm shadow-xl shadow-surface/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Update Profile'}
+          </button>
+        </form>
+      </motion.div>
     </div>
   );
 };

@@ -100,7 +100,7 @@ const AdminReviews = () => {
                 toast.success(`Review ${newStatus} successfully`);
                 fetchReviews(currentPage, filters);
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to update review status');
         }
     };
@@ -141,7 +141,7 @@ const AdminReviews = () => {
                         toast.success('Review deleted successfully');
                         fetchReviews(currentPage, filters);
                     }
-                } catch (error) {
+                } catch {
                     toast.error('Failed to delete review');
                 }
             }

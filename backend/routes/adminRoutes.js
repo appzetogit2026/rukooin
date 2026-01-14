@@ -15,7 +15,8 @@ import {
   getUserDetails,
   getHotelDetails,
   getBookingDetails,
-  deleteReview
+  deleteReview,
+  updatePartnerApprovalStatus
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -34,6 +35,7 @@ router.put('/update-hotel-status', updateHotelStatus);
 router.get('/reviews', getReviewModeration);
 router.put('/update-review-status', updateReviewStatus);
 router.put('/update-user-status', updateUserStatus);
+router.put('/update-partner-approval', updatePartnerApprovalStatus);
 router.delete('/delete-user', deleteUser);
 router.delete('/delete-hotel', deleteHotel);
 router.put('/update-booking-status', updateBookingStatus);

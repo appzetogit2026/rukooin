@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { Upload, FileText, CheckCircle } from 'lucide-react';
 import { hotelService } from '../../../services/apiService';

@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/user/Home';
-import HotelDetails from './pages/user/HotelDetails';
+import UserPropertyDetailsPage from './pages/user/PropertyDetailsPage';
 import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
 import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
@@ -21,7 +21,7 @@ import AdminSignup from './app/admin/pages/AdminSignup';
 import HotelLayout from './layouts/HotelLayout';
 import AdminLayout from './app/admin/layouts/AdminLayout';
 import AdminDashboard from './app/admin/pages/AdminDashboard';
-import AdminHotels from './app/admin/pages/AdminHotels';
+// import AdminHotels from './app/admin/pages/AdminHotels'; // Deprecated
 
 import AdminHotelDetail from './app/admin/pages/AdminHotelDetail';
 import AdminUsers from './app/admin/pages/AdminUsers';
@@ -30,22 +30,14 @@ import AdminUserDetail from './app/admin/pages/AdminUserDetail';
 import AdminBookings from './app/admin/pages/AdminBookings';
 import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
 
-import AdminPropertyRequests from './app/admin/pages/AdminPropertyRequests';
-import AdminPropertyRequestDetail from './app/admin/pages/AdminPropertyRequestDetail';
+import AdminPartners from './app/admin/pages/AdminPartners';
 import AdminReviews from './app/admin/pages/AdminReviews';
 import AdminFinance from './app/admin/pages/AdminFinance';
 import AdminEarnings from './app/admin/pages/AdminEarnings';
 import AdminSettings from './app/admin/pages/AdminSettings';
 import AdminOffers from './app/admin/pages/AdminOffers';
 import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
-
-
-
-
-
-
-
-
+import AdminProperties from './app/admin/pages/AdminProperties';
 
 // Hotel Partner Auth & Pages
 import HotelLogin from './pages/auth/HotelLoginPage';
@@ -107,15 +99,15 @@ const Layout = ({ children }) => {
     return <>{children}</>;
   }
 
-  // 2. CONTEXT DETECTION
-  const isPartnerApp = location.pathname.startsWith('/hotel');
+  const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(location.pathname);
+  const isPartnerApp = location.pathname.startsWith('/hotel') && !isUserHotelDetail;
 
   // 3. NAVBAR VISIBILITY
   // User Top/Bottom Navs should NOT show in Partner App
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden (e.g. detailed flows)
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/search', '/support', '/refer'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/search', '/support', '/refer', '/hotel/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)
@@ -152,6 +144,33 @@ const UserProtectedRoute = ({ children }) => {
   return children ? children : <Outlet />;
 };
 
+// Partner Protected Route
+const PartnerProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userRaw = localStorage.getItem('user');
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  const location = useLocation();
+
+  // Allow access to login/register/join
+  const publicPartnerPaths = ['/hotel/login', '/hotel/register'];
+  if (publicPartnerPaths.some(p => location.pathname.startsWith(p))) {
+    return children ? children : <Outlet />;
+  }
+
+  if (!token || !user || user.role !== 'partner') {
+    return <Navigate to="/hotel/login" state={{ from: location }} replace />;
+  }
+
+  const isPending = user.partnerApprovalStatus !== 'approved';
+  if (isPending) {
+    const allowedPending = ['/hotel/dashboard', '/hotel/partner-dashboard', '/hotel/join', '/hotel/profile'];
+    if (!allowedPending.some(p => location.pathname.startsWith(p))) {
+      return <Navigate to="/hotel/dashboard" replace />;
+    }
+  }
+
+  return children ? children : <Outlet />;
+};
 // Public Route (redirects to home if already logged in)
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -163,9 +182,12 @@ const PublicRoute = ({ children }) => {
 
 
 
+import ScrollToTop from './components/ui/ScrollToTop';
+
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <Toaster position="top-center" reverseOrder={false} />
       <Layout>
         <Routes>
@@ -182,25 +204,27 @@ function App() {
             {/* <Route index element={<PartnerHome />} /> */}
             <Route index element={<Navigate to="/hotel/login" replace />} />
             {/* Wizard Route */}
-            <Route path="join" element={<AddPropertyWizard />} />
-            <Route path="edit/:id" element={<AddPropertyWizard />} />
-            <Route path="rooms" element={<RoomManager />} />
-            <Route path="partner-dashboard" element={<PartnerDashboard />} />
-            <Route path="dashboard" element={<PartnerDashboard />} />
+            <Route element={<PartnerProtectedRoute />}>
+              <Route path="join" element={<AddPropertyWizard />} />
+              <Route path="edit/:id" element={<AddPropertyWizard />} />
+              <Route path="rooms" element={<RoomManager />} />
+              <Route path="partner-dashboard" element={<PartnerDashboard />} />
+              <Route path="dashboard" element={<PartnerDashboard />} />
 
-            {/* Partner Sub-pages */}
-            <Route path="properties" element={<MyPropertiesPage />} />
-            <Route path="properties/:id" element={<PropertyDetailsPage />} />
-            <Route path="bookings" element={<PartnerBookings />} />
-            <Route path="wallet" element={<PartnerWallet />} />
-            <Route path="reviews" element={<PartnerReviews />} />
-            <Route path="transactions" element={<PartnerTransactions />} />
-            <Route path="notifications" element={<PartnerNotifications />} />
-            <Route path="kyc" element={<PartnerKYC />} />
-            <Route path="support" element={<PartnerSupport />} />
-            <Route path="terms" element={<PartnerTerms />} />
-            <Route path="settings" element={<PartnerSettings />} />
-            <Route path="profile" element={<PartnerProfile />} />
+              {/* Partner Sub-pages */}
+              <Route path="properties" element={<MyPropertiesPage />} />
+              <Route path="properties/:id" element={<PropertyDetailsPage />} />
+              <Route path="bookings" element={<PartnerBookings />} />
+              <Route path="wallet" element={<PartnerWallet />} />
+              <Route path="reviews" element={<PartnerReviews />} />
+              <Route path="transactions" element={<PartnerTransactions />} />
+              <Route path="notifications" element={<PartnerNotifications />} />
+              <Route path="kyc" element={<PartnerKYC />} />
+              <Route path="support" element={<PartnerSupport />} />
+              <Route path="terms" element={<PartnerTerms />} />
+              <Route path="settings" element={<PartnerSettings />} />
+              <Route path="profile" element={<PartnerProfile />} />
+            </Route>
           </Route>
 
           {/* Admin Auth Routes */}
@@ -216,14 +240,13 @@ function App() {
               <Route path="users/:id" element={<AdminUserDetail />} />
               <Route path="bookings" element={<AdminBookings />} />
               <Route path="bookings/:id" element={<AdminBookingDetail />} />
-              <Route path="property-requests" element={<AdminPropertyRequests />} />
-              <Route path="property-requests/:id" element={<AdminPropertyRequestDetail />} />
+              <Route path="partners" element={<AdminPartners />} />
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="finance" element={<AdminFinance />} />
               <Route path="earnings" element={<AdminEarnings />} />
               <Route path="settings" element={<AdminSettings />} />
-              <Route path="hotels" element={<AdminHotels />} />
-              <Route path="hotels/:id" element={<AdminHotelDetail />} />
+              <Route path="properties" element={<AdminProperties />} />
+              <Route path="properties/:id" element={<AdminHotelDetail />} />
               <Route path="offers" element={<AdminOffers />} />
             </Route>
           </Route>
@@ -234,7 +257,7 @@ function App() {
           <Route element={<UserProtectedRoute />}>
             <Route path="/" element={<Home />} />
             <Route path="/profile/edit" element={<ProfileEdit />} />
-            <Route path="/hotel/:id" element={<HotelDetails />} />
+            <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
             <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
             <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
             <Route path="/hotel/:id/offers" element={<OffersPage />} />
@@ -245,6 +268,7 @@ function App() {
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
+            <Route path="/booking/:id" element={<BookingConfirmationPage />} />
             <Route path="/refer" element={<ReferAndEarnPage />} />
             <Route path="/saved-places" element={<SavedPlacesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
@@ -260,4 +284,3 @@ function App() {
 }
 
 export default App;
-

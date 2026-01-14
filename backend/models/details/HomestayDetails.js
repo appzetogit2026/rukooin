@@ -35,6 +35,8 @@ const homestayDetailsSchema = new mongoose.Schema({
   // Policies (Time, Rules)
   // Policies (Time, Rules)
   policies: {
+    checkInTime: String,
+    checkOutTime: String,
     houseRules: [String], // Custom rules
     cancellationPolicy: String,
     alcoholAllowed: { type: String, default: 'Allowed' },

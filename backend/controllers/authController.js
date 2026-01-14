@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Otp from '../models/Otp.js';
-import Property from '../models/Property.js';
 import smsService from '../utils/smsService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -161,6 +160,15 @@ export const verifyOtp = async (req, res) => {
       user.isVerified = true;
     }
 
+    if (!isRegistration && user.role === 'partner') {
+      if (user.partnerApprovalStatus === 'pending') {
+        return res.status(403).json({ message: 'Your partner account is pending approval.' });
+      }
+      if (user.partnerApprovalStatus === 'rejected') {
+        return res.status(403).json({ message: 'Your partner account was rejected. Please contact support.' });
+      }
+    }
+
     await user.save();
 
     const token = generateToken(user._id, user.role);
@@ -173,7 +181,9 @@ export const verifyOtp = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        isPartner: user.isPartner,
+        partnerApprovalStatus: user.partnerApprovalStatus
       }
     });
 
@@ -235,8 +245,9 @@ export const registerPartner = async (req, res) => {
       name: full_name,
       email: email,
       phone: phone,
-      role: 'partner', // Enforce partner role
-      isPartner: false, // Will be set to true on verification
+      role: 'partner',
+      isPartner: false,
+      partnerApprovalStatus: 'pending',
       termsAccepted: termsAccepted,
 
       // Extended Partner Details
@@ -263,12 +274,10 @@ export const registerPartner = async (req, res) => {
     };
 
     if (user) {
-      // Update existing unverified user
       Object.assign(user, userData);
       await user.save();
     } else {
-      // Create new user
-      userData.password = await bcrypt.hash(Math.random().toString(36), 10); // Random password
+      userData.password = await bcrypt.hash(Math.random().toString(36), 10);
       user = await User.create(userData);
     }
 
@@ -330,28 +339,25 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    // Activate User
     user.otp = undefined;
     user.otpExpires = undefined;
     user.isVerified = true;
-    user.isPartner = true;
-    user.partnerSince = new Date();
+    user.isPartner = false;
+    user.partnerApprovalStatus = 'pending';
 
     await user.save();
 
-    const token = generateToken(user._id, user.role);
-
     res.status(200).json({
       success: true,
-      message: 'Partner registration completed successfully',
-      token,
+      message: 'Partner registration completed successfully. Your account is pending admin approval.',
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isPartner: user.isPartner
+        isPartner: user.isPartner,
+        partnerApprovalStatus: user.partnerApprovalStatus
       }
     });
 

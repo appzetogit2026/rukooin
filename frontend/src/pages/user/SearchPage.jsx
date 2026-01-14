@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ArrowLeft, User, MapPin, Search, History, Sparkles, Calendar as CalendarIcon, Map } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import HotelCard from '../../components/cards/HotelCard';
+import PropertyCard from '../../components/user/PropertyCard';
 
 const SearchPage = () => {
     const navigate = useNavigate();
@@ -204,7 +204,7 @@ const SearchPage = () => {
                         <h3 className="text-base font-bold text-surface">Suggested for You</h3>
                         <span className="text-xs font-bold text-accent cursor-pointer">View All</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {suggestedHotels.map((hotel, index) => (
                             <motion.div
                                 key={hotel.id}
@@ -212,7 +212,18 @@ const SearchPage = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 + (index * 0.1) }}
                             >
-                                <HotelCard {...hotel} className="w-full" />
+                                <PropertyCard
+                                    data={{
+                                        _id: hotel.id,
+                                        name: hotel.name,
+                                        address: { city: hotel.location },
+                                        startingPrice: hotel.price,
+                                        rating: hotel.rating,
+                                        images: { cover: hotel.image },
+                                        propertyType: 'Hotel', // Default for mock data
+                                        details: { amenities: hotel.amenities }
+                                    }}
+                                />
                             </motion.div>
                         ))}
                     </div>

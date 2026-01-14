@@ -20,7 +20,6 @@ const StepHomestayAmenities = () => {
   };
 
   const commonAmenities = ['Wi-Fi', 'Parking', 'Power backup', 'Hot water', 'RO drinking water'];
-  const roomAmenities = ['Fan', 'AC', 'Heater', 'Wardrobe', 'TV'];
 
   return (
     <div className="space-y-6">

@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast';
 
 const RazorpayButton = ({
   bookingId,
-  amount,
   onSuccess,
   onFailure,
   buttonText = 'Pay Now',

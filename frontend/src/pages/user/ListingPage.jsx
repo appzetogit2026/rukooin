@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, Calendar, Star, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Search, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import HotelCard from '../../components/cards/HotelCard';
+import PropertyCard from '../../components/user/PropertyCard';
 import FilterBottomSheet from '../../components/modals/FilterBottomSheet';
+import { hotelService } from '../../services/apiService';
 
 const ListingPage = () => {
     const navigate = useNavigate();
@@ -11,7 +12,7 @@ const ListingPage = () => {
 
     // 1. Initial State from Navigation
     const { destination: initialDestination, dates, guests, isNearMe } = location.state || {
-        destination: "Indore",
+        destination: "",
         dates: { checkIn: null, checkOut: null },
         guests: { rooms: 1, adults: 2 },
         isNearMe: false
@@ -20,168 +21,84 @@ const ListingPage = () => {
     // 2. Local State
     const [searchQuery, setSearchQuery] = useState(isNearMe ? "" : initialDestination);
     const [isSearchActive, setIsSearchActive] = useState(false);
-    const [activeFilter, setActiveFilter] = useState(isNearMe ? "Near Me" : "Recommended");
+    const [activeFilter, setActiveFilter] = useState("Recommended");
     const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+    // Data State
+    const [allHotels, setAllHotels] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Advanced Filters State (Lifted from FilterBottomSheet)
     const [selectedFilters, setSelectedFilters] = useState([]);
-    const [priceRange, setPriceRange] = useState([500, 5000]);
+    const [priceRange, setPriceRange] = useState([500, 15000]);
     const [isHighRated, setIsHighRated] = useState(false);
 
-    // Mock Hotels Data (Expanded with Cities)
-    const allHotels = [
-        {
-            id: 1,
-            image: "https://images.unsplash.com/photo-1571474005506-6690ca67b4d9?w=800&q=80",
-            name: "Rukko Premier: Skyline",
-            location: "Vijay Nagar, Indore",
-            city: "Indore",
-            price: "2499",
-            rating: "4.9",
-            tags: ["Recommended", "Luxury", "Flagship", "Rukkos welcome couples", "Near Me"],
-            amenities: ["Free Wifi", "Breakfast", "AC", "Parking"]
-        },
-        {
-            id: 2,
-            image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80",
-            name: "Rukko Grand: Central",
-            location: "Bhawarkua, Indore",
-            city: "Indore",
-            price: "1899",
-            rating: "4.7",
-            tags: ["Recommended", "Budget", "Couple Friendly", "Rukkos welcome couples"],
-            amenities: ["Couple Friendly", "Parking", "TV"]
-        },
-        {
-            id: 3,
-            image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
-            name: "Rukko Elite: The Palace",
-            location: "Old Palasia, Indore",
-            city: "Indore",
-            price: "3200",
-            rating: "5.0",
-            tags: ["Recommended", "Luxury", "Business Travellers", "Townhouse"],
-            amenities: ["Pool", "Spa", "Gym", "Power backup"]
-        },
-        {
-            id: 4,
-            image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
-            name: "Rukko Stay: Green View",
-            location: "Rau, Indore",
-            city: "Indore",
-            price: "1200",
-            rating: "4.3",
-            tags: ["Budget", "Spot On", "Near Me"],
-            amenities: ["Budget", "Clean", "CCTV Cameras"]
-        },
-        {
-            id: 5,
-            image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80",
-            name: "Rukko Comfort: Airport",
-            location: "Airport Road, Indore",
-            city: "Indore",
-            price: "1500",
-            rating: "4.0",
-            tags: ["Near Me", "Silver Key"],
-            amenities: ["Transfer", "Wifi", "Kitchen"]
-        },
-        {
-            id: 6,
-            image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80",
-            name: "Rukko Lake View",
-            location: "Shamla Hills, Bhopal",
-            city: "Bhopal",
-            price: "2200",
-            rating: "4.6",
-            tags: ["Recommended", "Luxury"],
-            amenities: ["Lake View", "Wifi", "Breakfast"]
-        },
-        {
-            id: 7,
-            image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80",
-            name: "Rukko Business Hub",
-            location: "MP Nagar, Bhopal",
-            city: "Bhopal",
-            price: "1800",
-            rating: "4.4",
-            tags: ["Business Travellers", "Budget"],
-            amenities: ["Conference Room", "Wifi", "Parking"]
-        },
-        {
-            id: 8,
-            image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80",
-            name: "Rukko Marine Drive",
-            location: "Marine Drive, Mumbai",
-            city: "Mumbai",
-            price: "4500",
-            rating: "4.8",
-            tags: ["Recommended", "Luxury", "Sea View"],
-            amenities: ["Sea View", "Pool", "Spa", "Restaurant"]
-        },
-        {
-            id: 9,
-            image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&q=80",
-            name: "Rukko Connaught",
-            location: "Connaught Place, Delhi",
-            city: "Delhi",
-            price: "3800",
-            rating: "4.7",
-            tags: ["Recommended", "Central Location"],
-            amenities: ["Metro Nearby", "Restaurant", "Bar"]
-        },
-        {
-            id: 10,
-            image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80",
-            name: "Rukko Beach Resort",
-            location: "Calangute, Goa",
-            city: "Goa",
-            price: "3500",
-            rating: "4.9",
-            tags: ["Recommended", "Beach", "Luxury"],
-            amenities: ["Beach Access", "Pool", "Bar", "Wifi"]
-        }
-    ];
+    const filters = ["Recommended", "Price: Low to High", "Rating: 4.5+", "Budget", "Villas", "Hostels"];
 
-    const filters = ["Recommended", "Price: Low to High", "Rating: 4.5+", "Near Me", "Budget"];
+    // Fetch Hotels from Backend
+    useEffect(() => {
+        const fetchHotels = async () => {
+            try {
+                setLoading(true);
+                // If search query is present, use it. Otherwise fetch all.
+                const params = {};
+                if (searchQuery && searchQuery !== 'Near Me') {
+                    params.search = searchQuery;
+                }
+                const data = await hotelService.getAll(params);
+                setAllHotels(data);
+            } catch (error) {
+                console.error("Failed to fetch hotels:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    // 3. Filtering Logic
+        // Debounce search slightly
+        const timeoutId = setTimeout(() => {
+            fetchHotels();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
+
+    // 3. Filtering Logic (Client Side)
     const filteredHotels = useMemo(() => {
         return allHotels.filter(hotel => {
-            // 1. Search Query / City Filter
-            const matchesSearch = searchQuery === "" || searchQuery === "Near Me" ||
-                hotel.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                hotel.city.toLowerCase().includes(searchQuery.toLowerCase());
+            // Search Query is already handled by backend fetch, but precise filtering can continue here if needed.
 
             // 2. Tab Filter
             let matchesTab = true;
-            if (activeFilter === "Recommended") matchesTab = hotel.rating >= 4.5;
-            if (activeFilter === "Rating: 4.5+") matchesTab = hotel.rating >= 4.5;
-            if (activeFilter === "Budget") matchesTab = parseInt(hotel.price) < 2000;
-            if (activeFilter === "Near Me") matchesTab = hotel.tags.includes("Near Me");
+            if (activeFilter === "Rating: 4.5+") matchesTab = (hotel.rating || 0) >= 4.5;
+            if (activeFilter === "Budget") matchesTab = (hotel.startingPrice || 0) < 2000;
+            if (activeFilter === "Villas") matchesTab = hotel.propertyType === 'Villa';
+            if (activeFilter === "Hostels") matchesTab = hotel.propertyType === 'Hostel';
 
             // 3. Advanced Filters
             // Price Range
-            const price = parseInt(hotel.price);
+            const price = hotel.startingPrice || 0;
             const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
 
             // High Rated Toggle
-            const matchesRating = !isHighRated || hotel.rating >= 4.0;
+            const matchesRating = !isHighRated || (hotel.rating || 0) >= 4.0;
 
-            // Selected Checkbox Filters
-            // Hotel must match ALL selected filters to be rigorous, 
-            // OR use .some() if you want broad matching. Let's use strict match for now.
+            // Selected Checkbox Filters (Amenities/Facilities)
+            // Assuming hotel.amenities is list of strings
             const matchesAdvancedFilters = selectedFilters.every(filter => {
-                const combinedAttributes = [hotel.location, hotel.city, ...hotel.tags, ...hotel.amenities];
-                return combinedAttributes.includes(filter);
+                // Check in amenities, tags, etc.
+                const amenities = hotel.details?.amenities || [];
+                // Add city/area to searchable attributes
+                const attributes = [...amenities, hotel.address?.city, hotel.address?.area];
+                return attributes.some(attr => attr && attr.includes(filter));
             });
 
-            return matchesSearch && matchesTab && matchesPrice && matchesRating && matchesAdvancedFilters;
+            return matchesTab && matchesPrice && matchesRating && matchesAdvancedFilters;
         }).sort((a, b) => {
-            if (activeFilter === "Price: Low to High") return parseInt(a.price) - parseInt(b.price);
+            if (activeFilter === "Price: Low to High") return (a.startingPrice || 0) - (b.startingPrice || 0);
             return 0; // Default order
         });
-    }, [searchQuery, activeFilter, allHotels, selectedFilters, priceRange, isHighRated]);
+    }, [activeFilter, allHotels, selectedFilters, priceRange, isHighRated]);
 
 
     return (
@@ -193,14 +110,7 @@ const ListingPage = () => {
         >
             {/* 1. Header & Search Bar (Sticky & Premium) */}
             <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm pt-safe-top transition-all">
-                <div className="px-4 py-3 flex items-center gap-3">
-                    <button
-                        onClick={() => navigate("/")}
-                        className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 active:scale-95 transition-all shrink-0"
-                    >
-                        <ArrowLeft size={22} className="text-surface" />
-                    </button>
-
+                <div className="px-3 py-3 flex items-center gap-3">
                     {/* Interactive Search Field */}
                     <div
                         className={`
@@ -217,8 +127,8 @@ const ListingPage = () => {
                                 onFocus={() => setIsSearchActive(true)}
                                 onBlur={() => setIsSearchActive(false)}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-transparent outline-none text-sm font-bold text-surface placeholder:text-gray-400"
-                                placeholder="Search location or hotel..."
+                                className="w-full bg-transparent outline-none text-xs font-bold text-surface placeholder:text-gray-400"
+                                placeholder="Search location, villa, hostel..."
                             />
                             {/* Clear Button (only when typing) */}
                             {searchQuery && (
@@ -236,22 +146,22 @@ const ListingPage = () => {
                                 </span>
                             )}
                             <div className="bg-white rounded-full p-2 shadow-sm border border-gray-100 shrink-0">
-                                <Search size={16} className="text-accent" strokeWidth={2.5} />
+                                <Search size={14} className="text-accent" strokeWidth={2.5} />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* 2. Horizontal Filter Row */}
-                <div className="px-4 pb-3 overflow-x-auto no-scrollbar flex gap-2">
+                <div className="px-3 pb-3 overflow-x-auto no-scrollbar flex gap-2">
                     <button
                         onClick={() => setIsFilterSheetOpen(true)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 whitespace-nowrap active:scale-95 transition-all shadow-sm
                         ${selectedFilters.length > 0 || isHighRated ? 'bg-surface text-white border-surface' : 'bg-gray-100 text-surface'}`}
                     >
-                        <SlidersHorizontal size={14} className={selectedFilters.length > 0 || isHighRated ? "text-white" : "text-surface"} />
+                        <SlidersHorizontal size={12} className={selectedFilters.length > 0 || isHighRated ? "text-white" : "text-surface"} />
                         {(selectedFilters.length > 0 || isHighRated) && (
-                            <span className="text-[10px] bg-white text-surface px-1.5 rounded-full font-bold ml-1">
+                            <span className="text-[9px] bg-white text-surface px-1.5 rounded-full font-bold ml-1">
                                 {selectedFilters.length + (isHighRated ? 1 : 0)}
                             </span>
                         )}
@@ -261,7 +171,7 @@ const ListingPage = () => {
                             key={i}
                             onClick={() => setActiveFilter(filter)}
                             className={`
-                                text-xs font-bold px-4 py-2 rounded-full border whitespace-nowrap transition-all duration-300 active:scale-95
+                                text-[10px] font-bold px-3 py-1.5 rounded-full border whitespace-nowrap transition-all duration-300 active:scale-95
                                 ${activeFilter === filter
                                     ? 'bg-surface text-white border-surface shadow-lg shadow-surface/20'
                                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
@@ -274,30 +184,34 @@ const ListingPage = () => {
             </div>
 
             {/* 3. Hotel Listings */}
-            <div className="p-4 space-y-5">
+            <div className="p-3 space-y-4">
                 {/* Result Count */}
                 <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-gray-800">
+                    <h2 className="text-xs font-bold text-gray-800">
                         {filteredHotels.length} properties found
                     </h2>
-                    <div className="flex items-center gap-1 text-xs font-bold text-gray-500">
-                        Sort by <ChevronDown size={14} />
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500">
+                        Sort by <ChevronDown size={12} />
                     </div>
                 </div>
 
-                {filteredHotels.length > 0 ? (
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    </div>
+                ) : filteredHotels.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <AnimatePresence mode='popLayout'>
                             {filteredHotels.map((hotel) => (
                                 <motion.div
                                     layout
-                                    key={hotel.id}
+                                    key={hotel._id || hotel.id}
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.3 }}
                                 >
-                                    <HotelCard {...hotel} className="w-full shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300" />
+                                    <PropertyCard data={hotel} className="w-full shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300" />
                                 </motion.div>
                             ))}
                         </AnimatePresence>
@@ -307,14 +221,14 @@ const ListingPage = () => {
                         <div className="bg-gray-100 p-4 rounded-full mb-4">
                             <Search size={32} className="text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">No hotels found</h3>
-                        <p className="text-sm text-gray-500">Try changing your location or filters.</p>
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">No properties found</h3>
+                        <p className="text-sm text-gray-500">Try changing your search or filters.</p>
                         <button
                             onClick={() => {
                                 setSearchQuery("");
                                 setActiveFilter("Recommended");
                                 setSelectedFilters([]);
-                                setPriceRange([500, 5000]);
+                                setPriceRange([500, 15000]);
                                 setIsHighRated(false);
                             }}
                             className="mt-6 text-sm font-bold text-accent underline"

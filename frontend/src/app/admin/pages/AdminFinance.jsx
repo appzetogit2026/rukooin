@@ -1,18 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Wallet, TrendingUp, Download, ArrowUpRight, ArrowDownRight,
     CreditCard, Calendar, CheckCircle, Clock, Loader2, Building2, Users
 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import adminService from '../../../services/adminService';
+import toast from 'react-hot-toast';
 
-// --- MOCK DATA ---
-const INITIAL_SUBSCRIPTIONS = [
-    { id: 1, hotel: "Grand Palace Hotel", plan: "Premium", type: "PLATFORM", amt: "₹15,000", date: "15 Oct 2024", status: "ACTIVE" },
-    { id: 2, hotel: "Ocean View Resort", plan: "Basic", type: "PLATFORM", amt: "₹5,000", date: "14 Oct 2024", status: "ACTIVE" },
-    { id: 3, hotel: "Mountain Retreat", plan: "Market Pro", type: "MARKET_DATA", amt: "₹8,000", date: "12 Oct 2024", status: "ACTIVE" },
-    { id: 4, hotel: "City Inn", plan: "Market Basic", type: "MARKET_DATA", amt: "₹3,000", date: "10 Oct 2024", status: "ACTIVE" },
-];
+const currency = (n) => `₹${(n || 0).toLocaleString()}`;
 
 const FinanceStatCard = ({ title, value, subtext, color, icon: Icon }) => (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start justify-between">
@@ -28,15 +24,41 @@ const FinanceStatCard = ({ title, value, subtext, color, icon: Icon }) => (
 );
 
 const AdminFinance = () => {
-    const [subscriptions, setSubscriptions] = useState(INITIAL_SUBSCRIPTIONS);
+    const [stats, setStats] = useState(null);
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('All Status');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'success', onConfirm: () => { } });
+    const commissionRate = 0.20;
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return;
+            try {
+                setLoading(true);
+                const [dash, reqs] = await Promise.all([
+                    adminService.getDashboardStats(),
+                    adminService.getPropertyRequests()
+                ]);
+                if (dash.success) setStats(dash.stats);
+                if (reqs.success) setRequests(reqs.hotels || []);
+            } catch (error) {
+                if (error.response?.status !== 401) {
+                    toast.error('Failed to load finance data');
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     // Filter Logic
-    const filteredSubscriptions = useMemo(() => {
-        if (statusFilter === 'All Status') return subscriptions;
-        return subscriptions.filter(s => s.status === statusFilter.toUpperCase());
-    }, [subscriptions, statusFilter]);
+    const filteredRequests = useMemo(() => {
+        if (statusFilter === 'All Status') return requests;
+        return requests.filter(s => (statusFilter === 'Active' ? s.status === 'approved' : s.status !== 'approved'));
+    }, [requests, statusFilter]);
 
     return (
         <div className="space-y-6">
@@ -61,29 +83,29 @@ const AdminFinance = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <FinanceStatCard
                     title="Total Revenue"
-                    value="₹3,45,200"
-                    subtext="+18% growth"
+                    value={currency(stats?.totalRevenue)}
+                    subtext=""
                     color="text-green-600"
                     icon={TrendingUp}
                 />
                 <FinanceStatCard
                     title="Platform Subs"
-                    value="₹1,80,000"
-                    subtext="23 Active Hotels"
+                    value={currency(0)}
+                    subtext=""
                     color="text-blue-600"
                     icon={Building2}
                 />
                 <FinanceStatCard
                     title="Market Price Subs"
-                    value="₹60,000"
-                    subtext="8 Hotels subscribed"
+                    value={currency(0)}
+                    subtext=""
                     color="text-orange-600"
                     icon={TrendingUp}
                 />
                 <FinanceStatCard
                     title="Commissions (20%)"
-                    value="₹1,05,200"
-                    subtext="From 142 bookings"
+                    value={currency(Math.round((stats?.totalRevenue || 0) * commissionRate))}
+                    subtext={`From ${stats?.confirmedBookings || 0} bookings`}
                     color="text-purple-600"
                     icon={Wallet}
                 />
@@ -106,11 +128,11 @@ const AdminFinance = () => {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Premium</p>
-                                <p className="text-xs font-bold text-blue-600">₹1,20,000</p>
+                                <p className="text-xs font-bold text-blue-600">₹0</p>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Basic</p>
-                                <p className="text-xs font-bold text-blue-600">₹60,000</p>
+                                <p className="text-xs font-bold text-blue-600">₹0</p>
                             </div>
                         </div>
                     </div>
@@ -131,11 +153,11 @@ const AdminFinance = () => {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Market Pro</p>
-                                <p className="text-xs font-bold text-orange-600">₹40,000</p>
+                                <p className="text-xs font-bold text-orange-600">₹0</p>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Market Lite</p>
-                                <p className="text-xs font-bold text-orange-600">₹20,000</p>
+                                <p className="text-xs font-bold text-orange-600">₹0</p>
                             </div>
                         </div>
                     </div>
@@ -156,21 +178,21 @@ const AdminFinance = () => {
                         <div className="space-y-3">
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Bookings</p>
-                                <p className="text-xs font-bold text-purple-600">142</p>
+                                <p className="text-xs font-bold text-purple-600">{stats?.totalBookings || 0}</p>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                 <p className="text-xs font-bold text-gray-900">Earnings</p>
-                                <p className="text-xs font-bold text-purple-600">₹1,05,200</p>
+                                <p className="text-xs font-bold text-purple-600">{currency(Math.round((stats?.totalRevenue || 0) * commissionRate))}</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Active Subscriptions Table */}
+            {/* Pending Property Requests */}
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-900 text-lg">Active Hotel Subscriptions</h3>
+                    <h3 className="font-bold text-gray-900 text-lg">Pending Property Requests</h3>
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
@@ -178,53 +200,51 @@ const AdminFinance = () => {
                     >
                         <option>All Status</option>
                         <option>Active</option>
-                        <option>Expired</option>
+                        <option>Pending</option>
                     </select>
                 </div>
                 <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
-                            <th className="p-4 font-semibold text-gray-600">Hotel Name</th>
-                            <th className="p-4 font-semibold text-gray-600">Plan</th>
-                            <th className="p-4 font-semibold text-gray-600">Monthly Fee</th>
-                            <th className="p-4 font-semibold text-gray-600">Next Billing</th>
+                            <th className="p-4 font-semibold text-gray-600">Property Name</th>
+                            <th className="p-4 font-semibold text-gray-600">Owner</th>
+                            <th className="p-4 font-semibold text-gray-600">City</th>
                             <th className="p-4 font-semibold text-gray-600">Status</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         <AnimatePresence>
-                            {filteredSubscriptions.map((sub, i) => (
+                            {loading ? (
+                                [1, 2, 3].map(i => (
+                                    <tr key={i}>
+                                        <td colSpan="4" className="p-4">
+                                            <div className="h-10 bg-gray-50 animate-pulse rounded-lg"></div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : filteredRequests.map((h) => (
                                 <motion.tr
-                                    key={sub.id}
+                                    key={h._id}
                                     layout
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                     className="hover:bg-gray-50"
                                 >
-                                    <td className="p-4 font-medium text-gray-900">{sub.hotel}</td>
+                                    <td className="p-4 font-medium text-gray-900">{h.name}</td>
+                                    <td className="p-4">{h.ownerId?.name || 'Partner'}</td>
+                                    <td className="p-4">{h.address?.city || '—'}</td>
                                     <td className="p-4">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${sub.plan === 'Premium' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                            }`}>
-                                            {sub.plan}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-bold text-gray-900">{sub.amt}</td>
-                                    <td className="p-4 text-gray-500 flex items-center gap-1">
-                                        <Calendar size={12} /> {sub.nextBilling}
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sub.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                            {sub.status}
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">
+                                            {h.status}
                                         </span>
                                     </td>
                                 </motion.tr>
                             ))}
                         </AnimatePresence>
-                        {filteredSubscriptions.length === 0 && (
+                        {(!loading && filteredRequests.length === 0) && (
                             <tr>
-                                <td colSpan="5" className="p-8 text-center text-gray-400">No subscriptions found.</td>
+                                <td colSpan="4" className="p-8 text-center text-gray-400">No pending requests found.</td>
                             </tr>
                         )}
                     </tbody>

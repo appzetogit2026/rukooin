@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Shield } from 'lucide-react';
 import { authService } from '../../services/apiService';
-import logo from '../../assets/logo.png'; // Assuming logo exists, or use text
 
 const UserLoginPage = () => {
     const navigate = useNavigate();

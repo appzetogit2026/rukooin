@@ -9,7 +9,6 @@ import toast from 'react-hot-toast';
 const AdminLogin = () => {
     const navigate = useNavigate();
     const login = useAdminStore(state => state.login);
-    const isAuthenticated = useAdminStore(state => state.isAuthenticated);
     const checkAuth = useAdminStore(state => state.checkAuth);
 
     const [formData, setFormData] = useState({
@@ -21,7 +20,6 @@ const AdminLogin = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // If already logged in, redirect to dashboard
         const checkExistingAuth = async () => {
             await checkAuth();
             if (localStorage.getItem('adminToken')) {
@@ -29,7 +27,7 @@ const AdminLogin = () => {
             }
         };
         checkExistingAuth();
-    }, []);
+    }, [checkAuth, navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();

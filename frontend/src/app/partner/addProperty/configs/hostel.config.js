@@ -4,7 +4,7 @@ export default {
   steps: [
     { key: "basic", label: "Basic Info", component: "BasicInfo" },
     { key: "location", label: "Location & Map", component: "Location" },
-    { key: "config", label: "Hostel Configuration", component: "HostelConfiguration" },
+    { key: "config", label: "Hostel Configuration", component: "HostelConfig" },
     { key: "inventory", label: "Room & Bed Inventory", component: "HostelInventory" },
     { key: "amenities", label: "Amenities", component: "HostelAmenities" },
     { key: "photos", label: "Photos & Media", component: "PropertyImages" },

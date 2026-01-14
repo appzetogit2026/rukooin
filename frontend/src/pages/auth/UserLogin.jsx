@@ -65,36 +65,32 @@ const UserLogin = () => {
             setLoading(false);
         }
     };
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-6">
             {/* Background Pattern */}
-            <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+            <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
 
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative w-full max-w-md"
+                className="w-full max-w-sm relative z-10"
             >
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ type: "spring", delay: 0.2 }}
-                        className="inline-block mb-4"
+                        transition={{ type: "spring", delay: 0.1 }}
+                        className="inline-block mb-6"
                     >
-                        <img src={logo} alt="Rukkoo.in" className="w-32 h-auto" />
+                        <img src={logo} alt="Rukkoo.in" className="w-40 h-auto object-contain" />
                     </motion.div>
-                    <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-                    <p className="text-gray-500 mt-2">Login to continue your journey</p>
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight">Welcome Back</h1>
+                    <p className="text-gray-400 text-xs font-medium mt-1">Login to continue your journey</p>
                 </div>
 
                 {/* Main Card */}
-                <motion.div
-                    layout
-                    className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100"
-                >
+                <div className=" p-2">
                     <AnimatePresence mode="wait">
                         {step === 1 ? (
                             <motion.div
@@ -103,22 +99,22 @@ const UserLogin = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                             >
-                                <h2 className="text-xl font-bold text-gray-900 mb-6">Login with Phone</h2>
-
                                 <form onSubmit={handleSendOTP} className="space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2 block ml-1">
                                             Phone Number
                                         </label>
                                         <div className="relative">
-                                            <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                                <Phone size={18} />
+                                            </div>
                                             <input
                                                 type="tel"
                                                 value={phone}
                                                 onChange={(e) => setPhone(e.target.value)}
                                                 placeholder="9876543210"
                                                 maxLength={10}
-                                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all font-bold text-gray-800 text-lg placeholder:text-gray-300 shadow-sm"
                                                 required
                                             />
                                         </div>
@@ -128,7 +124,7 @@ const UserLogin = () => {
                                         <motion.p
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="text-red-500 text-sm"
+                                            className="text-red-500 text-xs font-bold text-center bg-red-50 py-2 rounded-lg"
                                         >
                                             {error}
                                         </motion.p>
@@ -137,7 +133,7 @@ const UserLogin = () => {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="w-full bg-gray-900 hover:bg-black text-white py-4 rounded-2xl font-bold active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {loading ? (
                                             <Loader2 size={20} className="animate-spin" />
@@ -158,12 +154,12 @@ const UserLogin = () => {
                                 exit={{ opacity: 0, x: -20 }}
                             >
                                 <div className="text-center mb-6">
-                                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Shield size={32} className="text-emerald-600" />
+                                    <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Shield size={20} className="text-emerald-600" />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900">Enter OTP</h2>
-                                    <p className="text-sm text-gray-500 mt-2">
-                                        Code sent to +91 {phone}
+                                    <h2 className="text-base font-bold text-gray-900">Enter OTP</h2>
+                                    <p className="text-[10px] text-gray-500 mt-1">
+                                        Code sent to <span className="font-bold text-gray-800">+91 {phone}</span>
                                     </p>
                                 </div>
 
@@ -178,7 +174,7 @@ const UserLogin = () => {
                                                 maxLength={1}
                                                 value={digit}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}
-                                                className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
+                                                className="w-10 h-12 text-center text-lg font-bold bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
                                             />
                                         ))}
                                     </div>
@@ -187,43 +183,45 @@ const UserLogin = () => {
                                         <motion.p
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="text-red-500 text-sm text-center"
+                                            className="text-red-500 text-[10px] font-bold text-center bg-red-50 py-2 rounded-lg"
                                         >
                                             {error}
                                         </motion.p>
                                     )}
 
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {loading ? (
-                                            <Loader2 size={20} className="animate-spin" />
-                                        ) : (
-                                            'Verify & Login'
-                                        )}
-                                    </button>
+                                    <div className="space-y-3">
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full bg-gray-900 hover:bg-black text-white py-3.5 rounded-2xl font-bold text-sm active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {loading ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : (
+                                                'Verify & Login'
+                                            )}
+                                        </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => setStep(1)}
-                                        className="w-full text-gray-500 text-sm hover:text-gray-700"
-                                    >
-                                        Change number
-                                    </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStep(1)}
+                                            className="w-full text-gray-400 text-[10px] font-bold hover:text-emerald-600 transition-colors"
+                                        >
+                                            Change Number
+                                        </button>
+                                    </div>
                                 </form>
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </motion.div>
+                </div>
 
                 {/* Footer */}
-                <p className="text-center text-gray-500 text-sm mt-6">
+                <p className="text-center text-gray-400 text-xs mt-8 font-medium">
                     New to Rukkoo.in?{' '}
                     <button
                         onClick={() => navigate('/signup')}
-                        className="text-emerald-600 font-medium hover:underline"
+                        className="text-emerald-600 font-bold hover:underline"
                     >
                         Create Account
                     </button>

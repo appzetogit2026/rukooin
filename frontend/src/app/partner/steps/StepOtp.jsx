@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 
-const StepOtp = ({ autoSend = false }) => {
+const StepOtp = () => {
   const { formData, updateFormData } = usePartnerStore();
   const [timeLeft, setTimeLeft] = useState(30);
 

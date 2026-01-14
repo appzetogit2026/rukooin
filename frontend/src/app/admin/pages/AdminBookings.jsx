@@ -132,7 +132,7 @@ const AdminBookings = () => {
                 toast.success(`Booking ${newStatus} successfully`);
                 fetchBookings(currentPage, filters);
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to update booking status');
         }
     };

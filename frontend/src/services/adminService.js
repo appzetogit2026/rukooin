@@ -50,6 +50,10 @@ const adminService = {
     const response = await axiosInstance.put('/admin/update-user-status', { userId, isBlocked });
     return response.data;
   },
+  updatePartnerApproval: async (userId, status) => {
+    const response = await axiosInstance.put('/admin/update-partner-approval', { userId, status });
+    return response.data;
+  },
 
   deleteUser: async (userId) => {
     const response = await axiosInstance.delete('/admin/delete-user', { data: { userId } });

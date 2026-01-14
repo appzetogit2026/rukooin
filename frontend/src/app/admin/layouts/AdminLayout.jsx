@@ -23,14 +23,13 @@ const AdminLayout = () => {
 
     const MENU_ITEMS = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-        { icon: ClipboardCheck, label: 'Property Requests', path: '/admin/property-requests', badge: true },
-        { icon: Star, label: 'Review Moderation', path: '/admin/reviews' },
-        { icon: Tag, label: 'Promotions & Offers', path: '/admin/offers' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
-        { icon: Building2, label: 'Hotel Partners', path: '/admin/hotels' },
+        { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
+        { icon: ClipboardCheck, label: 'Property Management', path: '/admin/properties' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
         { icon: DollarSign, label: 'My Earnings', path: '/admin/earnings' },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
+        { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 

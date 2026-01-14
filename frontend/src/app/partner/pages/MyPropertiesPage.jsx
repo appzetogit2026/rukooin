@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Image, MapPin, Star, Edit, Trash2, Eye, Building2, Home, Hotel, BedDouble, Tent, Users } from 'lucide-react';
+import { Plus, Image, MapPin, Star, Edit, Trash2, Menu, Wallet, Building2, Home, Hotel, BedDouble, Tent, Users } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
 import { hotelService } from '../../../services/apiService';
-import PartnerHeader from '../components/PartnerHeader';
+import PartnerSidebar from '../components/PartnerSidebar';
+import logo from '../../../assets/rokologin-removebg-preview.png';
 
 const MyPropertiesPage = () => {
   const navigate = useNavigate();
   const { resetForm } = usePartnerStore();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchMyHotels();
@@ -18,10 +20,17 @@ const MyPropertiesPage = () => {
   const fetchMyHotels = async () => {
     try {
       setLoading(true);
-      const data = await hotelService.getMyHotels();
-      setProperties(data);
+      const response = await hotelService.getMyHotels();
+      if (response.success && Array.isArray(response.hotels)) {
+        setProperties(response.hotels);
+      } else if (Array.isArray(response)) {
+        setProperties(response);
+      } else {
+        setProperties([]);
+      }
     } catch (error) {
       console.error("Failed to fetch hotels:", error);
+      setProperties([]);
     } finally {
       setLoading(false);
     }
@@ -39,7 +48,7 @@ const MyPropertiesPage = () => {
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+    if (window.confirm('Delete this property?')) {
       try {
         await hotelService.deleteHotel(id);
         setProperties(prev => prev.filter(p => p._id !== id));
@@ -53,183 +62,139 @@ const MyPropertiesPage = () => {
     navigate(`/hotel/properties/${id}`);
   };
 
-  const getPropertyIcon = (type) => {
-    switch (type) {
-      case 'Hotel': return <Hotel size={14} />;
-      case 'Villa': return <Home size={14} />;
-      case 'Resort': return <Tent size={14} />;
-      case 'Homestay': return <Building2 size={14} />; // Or specific icon
-      case 'Hostel': return <BedDouble size={14} />;
-      case 'PG': return <Users size={14} />;
-      default: return <Building2 size={14} />;
-    }
-  };
-
-  // Helper to extract type-specific tags
-  const getPropertyTags = (prop) => {
-    const details = prop.details || {};
-    const config = details.config || {};
-    const structure = details.structure || {};
-
-    switch (prop.propertyType) {
-      case 'Hotel':
-        return [
-          { label: config.starRating ? `${config.starRating} Star` : 'Hotel', icon: <Star size={10} /> },
-          { label: config.hotelCategory || 'Standard', icon: null }
-        ];
-      case 'Villa':
-        return [
-          { label: structure.bedrooms ? `${structure.bedrooms} BHK` : 'Villa', icon: <Home size={10} /> },
-          { label: structure.entirePlace ? 'Entire Place' : 'Rooms', icon: null }
-        ];
-      case 'Resort':
-        return [
-          { label: config.resortTheme || 'Resort', icon: <Tent size={10} /> },
-          { label: config.resortCategory || 'Standard', icon: null }
-        ];
-      case 'Hostel':
-        return [
-          { label: config.hostelType ? `${config.hostelType} Hostel` : 'Hostel', icon: <Users size={10} /> },
-          { label: config.curfewTime ? `Curfew: ${config.curfewTime}` : 'No Curfew', icon: null }
-        ];
-      case 'PG':
-        return [
-          { label: config.pgType ? `${config.pgType} PG` : 'PG', icon: <Users size={10} /> },
-          { label: config.foodAvailable ? 'Food Included' : 'No Food', icon: null }
-        ];
-      case 'Homestay':
-        return [
-          { label: config.hostLivesOnProperty === 'Yes' ? 'Live-in Host' : 'Entire Unit', icon: <Users size={10} /> },
-          { label: config.mealsAvailable === 'Yes' ? 'Meals Avail' : 'Self Catering', icon: null }
-        ];
-      default:
-        return [];
-    }
+  const getCoverImage = (prop) => {
+    if (!prop.images) return null;
+    if (prop.images.cover) return prop.images.cover;
+    if (Array.isArray(prop.images.gallery) && prop.images.gallery.length > 0) return prop.images.gallery[0];
+    if (Array.isArray(prop.images) && prop.images.length > 0) return prop.images[0].url || prop.images[0];
+    return null;
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#004F4D]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004F4D]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 font-sans text-gray-900">
-      <PartnerHeader title="My Properties" subtitle="Manage your listed properties" />
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
+      {/* Custom Header */}
+      <div className="flex items-center justify-between relative h-14 px-4 pt-2 bg-white/50 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-100/50">
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-1.5 rounded-full bg-white hover:bg-gray-100 transition shadow-sm border border-gray-100"
+        >
+          <Menu size={18} className="text-[#003836]" />
+        </button>
 
-      <main className="max-w-6xl mx-auto px-4 pt-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-xl font-bold text-[#003836]">Listed Properties</h2>
-            <p className="text-sm text-gray-400">Manage and update your listings</p>
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-1">
+          <img src={logo} alt="Rukko" className="h-7 object-contain drop-shadow-sm" />
+        </div>
+
+        <button
+          onClick={() => navigate('/hotel/wallet')}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform"
+        >
+          <div className="w-5 h-5 bg-[#004F4D] rounded-full flex items-center justify-center">
+            <Wallet size={10} className="text-white" />
           </div>
-          <button onClick={handleAddNew} className="bg-[#004F4D] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-xl shadow-[#004F4D]/10 flex items-center gap-2 hover:bg-[#003836] transition-all transform hover:scale-105">
-            <Plus size={18} /> Add New Property
+          <div className="flex flex-col items-start leading-none mr-0.5">
+            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wide">Wallet</span>
+            <span className="text-[10px] font-bold text-[#003836]">₹0</span>
+          </div>
+        </button>
+      </div>
+
+      <PartnerSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
+      {/* Content */}
+      <main className="max-w-5xl mx-auto px-4 pt-6">
+
+        {/* Title Row */}
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <h1 className="text-lg font-black text-[#003836]">My Properties</h1>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage Listings</p>
+          </div>
+          <button
+            onClick={handleAddNew}
+            className="bg-[#004F4D] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-all flex items-center gap-1"
+          >
+            <Plus size={14} /> Add New
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {properties.length > 0 ? properties.map((prop) => {
-            const tags = getPropertyTags(prop);
-
+            const coverImg = getCoverImage(prop);
             return (
               <div
                 key={prop._id}
                 onClick={() => handleCardClick(prop._id)}
-                className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full ring-1 ring-gray-50"
+                className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm active:scale-[0.99] transition-all cursor-pointer group"
               >
-                {/* Image Section */}
-                <div className="h-48 w-full relative bg-gray-100 overflow-hidden">
-                  {prop.images?.cover || (prop.images?.gallery?.[0]) || (prop.images?.[0]?.url) ? (
+                <div className="h-32 w-full relative bg-gray-100 overflow-hidden">
+                  {coverImg ? (
                     <img
-                      src={prop.images?.cover || prop.images?.gallery?.[0] || prop.images?.[0]?.url}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      src={coverImg}
+                      className="w-full h-full object-cover"
                       alt={prop.name}
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gray-50">
-                      <Image size={32} />
-                      <span className="text-[10px] uppercase font-bold mt-2 tracking-wider">No Image</span>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                      <Image size={24} />
                     </div>
                   )}
-
-                  {/* Status Badge */}
-                  <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide backdrop-blur-md shadow-sm border border-white/20 ${prop.status === 'approved' ? 'bg-green-500/90 text-white' :
-                      prop.status === 'rejected' ? 'bg-red-500/90 text-white' :
-                        'bg-orange-500/90 text-white'
-                    }`}>
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-md text-white text-[9px] font-bold border border-white/10 uppercase tracking-wide">
                     {prop.status || 'Draft'}
-                  </div>
-
-                  {/* Type Badge */}
-                  <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/40 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 border border-white/10">
-                    {getPropertyIcon(prop.propertyType)}
-                    {prop.propertyType}
                   </div>
                 </div>
 
-                {/* Content Section */}
-                <div className="p-4 flex-1 flex flex-col">
+                <div className="p-3">
                   <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-base font-bold text-[#003836] line-clamp-1 flex-1 pr-2" title={prop.name}>
-                      {prop.name || 'Untitled Property'}
+                    <h3 className="text-sm font-bold text-[#003836] line-clamp-1 flex-1 pr-2">
+                      {prop.name || 'Untitled'}
                     </h3>
-                    <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded text-yellow-700 font-bold text-[10px]">
-                      {prop.rating || 'New'} <Star size={8} fill="currentColor" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center text-gray-500 text-xs mb-4 gap-1">
-                    <MapPin size={12} className="text-[#004F4D]" />
-                    <span className="truncate">{prop.address?.city || 'Location N/A'}, {prop.address?.state}</span>
-                  </div>
-
-                  {/* Dynamic Tags Grid */}
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {tags.map((tag, idx) => (
-                      <div key={idx} className="bg-gray-50 rounded-lg p-2 flex flex-col items-center justify-center text-center border border-gray-100">
-                        <span className="text-[10px] font-bold text-[#004F4D] flex items-center gap-1">
-                          {tag.icon} {tag.label}
-                        </span>
-                      </div>
-                    ))}
-                    {tags.length === 0 && (
-                      <div className="col-span-2 bg-gray-50 rounded-lg p-2 text-center text-xs text-gray-400 font-medium">
-                        Detailed info pending
+                    {prop.rating && (
+                      <div className="flex items-center gap-0.5 text-[9px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded">
+                        {prop.rating} <Star size={8} fill="currentColor" />
                       </div>
                     )}
                   </div>
 
-                  {/* Footer Actions */}
-                  <div className="mt-auto flex gap-2 pt-3 border-t border-gray-100">
+                  <div className="flex items-center text-gray-400 text-[10px] mb-3 gap-1">
+                    <MapPin size={10} />
+                    <span className="truncate max-w-[150px]">{prop.address?.city + ', ' + prop.address?.state || 'Location N/A'}</span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-gray-50">
                     <button
                       onClick={(e) => handleEdit(e, prop)}
-                      className="flex-1 py-2 rounded-lg bg-[#004F4D]/5 text-[#004F4D] font-bold text-xs hover:bg-[#004F4D]/10 transition-colors flex items-center justify-center gap-1.5"
+                      className="flex-1 py-1.5 rounded-lg bg-gray-50 text-gray-600 font-bold text-[10px] hover:bg-gray-100 flex items-center justify-center gap-1"
                     >
-                      <Edit size={12} /> Edit Property
+                      <Edit size={10} /> Edit
                     </button>
                     <button
                       onClick={(e) => handleDelete(e, prop._id)}
-                      className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
-                      title="Delete Property"
+                      className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 </div>
               </div>
             );
           }) : (
-            <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6 text-gray-300">
-                <Building2 size={40} />
+            <div className="col-span-full py-12 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 text-gray-300 rotate-3">
+                <Building2 size={32} />
               </div>
-              <h3 className="text-xl font-bold text-[#003836] mb-2">No Properties Listed Yet</h3>
-              <p className="text-gray-500 mb-6 max-w-sm">Start your journey by adding your first property to our platform.</p>
-              <button onClick={handleAddNew} className="bg-[#004F4D] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl shadow-[#004F4D]/10 flex items-center gap-2 hover:bg-[#003836] transition-all">
-                <Plus size={18} /> Add Property Now
+              <h3 className="text-base font-bold text-gray-900 mb-1">No Properties Found</h3>
+              <button onClick={handleAddNew} className="text-xs font-bold text-[#004F4D] hover:underline">
+                + Add your first property
               </button>
             </div>
           )}

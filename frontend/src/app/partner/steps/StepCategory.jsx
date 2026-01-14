@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { Building, Home, Key, Users, Briefcase } from 'lucide-react';
 

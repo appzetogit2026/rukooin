@@ -19,7 +19,7 @@ const DocStatus = ({ status }) => {
 
 const PartnerKYC = () => {
     const listRef = useRef(null);
-    const { formData } = usePartnerStore();
+    usePartnerStore();
 
     // Mock Status (In real app, derive from formData.kyc)
     const kycSteps = [

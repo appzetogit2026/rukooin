@@ -3,6 +3,31 @@ import usePartnerStore from '../store/partnerStore';
 import { hotelService } from '../../../services/apiService';
 import { Upload, CheckCircle, FileText } from 'lucide-react';
 
+const DocItem = ({ id, label, required, documents, onUpload }) => (
+  <div className="border p-4 rounded-lg flex items-center justify-between bg-white">
+    <div className="flex items-center gap-3">
+      <div className={`p-2 rounded-full ${documents[id] ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+        {documents[id] ? <CheckCircle size={20} /> : <FileText size={20} />}
+      </div>
+      <div>
+        <h4 className="font-medium text-gray-800">{label}</h4>
+        <p className="text-xs text-gray-500">
+          {documents[id] ? 'Uploaded' : required ? 'Mandatory' : 'Optional'}
+        </p>
+      </div>
+    </div>
+    <label className="cursor-pointer bg-[#004F4D]/10 text-[#004F4D] px-4 py-2 rounded text-sm font-medium hover:bg-[#004F4D]/20 transition-all">
+      {documents[id] ? 'Change' : 'Upload'}
+      <input
+        type="file"
+        className="hidden"
+        onChange={(e) => onUpload(e, id)}
+        accept=".pdf,.jpg,.png,.jpeg"
+      />
+    </label>
+  </div>
+);
+
 const StepPGDocuments = () => {
   const { formData, updateFormData } = usePartnerStore();
   const { documents = {} } = formData;
@@ -27,24 +52,6 @@ const StepPGDocuments = () => {
     }
   };
 
-  const DocItem = ({ id, label, required }) => (
-    <div className="border p-4 rounded-lg flex items-center justify-between bg-white">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-full ${documents[id] ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-          {documents[id] ? <CheckCircle size={20} /> : <FileText size={20} />}
-        </div>
-        <div>
-          <h4 className="font-medium text-gray-800">{label}</h4>
-          <p className="text-xs text-gray-500">{documents[id] ? 'Uploaded' : required ? 'Mandatory' : 'Optional'}</p>
-        </div>
-      </div>
-      <label className="cursor-pointer bg-[#004F4D]/10 text-[#004F4D] px-4 py-2 rounded text-sm font-medium hover:bg-[#004F4D]/20 transition-all">
-        {documents[id] ? 'Change' : 'Upload'}
-        <input type="file" className="hidden" onChange={(e) => handleUpload(e, id)} accept=".pdf,.jpg,.png,.jpeg" />
-      </label>
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <div>
@@ -53,9 +60,27 @@ const StepPGDocuments = () => {
       </div>
 
       <div className="space-y-3">
-        <DocItem id="ownershipProof" label="Property Ownership / Rent Agreement" required={true} />
-        <DocItem id="municipalReg" label="Municipal Registration" required={false} />
-        <DocItem id="fireSafety" label="Fire Safety Certificate" required={false} />
+        <DocItem
+          id="ownershipProof"
+          label="Property Ownership / Rent Agreement"
+          required={true}
+          documents={documents}
+          onUpload={handleUpload}
+        />
+        <DocItem
+          id="municipalReg"
+          label="Municipal Registration"
+          required={false}
+          documents={documents}
+          onUpload={handleUpload}
+        />
+        <DocItem
+          id="fireSafety"
+          label="Fire Safety Certificate"
+          required={false}
+          documents={documents}
+          onUpload={handleUpload}
+        />
       </div>
 
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mt-4">

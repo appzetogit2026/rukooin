@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Menu, Bell, MapPin, Wallet } from 'lucide-react';
+import { Search, Menu, Bell, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
@@ -12,7 +12,6 @@ const HeroSection = () => {
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
-    const [showLocation, setShowLocation] = useState(true);
 
     const placeholders = [
         "Search in Bucharest...",
@@ -28,7 +27,7 @@ const HeroSection = () => {
             setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
         }, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [placeholders.length]);
 
     // Scroll Listener for Sticky & Header Logic
     useEffect(() => {
@@ -45,13 +44,13 @@ const HeroSection = () => {
         <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-4 md:gap-6 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
 
             {/* 1. Header Row (Hides on Scroll) */}
-            <div className={`flex md:hidden items-center justify-between relative h-12 transition-all duration-300 ${isSticky ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100 mb-0'}`}>
+            <div className={`flex md:hidden items-center justify-between relative h-10 transition-all duration-300 ${isSticky ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100 mb-0'}`}>
                 {/* Menu Button */}
                 <button
                     onClick={() => setIsMenuOpen(true)}
                     className="p-1.5 rounded-full bg-white/40 hover:bg-white/60 transition shadow-sm"
                 >
-                    <Menu size={22} className="text-surface" />
+                    <Menu size={18} className="text-surface" />
                 </button>
 
                 {/* Logo */}
@@ -59,21 +58,21 @@ const HeroSection = () => {
                     <img
                         src={logo}
                         alt="Rukko Logo"
-                        className="h-16 object-contain drop-shadow-sm"
+                        className="h-8 object-contain drop-shadow-sm"
                     />
                 </div>
 
                 {/* Wallet Balance Display */}
                 <button
                     onClick={() => navigate('/wallet')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 backdrop-blur-sm border border-white/40 shadow-sm active:scale-95 transition-transform"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/50 backdrop-blur-sm border border-white/40 shadow-sm active:scale-95 transition-transform"
                 >
                     <div className="w-5 h-5 bg-surface rounded-full flex items-center justify-center">
-                        <Wallet size={12} className="text-white" />
+                        <Wallet size={10} className="text-white" />
                     </div>
-                    <div className="flex flex-col items-start leading-none">
-                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide">Wallet</span>
-                        <span className="text-xs font-bold text-surface">₹500</span>
+                    <div className="flex flex-col items-start leading-none mr-0.5">
+                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide">Wallet</span>
+                        <span className="text-[10px] font-bold text-surface">₹500</span>
                     </div>
                 </button>
             </div>

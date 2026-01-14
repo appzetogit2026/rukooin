@@ -2,15 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-    Building2, Search, MoreVertical, MapPin,
-    CheckCircle, XCircle, Clock, ShieldAlert, Trash2, Eye,
+    Building2, Search, Filter, MoreVertical, MapPin,
+    CheckCircle, XCircle, Clock, Star, ShieldAlert, Trash2, Edit, Eye, Loader2,
     ChevronLeft, ChevronRight, Download
 } from 'lucide-react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
-const HotelStatusBadge = ({ status }) => {
+const PropertyStatusBadge = ({ status }) => {
     const styles = {
         approved: 'bg-green-100 text-green-700 border-green-200 font-bold',
         pending: 'bg-amber-100 text-amber-700 border-amber-200 font-bold',
@@ -35,10 +35,10 @@ const HotelStatusBadge = ({ status }) => {
     );
 };
 
-const AdminHotels = () => {
-    const [hotels, setHotels] = useState([]);
+const AdminProperties = () => {
+    const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [totalHotels, setTotalHotels] = useState(0);
+    const [totalProperties, setTotalProperties] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [limit] = useState(10);
@@ -51,7 +51,7 @@ const AdminHotels = () => {
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
-    const fetchHotels = useCallback(async (page, currentFilters) => {
+    const fetchProperties = useCallback(async (page, currentFilters) => {
         const token = localStorage.getItem('adminToken');
         if (!token) return;
 
@@ -63,16 +63,16 @@ const AdminHotels = () => {
                 search: currentFilters.search,
                 status: currentFilters.status
             };
-            const data = await adminService.getHotels(params);
+            const data = await adminService.getHotels(params); // Using getHotels as properties are fetched via this
             if (data.success) {
-                setHotels(data.hotels);
-                setTotalHotels(data.total);
+                setProperties(data.hotels);
+                setTotalProperties(data.total);
                 setTotalPages(Math.ceil(data.total / limit));
             }
         } catch (error) {
             if (error.response?.status !== 401) {
-                console.error('Error fetching hotels:', error);
-                toast.error('Failed to load hotels');
+                console.error('Error fetching properties:', error);
+                toast.error('Failed to load properties');
             }
         } finally {
             setLoading(false);
@@ -81,32 +81,32 @@ const AdminHotels = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchHotels(currentPage, filters);
+            fetchProperties(currentPage, filters);
         }, 300);
         return () => clearTimeout(timer);
-    }, [currentPage, filters, fetchHotels]);
+    }, [currentPage, filters, fetchProperties]);
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
         setCurrentPage(1);
     };
 
-    const handleAction = (action, hotel) => {
+    const handleAction = (action, property) => {
         setActiveDropdown(null);
         if (action === 'approve' || action === 'reject') {
             const newStatus = action === 'approve' ? 'approved' : 'rejected';
             setModalConfig({
                 isOpen: true,
-                title: `${action.charAt(0).toUpperCase() + action.slice(1)} Hotel?`,
-                message: `Are you sure you want to ${action} "${hotel.name}"?`,
+                title: `${action.charAt(0).toUpperCase() + action.slice(1)} Property?`,
+                message: `Are you sure you want to ${action} "${property.name}"?`,
                 type: action === 'approve' ? 'success' : 'warning',
                 confirmText: action.charAt(0).toUpperCase() + action.slice(1),
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.updateHotelStatus(hotel._id, newStatus);
+                        const res = await adminService.updateHotelStatus(property._id, newStatus);
                         if (res.success) {
-                            toast.success(`Hotel ${action}ed successfully`);
-                            fetchHotels(currentPage, filters);
+                            toast.success(`Property ${action}ed successfully`);
+                            fetchProperties(currentPage, filters);
                         }
                     } catch {
                         toast.error('Failed to update status');
@@ -116,19 +116,19 @@ const AdminHotels = () => {
         } else if (action === 'delete') {
             setModalConfig({
                 isOpen: true,
-                title: 'Delete Hotel?',
-                message: `Are you sure you want to delete "${hotel.name}"? This action cannot be undone and all data related to this hotel (including bookings) will be affected.`,
+                title: 'Delete Property?',
+                message: `Are you sure you want to delete "${property.name}"? This action cannot be undone and all data related to this property (including bookings) will be affected.`,
                 type: 'danger',
-                confirmText: 'Delete Hotel',
+                confirmText: 'Delete Property',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteHotel(hotel._id);
+                        const res = await adminService.deleteHotel(property._id);
                         if (res.success) {
-                            toast.success('Hotel deleted successfully');
-                            fetchHotels(currentPage, filters);
+                            toast.success('Property deleted successfully');
+                            fetchProperties(currentPage, filters);
                         }
                     } catch {
-                        toast.error('Failed to delete hotel');
+                        toast.error('Failed to delete property');
                     }
                 }
             });
@@ -136,15 +136,15 @@ const AdminHotels = () => {
     };
 
     const handleExportCSV = () => {
-        if (hotels.length === 0) {
+        if (properties.length === 0) {
             toast.error('No data to export');
             return;
         }
 
-        const headers = ['ID', 'Hotel Name', 'Owner', 'Status', 'City', 'Price'];
+        const headers = ['ID', 'Property Name', 'Owner', 'Status', 'City', 'Price'];
         const csvContent = [
             headers.join(','),
-            ...hotels.map(h => [
+            ...properties.map(h => [
                 h._id,
                 `"${h.name}"`,
                 `"${h.ownerId?.name}"`,
@@ -158,7 +158,7 @@ const AdminHotels = () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `hotels-export-${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `properties-export-${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -176,7 +176,7 @@ const AdminHotels = () => {
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Hotel Partners ({totalHotels})</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Property Management ({totalProperties})</h2>
                     <p className="text-gray-500 text-[10px] font-bold uppercase tracking-tight">Manage listings, approvals, and quality control.</p>
                 </div>
                 <div className="flex gap-2">
@@ -194,7 +194,7 @@ const AdminHotels = () => {
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search hotels by name or city..."
+                        placeholder="Search properties by name or city..."
                         value={filters.search}
                         onChange={(e) => handleFilterChange('search', e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
@@ -220,10 +220,10 @@ const AdminHotels = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                                <th className="p-4">Hotel Name</th>
+                                <th className="p-4">Property Name</th>
                                 <th className="p-4">Owner</th>
                                 <th className="p-4">Status</th>
-                                <th className="p-4">Rooms</th>
+                                <th className="p-4">Rooms/Units</th>
                                 <th className="p-4">Pricing</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
@@ -237,10 +237,10 @@ const AdminHotels = () => {
                                 ))
                             ) : (
                                 <AnimatePresence>
-                                    {hotels.length > 0 ? (
-                                        hotels.map((hotel, index) => (
+                                    {properties.length > 0 ? (
+                                        properties.map((property, index) => (
                                             <motion.tr
-                                                key={hotel._id}
+                                                key={property._id}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.9 }}
@@ -248,61 +248,58 @@ const AdminHotels = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative"
                                             >
                                                 <td className="p-4">
-                                                    <Link to={`/admin/hotels/${hotel._id}`} className="flex items-center gap-3">
+                                                    <Link to={`/admin/hotels/${property._id}`} className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-lg bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm">
                                                             <Building2 size={18} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{hotel.name || 'Untitled'}</p>
+                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.name || 'Untitled'}</p>
                                                             <div className="flex items-center text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">
                                                                 <MapPin size={10} className="mr-1" />
-                                                                {hotel.address?.city || 'No Address'}, {hotel.address?.state || ''}
+                                                                {property.address?.city || 'No Address'}, {property.address?.state || ''}
                                                             </div>
                                                         </div>
                                                     </Link>
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{hotel.ownerId?.name || 'Unknown Partner'}</p>
-                                                    <p className="text-[10px] text-gray-400 uppercase tracking-tighter">ID: {hotel._id.slice(-6)}</p>
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.ownerId?.name || 'Unknown Partner'}</p>
+                                                    <p className="text-[10px] text-gray-400 uppercase tracking-tighter">ID: {property._id.slice(-6)}</p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <HotelStatusBadge status={hotel.status} />
+                                                    <PropertyStatusBadge status={property.status} />
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{hotel.rooms?.length || 0} Categories</p>
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.rooms?.length || 0} Categories</p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-sm font-bold text-gray-900 uppercase">₹{hotel.price?.toLocaleString() || 0}<span className="text-[10px] text-gray-400 font-bold ml-1">/NIGHT</span></p>
+                                                    <p className="text-sm font-bold text-gray-900 uppercase">₹{property.price?.toLocaleString() || 0}<span className="text-[10px] text-gray-400 font-bold ml-1">/NIGHT</span></p>
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === hotel._id ? null : hotel._id); }}
+                                                        onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === property._id ? null : property._id); }}
                                                         className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-black transition-colors"
                                                     >
                                                         <MoreVertical size={16} />
                                                     </button>
 
-                                                    {activeDropdown === hotel._id && (
+                                                    {activeDropdown === property._id && (
                                                         <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
-                                                            <Link to={`/admin/hotels/${hotel._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                            <Link to={`/admin/hotels/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {hotel.status === 'pending' && (
+                                                            {property.status === 'pending' && (
                                                                 <>
-                                                                    <button onClick={() => handleAction('approve', hotel)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">
+                                                                    <button onClick={() => handleAction('approve', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-700">
                                                                         <CheckCircle size={14} /> Approve
                                                                     </button>
-                                                                    <button onClick={() => handleAction('reject', hotel)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
+                                                                    <button onClick={() => handleAction('reject', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                         <XCircle size={14} /> Reject
                                                                     </button>
                                                                 </>
                                                             )}
                                                             <div className="h-px bg-gray-100 my-1"></div>
-                                                            <button
-                                                                onClick={() => handleAction('delete', hotel)}
-                                                                className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-600"
-                                                            >
-                                                                <Trash2 size={14} /> Delete
+                                                            <button onClick={() => handleAction('delete', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
+                                                                <Trash2 size={14} /> Delete Property
                                                             </button>
                                                         </div>
                                                     )}
@@ -311,8 +308,11 @@ const AdminHotels = () => {
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="6" className="p-8 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-                                                No hotels found matching criteria
+                                            <td colSpan="6" className="p-8 text-center text-gray-500">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Building2 size={32} className="text-gray-300" />
+                                                    <p className="text-xs font-bold uppercase">No properties found</p>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}
@@ -323,32 +323,23 @@ const AdminHotels = () => {
                 </div>
 
                 {/* Pagination */}
-                {!loading && hotels.length > 0 && (
+                {totalPages > 1 && (
                     <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase text-gray-500 tracking-tight">
-                            Showing {(currentPage - 1) * limit + 1} to {Math.min(currentPage * limit, totalHotels)} of {totalHotels} properties
+                        <p className="text-[10px] font-bold text-gray-500 uppercase">
+                            Page {currentPage} of {totalPages}
                         </p>
-                        <div className="flex items-center gap-1">
+                        <div className="flex gap-2">
                             <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
-                                className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-black disabled:opacity-50 transition-colors"
+                                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <ChevronLeft size={16} />
                             </button>
-                            {[...Array(totalPages)].map((_, i) => (
-                                <button
-                                    key={i + 1}
-                                    onClick={() => setCurrentPage(i + 1)}
-                                    className={`w-10 h-10 rounded-lg text-[10px] font-bold uppercase transition-all ${currentPage === i + 1 ? 'bg-black text-white shadow-md' : 'hover:bg-gray-100 text-gray-600 border border-transparent hover:border-gray-200'}`}
-                                >
-                                    {i + 1}
-                                </button>
-                            ))}
                             <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
-                                className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:text-black disabled:opacity-50 transition-colors"
+                                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <ChevronRight size={16} />
                             </button>
@@ -360,4 +351,4 @@ const AdminHotels = () => {
     );
 };
 
-export default AdminHotels;
+export default AdminProperties;

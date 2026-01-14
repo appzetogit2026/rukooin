@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import usePartnerStore from '../store/partnerStore';
-import { Plus, X, Upload, Image } from 'lucide-react';
+import { Plus, X, Upload, Image, Edit2 } from 'lucide-react';
 import { hotelService } from '../../../services/apiService';
 
 const StepInventoryRooms = () => {
@@ -8,6 +8,7 @@ const StepInventoryRooms = () => {
   const { inventory = [], propertyCategory } = formData;
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const isPgOrHostel = propertyCategory === 'PG' || propertyCategory === 'Hostel';
   const isHomestay = propertyCategory === 'Homestay';
@@ -26,20 +27,7 @@ const StepInventoryRooms = () => {
     images: [] // Placeholder
   });
 
-  const handleAdd = () => {
-    const itemToAdd = {
-      ...newItem,
-      pricing: isHomestay ? {
-        basePrice: parseFloat(newItem.price) || 0,
-        extraAdultPrice: parseFloat(newItem.extraGuestPrice) || 0
-      } : undefined
-    };
-
-    updateFormData({
-      inventory: [...inventory, itemToAdd]
-    });
-    setShowForm(false);
-    // Reset form
+  const resetForm = () => {
     setNewItem({
       type: isPgOrHostel ? 'Shared Room (2 Sharing)' : 'Standard Room',
       name: '',
@@ -53,6 +41,39 @@ const StepInventoryRooms = () => {
       amenities: [],
       images: []
     });
+    setEditingIndex(null);
+  };
+
+  const handleAdd = () => {
+    const itemToAdd = {
+      ...newItem,
+      pricing: isHomestay ? {
+        basePrice: parseFloat(newItem.price) || 0,
+        extraAdultPrice: parseFloat(newItem.extraGuestPrice) || 0
+      } : undefined
+    };
+
+    if (editingIndex !== null) {
+      const updatedInventory = [...inventory];
+      updatedInventory[editingIndex] = itemToAdd;
+      updateFormData({ inventory: updatedInventory });
+    } else {
+      updateFormData({ inventory: [...inventory, itemToAdd] });
+    }
+    setShowForm(false);
+    resetForm();
+  };
+
+  const handleEdit = (index) => {
+    const item = inventory[index];
+    let formState = { ...item };
+    if (isHomestay && item.pricing) {
+      formState.price = item.pricing.basePrice;
+      formState.extraGuestPrice = item.pricing.extraAdultPrice;
+    }
+    setNewItem(formState);
+    setEditingIndex(index);
+    setShowForm(true);
   };
 
   const handleRemove = (index) => {
@@ -98,7 +119,7 @@ const StepInventoryRooms = () => {
         <h2 className="text-2xl font-bold text-[#003836]">
           {isPgOrHostel ? 'Manage Rooms & Beds' : 'Manage Rooms'}
         </h2>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 text-[#004F4D] font-bold">
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-2 text-[#004F4D] font-bold">
           <Plus size={20} /> Add New Type
         </button>
       </div>
@@ -325,8 +346,8 @@ const StepInventoryRooms = () => {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button onClick={handleAdd} className="flex-1 bg-[#004F4D] text-white py-3 rounded-lg font-bold">Add to Inventory</button>
-            <button onClick={() => setShowForm(false)} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-600">Cancel</button>
+            <button onClick={handleAdd} className="flex-1 bg-[#004F4D] text-white py-3 rounded-lg font-bold">{editingIndex !== null ? 'Update Inventory' : 'Add to Inventory'}</button>
+            <button onClick={() => { setShowForm(false); resetForm(); }} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-600">Cancel</button>
           </div>
         </div>
       )}
@@ -363,9 +384,14 @@ const StepInventoryRooms = () => {
                 </div>
               )}
             </div>
-            <button onClick={() => handleRemove(idx)} className="opacity-0 group-hover:opacity-100 text-red-500 p-2 hover:bg-red-50 rounded-full transition-all">
-              <X size={20} />
-            </button>
+            <div className="flex gap-2 transition-opacity">
+              <button onClick={() => handleEdit(idx)} className="text-blue-500 p-2 hover:bg-blue-50 rounded-full">
+                <Edit2 size={20} />
+              </button>
+              <button onClick={() => handleRemove(idx)} className="text-red-500 p-2 hover:bg-red-50 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
           </div>
         ))}
 

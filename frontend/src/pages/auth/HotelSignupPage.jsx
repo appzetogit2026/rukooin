@@ -20,14 +20,14 @@ const steps = [
 const HotelSignup = () => {
     useLenis();
     const navigate = useNavigate();
-    const { currentStep, nextStep, prevStep, formData, updateFormData, setStep, resetForm } = usePartnerStore();
+    const { currentStep, nextStep, prevStep, formData, setStep } = usePartnerStore();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     // Reset form on mount if desired, or ensure correct step
     useEffect(() => {
         setStep(1);
-    }, []);
+    }, [setStep]);
 
     const currentStepIndex = currentStep - 1;
     const progress = (currentStep / steps.length) * 100;
@@ -89,10 +89,8 @@ const HotelSignup = () => {
                 });
 
                 console.log("Verification Success:", response);
-                alert("✅ Account Verified! Redirecting to Dashboard...");
-
-                // Redirect
-                navigate('/hotel/dashboard');
+                alert("Account verified. Your partner access is pending admin approval.");
+                navigate('/hotel/login');
 
                 // Optional: Reset store
                 // resetForm(); 

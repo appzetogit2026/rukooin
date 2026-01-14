@@ -70,15 +70,18 @@ const BookingsPage = () => {
     return (
         <div className="min-h-screen bg-gray-50">
 
-            {/* Header */}
-            <div className="bg-surface text-white px-5 pt-10 pb-6">
-                <h1 className="text-2xl font-black mb-1">My Bookings</h1>
-                <p className="text-sm text-white/70">Manage your stays and trips</p>
-            </div>
+            {/* Header with Integrated Tabs */}
+            <div className="bg-surface text-white px-5 pt-10 pb-6 rounded-b-3xl shadow-lg shadow-surface/20 z-10 relative">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-2xl font-black mb-1">My Bookings</h1>
+                        <p className="text-xs text-white/80 font-medium tracking-wide">Manage your stays and trips</p>
+                    </div>
+                    {/* Add a subtle icon or element if needed, or keep clean */}
+                </div>
 
-            {/* Tabs */}
-            <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-gray-100">
-                <div className="flex">
+                {/* Internal Tabs */}
+                <div className="bg-black/20 p-1 rounded-2xl flex items-center justify-between backdrop-blur-sm">
                     {[
                         { id: 'upcoming', label: 'Upcoming', count: bookings.upcoming.length },
                         { id: 'completed', label: 'Completed', count: bookings.completed.length },
@@ -87,22 +90,19 @@ const BookingsPage = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 py-4 text-sm font-bold relative transition-colors ${activeTab === tab.id ? 'text-surface' : 'text-gray-400'
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold transition-all duration-200 ${activeTab === tab.id
+                                    ? 'bg-white text-surface shadow-sm scale-[0.98]'
+                                    : 'text-white/70 hover:bg-white/10'
                                 }`}
                         >
                             {tab.label}
                             {tab.count > 0 && (
-                                <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-surface text-white' : 'bg-gray-200 text-gray-500'
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id
+                                        ? 'bg-surface/10 text-surface'
+                                        : 'bg-white/20 text-white'
                                     }`}>
                                     {tab.count}
                                 </span>
-                            )}
-                            {activeTab === tab.id && (
-                                <motion.div
-                                    layoutId="activeBookingTab"
-                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-surface"
-                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                />
                             )}
                         </button>
                     ))}
@@ -123,21 +123,21 @@ const BookingsPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
-                            className="flex flex-col items-center justify-center py-20"
+                            className="flex flex-col items-center justify-center py-16"
                         >
-                            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                                <Ticket size={40} className="text-gray-300" />
+                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                <Ticket size={32} className="text-gray-300" />
                             </div>
-                            <h3 className="text-lg font-bold text-surface mb-2">No {activeTab} bookings</h3>
-                            <p className="text-sm text-gray-500 text-center max-w-[280px] mb-6">
-                                {activeTab === 'upcoming' && "Your upcoming trips will appear here once you make a booking."}
-                                {activeTab === 'completed' && "Completed stays will be shown here after checkout."}
-                                {activeTab === 'cancelled' && "Any cancelled bookings will appear here."}
+                            <h3 className="text-base font-bold text-surface mb-1">No {activeTab} bookings</h3>
+                            <p className="text-[11px] text-gray-400 text-center max-w-[240px] mb-5">
+                                {activeTab === 'upcoming' && "Your upcoming trips will appear here."}
+                                {activeTab === 'completed' && "Completed stays will be shown here."}
+                                {activeTab === 'cancelled' && "Cancelled bookings appear here."}
                             </p>
                             {activeTab !== 'cancelled' && (
                                 <button
                                     onClick={() => navigate('/listings')}
-                                    className="bg-surface text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-surface/30 active:scale-95 transition-transform"
+                                    className="bg-surface text-white font-bold py-2.5 px-6 rounded-lg text-xs shadow-lg shadow-surface/30 active:scale-95 transition-transform"
                                 >
                                     Explore Hotels
                                 </button>
@@ -150,7 +150,7 @@ const BookingsPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
-                            className="space-y-4"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
                             {currentBookings.map((booking, index) => {
                                 // Map backend data to UI format
@@ -166,48 +166,48 @@ const BookingsPage = () => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.1 }}
                                         onClick={() => navigate('/booking-confirmation', { state: { booking: booking } })}
-                                        className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
+                                        className="bg-white rounded-xl overflow-hidden shadow-md shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
                                     >
                                         {/* Top Section */}
-                                        <div className="flex">
+                                        <div className="flex h-28">
                                             {/* Hotel Image */}
-                                            <div className="w-28 h-32 bg-gray-200 shrink-0 relative">
+                                            <div className="w-24 bg-gray-200 shrink-0 relative">
                                                 <img
                                                     src={hotel.images?.[0] || 'https://via.placeholder.com/150'}
                                                     alt={hotel.name || 'Hotel'}
                                                     className={`w-full h-full object-cover ${activeTab === 'cancelled' ? 'grayscale' : ''}`}
                                                 />
                                                 {/* Rating Badge */}
-                                                <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                <div className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                                                     <Star size={8} fill="currentColor" /> {hotel.rating || 4.5}
                                                 </div>
                                             </div>
 
                                             {/* Details */}
-                                            <div className="flex-1 p-4">
+                                            <div className="flex-1 p-3 flex flex-col justify-center">
                                                 {/* Status & ID */}
-                                                <div className="flex justify-between items-start mb-2">
+                                                <div className="flex justify-between items-start mb-1.5">
                                                     {getStatusBadge(booking.status, booking.paymentStatus)}
-                                                    <span className="text-[10px] text-gray-400 font-medium">#{booking.bookingId}</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium tracking-wide">#{booking.bookingId?.slice(-6)}</span>
                                                 </div>
 
                                                 {/* Hotel Name */}
-                                                <h3 className="font-bold text-surface text-sm leading-tight mb-1 line-clamp-1">
+                                                <h3 className="font-bold text-surface text-sm leading-tight mb-0.5 line-clamp-1">
                                                     {hotel.name || 'Unknown Hotel'}
                                                 </h3>
 
                                                 {/* Location */}
-                                                <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                                                    <MapPin size={10} /> {hotel.address?.city || hotel.location || 'Location'}
+                                                <p className="text-[10px] text-gray-400 flex items-center gap-0.5 mb-2">
+                                                    <MapPin size={9} /> {hotel.address?.city || hotel.location || 'Location'}
                                                 </p>
 
                                                 {/* Dates */}
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
+                                                <div className="flex items-center gap-2 text-[10px]">
+                                                    <div className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md font-semibold text-gray-700">
                                                         {checkIn}
                                                     </div>
-                                                    <span className="text-gray-300">→</span>
-                                                    <div className="bg-gray-50 px-2 py-1 rounded-lg font-medium text-surface">
+                                                    <span className="text-gray-300 text-[8px]">➜</span>
+                                                    <div className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md font-semibold text-gray-700">
                                                         {checkOut}
                                                     </div>
                                                 </div>
@@ -215,10 +215,10 @@ const BookingsPage = () => {
                                         </div>
 
                                         {/* Bottom Section */}
-                                        <div className="border-t border-gray-100 px-4 py-3 flex justify-between items-center bg-gray-50/50">
+                                        <div className="border-t border-gray-100 px-3 py-2 flex justify-between items-center bg-gray-50/50 h-12">
                                             <div>
-                                                <p className="text-[10px] text-gray-400 font-medium">Total Amount</p>
-                                                <p className="text-lg font-black text-surface">₹{price}</p>
+                                                <p className="text-[9px] text-gray-400 font-medium">Total Amount</p>
+                                                <p className="text-base font-black text-surface leading-tight">₹{price}</p>
                                             </div>
 
                                             <div className="flex items-center gap-2">
@@ -227,15 +227,15 @@ const BookingsPage = () => {
                                                     <>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); window.location.href = 'tel:+919876543210'; }}
-                                                            className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-surface hover:bg-gray-50"
+                                                            className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-surface hover:bg-gray-50 transition-colors"
                                                         >
-                                                            <Phone size={16} />
+                                                            <Phone size={14} />
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); }}
-                                                            className="w-10 h-10 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300"
+                                                            className="w-8 h-8 bg-[#25D366] rounded-full flex items-center justify-center text-white shadow-md shadow-green-300/50"
                                                         >
-                                                            <MessageCircle size={16} fill="currentColor" />
+                                                            <MessageCircle size={14} fill="currentColor" />
                                                         </button>
                                                     </>
                                                 )}
@@ -243,19 +243,19 @@ const BookingsPage = () => {
                                                 {activeTab === 'completed' && booking.canReview && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); }}
-                                                        className="bg-accent text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md shadow-accent/30"
+                                                        className="bg-accent text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
                                                     >
-                                                        Rate Stay
+                                                        Rate
                                                     </button>
                                                 )}
 
                                                 {activeTab === 'cancelled' && (
-                                                    <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">
-                                                        Refund {booking.refundStatus || 'N/A'}
+                                                    <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                                                        Refunded
                                                     </span>
                                                 )}
 
-                                                <ChevronRight size={20} className="text-gray-300" />
+                                                <ChevronRight size={16} className="text-gray-300 ml-1" />
                                             </div>
                                         </div>
                                     </motion.div>

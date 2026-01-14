@@ -138,14 +138,8 @@ const BookingConfirmationPage = () => {
         return "https://picsum.photos/seed/hotel1/800/600";
     }
 
-    // Generate booking ID
-    const generateBookingId = () => {
-        return "BKID" + Math.floor(100000 + Math.random() * 900000);
-    };
-
-    // Build booking object from passed data or use defaults
     const booking = {
-        id: passedBooking?.bookingId || passedBooking?.id || generateBookingId(),
+        id: passedBooking?.bookingId || passedBooking?.id || 'BKID-UNKNOWN',
         amount: passedBooking?.pricing?.userPayableAmount || passedBooking?.totalAmount || passedHotel?.price || "998",
         paymentMethod: passedBooking?.paymentStatus === "paid" ? "Paid Online" : "Pay at Hotel",
         status: passedBooking?.status || "Confirmed",
@@ -178,8 +172,6 @@ const BookingConfirmationPage = () => {
             userPayableAmount: passedBooking?.totalAmount || 0
         }
     };
-
-    const [whatsappEnabled, setWhatsappEnabled] = useState(true);
 
     // Handlers
     const handleDirections = () => {

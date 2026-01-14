@@ -12,14 +12,15 @@ export const validateStep = (stepKey, formData) => {
       if (!formData.location?.coordinates || formData.location.coordinates.length < 2) errors.push('Map Location is required');
       break;
     case 'rooms':
-    case 'inventory':
+    case 'inventory': {
       const isVilla = formData.propertyCategory === 'Villa';
       if (isVilla) {
         if (!formData.pricing?.basePrice) errors.push('Base Price is required');
-      } else {
-        if (!formData.inventory || formData.inventory.length === 0) errors.push('At least one room/unit is required');
+      } else if (!formData.inventory || formData.inventory.length === 0) {
+        errors.push('At least one room/unit is required');
       }
       break;
+    }
     case 'photos':
       if (!formData.images?.cover) errors.push('Cover Image is required');
       if (!formData.images?.gallery || formData.images.gallery.length < 3) errors.push('At least 3 Gallery Images are required');

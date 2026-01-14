@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
     Calendar, User, MapPin, CreditCard, Clock,
     CheckCircle, XCircle, AlertTriangle, FileText,
@@ -16,10 +15,6 @@ const AdminBookingDetail = () => {
     const [loading, setLoading] = useState(true);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
-    useEffect(() => {
-        fetchBookingDetails();
-    }, [id]);
-
     const fetchBookingDetails = async () => {
         try {
             setLoading(true);
@@ -34,6 +29,10 @@ const AdminBookingDetail = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchBookingDetails();
+    }, [id]);
 
     // Status Colors
     const getStatusColor = (s) => {
@@ -57,7 +56,7 @@ const AdminBookingDetail = () => {
                         toast.success('Booking cancelled successfully');
                         fetchBookingDetails();
                     }
-                } catch (error) {
+                } catch {
                     toast.error('Failed to cancel booking');
                 }
             }

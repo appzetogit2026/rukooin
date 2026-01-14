@@ -5,51 +5,35 @@ class PaymentService {
    * Create Razorpay order for booking payment
    */
   async createOrder(bookingId) {
-    try {
-      const response = await apiService.post('/payments/create-order', { bookingId });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await apiService.post('/payments/create-order', { bookingId });
+    return response.data;
   }
 
   /**
    * Verify Razorpay payment
    */
   async verifyPayment(verificationData) {
-    try {
-      const response = await apiService.post('/payments/verify', verificationData);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await apiService.post('/payments/verify', verificationData);
+    return response.data;
   }
 
   /**
    * Process refund
    */
   async processRefund(bookingId, amount, reason) {
-    try {
-      const response = await apiService.post(`/payments/refund/${bookingId}`, {
-        amount,
-        reason
-      });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await apiService.post(`/payments/refund/${bookingId}`, {
+      amount,
+      reason
+    });
+    return response.data;
   }
 
   /**
    * Get payment details
    */
   async getPaymentDetails(paymentId) {
-    try {
-      const response = await apiService.get(`/payments/${paymentId}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await apiService.get(`/payments/${paymentId}`);
+    return response.data;
   }
 
   /**

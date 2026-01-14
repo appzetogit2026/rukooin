@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LayoutDashboard, Briefcase, Wallet, UserCircle, Building } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -6,17 +6,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const PartnerBottomNavbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState('Dashboard');
-
-  // Sync internal state with current route on mount/change
-  useEffect(() => {
+  const getActiveTab = () => {
     const path = location.pathname;
-    if (path.includes('dashboard') || path === '/hotel') setActiveTab('Dashboard');
-    else if (path.includes('properties')) setActiveTab('Properties');
-    else if (path.includes('bookings')) setActiveTab('Bookings');
-    else if (path.includes('wallet')) setActiveTab('Wallet');
-    else if (path.includes('profile')) setActiveTab('Profile');
-  }, [location]);
+    if (path.includes('dashboard') || path === '/hotel') return 'Dashboard';
+    if (path.includes('properties')) return 'Properties';
+    if (path.includes('bookings')) return 'Bookings';
+    if (path.includes('wallet')) return 'Wallet';
+    if (path.includes('profile')) return 'Profile';
+    return '';
+  };
 
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, route: '/hotel/dashboard' },
@@ -30,12 +28,11 @@ const PartnerBottomNavbar = () => {
   ];
 
   const handleNavClick = (item) => {
-    setActiveTab(item.name);
     navigate(item.route);
   };
 
   return (
-    <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-md z-[1000]">
       <div className="
         bg-white/95 backdrop-blur-2xl 
         border border-white/40 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)]
@@ -45,7 +42,7 @@ const PartnerBottomNavbar = () => {
       ">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.name;
+          const isActive = getActiveTab() === item.name;
 
           return (
             <button

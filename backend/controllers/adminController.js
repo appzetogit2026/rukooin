@@ -2,6 +2,13 @@ import User from '../models/User.js';
 import Property from '../models/Property.js';
 import Booking from '../models/Booking.js';
 import Review from '../models/Review.js';
+import Inventory from '../models/Inventory.js';
+import HotelDetails from '../models/details/HotelDetails.js';
+import ResortDetails from '../models/details/ResortDetails.js';
+import VillaDetails from '../models/details/VillaDetails.js';
+import HomestayDetails from '../models/details/HomestayDetails.js';
+import HostelDetails from '../models/details/HostelDetails.js';
+import PGDetails from '../models/details/PGDetails.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -70,6 +77,9 @@ export const getAllUsers = async (req, res) => {
     if (role) query.role = role;
     if (status) {
       query.isBlocked = status === 'blocked';
+    }
+    if (req.query.approvalStatus) {
+      query.partnerApprovalStatus = req.query.approvalStatus;
     }
 
     const total = await User.countDocuments(query);
@@ -295,15 +305,47 @@ export const getUserDetails = async (req, res) => {
 export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const hotel = await Property.findById(id).populate('ownerId', 'name email phone');
-    if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
+
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: 'Invalid Property ID format' });
+    }
+
+    const property = await Property.findById(id).populate('ownerId', 'name email phone');
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    // Helper to get correct model
+    const getDetailsModel = (type) => {
+      const models = {
+        'Hotel': HotelDetails,
+        'Resort': ResortDetails,
+        'Villa': VillaDetails,
+        'Homestay': HomestayDetails,
+        'Hostel': HostelDetails,
+        'PG': PGDetails
+      };
+      return models[type] || HotelDetails;
+    };
+
+    const DetailsModel = getDetailsModel(property.propertyType);
+    const details = await DetailsModel.findOne({ propertyId: property._id });
+    const inventory = await Inventory.find({ propertyId: property._id });
+
+    // Merge data: property + details + inventory
+    const fullData = {
+      ...property.toObject(),
+      ...(details ? details.toObject() : {}),
+      inventory,
+      _id: property._id, // Ensure ID is preserved
+      propertyId: property._id
+    };
 
     const bookings = await Booking.find({ hotelId: id })
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, hotel, bookings });
+    res.status(200).json({ success: true, hotel: fullData, bookings });
   } catch (error) {
+    console.error('Get Hotel Details Admin Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching hotel details' });
   }
 };
@@ -320,5 +362,31 @@ export const getBookingDetails = async (req, res) => {
     res.status(200).json({ success: true, booking });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching booking details' });
+  }
+};
+
+export const updatePartnerApprovalStatus = async (req, res) => {
+  try {
+    const { userId, status } = req.body;
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid partner approval status' });
+    }
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'partner') {
+      return res.status(404).json({ success: false, message: 'Partner not found' });
+    }
+    user.partnerApprovalStatus = status;
+    if (status === 'approved') {
+      user.isPartner = true;
+      if (!user.partnerSince) {
+        user.partnerSince = new Date();
+      }
+    } else {
+      user.isPartner = false;
+    }
+    await user.save();
+    res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating partner approval status' });
   }
 };

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import StepWrapper from '../components/StepWrapper';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useLenis } from '../../shared/hooks/useLenis';
-import { authService, hotelService } from '../../../services/apiService';
+import { hotelService } from '../../../services/apiService';
 
 // Steps Components
 import StepCategory from '../steps/StepCategory';

@@ -1,11 +1,10 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Wifi, Coffee, Car, Shield, Utensils, Users, Dumbbell, Snowflake, Tv, Briefcase } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const AmenitiesPage = () => {
     const navigate = useNavigate();
-    const { id } = useParams();
 
     const amenitiesList = [
         {

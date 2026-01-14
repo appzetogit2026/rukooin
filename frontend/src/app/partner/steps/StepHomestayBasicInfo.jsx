@@ -10,16 +10,6 @@ const StepHomestayBasicInfo = () => {
     updateFormData({ [name]: value });
   };
 
-  const handleConfigChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    updateFormData({
-      config: {
-        ...config,
-        [name]: type === 'checkbox' ? checked : value
-      }
-    });
-  };
-
   const toggleIdealFor = (option) => {
     const idealFor = config.idealFor || [];
     const updated = idealFor.includes(option)

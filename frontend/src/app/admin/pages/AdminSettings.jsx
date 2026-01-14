@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
     Settings, Shield, Bell, CreditCard, ToggleLeft,
     ToggleRight, Save, Globe, Lock

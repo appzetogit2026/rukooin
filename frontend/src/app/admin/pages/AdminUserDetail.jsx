@@ -76,10 +76,6 @@ const AdminUserDetail = () => {
     const [activeTab, setActiveTab] = useState('bookings');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
-    useEffect(() => {
-        fetchUserDetails();
-    }, [id]);
-
     const fetchUserDetails = async () => {
         try {
             setLoading(true);
@@ -95,6 +91,10 @@ const AdminUserDetail = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchUserDetails();
+    }, [id]);
 
     const handleBlockToggle = async () => {
         const isBlocked = user.isBlocked;
@@ -113,7 +113,7 @@ const AdminUserDetail = () => {
                         toast.success(`User ${!isBlocked ? 'blocked' : 'unblocked'} successfully`);
                         fetchUserDetails();
                     }
-                } catch (error) {
+                } catch {
                     toast.error('Failed to update user status');
                 }
             }

@@ -13,7 +13,7 @@ const StepHomestayPolicies = () => {
         policies: { ...policies, idProofRequired: true }
       });
     }
-  }, []);
+  }, [policies, updateFormData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

@@ -1,37 +1,40 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft,
-    CreditCard, Calendar, ChevronRight, DollarSign,
-    Settings, Clock, Loader2, AlertCircle, RefreshCw
+    Plus, Clock, Loader2, AlertCircle, RefreshCw, Menu
 } from 'lucide-react';
-import gsap from 'gsap';
-import PartnerHeader from '../components/PartnerHeader';
 import walletService from '../../../services/walletService';
 import { toast } from 'react-hot-toast';
 
-const TransactionItem = ({ txn, index }) => {
+// --- Transaction Item (Compact) ---
+const TransactionItem = ({ txn }) => {
     const isCredit = txn.type === 'credit';
+    const isCompleted = txn.status === 'completed';
 
     return (
-        <div className="transaction-item flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl mb-3 shadow-sm active:scale-[0.99] transition-transform">
-            <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCredit ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                    {isCredit ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+        <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0 active:bg-gray-50/50 transition-colors">
+            {/* Left Side: Icon + Text */}
+            <div className="flex items-center gap-3 flex-1 min-w-0 mr-4">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? 'bg-[#E8F5E9] text-[#2E7D32]' : 'bg-[#F5F5F5] text-gray-600'}`}>
+                    {isCredit ? <ArrowDownLeft size={18} strokeWidth={2.5} /> : <ArrowUpRight size={18} className="stroke-gray-500" strokeWidth={2.5} />}
                 </div>
-                <div>
-                    <h4 className="font-bold text-[#003836] text-sm">{txn.description}</h4>
-                    <p className="text-[10px] text-gray-400 font-medium">{new Date(txn.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} • {txn.reference}</p>
+                <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-[#003836] text-xs sm:text-sm truncate leading-tight">{txn.description}</h4>
+                    <p className="text-[10px] text-gray-400 font-bold mt-0.5 truncate">
+                        {new Date(txn.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
                 </div>
             </div>
-            <div className="text-right">
-                <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-[#003836]'}`}>
+
+            {/* Right Side: Amount + Status */}
+            <div className="text-right flex-shrink-0">
+                <div className={`font-black text-sm sm:text-base ${isCredit ? 'text-[#2E7D32]' : 'text-[#003836]'}`}>
                     {isCredit ? '+' : '-'}₹{txn.amount?.toLocaleString('en-IN')}
                 </div>
-                <div className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-0.5 uppercase tracking-wide ${txn.status === 'completed' ? 'bg-green-50 text-green-700' :
-                        txn.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
-                            'bg-gray-50 text-gray-600'
+                <div className={`text-[9px] font-bold uppercase tracking-wide mt-1 ${txn.status === 'completed' ? 'text-green-600' :
+                    txn.status === 'pending' ? 'text-yellow-600' : 'text-red-500'
                     }`}>
-                    {txn.status}
+                    {txn.status === 'completed' ? 'Success' : txn.status}
                 </div>
             </div>
         </div>
@@ -39,39 +42,35 @@ const TransactionItem = ({ txn, index }) => {
 };
 
 const PartnerWallet = () => {
-    const listRef = useRef(null);
-    const cardRef = useRef(null);
-
     const [wallet, setWallet] = useState(null);
     const [stats, setStats] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-    const [withdrawAmount, setWithdrawAmount] = useState('');
+
+    // Modal States
+    const [activeModal, setActiveModal] = useState(null); // 'withdraw' | 'add_money' | null
+    const [amountInput, setAmountInput] = useState('');
 
     // Fetch wallet data
     const fetchWalletData = async () => {
         try {
             setLoading(true);
             setError(null);
+            const [walletRes, statsRes, txnRes] = await Promise.all([
+                walletService.getWallet(),
+                walletService.getWalletStats(),
+                walletService.getTransactions({ limit: 10 })
+            ]);
 
-            // Fetch wallet balance
-            const walletResponse = await walletService.getWallet();
-            setWallet(walletResponse.wallet);
-
-            // Fetch wallet stats
-            const statsResponse = await walletService.getWalletStats();
-            setStats(statsResponse.stats);
-
-            // Fetch transactions
-            const txnResponse = await walletService.getTransactions({ limit: 10 });
-            setTransactions(txnResponse.transactions);
+            setWallet(walletRes.wallet);
+            setStats(statsRes.stats);
+            setTransactions(txnRes.transactions);
 
         } catch (err) {
-            console.error('Error fetching wallet data:', err);
+            console.error('Error fetching wallet:', err);
             setError(err.response?.data?.message || 'Failed to load wallet data');
-            toast.error('Failed to load wallet data');
+            toast.error('Failed to load wallet details');
         } finally {
             setLoading(false);
         }
@@ -81,204 +80,150 @@ const PartnerWallet = () => {
         fetchWalletData();
     }, []);
 
-    useEffect(() => {
-        if (!loading && wallet) {
-            const tl = gsap.timeline();
-
-            // Card Entrance
-            if (cardRef.current) {
-                tl.fromTo(cardRef.current,
-                    { y: 20, opacity: 0, scale: 0.95 },
-                    { y: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'power3.out' }
-                );
-            }
-
-            // List Stagger
-            if (listRef.current && listRef.current.children.length > 0) {
-                tl.fromTo(listRef.current.children,
-                    { y: 20, opacity: 0 },
-                    { y: 0, opacity: 1, stagger: 0.1, duration: 0.4, ease: 'power2.out' },
-                    '-=0.3'
-                );
-            }
-        }
-    }, [loading, wallet]);
-
-    const handleWithdraw = async () => {
-        const amount = parseFloat(withdrawAmount);
-
-        if (!amount || amount < 500) {
-            toast.error('Minimum withdrawal amount is ₹500');
-            return;
-        }
-
-        if (amount > wallet.balance) {
-            toast.error('Insufficient balance');
+    const handleTransaction = async () => {
+        const amount = parseFloat(amountInput);
+        if (!amount || amount <= 0) {
+            toast.error('Please enter a valid amount');
             return;
         }
 
         try {
-            const response = await walletService.requestWithdrawal(amount);
-            toast.success(response.message || 'Withdrawal request submitted');
-            setShowWithdrawModal(false);
-            setWithdrawAmount('');
-            fetchWalletData(); // Refresh data
+            if (activeModal === 'withdraw') {
+                if (amount < 500) { toast.error('Minimum withdrawal is ₹500'); return; }
+                if (amount > wallet?.balance) { toast.error('Insufficient balance'); return; }
+
+                await walletService.requestWithdrawal(amount);
+                toast.success('Withdrawal request submitted');
+            } else if (activeModal === 'add_money') {
+                // Placeholder for Payment Gateway integration
+                toast.success('Add Money functionality coming soon!');
+            }
+
+            setActiveModal(null);
+            setAmountInput('');
+            fetchWalletData();
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Withdrawal failed');
+            toast.error(error.response?.data?.message || 'Transaction failed');
         }
     };
 
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 size={48} className="text-surface animate-spin mx-auto mb-4" />
-                    <p className="text-gray-600 font-medium">Loading wallet...</p>
-                </div>
+                <Loader2 size={32} className="text-[#004F4D] animate-spin" />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="text-center max-w-md">
-                    <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Wallet</h3>
-                    <p className="text-gray-600 mb-4">{error}</p>
-                    <button
-                        onClick={fetchWalletData}
-                        className="bg-surface text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto hover:bg-[#003836] transition"
-                    >
-                        <RefreshCw size={18} />
-                        Retry
-                    </button>
-                </div>
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
+                <AlertCircle size={40} className="text-red-500 mb-3" />
+                <h3 className="text-lg font-bold text-gray-800">Connection Error</h3>
+                <button onClick={fetchWalletData} className="mt-4 bg-[#004F4D] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg">Retry</button>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
-            <PartnerHeader title="Wallet" subtitle="Earnings & Payouts" />
-
-            <div className="max-w-3xl mx-auto px-4 pt-6">
-
-                {/* Balance Card */}
-                <div ref={cardRef} className="bg-[#004F4D] text-white rounded-[2rem] p-6 shadow-xl shadow-[#004F4D]/20 mb-8 relative overflow-hidden">
-                    {/* Abstract Shapes */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500/20 rounded-full blur-xl -ml-5 -mb-5"></div>
-
-                    <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-8">
-                            <div>
-                                <h3 className="text-sm font-medium text-white/60 mb-1">Available Balance</h3>
-                                <div className="text-4xl font-black tracking-tight">₹{wallet?.balance?.toLocaleString('en-IN') || '0'}</div>
-                            </div>
-                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                <Wallet size={20} className="text-white" />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowWithdrawModal(true)}
-                                disabled={!wallet?.balance || wallet?.balance < 500}
-                                className="flex-1 bg-white text-[#003836] h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Withdraw Now <ArrowUpRight size={16} />
-                            </button>
-                            <button
-                                onClick={fetchWalletData}
-                                className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 active:scale-95 transition-colors"
-                            >
-                                <RefreshCw size={18} className="text-white" />
-                            </button>
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-white pb-24 font-sans">
+            {/* --- Top Dark Section --- */}
+            <div className="bg-[#004F4D] pt-10 pb-16 px-6 rounded-b-[40px] text-white text-center shadow-lg relative z-10">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mb-2">Available Balance</p>
+                <div className="text-5xl font-black mb-10 tracking-tight">
+                    <span className="text-3xl font-medium align-top opacity-80 mr-1">₹</span>
+                    {wallet?.balance?.toLocaleString('en-IN') || '0'}
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-2 gap-3 mb-8">
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
-                                <TrendingUp size={12} />
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Total Earnings</span>
-                        </div>
-                        <div className="text-xl font-black">₹{stats?.totalEarnings?.toLocaleString('en-IN') || '0'}</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="w-6 h-6rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
-                                <Clock size={12} />
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">This Month</span>
-                        </div>
-                        <div className="text-xl font-black">₹{stats?.thisMonthEarnings?.toLocaleString('en-IN') || '0'}</div>
-                    </div>
+                <div className="flex gap-4 justify-center max-w-sm mx-auto">
+                    <button
+                        onClick={() => setActiveModal('add_money')}
+                        className="flex-1 bg-white text-[#004F4D] py-3 px-3 sm:px-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap"
+                    >
+                        <Plus size={16} strokeWidth={3} className="sm:w-[18px] sm:h-[18px]" /> Add Money
+                    </button>
+                    <button
+                        onClick={() => setActiveModal('withdraw')}
+                        className="flex-1 bg-white/10 text-white border border-white/20 py-3 px-3 sm:px-4 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm backdrop-blur-md shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap"
+                    >
+                        <ArrowUpRight size={16} strokeWidth={3} className="sm:w-[18px] sm:h-[18px]" /> Withdraw
+                    </button>
                 </div>
-
-                {/* Recent Transactions */}
-                <div className="mb-4 flex items-center justify-between">
-                    <h3 className="font-bold text-[#003836]">Recent Transactions</h3>
-                    <button className="text-xs font-bold text-blue-600">See All</button>
-                </div>
-
-                {transactions.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
-                        <Wallet size={48} className="text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 font-medium">No transactions yet</p>
-                        <p className="text-xs text-gray-400 mt-1">Your earnings will appear here</p>
-                    </div>
-                ) : (
-                    <div ref={listRef}>
-                        {transactions.map((txn, idx) => (
-                            <TransactionItem key={txn._id || idx} txn={txn} />
-                        ))}
-                    </div>
-                )}
-
             </div>
 
-            {/* Withdrawal Modal */}
-            {showWithdrawModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-                    <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold text-surface mb-2">Request Withdrawal</h3>
-                        <p className="text-sm text-gray-500 mb-6">Enter amount to withdraw to your bank account</p>
+            {/* --- Toggle Pills --- */}
+            <div className="px-6 -mt-7 relative z-20 mb-10">
+                <div className="bg-white p-1.5 rounded-full shadow-lg border border-gray-100 flex max-w-[280px] mx-auto">
+                    <button className="flex-1 bg-[#004F4D] text-white py-2.5 rounded-full text-xs font-bold shadow-md transition-all">
+                        Transactions
+                    </button>
+                    <button className="flex-1 text-gray-400 py-2.5 rounded-full text-xs font-bold hover:bg-gray-50 transition-all">
+                        Analytics
+                    </button>
+                </div>
+            </div>
 
-                        <div className="mb-6">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Amount (₹)</label>
+            {/* --- Recent Activity List --- */}
+            <div className="px-6 max-w-lg mx-auto">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 pl-2">Recent Activity</h3>
+
+                <div className="space-y-2">
+                    {transactions.length > 0 ? (
+                        transactions.map((txn, idx) => (
+                            <TransactionItem key={txn._id || idx} txn={txn} />
+                        ))
+                    ) : (
+                        <div className="text-center py-10 opacity-50">
+                            <p className="text-gray-400 text-sm font-medium">No recent transactions</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Modal for Withdraw / Add Money */}
+            {activeModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fadeIn">
+                    <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-slideUp">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-[#003836]">
+                                {activeModal === 'withdraw' ? 'Withdraw Funds' : 'Add Money'}
+                            </h3>
+                            <button
+                                onClick={() => setActiveModal(null)}
+                                className="w-8 h-8 rounded-full bg-gray-100/50 flex items-center justify-center text-gray-400 hover:bg-gray-100"
+                            >
+                                <Menu size={16} className="rotate-45" />
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-400 font-medium mb-8">
+                            {activeModal === 'withdraw'
+                                ? 'Transfer funds directly to your verified bank account.'
+                                : 'Add funds to your wallet using UPI or Cards.'
+                            }
+                        </p>
+
+                        <div className="mb-8">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Amount (₹)</label>
                             <input
                                 type="number"
-                                value={withdrawAmount}
-                                onChange={(e) => setWithdrawAmount(e.target.value)}
-                                placeholder="Min ₹500"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-2xl font-bold text-surface focus:outline-none focus:border-surface focus:ring-1 focus:ring-surface transition-all"
+                                autoFocus
+                                value={amountInput}
+                                onChange={(e) => setAmountInput(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-[#003836] focus:outline-none focus:border-[#004F4D] focus:bg-white transition-all shadow-inner placeholder:text-gray-300"
+                                placeholder="0"
                             />
-                            <p className="text-xs text-gray-400 mt-2">Available: ₹{wallet?.balance?.toLocaleString('en-IN')}</p>
+                            {activeModal === 'withdraw' && (
+                                <p className="text-[10px] text-gray-400 mt-3 text-right font-medium">Available Balance: <span className="text-[#003836] font-bold">₹{wallet?.balance}</span></p>
+                            )}
                         </div>
 
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowWithdrawModal(false);
-                                    setWithdrawAmount('');
-                                }}
-                                className="flex-1 bg-gray-100 text-surface font-bold py-3 rounded-xl active:scale-95 transition-transform"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleWithdraw}
-                                className="flex-1 bg-surface text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
-                            >
-                                Withdraw
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleTransaction}
+                            className="w-full bg-[#004F4D] text-white font-bold py-4 rounded-2xl text-sm active:scale-95 transition-transform shadow-lg shadow-[#004F4D]/20"
+                        >
+                            Proceed Securely
+                        </button>
                     </div>
                 </div>
             )}

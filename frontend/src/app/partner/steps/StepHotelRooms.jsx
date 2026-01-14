@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import usePartnerStore from '../store/partnerStore';
-import { Plus, X, Upload } from 'lucide-react';
+import { Plus, X, Upload, Edit2 } from 'lucide-react';
 import { hotelService } from '../../../services/apiService';
 
 const StepHotelRooms = () => {
@@ -8,6 +8,7 @@ const StepHotelRooms = () => {
   const { inventory = [] } = formData;
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const [newItem, setNewItem] = useState({
     type: 'Deluxe Room',
@@ -40,9 +41,17 @@ const StepHotelRooms = () => {
       return;
     }
 
-    updateFormData({
-      inventory: [...inventory, newItem]
-    });
+    if (editingIndex !== null) {
+      const updatedInventory = [...inventory];
+      updatedInventory[editingIndex] = newItem;
+      updateFormData({ inventory: updatedInventory });
+      setEditingIndex(null);
+    } else {
+      updateFormData({
+        inventory: [...inventory, newItem]
+      });
+    }
+
     setShowForm(false);
     resetForm();
   };
@@ -65,6 +74,13 @@ const StepHotelRooms = () => {
       amenities: [],
       images: []
     });
+    setEditingIndex(null);
+  };
+
+  const handleEdit = (index) => {
+    setNewItem(inventory[index]);
+    setEditingIndex(index);
+    setShowForm(true);
   };
 
   const handleRemove = (index) => {
@@ -118,7 +134,7 @@ const StepHotelRooms = () => {
           <h2 className="text-2xl font-bold text-[#003836]">Room Types & Inventory</h2>
           <p className="text-sm text-gray-500">Configure rooms, pricing and amenities</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 text-[#004F4D] font-bold">
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-2 text-[#004F4D] font-bold">
           <Plus size={20} /> Add Room Type
         </button>
       </div>
@@ -288,8 +304,10 @@ const StepHotelRooms = () => {
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
-            <button onClick={handleAdd} className="flex-1 bg-[#004F4D] text-white py-3 rounded-lg font-bold">Add Room Type</button>
-            <button onClick={() => setShowForm(false)} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-600">Cancel</button>
+            <button onClick={handleAdd} className="flex-1 bg-[#004F4D] text-white py-3 rounded-lg font-bold">
+              {editingIndex !== null ? 'Update Room Type' : 'Add Room Type'}
+            </button>
+            <button onClick={() => { setShowForm(false); resetForm(); }} className="px-6 py-3 border border-gray-300 rounded-lg text-gray-600">Cancel</button>
           </div>
         </div>
       )}
@@ -312,7 +330,14 @@ const StepHotelRooms = () => {
                 </div>
               </div>
             </div>
-            <button onClick={() => handleRemove(idx)} className="absolute top-4 right-4 text-red-500 opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 rounded-full"><X size={20} /></button>
+            <div className="absolute top-4 right-4 flex gap-2 transition-opacity">
+              <button onClick={() => handleEdit(idx)} className="text-blue-500 p-2 hover:bg-blue-50 rounded-full">
+                <Edit2 size={20} />
+              </button>
+              <button onClick={() => handleRemove(idx)} className="text-red-500 p-2 hover:bg-red-50 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
           </div>
         ))}
         {!inventory.length && !showForm && (

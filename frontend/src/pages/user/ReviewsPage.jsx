@@ -1,11 +1,10 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, ThumbsUp, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ReviewsPage = () => {
     const navigate = useNavigate();
-    const { id } = useParams();
 
     const reviews = [
         { id: 1, user: "Rahul Jain", rating: 5.0, date: "Oct 2024", type: "Family Trip", text: "Excellent stay! The rooms were super clean and the staff was very polite. Highly recommended for families looking for a safe stay." },

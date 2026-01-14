@@ -8,7 +8,7 @@ import {
 import { bookingService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
-const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData, onConfirm }) => {
+const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData }) => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1); // 1: Dates | 2: Guests | 3: Rooms
     const [bookingData, setBookingData] = useState({
@@ -131,8 +131,8 @@ const BookingBottomSheet = ({ isOpen, onClose, hotelData, initialBookingData, on
                         animate: true,
                         booking: {
                             ...bookingPayload,
-                            id: response.bookingId, // Use ID from backend
-                            status: response.status
+                            id: response.booking?.bookingId,
+                            status: response.booking?.status
                         },
                         hotel: hotelInfo
                     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
@@ -372,11 +372,7 @@ const AdminHotelDetail = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
 
-    useEffect(() => {
-        fetchHotelDetails();
-    }, [id]);
-
-    const fetchHotelDetails = async () => {
+    const fetchHotelDetails = useCallback(async () => {
         try {
             setLoading(true);
             const data = await adminService.getHotelDetails(id);
@@ -390,7 +386,11 @@ const AdminHotelDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        fetchHotelDetails();
+    }, [fetchHotelDetails]);
 
     const handleStatusToggle = async () => {
         const isSuspended = hotel.status === 'suspended';
@@ -410,7 +410,7 @@ const AdminHotelDetail = () => {
                         toast.success(`Hotel ${isSuspended ? 'activated' : 'suspended'} successfully`);
                         fetchHotelDetails();
                     }
-                } catch (error) {
+                } catch {
                     toast.error('Failed to update hotel status');
                 }
             }

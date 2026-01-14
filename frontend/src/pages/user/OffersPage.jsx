@@ -1,11 +1,9 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, TicketPercent, CheckCircle, Copy } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, CheckCircle, Copy } from 'lucide-react';
 
 const OffersPage = () => {
     const navigate = useNavigate();
-    const { id } = useParams();
 
     const offers = [
         {

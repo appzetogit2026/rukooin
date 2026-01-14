@@ -12,7 +12,7 @@ import { toast } from 'react-hot-toast';
 const AddPropertyWizard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { currentStep, formData, prevStep, nextStep, setStep, totalSteps, updateFormData, resetForm } = usePartnerStore();
+  const { currentStep, formData, prevStep, nextStep, setStep, updateFormData, resetForm } = usePartnerStore();
   const [loading, setLoading] = useState(!!id);
 
   // Initial Data Fetch for Edit Mode
@@ -57,10 +57,9 @@ const AddPropertyWizard = () => {
       };
       fetchProperty();
     } else {
-      // Start Fresh for New Property
       resetForm();
     }
-  }, [id]);
+  }, [id, navigate, resetForm, updateFormData]);
 
 
   // 1. Get Configuration based on selected Category
@@ -134,6 +133,13 @@ const AddPropertyWizard = () => {
       }
     } catch (err) {
       console.error("Draft save failed", err);
+      if (err.status === 404) {
+        toast.error("Session expired or draft deleted. Starting fresh.");
+        resetForm(); // Clear invalid state
+        setStep(1); // Go back to start
+        navigate('/hotel/add-property'); // Ensure URL is clean
+        return;
+      }
       toast.error('Failed to save draft');
     }
   };
@@ -179,6 +185,13 @@ const AddPropertyWizard = () => {
         }
       } catch (err) {
         console.error("Auto-save failed:", err);
+        if (err.status === 404) {
+          toast.error("Session expired or draft deleted. Starting fresh.");
+          resetForm(); // Clear invalid state
+          setStep(1); // Go back to start
+          navigate('/hotel/add-property'); // Ensure URL is clean
+          return;
+        }
         toast.error('Failed to save. Please try again.');
         return;
       }

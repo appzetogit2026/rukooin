@@ -1,33 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Home, Briefcase, Search, Wallet, Gift } from 'lucide-react';
+import React from 'react';
+import { Home, Briefcase, Search, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const BottomNavbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [activeTab, setActiveTab] = useState('Home');
-
-    // Sync internal state with current route on mount/change
-    useEffect(() => {
-        const path = location.pathname;
-        if (path === '/') setActiveTab('Home');
-        else if (path.includes('bookings')) setActiveTab('Bookings');
-        else if (path.includes('listings') || path.includes('search')) setActiveTab('Search');
-        else if (path.includes('wallet')) setActiveTab('Wallet');
-        else if (path.includes('refer')) setActiveTab('Refer & Earn');
-    }, [location]);
 
     const navItems = [
         { name: 'Home', icon: Home, route: '/' },
         { name: 'Bookings', icon: Briefcase, route: '/bookings' },
         { name: 'Search', icon: Search, route: '/listings' },
         { name: 'Wallet', icon: Wallet, route: '/wallet' },
-        { name: 'Refer & Earn', icon: Gift, route: '/refer' },
+        { name: 'Profile', icon: User, route: '/profile/edit' },
     ];
 
+    const getActiveTab = (path) => {
+        if (path === '/') return 'Home';
+        if (path.includes('bookings')) return 'Bookings';
+        if (path.includes('listings') || path.includes('search')) return 'Search';
+        if (path.includes('wallet')) return 'Wallet';
+        if (path.includes('profile')) return 'Profile';
+        return 'Home';
+    };
+
+    const activeTab = getActiveTab(location.pathname);
+
     const handleNavClick = (item) => {
-        setActiveTab(item.name);
         navigate(item.route);
     };
 
@@ -66,7 +65,7 @@ const BottomNavbar = () => {
                             />
 
                             <span className={`text-[9px] font-bold tracking-wide transition-colors duration-200 ${isActive ? 'text-surface' : 'text-gray-400'}`}>
-                                {item.name === 'Refer & Earn' ? 'Refer' : item.name}
+                                {item.name}
                             </span>
                         </button>
                     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { MapPin, Search, Navigation } from 'lucide-react';
 import { hotelService } from '../../../services/apiService';
@@ -79,12 +79,12 @@ const StepLocation = () => {
             updateFormData({
               address: {
                 ...address,
-                addressLine: addr.street || addr.fullAddress,
+                addressLine: addr.fullAddress,
                 city: addr.city,
                 state: addr.state,
-                pincode: addr.zipCode,
+                pincode: addr.pincode,
                 area: addr.area || '',
-                country: 'India'
+                country: addr.country || 'India'
               },
               location: {
                 type: 'Point',
@@ -99,7 +99,7 @@ const StepLocation = () => {
           setDetecting(false);
         }
       },
-      (error) => {
+      () => {
         alert('Unable to retrieve your location');
         setDetecting(false);
       }

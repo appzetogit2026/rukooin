@@ -62,22 +62,20 @@ const calculateCouponDiscount = async (couponCode, baseAmount, userId) => {
   return { discount, offer };
 };
 
-/**
- * @desc    Create a new booking with proper payment calculation
- * @route   POST /api/bookings
- * @access  Private
- */
 export const createBooking = async (req, res) => {
   try {
     const {
       hotelId,
-      roomId,
+      inventoryId, // Changed from roomId to inventoryId generally, or support both
+      roomId, // Legacy support
       checkIn,
       checkOut,
       guests,
       couponCode,
-      totalAmount // For backward compatibility
+      totalAmount
     } = req.body;
+
+    let targetInventoryId = inventoryId || roomId;
 
     // Validate Property
     const property = await Property.findById(hotelId);
@@ -85,90 +83,109 @@ export const createBooking = async (req, res) => {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    console.log('📋 Creating booking for property:', property.name);
+    // Determine Pricing Logic
+    let unitPrice = 0;
 
-    // Find Price Logic
-    let roomPrice = 0;
-
-    // Case 1: Inventory Based (Hotel, Hostel, PG or Inventory-mapped Villa)
-    if (roomId) {
-      const inventoryItem = await Inventory.findById(roomId);
+    // 1. Inventory Based (Hotel, Hostel, Inventory-based Villa, PG)
+    if (targetInventoryId) {
+      const inventoryItem = await Inventory.findById(targetInventoryId);
       if (inventoryItem) {
-        // Check mapping
         if (inventoryItem.propertyId.toString() !== hotelId) {
-          return res.status(400).json({ message: 'Invalid Room ID for this property' });
+          return res.status(400).json({ message: 'Invalid Room/Unit ID for this property' });
         }
-        roomPrice = inventoryItem.price;
-        console.log('💰 Using Inventory price:', roomPrice);
+
+        // Priority: pricing.basePrice > price 
+        if (inventoryItem.pricing?.basePrice) {
+          unitPrice = inventoryItem.pricing.basePrice;
+        } else if (inventoryItem.price) {
+          unitPrice = inventoryItem.price;
+        } else if (inventoryItem.monthlyPrice) {
+          // If only monthly price is available, and user requested 'per night' booking model,
+          // we might want to convert or just use it as base. 
+          // Assuming user input implies 'monthlyPrice' field IS the rate they want to charge PER UNIT.
+          // Or we can just use it as is.
+          unitPrice = inventoryItem.monthlyPrice;
+        }
       }
     }
 
-    // Case 2: Villa (Entire Place)
-    if (!roomPrice && property.propertyType === 'Villa') {
+    // 2. Entire Villa / Unit Based (If no inventory selected)
+    else if (property.propertyType === 'Villa') {
+      // Fetch VillaDetails directly to get pricing
       const details = await VillaDetails.findOne({ propertyId: hotelId });
-      if (details && details.pricing?.basePrice) {
-        roomPrice = details.pricing.basePrice;
-        console.log('💰 Using Villa Base Price:', roomPrice);
+      // Check root pricing object from details
+      if (details?.pricing?.basePrice) {
+        unitPrice = details.pricing.basePrice;
+      }
+    }
+    // 3. Homestay/Apartment Fallback (If Whole Unit but price in Inventory)
+    else if (['Homestay', 'Apartment'].includes(property.propertyType)) {
+      // If no inventoryId passed, but it's a whole unit, maybe there's a single inventory item?
+      const inventories = await Inventory.find({ propertyId: hotelId });
+      if (inventories.length === 1) {
+        const item = inventories[0];
+        targetInventoryId = item._id; // Auto-assign the inventory ID
+        
+        // Use this item's price
+         if (item.pricing?.basePrice) {
+          unitPrice = item.pricing.basePrice;
+        } else if (item.price) {
+          unitPrice = item.price;
+        } else if (item.monthlyPrice) {
+          unitPrice = item.monthlyPrice;
+        }
       }
     }
 
-    // Fallback
-    if (!roomPrice) {
-      roomPrice = totalAmount || 0;
-      console.log('💰 Using fallback/totalAmount:', roomPrice);
+    // 4. Fallback (e.g. from Frontend passed total - insecure, use as last resort or validation)
+    if (!unitPrice && totalAmount) {
+      // Optionally log this or reject. For now, we trust frontend if backend lookup fails 
+      // BUT in production, this should ideally be rejected.
+      // unitPrice = totalAmount; 
     }
 
-    if (!roomPrice || roomPrice <= 0) {
-      return res.status(400).json({
-        message: 'Invalid price. Property must have a price or you must provide totalAmount',
-      });
+    if (!unitPrice || unitPrice <= 0) {
+      return res.status(400).json({ message: 'Unable to determine price for this selection.' });
     }
 
-    // Calculate nights
+    // Calculate Duration
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
-    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
 
-    if (nights < 1) {
-      return res.status(400).json({ message: 'Check-out must be after check-in' });
-    }
+    // Days Diff
+    const timeDiff = Math.abs(checkOutDate - checkInDate);
+    const dayCount = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
-    // Calculate base amount
-    const numberOfRooms = guests?.rooms || 1;
-    const baseAmount = roomPrice * nights * numberOfRooms;
+    const duration = Math.max(1, dayCount);
 
-    console.log('💵 Calculation:', { roomPrice, nights, numberOfRooms, baseAmount });
+    // Calculate Units (Rooms/Beds/Villas)
+    const numberOfUnits = guests?.units || guests?.rooms || 1;
 
-    // Calculate pricing
+    // FINAL BASE AMOUNT CALCULATION
+    // Nightly: Price * Units * Nights (For ALL types including PG)
+    const baseAmount = unitPrice * numberOfUnits * duration;
+
+    // Commission & Splits
     const commissionRate = PaymentConfig.adminCommissionRate;
     const finalBaseAmount = Math.round(baseAmount);
 
-    // Step 2: Calculate partner earning (90% of base)
     const partnerEarning = Math.round(finalBaseAmount * (100 - commissionRate) / 100);
-
-    // Step 3: Calculate admin commission on base (10% of base)
     const adminCommissionOnBase = Math.round(finalBaseAmount * commissionRate / 100);
 
-    // Step 4: Apply coupon discount
+    // Coupon
     let discount = 0;
     let offerDetails = null;
-
     try {
       const result = await calculateCouponDiscount(couponCode, finalBaseAmount, req.user._id);
       discount = result.discount;
       offerDetails = result.offer;
-    } catch (couponError) {
-      // Coupon error is not critical - continue without discount
-      console.log('Coupon error (continuing without discount):', couponError.message);
+    } catch (e) {
+      console.log('Coupon Error (Ignored):', e.message);
     }
 
-    // Step 5: User payable amount
     const userPayableAmount = finalBaseAmount - discount;
-
-    // Step 6: Admin net earning (commission - discount)
     const adminNetEarning = adminCommissionOnBase - discount;
 
-    // Create pricing object
     const pricing = {
       baseAmount: finalBaseAmount,
       discountAmount: discount,
@@ -176,61 +193,49 @@ export const createBooking = async (req, res) => {
       adminCommissionRate: commissionRate,
       adminCommissionOnBase,
       partnerEarning,
-      adminNetEarning
+      adminNetEarning,
+      unitPrice,
+      duration,
+      units: numberOfUnits,
+      period: 'nightly' // Hardcoded as per requirement
     };
 
-    // Create booking
     const booking = new Booking({
       bookingId: generateBookingId(),
       userId: req.user._id,
       hotelId,
-      roomId,
+      roomId: targetInventoryId, // Save the ID if it exists
       checkIn,
       checkOut,
       guests,
-
-      // New pricing structure
       pricing,
-
-      // Coupon details
       couponApplied: offerDetails ? {
         code: offerDetails.code,
         discountType: offerDetails.discountType,
         discountValue: offerDetails.discountValue,
         discountAmount: discount
       } : undefined,
-
-      // Legacy fields for backward compatibility
       couponCode: couponCode ? couponCode.toUpperCase() : undefined,
       discountAmount: discount,
       totalAmount: userPayableAmount,
-
-      status: 'pending', // Pending until payment
+      status: 'pending',
       paymentStatus: 'pending'
     });
 
     const savedBooking = await booking.save();
-
-    // Increment Coupon usage if applied
     if (couponCode && offerDetails) {
-      await Offer.findByIdAndUpdate(
-        offerDetails._id,
-        { $inc: { usageCount: 1 } }
-      );
+      await Offer.findByIdAndUpdate(offerDetails._id, { $inc: { usageCount: 1 } });
     }
 
-    console.log('✅ Booking created:', savedBooking.bookingId);
+    console.log('✅ Booking Created:', savedBooking.bookingId);
 
     res.status(201).json({
       success: true,
       booking: savedBooking,
       pricingBreakdown: {
         baseAmount: finalBaseAmount,
-        discount: discount,
-        userPays: userPayableAmount,
-        partnerGets: partnerEarning,
-        adminCommission: adminCommissionOnBase,
-        adminNet: adminNetEarning
+        discount,
+        userPays: userPayableAmount
       }
     });
 
@@ -240,11 +245,6 @@ export const createBooking = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get my bookings
- * @route   GET /api/bookings/my-bookings
- * @access  Private
- */
 export const getMyBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ userId: req.user._id })
@@ -257,14 +257,8 @@ export const getMyBookings = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get partner bookings
- * @route   GET /api/bookings/partner/all
- * @access  Private (Partner)
- */
 export const getPartnerBookings = async (req, res) => {
   try {
-    // Get properties owned by this partner (Updated to Property model)
     const myProperties = await Property.find({ ownerId: req.user._id });
     const propertyIds = myProperties.map(p => p._id);
 

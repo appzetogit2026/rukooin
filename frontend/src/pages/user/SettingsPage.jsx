@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Lock, Globe, Moon, CreditCard, ChevronRight, LogOut } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const SettingsPage = () => {
     const navigate = useNavigate();

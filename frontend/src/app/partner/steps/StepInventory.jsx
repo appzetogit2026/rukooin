@@ -14,6 +14,26 @@ const StepInventory = () => {
   const isHostel = propertyCategory === 'Hostel';
   const isVilla = propertyCategory === 'Villa'; // Homestay might act like Villa or Hotel depending on room based or not, treating Villa explicitly here.
 
+  const [currentItem, setCurrentItem] = useState({
+    name: '',
+    type: 'Room',
+    capacity: 4,
+    count: 1,
+    price: '',
+    monthlyPrice: '',
+    gender: isHostel ? (formData.config?.hostelType === 'Boys' ? 'Male' : formData.config?.hostelType === 'Girls' ? 'Female' : 'Mixed') : 'Any',
+    images: []
+  });
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    if (isFormOpen && isHostel) {
+      const hType = formData.config?.hostelType;
+      const gender = hType === 'Boys' ? 'Male' : hType === 'Girls' ? 'Female' : 'Mixed';
+      setCurrentItem(prev => ({ ...prev, gender }));
+    }
+  }, [formData.config?.hostelType, isFormOpen, isHostel]);
+
   // --- VILLA PRICING MODE ---
   if (isVilla) {
     const handlePricingChange = (e) => {
@@ -135,15 +155,7 @@ const StepInventory = () => {
     images: [],
   };
 
-  const [currentItem, setCurrentItem] = useState(defaultItem);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-
-  // Effect to update gender if hostel type changes (though unlikely during step)
-  useEffect(() => {
-    if (isFormOpen && isHostel) {
-      setCurrentItem(prev => ({ ...prev, gender: getDefaultGender() }));
-    }
-  }, [formData.config?.hostelType, isFormOpen]);
+  // Hooks moved above to satisfy rules-of-hooks
 
 
   const handleEdit = (index) => {

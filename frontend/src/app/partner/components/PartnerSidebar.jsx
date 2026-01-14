@@ -1,90 +1,78 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import gsap from 'gsap';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, User, Building, List,
     CreditCard, History, Shield,
     FileText, HelpCircle, LogOut,
     LayoutDashboard,
-    ChevronRight, Wallet, Bell, Settings
+    ChevronRight, Wallet, Bell, Settings, Edit3
 } from 'lucide-react';
 import usePartnerStore from '../store/partnerStore';
+import logo from '../../../assets/rokologin-removebg-preview.png';
 
 const PartnerSidebar = ({ isOpen, onClose }) => {
-    const sidebarRef = useRef(null);
-    const backdropRef = useRef(null);
-    const contentRef = useRef(null);
     const navigate = useNavigate();
-    const { formData } = usePartnerStore(); // Get user details if available
+    const { formData } = usePartnerStore();
 
+    // Disable body scroll when sidebar is open
     useEffect(() => {
         if (isOpen) {
-            // Save current scroll position and lock body
             const scrollY = window.scrollY;
             document.body.style.position = 'fixed';
             document.body.style.top = `-${scrollY}px`;
             document.body.style.width = '100%';
             document.body.style.overflow = 'hidden';
-
-            // Animation In
-            const tl = gsap.timeline();
-            tl.to(backdropRef.current, {
-                opacity: 1,
-                duration: 0.3,
-                display: 'block',
-                ease: 'power2.out'
-            })
-                .to(sidebarRef.current, {
-                    x: '0%',
-                    duration: 0.4,
-                    ease: 'power3.out'
-                }, '-=0.2')
-                .fromTo(contentRef.current.children, {
-                    opacity: 0,
-                    x: 20
-                }, {
-                    opacity: 1,
-                    x: 0,
-                    duration: 0.3,
-                    stagger: 0.05,
-                    ease: 'power2.out'
-                }, '-=0.2');
-
         } else {
-            // Animation Out
-            const tl = gsap.timeline({
-                onComplete: () => {
-                    if (backdropRef.current) backdropRef.current.style.display = 'none';
-
-                    // Restore scroll position
-                    const scrollY = document.body.style.top;
-                    document.body.style.position = '';
-                    document.body.style.top = '';
-                    document.body.style.width = '';
-                    document.body.style.overflow = '';
-
-                    if (scrollY) {
-                        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-                    }
-                }
-            });
-            tl.to(sidebarRef.current, {
-                x: '100%',
-                duration: 0.3,
-                ease: 'power3.in'
-            })
-                .to(backdropRef.current, {
-                    opacity: 0,
-                    duration: 0.3
-                }, '-=0.1');
+            const scrollY = document.body.style.top;
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.overflow = '';
+            if (scrollY) {
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
         }
+        return () => {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.overflow = '';
+        };
     }, [isOpen]);
 
     const handleNavigation = (path) => {
-        onClose();
-        // Allow animation to start then navigate
-        setTimeout(() => navigate(path), 300);
+        if (path) {
+            navigate(path);
+            onClose();
+        }
     };
+
+    const handleLogout = () => {
+        // Clear everything
+        localStorage.clear();
+        usePartnerStore.getState().resetForm();
+        onClose();
+        navigate('/hotel/login');
+    };
+
+    const MenuItem = ({ icon: Icon, label, path, badge }) => (
+        <button
+            onClick={() => handleNavigation(path)}
+            className="flex items-center gap-4 w-full p-2.5 hover:bg-gray-50 rounded-xl transition-all group active:scale-95"
+        >
+            <div className="w-8 h-8 rounded-full bg-[#004F4D]/5 flex items-center justify-center group-hover:bg-[#004F4D]/10 transition-colors">
+                <Icon size={16} className="text-[#004F4D]" />
+            </div>
+            <span className="flex-1 text-left font-medium text-gray-700 text-sm">{label}</span>
+            {badge && (
+                <span className="text-[10px] font-bold bg-[#004F4D] text-white px-2 py-0.5 rounded-full">
+                    {badge}
+                </span>
+            )}
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-[#004F4D] transition-colors" />
+        </button>
+    );
 
     const menuGroups = [
         {
@@ -96,9 +84,8 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
         {
             title: 'Growth & Finance',
             items: [
-                { icon: Wallet, label: 'Wallet & Payouts', path: '/hotel/wallet', badge: '₹0.00' },
+                { icon: Wallet, label: 'Wallet', path: '/hotel/wallet' },
                 { icon: History, label: 'Booking History', path: '/hotel/bookings' },
-                { icon: CreditCard, label: 'Transactions', path: '/hotel/transactions' },
             ]
         },
         {
@@ -106,13 +93,12 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
             items: [
                 { icon: Building, label: 'My Properties', path: '/hotel/properties' },
                 { icon: List, label: 'Reviews & Ratings', path: '/hotel/reviews' },
-                { icon: Bell, label: 'Notifications', path: '/hotel/notifications', badge: '2' },
+                { icon: Bell, label: 'Notifications', path: '/hotel/notifications' },
             ]
         },
         {
             title: 'Support & Legal',
             items: [
-                { icon: Shield, label: 'KYC & Verification', path: '/hotel/kyc', status: 'Pending' },
                 { icon: HelpCircle, label: 'Help & Support', path: '/hotel/support' },
                 { icon: FileText, label: 'Terms & Conditions', path: '/hotel/terms' },
                 { icon: Settings, label: 'Settings', path: '/hotel/settings' },
@@ -121,119 +107,88 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] pointer-events-none">
-            {/* Backdrop */}
-            <div
-                ref={backdropRef}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 hidden pointer-events-auto transition-opacity"
-            />
-
-            {/* Sidebar */}
-            <div
-                ref={sidebarRef}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute top-0 right-0 bottom-0 w-[85%] max-w-md bg-white shadow-2xl translate-x-full pointer-events-auto flex flex-col z-[101]"
-            >
-                {/* Header */}
-                <div className="p-6 pb-4 border-b border-gray-100 flex items-start justify-between bg-white z-10">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#004F4D] text-white flex items-center justify-center text-lg font-bold">
-                            {/* Initials */}
-                            {formData?.propertyName ? formData.propertyName.substring(0, 2).toUpperCase() : 'JD'}
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-black text-[#003836] leading-tight">
-                                {formData?.propertyName || 'Partner Account'}
-                            </h2>
-                            <p className="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                                Verified Partner
-                            </p>
-                        </div>
-                    </div>
-                    <button
+        <AnimatePresence>
+            {isOpen && (
+                <>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
                         onClick={onClose}
-                        className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
-                    >
-                        <X size={24} />
-                    </button>
-                </div>
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+                        style={{ pointerEvents: 'auto' }}
+                    />
 
-                {/* Scrollable Content */}
-                <div ref={contentRef} className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-6" style={{ touchAction: 'pan-y' }}>
-                    {/* View Profile Card */}
-                    <div
-                        onClick={() => handleNavigation('/hotel/profile')}
-                        className="bg-[#004F4D] text-white p-4 rounded-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-transform"
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
+                        className="fixed top-0 right-0 h-full w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain shadow-2xl"
+                        style={{ touchAction: 'pan-y' }}
+                        onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/10 rounded-full">
-                                <User size={20} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-sm">View Profile</h3>
-                                <p className="text-xs text-gray-400">Manage account details</p>
-                            </div>
+                        <div className="flex items-center justify-between p-5 pb-2">
+                            <img src={logo} alt="Rukko" className="h-8 object-contain" />
+                            <button onClick={onClose} className="p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition border border-gray-100">
+                                <X size={20} className="text-gray-500" />
+                            </button>
                         </div>
-                        <ChevronRight size={16} className="text-gray-400" />
-                    </div>
 
-                    {/* Menu Groups */}
-                    {menuGroups.map((group, idx) => (
-                        <div key={idx}>
-                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 px-2">
-                                {group.title}
-                            </h4>
-                            <div className="space-y-1">
-                                {group.items.map((item, idy) => (
-                                    <button
-                                        key={idy}
-                                        onClick={() => handleNavigation(item.path)}
-                                        className="w-full p-3 rounded-xl hover:bg-gray-50 flex items-center justify-between group transition-colors active:scale-[0.98]"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-gray-400 group-hover:text-[#004F4D] transition-colors">
-                                                <item.icon size={18} />
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-700 group-hover:text-[#004F4D]">
-                                                {item.label}
-                                            </span>
+                        <div className="px-5 mb-6">
+                            <div className="bg-gradient-to-br from-[#004F4D] to-teal-700 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+
+                                <div className="flex items-start justify-between relative z-10">
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 backdrop-blur-sm">
+                                            <User size={22} className="text-white" />
                                         </div>
-                                        {item.badge && (
-                                            <span className="text-[10px] font-bold bg-[#004F4D] text-white px-2 py-0.5 rounded-full">
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                        {item.status && (
-                                            <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
-                                                {item.status}
-                                            </span>
-                                        )}
+                                        <div className="flex-1 overflow-hidden">
+                                            <h3 className="font-bold text-base leading-tight truncate">
+                                                {formData?.full_name || formData?.owner_name || 'Partner'}
+                                            </h3>
+                                            <p className="text-[10px] text-white/80 mt-0.5 truncate">
+                                                {formData?.email || 'Manage Account'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleNavigation('/hotel/profile')}
+                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm"
+                                    >
+                                        <Edit3 size={14} className="text-white" />
                                     </button>
-                                ))}
+                                </div>
                             </div>
                         </div>
-                    ))}
-                </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                        onClick={() => {
-                            // Handle logout logic here
-                            navigate('/hotel');
-                        }}
-                        className="w-full flex items-center justify-center gap-2 p-3 text-red-600 font-bold hover:bg-red-50 rounded-xl transition-colors"
-                    >
-                        <LogOut size={18} />
-                        Logout
-                    </button>
-                    <p className="text-[10px] text-center text-gray-400 mt-2">
-                        Version 1.0.0 • Partner App
-                    </p>
-                </div>
-            </div>
-        </div>
+                        <div className="px-5 space-y-5 pb-10">
+                            {menuGroups.map((group, idx) => (
+                                <div key={idx}>
+                                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">
+                                        {group.title}
+                                    </h4>
+                                    <div className="flex flex-col gap-1">
+                                        {group.items.map((item, idy) => <MenuItem key={idy} {...item} />)}
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="pt-2 border-t border-gray-100">
+                                <button onClick={handleLogout} className="mt-2 flex items-center gap-2 text-red-500 font-medium text-xs px-2 hover:opacity-80">
+                                    <LogOut size={14} /> Log Out
+                                </button>
+                                <p className="text-[10px] text-gray-400 mt-4 px-2">
+                                    Partner App • v1.0.0
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
     );
 };
 

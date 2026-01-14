@@ -15,8 +15,10 @@ const HotelLoginPage = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        if (token) {
-            navigate('/hotel/dashboard');
+        const userRaw = localStorage.getItem('user');
+        const user = userRaw ? JSON.parse(userRaw) : null;
+        if (token && user && user.role === 'partner' && user.partnerApprovalStatus === 'approved') {
+            navigate('/hotel/dashboard', { replace: true });
         }
     }, [navigate]);
 
@@ -83,22 +85,22 @@ const HotelLoginPage = () => {
         <div className="min-h-screen bg-white text-[#003836] flex flex-col font-sans selection:bg-[#004F4D] selection:text-white">
 
             {/* Top Bar - Centered Logo */}
-            <header className="px-6 pt-8 pb-4 flex justify-center items-center">
+            <header className="px-6 pt-0 pb-2 flex justify-center items-center">
                 <div className="flex items-center justify-center">
-                    <img src={logo} alt="Rukkoin" className="h-12 w-auto object-contain" />
+                    <img src={logo} alt="Rukkoin" className="h-28 w-auto object-contain" />
                 </div>
             </header>
 
             {/* Content Area */}
-            <main className="flex-1 flex flex-col justify-center px-6 max-w-lg mx-auto w-full relative pt-4">
+            <main className="flex-1 flex flex-col justify-center px-8 max-w-sm mx-auto w-full relative">
 
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-8 text-center"
+                    className="mb-8 text-center space-y-1"
                 >
-                    <h1 className="text-3xl font-bold text-[#003836] mb-2">Partner Login</h1>
-                    <p className="text-gray-500 font-medium">Log in to manage your property</p>
+                    <h1 className="text-xl font-bold text-[#003836]">Partner Login</h1>
+                    <p className="text-gray-400 text-xs font-medium">Log in to manage your property</p>
                 </motion.div>
 
                 {/* Form Area */}
@@ -111,15 +113,15 @@ const HotelLoginPage = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="flex-1"
                         >
-                            <form onSubmit={handleSendOTP} className="space-y-6">
+                            <form onSubmit={handleSendOTP} className="space-y-5">
 
                                 <div>
-                                    <label className="text-[#003836] font-bold text-sm block mb-2">
+                                    <label className="text-[#003836] font-bold text-[10px] uppercase tracking-wider block mb-1.5 ml-1">
                                         Mobile Number
                                     </label>
-                                    <div className="flex items-center bg-gray-50/50 rounded-2xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#004F4D]/20 focus-within:border-[#004F4D] transition-all h-14">
-                                        <div className="pl-5 text-gray-500 font-bold border-r border-gray-200 pr-3 h-full flex items-center bg-gray-100/50">
-                                            <span className="text-sm">+91</span>
+                                    <div className="flex items-center bg-gray-50/50 rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#004F4D]/10 focus-within:border-[#004F4D] transition-all h-12">
+                                        <div className="pl-4 text-gray-500 font-bold border-r border-gray-100 pr-3 h-full flex items-center bg-gray-100/30">
+                                            <span className="text-xs">+91</span>
                                         </div>
                                         <input
                                             type="tel"
@@ -129,29 +131,29 @@ const HotelLoginPage = () => {
                                                 if (val.length <= 10) setPhone(val);
                                             }}
                                             placeholder="Enter 10-digit number"
-                                            className="flex-1 bg-transparent px-4 text-[#003836] font-bold placeholder:text-gray-300 outline-none w-full h-full text-lg"
+                                            className="flex-1 bg-transparent px-3 text-[#003836] font-bold placeholder:text-gray-300 outline-none w-full h-full text-sm"
                                             required
                                         />
                                     </div>
                                 </div>
 
                                 {error && (
-                                    <p className="text-red-500 text-sm font-bold bg-red-50 py-3 px-4 rounded-xl border border-red-100">
+                                    <p className="text-red-500 text-[10px] font-bold bg-red-50 py-2 px-3 rounded-lg border border-red-100">
                                         {error}
                                     </p>
                                 )}
 
-                                <div className="pt-4">
+                                <div className="pt-2">
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full bg-[#004F4D] text-white h-14 rounded-2xl font-bold text-lg shadow-lg shadow-[#004F4D]/20 hover:shadow-[#004F4D]/30 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="w-full bg-[#004F4D] text-white h-12 rounded-xl font-bold text-sm shadow-lg shadow-[#004F4D]/20 hover:shadow-[#004F4D]/30 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {loading ? (
-                                            <Loader2 size={24} className="animate-spin" />
+                                            <Loader2 size={18} className="animate-spin" />
                                         ) : (
                                             <>
-                                                Continue <ArrowRight size={20} />
+                                                Continue <ArrowRight size={16} />
                                             </>
                                         )}
                                     </button>
@@ -166,17 +168,17 @@ const HotelLoginPage = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="flex-1"
                         >
-                            <div className="mb-8 bg-green-50/50 p-6 rounded-3xl border border-green-100 text-center">
-                                <div className="w-12 h-12 bg-[#004F4D]/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <Shield size={24} className="text-[#004F4D]" />
+                            <div className="mb-6 bg-green-50/50 p-4 rounded-2xl border border-green-100 text-center">
+                                <div className="w-10 h-10 bg-[#004F4D]/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                                    <Shield size={20} className="text-[#004F4D]" />
                                 </div>
-                                <h2 className="text-lg font-bold text-[#003836]">Enter OTP</h2>
-                                <p className="text-gray-500 text-sm mt-1">
+                                <h2 className="text-base font-bold text-[#003836]">Enter OTP</h2>
+                                <p className="text-gray-500 text-xs mt-1">
                                     Code sent to <span className="text-[#003836] font-bold">+91 {phone}</span>
                                 </p>
                             </div>
 
-                            <form onSubmit={handleVerifyOTP} className="space-y-8">
+                            <form onSubmit={handleVerifyOTP} className="space-y-6">
                                 <div className="flex gap-2 justify-center">
                                     {otp.map((digit, index) => (
                                         <input
@@ -192,26 +194,26 @@ const HotelLoginPage = () => {
                                                     document.getElementById(`otp-${index - 1}`)?.focus();
                                                 }
                                             }}
-                                            className="w-12 h-14 md:w-14 md:h-16 bg-white border-2 border-gray-200 rounded-2xl text-center text-[#003836] text-2xl font-black focus:border-[#004F4D] focus:ring-4 focus:ring-[#004F4D]/10 outline-none transition-all shadow-sm"
+                                            className="w-10 h-12 bg-white border border-gray-200 rounded-xl text-center text-[#003836] text-xl font-bold focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all shadow-sm"
                                             autoFocus={index === 0}
                                         />
                                     ))}
                                 </div>
 
                                 {error && (
-                                    <p className="text-red-500 text-sm font-bold text-center bg-red-50 py-3 rounded-xl border border-red-100">
+                                    <p className="text-red-500 text-xs font-bold text-center bg-red-50 py-2 rounded-lg border border-red-100">
                                         {error}
                                     </p>
                                 )}
 
-                                <div className="space-y-4 pt-4">
+                                <div className="space-y-3 pt-2">
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full bg-[#004F4D] text-white h-14 rounded-2xl font-bold text-lg shadow-lg shadow-[#004F4D]/20 hover:shadow-[#004F4D]/30 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="w-full bg-[#004F4D] text-white h-12 rounded-xl font-bold text-sm shadow-lg shadow-[#004F4D]/20 hover:shadow-[#004F4D]/30 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {loading ? (
-                                            <Loader2 size={24} className="animate-spin" />
+                                            <Loader2 size={18} className="animate-spin" />
                                         ) : (
                                             'Verify & Login'
                                         )}
@@ -220,7 +222,7 @@ const HotelLoginPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setStep(1)}
-                                        className="w-full text-gray-400 text-sm font-bold hover:text-[#004F4D] transition-colors"
+                                        className="w-full text-gray-400 text-xs font-bold hover:text-[#004F4D] transition-colors"
                                     >
                                         Change Mobile Number
                                     </button>

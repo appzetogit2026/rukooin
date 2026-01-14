@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     TrendingUp, DollarSign, Calendar, Download, Filter,
     ArrowUpRight, CreditCard, Building2, ShoppingBag
 } from 'lucide-react';
+import adminService from '../../../services/adminService';
+import toast from 'react-hot-toast';
 
 const EarningStatCard = ({ title, value, subtext, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start justify-between">
@@ -19,20 +21,37 @@ const EarningStatCard = ({ title, value, subtext, icon: Icon, color }) => (
 );
 
 const AdminEarnings = () => {
-    const [filter, setFilter] = useState('ALL'); // ALL, BOOKING, REGISTRATION
+    const [filter, setFilter] = useState('ALL');
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState(null);
+    const [transactions, setTransactions] = useState([]);
+    const commissionRate = 0.20;
 
-    // Mock Earnings Data
-    const earnings = [
-        { id: "TXN-1001", source: "Booking #BK-90123", type: "BOOKING_COMMISSION", hotel: "Grand Palace Hotel", amount: "₹1,240", date: "15 Oct 2024", status: "CLEARED" },
-        { id: "TXN-1002", source: "New Hotel Registration", type: "REGISTRATION_FEE", hotel: "Ocean View Resort", amount: "₹5,000", date: "14 Oct 2024", status: "CLEARED" },
-        { id: "TXN-1003", source: "Booking #BK-90124", type: "BOOKING_COMMISSION", hotel: "Grand Palace Hotel", amount: "₹850", date: "12 Oct 2024", status: "PENDING" },
-        { id: "TXN-1004", source: "Market Price Subscription", type: "MARKET_INTEL", hotel: "Mountain Retreat", amount: "₹8,000", date: "10 Oct 2024", status: "CLEARED" },
-        { id: "TXN-1005", source: "Premium Plan Upgrade", type: "SUBSCRIPTION", hotel: "City Inn", amount: "₹2,500", date: "09 Oct 2024", status: "CLEARED" },
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return;
+            try {
+                setLoading(true);
+                const data = await adminService.getDashboardStats();
+                if (data.success) {
+                    setStats(data.stats);
+                    setTransactions(data.recentBookings || []);
+                }
+            } catch (error) {
+                if (error.response?.status !== 401) {
+                    toast.error('Failed to load earnings data');
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
-    const filteredEarnings = filter === 'ALL' ? earnings : earnings.filter(e =>
-        filter === 'BOOKING' ? e.type === 'BOOKING_COMMISSION' : e.type !== 'BOOKING_COMMISSION'
-    );
+    const filteredTransactions = filter === 'ALL'
+        ? transactions
+        : transactions.filter(() => filter === 'BOOKING' ? true : false);
 
     return (
         <div className="space-y-6">
@@ -62,22 +81,22 @@ const AdminEarnings = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <EarningStatCard
                     title="Total Earning"
-                    value="₹4,25,000"
-                    subtext="+12% this month"
+                    value={`₹${(stats?.totalRevenue || 0).toLocaleString()}`}
+                    subtext=""
                     icon={DollarSign}
                     color="bg-emerald-600"
                 />
                 <EarningStatCard
                     title="From Bookings (15%)"
-                    value="₹3,10,000"
-                    subtext="245 Commissions"
+                    value={`₹${Math.round((stats?.totalRevenue || 0) * commissionRate).toLocaleString()}`}
+                    subtext={`${stats?.confirmedBookings || 0} Commissions`}
                     icon={ShoppingBag}
                     color="bg-blue-600"
                 />
                 <EarningStatCard
                     title="From Onboarding"
-                    value="₹1,15,000"
-                    subtext="23 New Hotels"
+                    value="₹0"
+                    subtext=""
                     icon={Building2}
                     color="bg-purple-600"
                 />
@@ -137,10 +156,10 @@ const AdminEarnings = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm font-bold text-gray-900">Room Bookings</p>
-                                    <p className="text-xs text-gray-500">15% Commission</p>
+                                    <p className="text-xs text-gray-500">Platform Commission</p>
                                 </div>
                             </div>
-                            <span className="font-bold text-gray-900">73%</span>
+                            <span className="font-bold text-gray-900">—</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center gap-3">
@@ -152,14 +171,14 @@ const AdminEarnings = () => {
                                     <p className="text-xs text-gray-500">One-time Fee</p>
                                 </div>
                             </div>
-                            <span className="font-bold text-gray-900">27%</span>
+                            <span className="font-bold text-gray-900">—</span>
                         </div>
                     </div>
                     <div className="mt-6 pt-6 border-t border-gray-100">
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-semibold">Projected (Nov)</p>
-                                <p className="text-2xl font-bold text-gray-900">₹5,20,000</p>
+                                <p className="text-2xl font-bold text-gray-900">₹0</p>
                             </div>
                             <TrendingUp size={24} className="text-green-500 mb-1" />
                         </div>
@@ -185,26 +204,31 @@ const AdminEarnings = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredEarnings.map((item, i) => (
+                            {loading ? (
+                                [1, 2, 3, 4].map(i => (
+                                    <tr key={i} className="hover:bg-gray-50">
+                                        <td colSpan="6" className="p-4">
+                                            <div className="h-10 bg-gray-50 animate-pulse rounded-lg"></div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : filteredTransactions.map((b, i) => (
                                 <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-4 font-mono text-xs text-gray-500">{item.id}</td>
+                                    <td className="p-4 font-mono text-xs text-gray-500">{b.bookingId || b._id?.slice(-8)}</td>
                                     <td className="p-4">
-                                        <p className="font-medium text-gray-900">{item.source}</p>
+                                        <p className="font-medium text-gray-900">Booking by {b.userId?.name || 'Guest'}</p>
                                     </td>
                                     <td className="p-4">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.type === 'BOOKING_COMMISSION'
-                                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                            : 'bg-purple-50 text-purple-700 border border-purple-100'
-                                            }`}>
-                                            {item.type.replace('_', ' ')}
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                            BOOKING COMMISSION
                                         </span>
                                     </td>
-                                    <td className="p-4 text-gray-600">{item.hotel}</td>
+                                    <td className="p-4 text-gray-600">{b.hotelId?.name || 'Unknown Hotel'}</td>
                                     <td className="p-4 text-right font-bold text-emerald-600">
-                                        +{item.amount}
+                                        +₹{Math.round((b.totalAmount || 0) * commissionRate).toLocaleString()}
                                     </td>
                                     <td className="p-4 text-center text-gray-500 text-xs">
-                                        {item.date}
+                                        {new Date(b.createdAt).toLocaleDateString()}
                                     </td>
                                 </tr>
                             ))}

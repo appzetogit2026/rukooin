@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, CreditCard, ShieldCheck, Smartphone, CheckCircle, Tag, TrendingDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, CreditCard, ShieldCheck, Tag, TrendingDown } from 'lucide-react';
 import RazorpayButton from '../../components/payment/RazorpayButton';
 import { toast } from 'react-hot-toast';
 

@@ -33,7 +33,7 @@ const StepHotelPolicies = () => {
         policies: { ...policies, ...updates }
       });
     }
-  }, []);
+  }, [policies, updateFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

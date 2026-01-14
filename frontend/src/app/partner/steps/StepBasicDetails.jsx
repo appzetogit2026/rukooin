@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { MapPin, Search, Navigation } from 'lucide-react';
 import { hotelService } from '../../../services/apiService';
@@ -6,7 +6,7 @@ import debounce from 'lodash.debounce';
 
 const StepBasicDetails = () => {
   const { formData, updateFormData } = usePartnerStore();
-  const { name, description, shortDescription, propertyCategory, address, status, location } = formData;
+  const { name, description, shortDescription, propertyCategory, address } = formData;
   const [searchTerm, setSearchTerm] = useState('');
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -94,7 +94,7 @@ const StepBasicDetails = () => {
           setDetecting(false);
         }
       },
-      (error) => {
+      () => {
         alert('Unable to retrieve your location');
         setDetecting(false);
       }

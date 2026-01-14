@@ -1,33 +1,60 @@
 import React from 'react';
 import { User, Globe } from 'lucide-react';
 import logo from '../../assets/rokologin-removebg-preview.png';
+import { Link } from 'react-router-dom';
 
 const TopNavbar = () => {
-    return (
-        <nav className="hidden md:flex w-full h-16 bg-white/10 backdrop-blur-md border-b border-white/10 px-8 justify-between items-center fixed top-0 z-50">
+    // Get user from local storage
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = user.name || 'User';
 
-            {/* Scroll-aware logo can be added here, for now static */}
-            <img src={logo} alt="Rukko" className="h-10 object-contain" />
+    return (
+        <nav className="hidden md:flex w-full h-16 bg-white/95 backdrop-blur-md border-b border-gray-100 px-8 justify-between items-center fixed top-0 z-50">
+
+            {/* Logo */}
+            <Link to="/">
+                <img src={logo} alt="Rukko" className="h-10 object-contain" />
+            </Link>
 
             {/* Desktop Links */}
             <div className="flex items-center gap-8">
-                {['Home', 'Bookings', 'Corporates', 'List your property'].map((item) => (
-                    <a key={item} href="#" className="text-surface font-semibold text-sm hover:text-accent transition">
-                        {item}
-                    </a>
-                ))}
+                <Link to="/" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                    Home
+                </Link>
+                <Link to="/listings" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                    Search
+                </Link>
+                <Link to="/bookings" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                    Bookings
+                </Link>
+                <Link to="/wallet" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                    Wallet
+                </Link>
+                <Link to="/refer" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                    Refer & Earn
+                </Link>
             </div>
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
-                <button className="flex items-center gap-2 text-surface font-semibold text-sm">
-                    <Globe size={18} />
-                    EN
-                </button>
-                <button className="px-4 py-2 bg-surface text-white rounded-lg font-bold text-sm shadow-lg hover:bg-surface/90 transition flex items-center gap-2">
-                    <User size={18} />
-                    Login / Signup
-                </button>
+                <Link
+                    to="/saved-places"
+                    className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition"
+                >
+                    <Globe size={18} className="text-surface" />
+                </Link>
+
+                <Link
+                    to="/settings"
+                    className="pl-3 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-full flex items-center gap-3 hover:border-surface transition group"
+                >
+                    <div className="w-8 h-8 rounded-full bg-surface text-white flex items-center justify-center font-bold text-xs">
+                        {userName.charAt(0)}
+                    </div>
+                    <span className="text-sm font-bold text-surface group-hover:text-surface/80">
+                        {userName.split(' ')[0]}
+                    </span>
+                </Link>
             </div>
 
         </nav>

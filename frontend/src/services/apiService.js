@@ -50,13 +50,6 @@ export const authService = {
   verifyPartnerOtp: async (data) => {
     try {
       const response = await api.post('/auth/partner/verify-otp', data);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        if (response.data.hotelId) {
-          localStorage.setItem('primaryHotelId', response.data.hotelId);
-        }
-      }
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -184,9 +177,11 @@ export const hotelService = {
       return response.data;
     } catch (error) {
       console.warn("Draft Save Error:", error);
-      // Return null or throw depending on how you want to handle it. 
-      // JoinRokkooin expects a response or throws.
-      // If we throw here, the component catches it.
+      if (error.response && error.response.status === 404) {
+        const errObj = typeof error.response.data === 'object' ? { ...error.response.data } : { message: error.response.data };
+        errObj.status = 404;
+        throw errObj;
+      }
       throw error.response?.data || error.message;
     }
   },
@@ -295,4 +290,3 @@ export const offerService = {
 };
 
 export default api;
-

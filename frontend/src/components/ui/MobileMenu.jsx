@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3 } from 'lucide-react';
 import logo from '../../assets/rokologin-removebg-preview.png';
@@ -7,19 +7,16 @@ import { useNavigate } from 'react-router-dom';
 
 const MobileMenu = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        // Get user from localStorage
+    const user = React.useMemo(() => {
         const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            try {
-                setUser(JSON.parse(savedUser));
-            } catch (error) {
-                console.error('Error parsing user data:', error);
-            }
+        if (!savedUser) return null;
+        try {
+            return JSON.parse(savedUser);
+        } catch (error) {
+            console.error('Error parsing user data:', error);
+            return null;
         }
-    }, [isOpen]); // Re-check when menu opens
+    }, []);
 
     // Disable body scroll when sidebar is open
     useEffect(() => {
@@ -63,8 +60,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
     ];
 
     const growthItems = [
-        { icon: Building, label: 'List your property', path: '/partner-landing' },
-        { icon: Briefcase, label: 'Corporates / Partner', path: '/partner-landing' },
         { icon: Gift, label: 'Refer & Earn', path: '/refer' },
     ];
 
@@ -86,7 +81,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
         }
     };
 
-    const MenuItem = ({ icon: Icon, label, path, onClick }) => (
+    const MenuItem = ({ icon: Icon, label, path }) => (
         <button
             onClick={() => handleNavigation(path)}
             className="flex items-center gap-4 w-full p-2.5 hover:bg-gray-50 rounded-xl transition-all group active:scale-95"
@@ -101,7 +96,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
 
     const handleLogout = () => {
         localStorage.clear();
-        setUser(null);
         onClose();
         navigate('/login');
     };

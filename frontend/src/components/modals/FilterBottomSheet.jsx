@@ -16,23 +16,19 @@ const FilterBottomSheet = ({
     filteredCount = 0
 }) => {
     // Refs for scrolling
-    const sectionRefs = {
-        "Locality": useRef(null),
-        "Price": useRef(null),
-        "Categories": useRef(null),
-        "Trending": useRef(null),
-        "Collections": useRef(null),
-        "HotelFacilities": useRef(null),
-        "RoomFacilities": useRef(null),
-        "Amenities": useRef(null),
-        "Type": useRef(null),
+    const sectionRefs = useRef({});
+
+    const setSectionRef = (key) => (el) => {
+        if (el) {
+            sectionRefs.current[key] = el;
+        }
     };
 
     // Scroll to section on open
     useEffect(() => {
-        if (isOpen && scrollToSection && sectionRefs[scrollToSection]?.current) {
+        if (isOpen && scrollToSection && sectionRefs.current[scrollToSection]) {
             setTimeout(() => {
-                sectionRefs[scrollToSection].current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                sectionRefs.current[scrollToSection].scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 300);
         }
     }, [isOpen, scrollToSection]);
@@ -121,7 +117,7 @@ const FilterBottomSheet = ({
                         <div className="overflow-y-auto p-5 pb-24 space-y-8 scroll-smooth">
 
                             {/* Popular Localities */}
-                            <section ref={sectionRefs["Locality"]}>
+                            <section ref={setSectionRef("Locality")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Popular localities in Indore</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {localities.map(loc => (
@@ -163,7 +159,7 @@ const FilterBottomSheet = ({
                             <hr className="border-gray-100" />
 
                             {/* Trending Filters */}
-                            <section ref={sectionRefs["Trending"]}>
+                            <section ref={setSectionRef("Trending")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Trending filters</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {trendingFilters.map(filter => (
@@ -182,7 +178,7 @@ const FilterBottomSheet = ({
                             </section>
 
                             {/* Categories */}
-                            <section ref={sectionRefs["Categories"]}>
+                            <section ref={setSectionRef("Categories")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Categories</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {categories.map(cat => (
@@ -201,7 +197,7 @@ const FilterBottomSheet = ({
                             </section>
 
                             {/* Collections */}
-                            <section ref={sectionRefs["Collections"]}>
+                            <section ref={setSectionRef("Collections")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Collections</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {collections.map(col => (
@@ -220,7 +216,7 @@ const FilterBottomSheet = ({
                             </section>
 
                             {/* Hotel Facilities */}
-                            <section ref={sectionRefs["HotelFacilities"]}>
+                            <section ref={setSectionRef("HotelFacilities")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Hotel Facilities</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {["Parking", "Kitchen", "CCTV Cameras", "Power backup"].map(fac => (
@@ -239,7 +235,7 @@ const FilterBottomSheet = ({
                             </section>
 
                             {/* Room Facilities */}
-                            <section ref={sectionRefs["RoomFacilities"]}>
+                            <section ref={setSectionRef("RoomFacilities")}>
                                 <h3 className="font-bold text-lg text-surface mb-3">Room Facilities</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {["TV", "AC", "Geyser", "Mini Fridge"].map(fac => (
@@ -258,7 +254,7 @@ const FilterBottomSheet = ({
                             </section>
 
                             {/* Price Range (Functional Dual Slider) */}
-                            <section ref={sectionRefs["Price"]}>
+                            <section ref={setSectionRef("Price")}>
                                 <h3 className="font-bold text-lg text-surface mb-5">Price Range</h3>
                                 <div className="flex flex-col gap-6 px-2">
 
