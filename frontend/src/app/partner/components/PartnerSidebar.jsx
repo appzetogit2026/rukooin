@@ -116,16 +116,16 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000]"
                         style={{ pointerEvents: 'auto' }}
                     />
 
                     <motion.div
-                        initial={{ x: '100%' }}
+                        initial={{ x: '-100%' }}
                         animate={{ x: 0 }}
-                        exit={{ x: '100%' }}
+                        exit={{ x: '-100%' }}
                         transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
-                        className="fixed top-0 right-0 h-full w-[85%] max-w-[300px] bg-white z-[101] overflow-y-auto overscroll-contain shadow-2xl"
+                        className="fixed top-0 left-0 h-full w-[85%] max-w-[300px] bg-white z-[2001] overflow-y-auto overscroll-contain shadow-2xl"
                         style={{ touchAction: 'pan-y' }}
                         onClick={(e) => e.stopPropagation()}
                     >

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
     Calendar, User, Phone,
-    Clock, MapPin, ChevronRight, Search, Filter, BedDouble, Menu, Wallet
+    Clock, MapPin, ChevronRight, BedDouble
 } from 'lucide-react';
 import { bookingService } from '../../../services/apiService';
-import logo from '../../../assets/rokologin-removebg-preview.png';
-import { useNavigate } from 'react-router-dom';
+import PartnerHeader from '../components/PartnerHeader';
 
 // --- Card Component ---
 const BookingCard = ({ booking }) => {
@@ -84,7 +83,7 @@ const BookingCard = ({ booking }) => {
             {/* Earning Section */}
             <div className="flex items-center justify-between pt-3 border-t border-dashed border-gray-200 mb-4">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Earning</span>
-                <span className="font-black text-[#004F4D] text-lg">₹{booking.partnerEarning || 0}</span>
+                <span className="font-black text-[#004F4D] text-lg">₹{booking.pricing.partnerEarning || 0}</span>
             </div>
 
             {/* Actions */}
@@ -140,32 +139,7 @@ const PartnerBookings = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-24">
-            {/* Custom Header */}
-            <div className="flex items-center justify-between relative h-14 px-4 pt-2 bg-white/50 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-100/50">
-                <button
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="p-1.5 rounded-full bg-white hover:bg-gray-100 transition shadow-sm border border-gray-100"
-                >
-                    <Menu size={18} className="text-[#003836]" />
-                </button>
-
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-1">
-                    <img src={logo} alt="Rukko" className="h-7 object-contain drop-shadow-sm" />
-                </div>
-
-                <button
-                    onClick={() => navigate('/hotel/wallet')}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform"
-                >
-                    <div className="w-5 h-5 bg-[#004F4D] rounded-full flex items-center justify-center">
-                        <Wallet size={10} className="text-white" />
-                    </div>
-                    <div className="flex flex-col items-start leading-none mr-0.5">
-                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wide">Wallet</span>
-                        <span className="text-[10px] font-bold text-[#003836]">₹0</span>
-                    </div>
-                </button>
-            </div>
+            <PartnerHeader />
 
             {/* Filter Tabs */}
             <div className="sticky top-14 z-20 bg-gray-50/95 backdrop-blur-sm px-4 py-3 border-b border-gray-100/50 mb-2">
