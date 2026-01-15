@@ -1,17 +1,11 @@
 import User from '../models/User.js';
-import Property from '../models/Property.js';
-import Booking from '../models/Booking.js';
-import Review from '../models/Review.js';
-import Inventory from '../models/Inventory.js';
-import HotelDetails from '../models/details/HotelDetails.js';
-import ResortDetails from '../models/details/ResortDetails.js';
-import VillaDetails from '../models/details/VillaDetails.js';
-import HomestayDetails from '../models/details/HomestayDetails.js';
-import HostelDetails from '../models/details/HostelDetails.js';
-import PGDetails from '../models/details/PGDetails.js';
 import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
+import Property from '../models/Property.js';
+import Booking from '../models/Booking.js';
+import PropertyDocument from '../models/PropertyDocument.js';
+import Review from '../models/Review.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -20,27 +14,14 @@ export const getDashboardStats = async (req, res) => {
     const totalHotels = await Property.countDocuments();
     const pendingHotels = await Property.countDocuments({ status: 'pending' });
     const totalBookings = await Booking.countDocuments();
-    const confirmedBookings = await Booking.countDocuments({ status: 'confirmed' });
-
-    // Calculate total revenue from confirmed/completed bookings
+    const confirmedBookings = await Booking.countDocuments({ bookingStatus: 'confirmed' });
     const revenueData = await Booking.aggregate([
-      { $match: { status: { $in: ['confirmed', 'completed'] }, paymentStatus: 'paid' } },
+      { $match: { bookingStatus: { $in: ['confirmed', 'checked_out'] }, paymentStatus: 'paid' } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
-    const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
-
-    // Get recent bookings for dashboard
-    const recentBookings = await Booking.find()
-      .populate('userId', 'name')
-      .populate('hotelId', 'name')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    // Get recent property requests
-    const recentPropertyRequests = await Property.find({ status: 'pending' })
-      .populate('ownerId', 'name email')
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const totalRevenue = revenueData.length ? revenueData[0].total : 0;
+    const recentBookings = await Booking.find().sort({ createdAt: -1 }).limit(5);
+    const recentPropertyRequests = await Property.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
 
     res.status(200).json({
       success: true,
@@ -103,22 +84,13 @@ export const getAllHotels = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const { search, status } = req.query;
-
-    let query = {};
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
-    }
+    const query = {};
+    if (search) query.propertyName = { $regex: search, $options: 'i' };
     if (status) query.status = status;
-
     const total = await Property.countDocuments(query);
-    const hotels = await Property.find(query)
-      .populate('ownerId', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
+    const hotels = await Property.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
     res.status(200).json({ success: true, hotels, total, page, limit });
-  } catch (error) {
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching hotels' });
   }
 };
@@ -128,61 +100,67 @@ export const getAllBookings = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { search, status } = req.query;
-
-    let query = {};
-    if (search) {
-      query.bookingId = { $regex: search, $options: 'i' };
-    }
-    if (status) query.status = status;
-
+    const { status } = req.query;
+    const query = {};
+    if (status) query.bookingStatus = status;
     const total = await Booking.countDocuments(query);
-    const bookings = await Booking.find(query)
-      .populate('userId', 'name email phone')
-      .populate('hotelId', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
+    const bookings = await Booking.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
     res.status(200).json({ success: true, bookings, total, page, limit });
-  } catch (error) {
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching bookings' });
   }
 };
 
 export const getPropertyRequests = async (req, res) => {
   try {
-    const hotels = await Property.find({ status: 'pending' })
-      .populate('ownerId', 'name email')
-      .sort({ createdAt: -1 });
+    const hotels = await Property.find({ status: 'pending' }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, hotels });
-  } catch (error) {
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching property requests' });
   }
 };
 
 export const updateHotelStatus = async (req, res) => {
   try {
-    const { hotelId, status, isCompanyServiced } = req.body;
-    let updateData = {};
-
-    if (status) {
-      if (!['approved', 'rejected', 'suspended'].includes(status)) {
-        return res.status(400).json({ message: 'Invalid status' });
-      }
-      updateData.status = status;
-    }
-
-    if (isCompanyServiced !== undefined) {
-      updateData.isCompanyServiced = isCompanyServiced;
-    }
-
-    const hotel = await Property.findByIdAndUpdate(hotelId, updateData, { new: true });
-    if (!hotel) return res.status(404).json({ message: 'Hotel not found' });
-
-    res.status(200).json({ success: true, message: 'Hotel updated successfully', hotel });
-  } catch (error) {
+    const { propertyId, status, isLive } = req.body;
+    const update = {};
+    if (status) update.status = status;
+    if (typeof isLive === 'boolean') update.isLive = isLive;
+    const hotel = await Property.findByIdAndUpdate(propertyId, update, { new: true });
+    if (!hotel) return res.status(404).json({ message: 'Property not found' });
+    res.status(200).json({ success: true, hotel });
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
+  }
+};
+
+export const verifyPropertyDocuments = async (req, res) => {
+  try {
+    const { propertyId, action, adminRemark } = req.body;
+    const property = await Property.findById(propertyId);
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+    const docs = await PropertyDocument.findOne({ propertyId });
+    if (!docs) return res.status(404).json({ success: false, message: 'Documents not found' });
+    if (action === 'approve') {
+      docs.verificationStatus = 'verified';
+      docs.adminRemark = undefined;
+      docs.verifiedAt = new Date();
+      property.status = 'approved';
+      property.isLive = true;
+    } else if (action === 'reject') {
+      docs.verificationStatus = 'rejected';
+      docs.adminRemark = adminRemark;
+      docs.verifiedAt = new Date();
+      property.status = 'rejected';
+      property.isLive = false;
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+    await docs.save();
+    await property.save();
+    res.status(200).json({ success: true, property, documents: docs });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Server error verifying documents' });
   }
 };
 
@@ -192,20 +170,12 @@ export const getReviewModeration = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const { status } = req.query;
-
-    let query = {};
+    const query = {};
     if (status) query.status = status;
-
     const total = await Review.countDocuments(query);
-    const reviews = await Review.find(query)
-      .populate('userId', 'name')
-      .populate('hotelId', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
+    const reviews = await Review.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
     res.status(200).json({ success: true, reviews, total, page, limit });
-  } catch (error) {
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching reviews' });
   }
 };
@@ -213,18 +183,20 @@ export const getReviewModeration = async (req, res) => {
 export const deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.body;
-    const review = await Review.findById(reviewId);
+    const review = await Review.findByIdAndDelete(reviewId);
     if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
-
-    const hotelId = review.hotelId;
-    await Review.findByIdAndDelete(reviewId);
-
-    // Recalculate rating
-    await Review.updateHotelRating(hotelId);
-
+    const agg = await Review.aggregate([
+      { $match: { propertyId: review.propertyId, status: 'approved' } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]);
+    const stats = agg[0];
+    if (stats) {
+      await Property.findByIdAndUpdate(review.propertyId, { avgRating: stats.avg, totalReviews: stats.count });
+    } else {
+      await Property.findByIdAndUpdate(review.propertyId, { avgRating: 0, totalReviews: 0 });
+    }
     res.status(200).json({ success: true, message: 'Review deleted successfully' });
-  } catch (error) {
-    console.error('Delete Review Error:', error);
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error deleting review' });
   }
 };
@@ -233,14 +205,19 @@ export const updateReviewStatus = async (req, res) => {
   try {
     const { reviewId, status } = req.body;
     const review = await Review.findByIdAndUpdate(reviewId, { status }, { new: true });
-    if (!review) return res.status(404).json({ message: 'Review not found' });
-
-    // Recalculate rating
-    await Review.updateHotelRating(review.hotelId);
-
+    if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
+    const agg = await Review.aggregate([
+      { $match: { propertyId: review.propertyId, status: 'approved' } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+    ]);
+    const stats = agg[0];
+    if (stats) {
+      await Property.findByIdAndUpdate(review.propertyId, { avgRating: stats.avg, totalReviews: stats.count });
+    } else {
+      await Property.findByIdAndUpdate(review.propertyId, { avgRating: 0, totalReviews: 0 });
+    }
     res.status(200).json({ success: true, message: `Review status updated to ${status}`, review });
-  } catch (error) {
-    console.error('Update Review Status Error:', error);
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating review status' });
   }
 };
@@ -269,22 +246,23 @@ export const deleteUser = async (req, res) => {
 
 export const deleteHotel = async (req, res) => {
   try {
-    const { hotelId } = req.body;
-    const hotel = await Property.findByIdAndDelete(hotelId);
-    if (!hotel) return res.status(404).json({ success: false, message: 'Hotel not found' });
-    res.status(200).json({ success: true, message: 'Hotel deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error deleting hotel' });
+    const { propertyId } = req.body;
+    const del = await Property.findByIdAndDelete(propertyId);
+    if (!del) return res.status(404).json({ success: false, message: 'Property not found' });
+    await PropertyDocument.deleteMany({ propertyId });
+    res.status(200).json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Server error deleting property' });
   }
 };
 
 export const updateBookingStatus = async (req, res) => {
   try {
     const { bookingId, status } = req.body;
-    const booking = await Booking.findByIdAndUpdate(bookingId, { status }, { new: true });
+    const booking = await Booking.findByIdAndUpdate(bookingId, { bookingStatus: status }, { new: true });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    res.status(200).json({ success: true, message: `Booking status updated to ${status}`, booking });
-  } catch (error) {
+    res.status(200).json({ success: true, booking });
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating booking status' });
   }
 };
@@ -295,11 +273,7 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const bookings = await Booking.find({ userId: id })
-      .populate('hotelId', 'name')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({ success: true, user, bookings });
+    res.status(200).json({ success: true, user, bookings: [] });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching user details' });
   }
@@ -308,47 +282,11 @@ export const getUserDetails = async (req, res) => {
 export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: 'Invalid Property ID format' });
-    }
-
-    const property = await Property.findById(id).populate('ownerId', 'name email phone');
+    const property = await Property.findById(id);
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
-
-    // Helper to get correct model
-    const getDetailsModel = (type) => {
-      const models = {
-        'Hotel': HotelDetails,
-        'Resort': ResortDetails,
-        'Villa': VillaDetails,
-        'Homestay': HomestayDetails,
-        'Hostel': HostelDetails,
-        'PG': PGDetails
-      };
-      return models[type] || HotelDetails;
-    };
-
-    const DetailsModel = getDetailsModel(property.propertyType);
-    const details = await DetailsModel.findOne({ propertyId: property._id });
-    const inventory = await Inventory.find({ propertyId: property._id });
-
-    // Merge data: property + details + inventory
-    const fullData = {
-      ...property.toObject(),
-      ...(details ? details.toObject() : {}),
-      inventory,
-      _id: property._id, // Ensure ID is preserved
-      propertyId: property._id
-    };
-
-    const bookings = await Booking.find({ hotelId: id })
-      .populate('userId', 'name email phone')
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({ success: true, hotel: fullData, bookings });
-  } catch (error) {
-    console.error('Get Hotel Details Admin Error:', error);
+    const docs = await PropertyDocument.findOne({ propertyId: id });
+    res.status(200).json({ success: true, property, documents: docs });
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching hotel details' });
   }
 };
@@ -356,14 +294,10 @@ export const getHotelDetails = async (req, res) => {
 export const getBookingDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const booking = await Booking.findById(id)
-      .populate('userId', 'name email phone')
-      .populate('hotelId', 'name address phone');
-
+    const booking = await Booking.findById(id);
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-
     res.status(200).json({ success: true, booking });
-  } catch (error) {
+  } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching booking details' });
   }
 };

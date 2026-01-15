@@ -1,65 +1,86 @@
-import mongoose from 'mongoose';
+// models/Property.js
+import mongoose from "mongoose";
+
+const nearbyPlaceSchema = new mongoose.Schema({
+  name: String,
+  type: {
+    type: String,
+    enum: ["airport", "railway", "metro", "hospital", "college", "tourist", "market"]
+  },
+  distanceKm: Number
+});
 
 const propertySchema = new mongoose.Schema({
-  ownerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
+
+  // BASIC INFO
+  propertyName: { type: String, required: true },
   propertyType: {
     type: String,
-    enum: ['Hotel', 'Villa', 'Resort', 'Homestay', 'Hostel', 'PG'],
+    enum: ["villa", "resort", "hotel", "hostel", "pg", "homestay"],
     required: true
   },
-  // Basic Info
-  name: {
-    type: String,
-    trim: true
-  },
-  shortDescription: String,
-  description: String,
 
-  // Location
-  address: {
-    addressLine: String,
-    street: String,
-    area: String,
-    landmark: String,
-    city: String,
-    state: String,
-    pincode: String,
-    zipCode: String,
-    country: { type: String, default: 'India' }
+  description: String,
+  shortDescription: String,
+
+  // OWNER
+  partnerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
   },
+
+  // LOCATION
+  address: {
+    country: String,
+    state: String,
+    city: String,
+    area: String,
+    fullAddress: String,
+    pincode: String
+  },
+
   location: {
-    type: { type: String, default: 'Point' },
+    type: { type: String, enum: ["Point"], default: "Point" },
     coordinates: [Number] // [lng, lat]
   },
 
-  // Media
-  images: {
-    cover: String,
-    gallery: [String]
-  },
+  nearbyPlaces: [nearbyPlaceSchema],
 
-  // Status & Metadata
+  // MEDIA
+  coverImage: { type: String, required: true },
+  propertyImages: [String],
+
+  // AMENITIES
+  amenities: [String],
+
+  // PRICING (FOR VILLA / ENTIRE PROPERTY)
+  pricePerNight: Number, // REQUIRED FOR VILLA / ENTIRE
+
+  extraAdultPrice: Number,
+  extraChildPrice: Number,
+
+  // POLICIES
+  checkInTime: String,
+  checkOutTime: String,
+  cancellationPolicy: String,
+  houseRules: [String],
+
+  // STATUS
   status: {
     type: String,
-    enum: ['draft', 'pending', 'approved', 'rejected'],
-    default: 'draft'
-  },
-  isLive: {
-    type: Boolean,
-    default: false
+    enum: ["draft", "pending", "approved", "rejected"],
+    default: "draft"
   },
 
-  // Aggregates (Updated via triggers or periodically)
-  rating: { type: Number, default: 3 },
-  numReviews: { type: Number, default: 0 },
-  minPrice: { type: Number, default: 0 } // For simplified querying
+  isLive: { type: Boolean, default: false },
+
+  // RATINGS
+  avgRating: { type: Number, default: 0 },
+  totalReviews: { type: Number, default: 0 }
 
 }, { timestamps: true });
 
-propertySchema.index({ location: '2dsphere' });
+propertySchema.index({ location: "2dsphere" });
 
-export default mongoose.model('Property', propertySchema);
+export default mongoose.model("Property", propertySchema);

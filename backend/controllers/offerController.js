@@ -1,5 +1,4 @@
 import Offer from '../models/Offer.js';
-import Booking from '../models/Booking.js';
 
 /**
  * @desc    Get active offers for users
@@ -74,7 +73,6 @@ export const getActiveOffers = async (req, res) => {
 export const validateOffer = async (req, res) => {
   try {
     const { code, bookingAmount } = req.body;
-    const userId = req.user._id;
 
     if (!code) return res.status(400).json({ message: "Coupon code is required" });
 
@@ -101,17 +99,6 @@ export const validateOffer = async (req, res) => {
     // 3. Overall Usage Limit
     if (offer.usageCount >= offer.usageLimit) {
       return res.status(400).json({ message: "Coupon limit reached" });
-    }
-
-    // 4. Per User Limit
-    const userUsage = await Booking.countDocuments({
-      userId,
-      couponCode: offer.code,
-      status: { $ne: 'cancelled' }
-    });
-
-    if (userUsage >= offer.userLimit) {
-      return res.status(400).json({ message: "You have already used this coupon maximum number of times" });
     }
 
     // Calculate Discount

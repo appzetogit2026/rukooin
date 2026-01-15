@@ -1,9 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
-import Booking from '../models/Booking.js';
-import Wallet from '../models/Wallet.js';
-import Property from '../models/Property.js';
 import PaymentConfig from '../config/payment.config.js';
+import Booking from '../models/Booking.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -38,39 +36,22 @@ try {
 export const createPaymentOrder = async (req, res) => {
   try {
     const { bookingId } = req.body;
-
-    // Find booking
-    const booking = await Booking.findOne({ bookingId });
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    // Check if already paid
-    if (booking.paymentStatus === 'paid') {
-      return res.status(400).json({ message: 'Booking already paid' });
-    }
-
-    // Create Razorpay order
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.paymentStatus === 'paid') return res.status(400).json({ message: 'Booking already paid' });
+    const amountInPaise = Math.round(booking.totalAmount * 100);
+    if (!amountInPaise || amountInPaise <= 0) return res.status(400).json({ message: 'Invalid booking amount' });
     const options = {
-      amount: Math.round(booking.pricing.userPayableAmount * 100), // Amount in paise
+      amount: amountInPaise,
       currency: PaymentConfig.currency,
-      receipt: booking.bookingId,
+      receipt: booking._id.toString(),
       notes: {
-        bookingId: booking.bookingId,
+        bookingId: booking._id.toString(),
         userId: booking.userId.toString(),
-        hotelId: booking.hotelId.toString()
+        propertyId: booking.propertyId.toString()
       }
     };
-
     const order = await razorpay.orders.create(options);
-
-    // Update booking with order ID
-    booking.paymentDetails = {
-      ...booking.paymentDetails,
-      razorpayOrderId: order.id
-    };
-    await booking.save();
-
     res.json({
       success: true,
       order: {
@@ -79,13 +60,13 @@ export const createPaymentOrder = async (req, res) => {
         currency: order.currency
       },
       booking: {
-        bookingId: booking.bookingId,
-        amount: booking.pricing.userPayableAmount,
-        pricing: booking.pricing
+        id: booking._id,
+        amount: booking.totalAmount,
+        status: booking.bookingStatus,
+        paymentStatus: booking.paymentStatus
       },
       razorpayKeyId: PaymentConfig.razorpayKeyId
     });
-
   } catch (error) {
     console.error('Create Payment Order Error:', error);
     res.status(500).json({ message: 'Failed to create payment order', error: error.message });
@@ -99,79 +80,29 @@ export const createPaymentOrder = async (req, res) => {
  */
 export const verifyPayment = async (req, res) => {
   try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      bookingId
-    } = req.body;
-
-    // Verify signature
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac('sha256', PaymentConfig.razorpayKeySecret)
       .update(sign.toString())
       .digest('hex');
-
-    if (razorpay_signature !== expectedSign) {
-      return res.status(400).json({ message: 'Invalid payment signature' });
-    }
-
-    // Find booking
-    const booking = await Booking.findOne({ bookingId }).populate('hotelId');
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    // Update booking payment status
+    if (razorpay_signature !== expectedSign) return res.status(400).json({ message: 'Invalid payment signature' });
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
     booking.paymentStatus = 'paid';
-    booking.status = 'confirmed';
-    booking.paymentDetails = {
-      ...booking.paymentDetails,
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      method: 'razorpay',
-      paidAt: new Date()
-    };
+    booking.bookingStatus = 'confirmed';
+    booking.paymentId = razorpay_payment_id;
+    booking.paymentMethod = 'razorpay';
     await booking.save();
-
-    // Credit partner wallet
-    try {
-      const hotel = booking.hotelId;
-      let wallet = await Wallet.findOne({ partnerId: hotel.ownerId });
-
-      // Create wallet if doesn't exist
-      if (!wallet) {
-        wallet = await Wallet.create({
-          partnerId: hotel.ownerId,
-          balance: 0
-        });
-      }
-
-      // Credit partner earning
-      await wallet.credit(
-        booking.pricing.partnerEarning,
-        `Booking Payment (${booking.bookingId})`,
-        booking.bookingId,
-        'booking_payment'
-      );
-
-      console.log(`✅ Credited ₹${booking.pricing.partnerEarning} to partner wallet`);
-    } catch (walletError) {
-      console.error('Wallet Credit Error:', walletError);
-      // Don't fail the payment, log for manual processing
-    }
-
     res.json({
       success: true,
       message: 'Payment verified successfully',
       booking: {
-        bookingId: booking.bookingId,
-        status: booking.status,
+        id: booking._id,
+        status: booking.bookingStatus,
         paymentStatus: booking.paymentStatus
       }
     });
-
   } catch (error) {
     console.error('Verify Payment Error:', error);
     res.status(500).json({ message: 'Payment verification failed', error: error.message });
@@ -263,54 +194,21 @@ export const processRefund = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const { amount, reason } = req.body;
-
-    const booking = await Booking.findOne({ bookingId });
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (booking.paymentStatus !== 'paid') {
-      return res.status(400).json({ message: 'Booking not paid' });
-    }
-
-    const paymentId = booking.paymentDetails.razorpayPaymentId;
-    if (!paymentId) {
-      return res.status(400).json({ message: 'Payment ID not found' });
-    }
-
-    // Create refund
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.paymentStatus !== 'paid') return res.status(400).json({ message: 'Booking not paid' });
+    const refundAmount = Math.round((amount || booking.totalAmount) * 100);
+    const paymentId = booking.paymentId;
+    if (!paymentId) return res.status(400).json({ message: 'Payment ID not found on booking' });
     const refund = await razorpay.payments.refund(paymentId, {
-      amount: Math.round(amount * 100), // Amount in paise
-      notes: {
-        reason,
-        bookingId
-      }
+      amount: refundAmount,
+      notes: { reason, bookingId: booking._id.toString() }
     });
-
-    // Update booking
     booking.paymentStatus = 'refunded';
-    booking.status = 'cancelled';
-    booking.paymentDetails.refundId = refund.id;
-    booking.paymentDetails.refundedAt = new Date();
+    booking.bookingStatus = 'cancelled';
+    booking.cancellationReason = reason;
+    booking.cancelledAt = new Date();
     await booking.save();
-
-    // Deduct from partner wallet if already credited
-    try {
-      const hotel = await Property.findById(booking.hotelId);
-      const wallet = await Wallet.findOne({ partnerId: hotel.ownerId });
-
-      if (wallet) {
-        await wallet.debit(
-          booking.pricing.partnerEarning,
-          `Refund for Booking (${booking.bookingId})`,
-          booking.bookingId,
-          'refund'
-        );
-      }
-    } catch (walletError) {
-      console.error('Wallet Debit Error:', walletError);
-    }
-
     res.json({
       success: true,
       message: 'Refund processed successfully',
@@ -320,7 +218,6 @@ export const processRefund = async (req, res) => {
         status: refund.status
       }
     });
-
   } catch (error) {
     console.error('Process Refund Error:', error);
     res.status(500).json({ message: 'Refund processing failed', error: error.message });
