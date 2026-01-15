@@ -20,13 +20,27 @@ const propertySchema = new mongoose.Schema({
     required: true
   },
 
+  pgType: {
+    type: String,
+    enum: ["boys", "girls", "unisex"]
+  },
+
+  hostLivesOnProperty: { type: Boolean, default: false },
+  familyFriendly: { type: Boolean, default: false },
+
+  resortType: {
+    type: String,
+    enum: ["beach", "hill", "jungle", "desert"]
+  },
+  activities: [String],
+
   description: String,
   shortDescription: String,
 
   // OWNER
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "Partner",
     required: true
   },
 
@@ -42,23 +56,20 @@ const propertySchema = new mongoose.Schema({
 
   location: {
     type: { type: String, enum: ["Point"], default: "Point" },
-    coordinates: [Number] // [lng, lat]
+    coordinates: [Number]
   },
 
-  nearbyPlaces: [nearbyPlaceSchema],
+  nearbyPlaces: {
+    type: [nearbyPlaceSchema],
+    validate: v => v.length >= 3
+  },
 
   // MEDIA
   coverImage: { type: String, required: true },
   propertyImages: [String],
 
-  // AMENITIES
+  // AMENITIES (PROPERTY LEVEL)
   amenities: [String],
-
-  // PRICING (FOR VILLA / ENTIRE PROPERTY)
-  pricePerNight: Number, // REQUIRED FOR VILLA / ENTIRE
-
-  extraAdultPrice: Number,
-  extraChildPrice: Number,
 
   // POLICIES
   checkInTime: String,

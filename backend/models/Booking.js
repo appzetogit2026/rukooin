@@ -28,11 +28,11 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
 
-  // ROOM / INVENTORY (OPTIONAL)
+  // ROOM / INVENTORY (REQUIRED FOR ALL)
   roomTypeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "RoomType",
-    default: null
+    required: true
   },
 
   bookingUnit: {

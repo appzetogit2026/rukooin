@@ -3,6 +3,7 @@ import RoomType from '../models/RoomType.js';
 import Booking from '../models/Booking.js';
 import Offer from '../models/Offer.js';
 import PlatformSettings from '../models/PlatformSettings.js';
+import AvailabilityLedger from '../models/AvailabilityLedger.js';
 
 const nightsBetween = (checkInDate, checkOutDate) => {
   const a = new Date(checkInDate);
@@ -19,50 +20,27 @@ export const createBooking = async (req, res) => {
     const property = await Property.findById(propertyId);
     if (!property) return res.status(404).json({ message: 'Property not found' });
     const nights = nightsBetween(checkInDate, checkOutDate);
-    let bookingUnit = 'entire';
-    let pricePerNight = 0;
-    let extraAdultPrice = 0;
-    let extraChildPrice = 0;
-    if (property.propertyType === 'villa') {
-      if (!property.pricePerNight) return res.status(400).json({ message: 'Villa price missing' });
-      pricePerNight = property.pricePerNight;
-      extraAdultPrice = property.extraAdultPrice || 0;
-      extraChildPrice = property.extraChildPrice || 0;
-      bookingUnit = 'entire';
-    } else if (['hotel', 'resort'].includes(property.propertyType)) {
-      if (!roomTypeId) return res.status(400).json({ message: 'roomTypeId required' });
-      const rt = await RoomType.findById(roomTypeId);
-      if (!rt || rt.propertyId.toString() !== propertyId) return res.status(400).json({ message: 'Invalid room type' });
-      pricePerNight = rt.pricePerNight;
-      extraAdultPrice = rt.extraAdultPrice || 0;
-      extraChildPrice = rt.extraChildPrice || 0;
-      bookingUnit = 'room';
-    } else if (['hostel', 'pg'].includes(property.propertyType)) {
-      if (!roomTypeId) return res.status(400).json({ message: 'roomTypeId required' });
-      const rt = await RoomType.findById(roomTypeId);
-      if (!rt || rt.propertyId.toString() !== propertyId) return res.status(400).json({ message: 'Invalid room type' });
-      pricePerNight = rt.pricePerNight;
-      extraAdultPrice = rt.extraAdultPrice || 0;
-      extraChildPrice = rt.extraChildPrice || 0;
-      bookingUnit = 'bed';
-    } else if (property.propertyType === 'homestay') {
-      if (roomTypeId) {
-        const rt = await RoomType.findById(roomTypeId);
-        if (!rt || rt.propertyId.toString() !== propertyId) return res.status(400).json({ message: 'Invalid room type' });
-        pricePerNight = rt.pricePerNight;
-        extraAdultPrice = rt.extraAdultPrice || 0;
-        extraChildPrice = rt.extraChildPrice || 0;
-        bookingUnit = rt.inventoryType === 'entire' ? 'entire' : 'room';
-      } else {
-        if (!property.pricePerNight) return res.status(400).json({ message: 'Homestay price missing' });
-        pricePerNight = property.pricePerNight;
-        extraAdultPrice = property.extraAdultPrice || 0;
-        extraChildPrice = property.extraChildPrice || 0;
-        bookingUnit = 'entire';
+    if (!roomTypeId) return res.status(400).json({ message: 'roomTypeId required' });
+    const rt = await RoomType.findById(roomTypeId);
+    if (!rt || rt.propertyId.toString() !== propertyId) return res.status(400).json({ message: 'Invalid room type' });
+
+    if (property.propertyType === 'resort') {
+      const baseAdults = Number(guests?.adults || 1);
+      const baseChildren = Number(guests?.children || 0);
+      const maxAdults = Number(rt.maxAdults || 0);
+      const maxChildren = Number(rt.maxChildren || 0);
+      if (baseAdults > maxAdults) {
+        return res.status(400).json({ message: 'Max adults exceeded for selected room type' });
       }
-    } else {
-      return res.status(400).json({ message: 'Unsupported property type' });
+      if (baseAdults + baseChildren > maxAdults + maxChildren) {
+        return res.status(400).json({ message: 'Max guests exceeded for selected room type' });
+      }
     }
+
+    let pricePerNight = rt.pricePerNight;
+    let extraAdultPrice = rt.extraAdultPrice || 0;
+    let extraChildPrice = rt.extraChildPrice || 0;
+    const bookingUnit = rt.inventoryType;
     const baseAmount = pricePerNight * nights;
     const extraAdults = Math.max(0, Number(guests?.extraAdults || 0));
     const extraChildren = Math.max(0, Number(guests?.extraChildren || 0));
@@ -92,7 +70,7 @@ export const createBooking = async (req, res) => {
       userId: req.user._id,
       propertyId,
       propertyType: property.propertyType,
-      roomTypeId: roomTypeId || null,
+      roomTypeId: roomTypeId,
       bookingUnit,
       checkInDate,
       checkOutDate,
@@ -109,6 +87,18 @@ export const createBooking = async (req, res) => {
       paymentStatus: 'pending',
       bookingStatus: 'pending',
       paymentMethod: undefined
+    });
+
+    await AvailabilityLedger.create({
+      propertyId,
+      roomTypeId,
+      inventoryType: bookingUnit,
+      source: 'platform',
+      referenceId: booking._id,
+      startDate: new Date(checkInDate),
+      endDate: new Date(checkOutDate),
+      units: 1,
+      createdBy: 'system'
     });
     if (appliedOffer) {
       await Offer.findByIdAndUpdate(appliedOffer._id, { $inc: { usageCount: 1 } });

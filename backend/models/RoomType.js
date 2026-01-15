@@ -23,15 +23,22 @@ const roomTypeSchema = new mongoose.Schema({
   },
 
   // CAPACITY
-  maxAdults: Number,
-  maxChildren: Number,
-  bedsPerRoom: Number,
-  totalInventory: Number, // rooms / beds count
+  maxAdults: { type: Number, required: true },
+  maxChildren: { type: Number, default: 0 },
 
-  // PRICING (ALWAYS PER NIGHT)
+  // INVENTORY COUNT
+  bedsPerRoom: {
+    type: Number
+  },
+  totalInventory: {
+    type: Number,
+    required: true // villa = 1
+  },
+
+  // PRICING (PER NIGHT – SINGLE SOURCE OF TRUTH)
   pricePerNight: { type: Number, required: true },
-  extraAdultPrice: Number,
-  extraChildPrice: Number,
+  extraAdultPrice: { type: Number, default: 0 },
+  extraChildPrice: { type: Number, default: 0 },
 
   // MEDIA
   images: {

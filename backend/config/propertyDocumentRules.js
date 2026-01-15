@@ -5,6 +5,12 @@ export const PROPERTY_DOCUMENTS = {
     "Government ID",
     "Electricity Bill"
   ],
+  resort: [
+    "Trade License",
+    "GST Certificate",
+    "FSSAI License",
+    "Fire Safety Certificate"
+  ],
   hotel: [
     "Trade License",
     "GST Certificate",
@@ -13,8 +19,9 @@ export const PROPERTY_DOCUMENTS = {
   ],
   hostel: [
     "Trade License",
+    "Fire Safety Certificate",
     "Police Verification",
-    "Fire Safety Certificate"
+    "Owner ID Proof"
   ],
   pg: [
     "Rent Agreement",
@@ -22,6 +29,7 @@ export const PROPERTY_DOCUMENTS = {
   ],
   homestay: [
     "Ownership Proof",
-    "Local Body Registration"
+    "Local Body Registration",
+    "Government ID"
   ]
 };

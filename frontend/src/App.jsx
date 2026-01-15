@@ -45,12 +45,20 @@ import AdminContactMessages from './app/admin/pages/AdminContactMessages';
 import HotelLogin from './pages/auth/HotelLoginPage';
 import HotelSignup from './pages/auth/HotelSignupPage';
 import PartnerHome from './app/partner/pages/PartnerHome';
-import AddPropertyWizard from './app/partner/addProperty/AddPropertyWizard'; // Updated Wizard
+import AddVillaWizard from './app/partner/pages/AddVillaWizard';
+import AddHotelWizard from './app/partner/pages/AddHotelWizard';
+import AddHostelWizard from './app/partner/pages/AddHostelWizard';
+import AddPGWizard from './app/partner/pages/AddPGWizard';
+import AddResortWizard from './app/partner/pages/AddResortWizard';
+import AddHomestayWizard from './app/partner/pages/AddHomestayWizard';
 import PartnerDashboard from './app/partner/pages/PartnerDashboard';
 import PartnerBookings from './app/partner/pages/PartnerBookings';
 import PartnerWallet from './app/partner/pages/PartnerWallet';
 import PartnerReviews from './app/partner/pages/PartnerReviews';
 import PartnerPage from './app/partner/pages/PartnerPage';
+import PartnerJoinPropertyType from './app/partner/pages/PartnerJoinPropertyType';
+import PartnerProperties from './app/partner/pages/PartnerProperties';
+import PartnerPropertyDetails from './app/partner/pages/PartnerPropertyDetails';
 import PartnerNotifications from './app/partner/pages/PartnerNotifications';
 import PartnerKYC from './app/partner/pages/PartnerKYC';
 import PartnerSupport from './app/partner/pages/PartnerSupport';
@@ -58,9 +66,6 @@ import PartnerProfile from './app/partner/pages/PartnerProfile';
 import PartnerTransactions from './app/partner/pages/PartnerTransactions';
 import PartnerTerms from './app/partner/pages/PartnerTerms';
 import PartnerSettings from './app/partner/pages/PartnerSettings';
-import RoomManager from './app/partner/pages/RoomManager';
-import MyPropertiesPage from './app/partner/pages/MyPropertiesPage';
-import PropertyDetailsPage from './app/partner/pages/PropertyDetailsPage';
 import PartnerAbout from './app/partner/pages/PartnerAbout';
 import PartnerPrivacy from './app/partner/pages/PartnerPrivacy';
 import PartnerContact from './app/partner/pages/PartnerContact';
@@ -105,16 +110,6 @@ const Layout = ({ children }) => {
   const isCmsRoute = location.pathname.startsWith('/admin');
   useLenis(isCmsRoute);
 
-  // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
-  // These pages control their own layout fully.
-  // Note: '/login' will match '/hotel/login', '/register' matches '/hotel/register'
-  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join'];
-  const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
-
-  if (shouldGlobalHide) {
-    return <>{children}</>;
-  }
-
   React.useEffect(() => {
     let isMounted = true;
     const fetchStatus = async () => {
@@ -139,6 +134,16 @@ const Layout = ({ children }) => {
       isMounted = false;
     };
   }, []);
+
+  // 1. GLOBAL HIDE: Auth pages, Admin, and Property Wizard
+  // These pages control their own layout fully.
+  // Note: '/login' will match '/hotel/login', '/register' matches '/hotel/register'
+  const globalHideRoutes = ['/login', '/signup', '/register', '/admin', '/hotel/join'];
+  const shouldGlobalHide = globalHideRoutes.some(route => location.pathname.includes(route));
+
+  if (shouldGlobalHide) {
+    return <>{children}</>;
+  }
 
   const isUserHotelDetail = /^\/hotel\/[0-9a-fA-F]{24}(\/(amenities|reviews|offers))?$/.test(location.pathname);
   const isPartnerApp = location.pathname.startsWith('/hotel') && !isUserHotelDetail;
@@ -278,15 +283,21 @@ function App() {
             <Route index element={<Navigate to="/hotel/login" replace />} />
             {/* Wizard Route */}
             <Route element={<PartnerProtectedRoute />}>
-              <Route path="join" element={<AddPropertyWizard />} />
-              <Route path="edit/:id" element={<AddPropertyWizard />} />
-              <Route path="rooms" element={<RoomManager />} />
+              <Route path="join" element={<PartnerJoinPropertyType />} />
+              <Route path="join-hotel" element={<AddHotelWizard />} />
+              <Route path="join-resort" element={<AddResortWizard />} />
+              <Route path="join-hostel" element={<AddHostelWizard />} />
+              <Route path="join-villa" element={<AddVillaWizard />} />
+              <Route path="join-pg" element={<AddPGWizard />} />
+              <Route path="join-homestay" element={<AddHomestayWizard />} />
+              {/* <Route path="edit/:id" element={<AddPropertyWizard />} /> */}
+              {/* <Route path="rooms" element={<RoomManager />} /> */}
               <Route path="partner-dashboard" element={<PartnerDashboard />} />
               <Route path="dashboard" element={<PartnerDashboard />} />
 
               {/* Partner Sub-pages */}
-              <Route path="properties" element={<MyPropertiesPage />} />
-              <Route path="properties/:id" element={<PropertyDetailsPage />} />
+              <Route path="properties" element={<PartnerProperties />} />
+              <Route path="properties/:id" element={<PartnerPropertyDetails />} />
               <Route path="bookings" element={<PartnerBookings />} />
               <Route path="wallet" element={<PartnerWallet />} />
               <Route path="reviews" element={<PartnerReviews />} />

@@ -115,6 +115,86 @@ export const bookingService = {
   }
 };
 
+// Property Services (New)
+export const propertyService = {
+  create: async (data) => {
+    try {
+      const response = await api.post('/properties', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  upsertDocuments: async (propertyId, documents) => {
+    try {
+      const response = await api.post(`/properties/${propertyId}/documents`, { documents });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      const response = await api.put(`/properties/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  addRoomType: async (propertyId, data) => {
+    try {
+      const response = await api.post(`/properties/${propertyId}/room-types`, data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  updateRoomType: async (propertyId, roomTypeId, data) => {
+    try {
+      const response = await api.put(`/properties/${propertyId}/room-types/${roomTypeId}`, data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteRoomType: async (propertyId, roomTypeId) => {
+    try {
+      const response = await api.delete(`/properties/${propertyId}/room-types/${roomTypeId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getMy: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams(filters).toString();
+      const url = params ? `/properties/my?${params}` : '/properties/my';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getPublic: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams(filters).toString();
+      const url = params ? `/properties?${params}` : '/properties';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getDetails: async (id) => {
+    try {
+      const response = await api.get(`/properties/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+};
+
 // Hotel Services (Updated)
 export const hotelService = {
   getAll: async (filters = {}) => {

@@ -6,6 +6,7 @@ import Property from '../models/Property.js';
 import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
+import AvailabilityLedger from '../models/AvailabilityLedger.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -259,8 +260,19 @@ export const deleteHotel = async (req, res) => {
 export const updateBookingStatus = async (req, res) => {
   try {
     const { bookingId, status } = req.body;
-    const booking = await Booking.findByIdAndUpdate(bookingId, { bookingStatus: status }, { new: true });
+    const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    booking.bookingStatus = status;
+    await booking.save();
+
+    if (status === 'cancelled') {
+      await AvailabilityLedger.deleteMany({
+        source: 'platform',
+        referenceId: booking._id
+      });
+    }
+
     res.status(200).json({ success: true, booking });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating booking status' });

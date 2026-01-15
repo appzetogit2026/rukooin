@@ -2,6 +2,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import Booking from '../models/Booking.js';
+import AvailabilityLedger from '../models/AvailabilityLedger.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -209,6 +210,11 @@ export const processRefund = async (req, res) => {
     booking.cancellationReason = reason;
     booking.cancelledAt = new Date();
     await booking.save();
+
+    await AvailabilityLedger.deleteMany({
+      source: 'platform',
+      referenceId: booking._id
+    });
     res.json({
       success: true,
       message: 'Refund processed successfully',

@@ -83,6 +83,7 @@ import propertyRoutes from './routes/propertyRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import availabilityRoutes from './routes/availabilityRoutes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -95,6 +96,7 @@ app.use('/api/properties', propertyRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/availability', availabilityRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
