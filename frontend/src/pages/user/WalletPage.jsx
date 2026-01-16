@@ -1,32 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, Plus, ArrowUpRight, ArrowDownLeft,
     Receipt, TrendingUp, X, IndianRupee, Banknote,
     ChevronRight, Check, Smartphone, CircleDollarSign,
-    Wallet, CreditCard
+    Wallet, CreditCard, Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-// Data Mock
-const allTransactions = [
-    { id: 1, type: 'credit', title: 'Top-up UPI', date: 'Today, 10:45 AM', amount: 2000, status: 'Success', method: 'GPay' },
-    { id: 2, type: 'debit', title: 'Rukko Premier', date: 'Yesterday, 8:30 PM', amount: 1499, status: 'Success', method: 'Wallet' },
-    { id: 3, type: 'credit', title: 'Referral', date: '15 Dec, 2024', amount: 500, status: 'Success', method: 'Reward' },
-    { id: 4, type: 'debit', title: 'Hotel Booking', date: '10 Dec, 2024', amount: 850, status: 'Success', method: 'Wallet' },
-    { id: 5, type: 'credit', title: 'Refund', date: '05 Dec, 2024', amount: 1200, status: 'Success', method: 'Refund' },
-    { id: 6, type: 'debit', title: 'Rukko Grand', date: '01 Dec, 2024', amount: 1899, status: 'Success', method: 'Wallet' },
-];
+import { api } from '../../services/apiService';
+import toast, { Toaster } from 'react-hot-toast';
 
 const WalletPage = () => {
     const navigate = useNavigate();
-    const [balance, setBalance] = useState(4500.00);
+    const [balance, setBalance] = useState(0);
+    const [stats, setStats] = useState({
+        totalEarnings: 0,
+        totalWithdrawals: 0,
+        pendingClearance: 0,
+        thisMonthEarnings: 0
+    });
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('home');
     const [showAddMoneySheet, setShowAddMoneySheet] = useState(false);
     const [showWithdrawSheet, setShowWithdrawSheet] = useState(false);
     const [addAmount, setAddAmount] = useState('');
+    const [processing, setProcessing] = useState(false);
 
     const quickAmounts = [500, 1000, 2000];
+
+    useEffect(() => {
+        fetchWalletData();
+        fetchTransactions();
+    }, []);
+
+    const fetchWalletData = async () => {
+        try {
+            const res = await api.get('/wallet/stats');
+            if (res.data.success) {
+                setStats(res.data.stats);
+                setBalance(res.data.stats.currentBalance);
+            }
+        } catch (error) {
+            console.error('Fetch Wallet Error:', error);
+            // toast.error('Failed to load wallet balance');
+        }
+    };
+
+    const fetchTransactions = async () => {
+        try {
+            const res = await api.get('/wallet/transactions');
+            if (res.data.success) {
+                setTransactions(res.data.transactions);
+            }
+        } catch (error) {
+            console.error('Fetch Transactions Error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadRazorpay = () => {
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
+    const handleAddMoney = async () => {
+        const amount = Number(addAmount);
+        if (!amount || amount < 10) {
+            toast.error('Minimum amount is ₹10');
+            return;
+        }
+
+        try {
+            setProcessing(true);
+            const res = await loadRazorpay();
+            if (!res) {
+                toast.error('Razorpay SDK failed to load');
+                setProcessing(false);
+                return;
+            }
+
+            // Create Order
+            const { data } = await api.post('/wallet/add-money', { amount });
+            if (!data.success) throw new Error('Order creation failed');
+
+            const options = {
+                key: data.order.key,
+                amount: data.order.amount,
+                currency: data.order.currency,
+                name: 'Rukkoin',
+                description: 'Wallet Top-up',
+                order_id: data.order.id,
+                handler: async function (response) {
+                    try {
+                        const verifyRes = await api.post('/wallet/verify-add-money', {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            amount: amount
+                        });
+
+                        if (verifyRes.data.success) {
+                            toast.success('Money added successfully!');
+                            setBalance(verifyRes.data.newBalance);
+                            fetchTransactions();
+                            fetchWalletData();
+                            setShowAddMoneySheet(false);
+                            setAddAmount('');
+                        }
+                    } catch (err) {
+                        toast.error('Payment verification failed');
+                    }
+                },
+                theme: {
+                    color: '#000000'
+                }
+            };
+
+            const paymentObject = new window.Razorpay(options);
+            paymentObject.open();
+            
+        } catch (error) {
+            console.error('Add Money Error:', error);
+            toast.error(error.response?.data?.message || 'Failed to initiate payment');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        const amount = Number(addAmount);
+        if (!amount) return;
+
+        try {
+            setProcessing(true);
+            const res = await api.post('/wallet/withdraw', { amount });
+            if (res.data.success) {
+                toast.success('Withdrawal request submitted');
+                fetchWalletData();
+                fetchTransactions();
+                setShowWithdrawSheet(false);
+                setAddAmount('');
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Withdrawal failed');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        );
+    }
 
     return (
         <motion.div
@@ -35,6 +170,7 @@ const WalletPage = () => {
             exit={{ opacity: 0 }}
             className="min-h-screen bg-gray-50 pb-24 font-sans"
         >
+            <Toaster position="top-center" />
             {/* 1. Main Balance Card - Compact Header Style */}
             <div className="w-full relative z-10">
                 <div className="bg-surface text-white rounded-b-[32px] px-5 pt-6 pb-6 shadow-xl shadow-surface/20 relative overflow-hidden">
@@ -108,23 +244,33 @@ const WalletPage = () => {
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Activity</h3>
                             </div>
 
-                            {allTransactions.map((tx) => (
-                                <div key={tx.id} className="flex items-center justify-between p-1 active:opacity-70 transition-opacity cursor-pointer">
+                            {transactions.length === 0 && (
+                                <div className="text-center py-10 text-gray-400 text-sm">
+                                    No transactions yet
+                                </div>
+                            )}
+
+                            {transactions.map((tx) => (
+                                <div key={tx._id} className="flex items-center justify-between p-1 active:opacity-70 transition-opacity cursor-pointer">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tx.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
                                             }`}>
                                             {tx.type === 'credit' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                                         </div>
                                         <div>
-                                            <h4 className="font-bold text-sm text-gray-900">{tx.title}</h4>
-                                            <p className="text-[10px] text-gray-500 font-medium">{tx.date}</p>
+                                            <h4 className="font-bold text-sm text-gray-900 line-clamp-1">{tx.description}</h4>
+                                            <p className="text-[10px] text-gray-500 font-medium">
+                                                {new Date(tx.createdAt).toLocaleDateString('en-IN', {
+                                                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right shrink-0">
                                         <div className={`font-bold text-sm ${tx.type === 'credit' ? 'text-green-600' : 'text-gray-900'}`}>
-                                            {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                                            {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
                                         </div>
-                                        <p className="text-[10px] text-gray-400">{tx.status}</p>
+                                        <p className="text-[10px] text-gray-400 capitalize">{tx.status}</p>
                                     </div>
                                 </div>
                             ))}
@@ -138,25 +284,27 @@ const WalletPage = () => {
                             className="grid grid-cols-2 gap-3"
                         >
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                <span className="text-[10px] text-gray-400 font-bold uppercase">Total Spent</span>
-                                <h3 className="text-xl font-black text-gray-900 mt-1">₹12,500</h3>
-                                <div className="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-orange-400 w-[70%]"></div>
-                                </div>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Total Earnings</span>
+                                <h3 className="text-xl font-black text-green-600 mt-1">₹{stats.totalEarnings.toLocaleString('en-IN')}</h3>
+                            </div>
+                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">This Month</span>
+                                <h3 className="text-xl font-black text-gray-900 mt-1">₹{stats.thisMonthEarnings.toLocaleString('en-IN')}</h3>
                             </div>
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                                <span className="text-[10px] text-gray-400 font-bold uppercase">Total Added</span>
-                                <h3 className="text-xl font-black text-green-600 mt-1">₹18,000</h3>
-                                <div className="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500 w-[60%]"></div>
-                                </div>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Withdrawals</span>
+                                <h3 className="text-xl font-black text-orange-600 mt-1">₹{stats.totalWithdrawals.toLocaleString('en-IN')}</h3>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Pending</span>
+                                <h3 className="text-xl font-black text-gray-500 mt-1">₹{stats.pendingClearance.toLocaleString('en-IN')}</h3>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
-            {/* Modals/Sheets (Simplified) */}
+            {/* Modals/Sheets */}
             <AnimatePresence>
                 {(showAddMoneySheet || showWithdrawSheet) && (
                     <>
@@ -197,16 +345,11 @@ const WalletPage = () => {
                             )}
 
                             <button
-                                onClick={() => {
-                                    const val = Number(addAmount);
-                                    if (showAddMoneySheet) setBalance(b => b + val);
-                                    else setBalance(b => Math.max(0, b - val));
-                                    setAddAmount('');
-                                    setShowAddMoneySheet(false);
-                                    setShowWithdrawSheet(false);
-                                }}
-                                className="w-full bg-surface text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-surface/20 active:scale-[0.98] transition-all"
+                                onClick={showAddMoneySheet ? handleAddMoney : handleWithdraw}
+                                disabled={processing}
+                                className="w-full bg-surface text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-surface/20 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
+                                {processing && <Loader2 size={16} className="animate-spin" />}
                                 {showAddMoneySheet ? 'Proceed to Add' : 'Confirm Withdraw'}
                             </button>
                         </motion.div>

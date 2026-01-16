@@ -47,7 +47,9 @@ const walletSchema = new mongoose.Schema({
 // Methods
 walletSchema.methods.credit = async function (amount, description, reference, type = 'booking_payment') {
   this.balance += amount;
-  this.totalEarnings += amount;
+  if (type !== 'topup') {
+    this.totalEarnings += amount;
+  }
   this.lastTransactionAt = new Date();
   await this.save();
 

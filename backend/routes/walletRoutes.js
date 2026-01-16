@@ -5,7 +5,9 @@ import {
   requestWithdrawal,
   getWithdrawals,
   updateBankDetails,
-  getWalletStats
+  getWalletStats,
+  createAddMoneyOrder,
+  verifyAddMoneyPayment
 } from '../controllers/walletController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
@@ -19,6 +21,10 @@ router.get('/', getWallet);
 
 // Get wallet statistics
 router.get('/stats', getWalletStats);
+
+// Add Money (Razorpay)
+router.post('/add-money', createAddMoneyOrder);
+router.post('/verify-add-money', verifyAddMoneyPayment);
 
 // Get transaction history
 router.get('/transactions', getTransactions);

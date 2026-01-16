@@ -33,7 +33,6 @@ import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
 import AdminPartners from './app/admin/pages/AdminPartners';
 import AdminReviews from './app/admin/pages/AdminReviews';
 import AdminFinance from './app/admin/pages/AdminFinance';
-import AdminEarnings from './app/admin/pages/AdminEarnings';
 import AdminSettings from './app/admin/pages/AdminSettings';
 import AdminOffers from './app/admin/pages/AdminOffers';
 import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
@@ -330,7 +329,6 @@ function App() {
               <Route path="partners" element={<AdminPartners />} />
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="finance" element={<AdminFinance />} />
-              <Route path="earnings" element={<AdminEarnings />} />
               <Route path="legal" element={<AdminLegalPages />} />
               <Route path="contact-messages" element={<AdminContactMessages />} />
               <Route path="settings" element={<AdminSettings />} />

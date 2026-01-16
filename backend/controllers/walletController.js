@@ -2,6 +2,33 @@ import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
 import Withdrawal from '../models/Withdrawal.js';
 import PaymentConfig from '../config/payment.config.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+
+// Initialize Razorpay
+let razorpay;
+try {
+  if (PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeySecret) {
+    razorpay = new Razorpay({
+      key_id: PaymentConfig.razorpayKeyId,
+      key_secret: PaymentConfig.razorpayKeySecret
+    });
+  } else {
+    // For Development without Keys
+    console.warn("⚠️ Razorpay Keys missing. Payment features will fail if used.");
+    razorpay = {
+      orders: {
+        create: () => Promise.reject(new Error("Razorpay Not Initialized"))
+      },
+      payments: {
+        fetch: () => Promise.reject(new Error("Razorpay Not Initialized")),
+        refund: () => Promise.reject(new Error("Razorpay Not Initialized"))
+      }
+    };
+  }
+} catch (err) {
+  console.error("Razorpay Init Failed:", err.message);
+}
 
 /**
  * @desc    Get wallet balance and details
@@ -270,14 +297,23 @@ export const getWalletStats = async (req, res) => {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const thisMonthTransactions = await Transaction.find({
-      partnerId: req.user._id,
-      type: 'credit',
-      category: 'booking_payment',
-      createdAt: { $gte: startOfMonth }
-    });
+    const monthlyEarnings = await Transaction.aggregate([
+      {
+        $match: {
+          partnerId: req.user._id,
+          type: 'credit',
+          category: { $in: ['booking_payment', 'adjustment'] }, // Exclude topup from earnings stats?
+          createdAt: { $gte: startOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
 
-    const thisMonthEarnings = thisMonthTransactions.reduce((sum, txn) => sum + txn.amount, 0);
     const transactionCount = await Transaction.countDocuments({ partnerId: req.user._id });
 
     res.json({
@@ -287,7 +323,7 @@ export const getWalletStats = async (req, res) => {
         totalWithdrawals: wallet.totalWithdrawals,
         currentBalance: wallet.balance,
         pendingClearance: wallet.pendingClearance,
-        thisMonthEarnings,
+        thisMonthEarnings: monthlyEarnings[0]?.total || 0,
         transactionCount
       }
     });
@@ -295,5 +331,92 @@ export const getWalletStats = async (req, res) => {
   } catch (error) {
     console.error('Get Wallet Stats Error:', error);
     res.status(500).json({ message: 'Failed to fetch wallet statistics' });
+  }
+};
+
+/**
+ * @desc    Create Add Money Order (Razorpay)
+ * @route   POST /api/wallet/add-money
+ * @access  Private (Partner)
+ */
+export const createAddMoneyOrder = async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    if (!amount || amount < 10) { // Minimum 10rs
+      return res.status(400).json({ message: 'Minimum amount is ₹10' });
+    }
+
+    const options = {
+      amount: Math.round(amount * 100), // in paise
+      currency: PaymentConfig.currency,
+      notes: {
+        userId: req.user._id.toString(),
+        type: 'wallet_topup'
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.json({
+      success: true,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key: PaymentConfig.razorpayKeyId
+      }
+    });
+
+  } catch (error) {
+    console.error('Create Add Money Order Error:', error);
+    res.status(500).json({ message: 'Failed to create payment order' });
+  }
+};
+
+/**
+ * @desc    Verify Add Money Payment
+ * @route   POST /api/wallet/verify-add-money
+ * @access  Private (Partner)
+ */
+export const verifyAddMoneyPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+
+    const sign = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSign = crypto
+      .createHmac('sha256', PaymentConfig.razorpayKeySecret)
+      .update(sign.toString())
+      .digest('hex');
+
+    if (razorpay_signature !== expectedSign) {
+      return res.status(400).json({ message: 'Invalid payment signature' });
+    }
+
+    let wallet = await Wallet.findOne({ partnerId: req.user._id });
+    if (!wallet) {
+      wallet = await Wallet.create({
+        partnerId: req.user._id,
+        balance: 0
+      });
+    }
+
+    // Credit wallet
+    await wallet.credit(
+      Number(amount),
+      `Wallet Top-up`,
+      razorpay_payment_id,
+      'topup'
+    );
+
+    res.json({
+      success: true,
+      message: 'Wallet credited successfully',
+      newBalance: wallet.balance
+    });
+
+  } catch (error) {
+    console.error('Verify Add Money Error:', error);
+    res.status(500).json({ message: 'Payment verification failed' });
   }
 };

@@ -27,7 +27,6 @@ const AdminLayout = () => {
         { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
         { icon: ClipboardCheck, label: 'Property Management', path: '/admin/properties' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
-        { icon: DollarSign, label: 'My Earnings', path: '/admin/earnings' },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
         { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
         { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
