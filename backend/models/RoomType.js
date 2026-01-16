@@ -43,7 +43,7 @@ const roomTypeSchema = new mongoose.Schema({
   // MEDIA
   images: {
     type: [String],
-    validate: v => v.length >= 4
+    validate: v => (Array.isArray(v) ? v.length >= 3 : true)
   },
 
   amenities: [String],

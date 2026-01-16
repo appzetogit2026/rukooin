@@ -40,7 +40,7 @@ const propertySchema = new mongoose.Schema({
   // OWNER
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Partner",
+    ref: "User",
     required: true
   },
 
@@ -61,7 +61,7 @@ const propertySchema = new mongoose.Schema({
 
   nearbyPlaces: {
     type: [nearbyPlaceSchema],
-    validate: v => v.length >= 3
+    default: []
   },
 
   // MEDIA

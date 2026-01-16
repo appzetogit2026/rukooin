@@ -1,20 +1,44 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { propertyService } from '../../../services/apiService';
-import { CheckCircle, FileText, Home, Image } from 'lucide-react';
+import { propertyService, hotelService } from '../../../services/apiService';
+import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Snowflake, Coffee, ShowerHead } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
-const REQUIRED_DOCS = ["Ownership Proof", "Government ID", "Electricity Bill"];
+const REQUIRED_DOCS_VILLA = [
+  { type: "ownership_proof", name: "Ownership Proof" },
+  { type: "government_id", name: "Government ID" },
+  { type: "electricity_bill", name: "Electricity Bill" }
+];
+const VILLA_AMENITIES = ["Private Pool", "Garden", "Parking", "Kitchen", "WiFi"];
+const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in"];
+const ROOM_AMENITIES = [
+  { key: 'pool', label: 'Private Pool', icon: Snowflake },
+  { key: 'wifi', label: 'WiFi', icon: Wifi },
+  { key: 'kitchen', label: 'Kitchen', icon: Coffee },
+  { key: 'geyser', label: 'Geyser', icon: ShowerHead },
+  { key: 'balcony', label: 'Balcony', icon: BedDouble }
+];
 
 const AddVillaWizard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const existingProperty = location.state?.property || null;
   const isEditMode = !!existingProperty;
-  const [step, setStep] = useState(1);
+  const initialStep = location.state?.initialStep || 1;
+  const [step, setStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdProperty, setCreatedProperty] = useState(null);
+  const [nearbySearchQuery, setNearbySearchQuery] = useState('');
+  const [nearbyResults, setNearbyResults] = useState([]);
+  const [editingNearbyIndex, setEditingNearbyIndex] = useState(null);
+  const [tempNearbyPlace, setTempNearbyPlace] = useState({ name: '', type: 'tourist', distanceKm: '' });
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [locationResults, setLocationResults] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const coverImageFileInputRef = useRef(null);
+  const propertyImagesFileInputRef = useRef(null);
+  const roomImagesFileInputRef = useRef(null);
 
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
@@ -24,35 +48,20 @@ const AddVillaWizard = () => {
     propertyImages: [],
     address: { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' },
     location: { type: 'Point', coordinates: ['', ''] },
-    nearbyPlaces: [
-      { name: '', type: 'tourist', distanceKm: '' },
-      { name: '', type: 'airport', distanceKm: '' },
-      { name: '', type: 'market', distanceKm: '' },
-    ],
+    nearbyPlaces: [],
     amenities: [],
     checkInTime: '',
     checkOutTime: '',
     cancellationPolicy: '',
     houseRules: [],
-    documents: REQUIRED_DOCS.map(name => ({ name, fileUrl: '' }))
+    documents: REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
   });
 
-  const [roomTypeForm, setRoomTypeForm] = useState({
-    name: 'Entire Villa',
-    inventoryType: 'entire',
-    roomCategory: 'entire',
-    maxAdults: 6,
-    maxChildren: 3,
-    totalInventory: 1,
-    pricePerNight: '',
-    extraAdultPrice: 0,
-    extraChildPrice: 0,
-    images: ['', '', '', ''],
-    amenities: ['Private Pool', 'Kitchen', 'WiFi'],
-    isActive: true
-  });
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [editingRoomType, setEditingRoomType] = useState(null);
+  const [editingRoomTypeIndex, setEditingRoomTypeIndex] = useState(null);
 
-  const [roomTypeBackendId, setRoomTypeBackendId] = useState(null);
+  const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
   const updatePropertyForm = (path, value) => {
     setPropertyForm(prev => {
@@ -103,43 +112,43 @@ const AddVillaWizard = () => {
           },
           nearbyPlaces: Array.isArray(prop.nearbyPlaces) && prop.nearbyPlaces.length
             ? prop.nearbyPlaces.map(p => ({
-                name: p.name || '',
-                type: p.type || 'tourist',
-                distanceKm: typeof p.distanceKm === 'number' ? String(p.distanceKm) : ''
-              }))
-            : [
-                { name: '', type: 'tourist', distanceKm: '' },
-                { name: '', type: 'airport', distanceKm: '' },
-                { name: '', type: 'market', distanceKm: '' }
-              ],
+              name: p.name || '',
+              type: p.type || 'tourist',
+              distanceKm: typeof p.distanceKm === 'number' ? String(p.distanceKm) : ''
+            }))
+            : [],
           amenities: prop.amenities || [],
           checkInTime: prop.checkInTime || '',
           checkOutTime: prop.checkOutTime || '',
           cancellationPolicy: prop.cancellationPolicy || '',
           houseRules: prop.houseRules || [],
           documents: docs.length
-            ? docs.map(d => ({ name: d.name, fileUrl: d.fileUrl || '' }))
-            : REQUIRED_DOCS.map(name => ({ name, fileUrl: '' }))
+            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
+            : REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
         });
         if (rts.length) {
-          const rt = rts[0];
-          setRoomTypeBackendId(rt._id);
-          setRoomTypeForm({
-            name: rt.name || 'Entire Villa',
-            inventoryType: 'entire',
-            roomCategory: 'entire',
-            maxAdults: rt.maxAdults ?? 6,
-            maxChildren: rt.maxChildren ?? 3,
-            totalInventory: 1,
-            pricePerNight: rt.pricePerNight ?? '',
-            extraAdultPrice: rt.extraAdultPrice ?? 0,
-            extraChildPrice: rt.extraChildPrice ?? 0,
-            images: rt.images || ['', '', '', ''],
-            amenities: rt.amenities || ['Private Pool', 'Kitchen', 'WiFi'],
-            isActive: typeof rt.isActive === 'boolean' ? rt.isActive : true
-          });
+          setRoomTypes(
+            rts.map(rt => ({
+              id: rt._id,
+              backendId: rt._id,
+              name: rt.name || 'Entire Villa',
+              inventoryType: 'entire',
+              roomCategory: 'entire',
+              maxAdults: rt.maxAdults ?? 6,
+              maxChildren: rt.maxChildren ?? 3,
+              totalInventory: rt.totalInventory ?? 1,
+              pricePerNight: rt.pricePerNight ?? '',
+              extraAdultPrice: rt.extraAdultPrice ?? 0,
+              extraChildPrice: rt.extraChildPrice ?? 0,
+              images: rt.images || ['', '', '', ''],
+              amenities: rt.amenities || ['Private Pool', 'Kitchen', 'WiFi'],
+              isActive: typeof rt.isActive === 'boolean' ? rt.isActive : true
+            }))
+          );
+          setOriginalRoomTypeIds(rts.map(rt => rt._id));
         } else {
-          setRoomTypeBackendId(null);
+          setOriginalRoomTypeIds([]);
+          setRoomTypes([]);
         }
       } catch (e) {
         setError(e?.message || 'Failed to load property details');
@@ -150,10 +159,321 @@ const AddVillaWizard = () => {
     loadForEdit();
   }, [isEditMode, existingProperty]);
 
-  const onSubmitProperty = async () => {
-    setLoading(true); setError('');
+  const useCurrentLocation = async () => {
     try {
-      const payload = {
+      setError('');
+      if (!navigator.geolocation) {
+        setError('Geolocation not supported');
+        return;
+      }
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+      }).then(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const res = await hotelService.getAddressFromCoordinates(lat, lng);
+        updatePropertyForm(['location', 'coordinates'], [String(lng), String(lat)]);
+        updatePropertyForm('address', {
+          country: res.country || '',
+          state: res.state || '',
+          city: res.city || '',
+          area: res.area || '',
+          fullAddress: res.fullAddress || '',
+          pincode: res.pincode || ''
+        });
+      }).catch(() => {
+        setError('Failed to get current location');
+      });
+    } catch {
+      setError('Failed to fetch address');
+    }
+  };
+
+  const searchLocationForAddress = async () => {
+    try {
+      setError('');
+      if (!locationSearchQuery.trim()) return;
+      const res = await hotelService.searchLocation(locationSearchQuery.trim());
+      setLocationResults(Array.isArray(res?.results) ? res.results : []);
+    } catch {
+      setError('Failed to search location');
+    }
+  };
+
+  const selectLocationResult = async (place) => {
+    try {
+      setError('');
+      const lat = place.lat;
+      const lng = place.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      const res = await hotelService.getAddressFromCoordinates(lat, lng);
+      updatePropertyForm(['location', 'coordinates'], [String(lng), String(lat)]);
+      updatePropertyForm('address', {
+        country: res.country || '',
+        state: res.state || '',
+        city: res.city || '',
+        area: res.area || '',
+        fullAddress: res.fullAddress || '',
+        pincode: res.pincode || ''
+      });
+    } catch {
+      setError('Failed to use selected location');
+    }
+  };
+
+  const searchNearbyPlaces = async () => {
+    try {
+      setError('');
+      if (!nearbySearchQuery.trim()) return;
+      const res = await hotelService.searchLocation(nearbySearchQuery.trim());
+      setNearbyResults(Array.isArray(res?.results) ? res.results : []);
+    } catch {
+      setError('Failed to search places');
+    }
+  };
+
+  const selectNearbyPlace = async (place) => {
+    try {
+      const originLat = Number(propertyForm.location.coordinates[1] || 0);
+      const originLng = Number(propertyForm.location.coordinates[0] || 0);
+      const destLat = place.lat;
+      const destLng = place.lng;
+
+      let km = '';
+      if (originLat && originLng && destLat && destLng) {
+        const distRes = await hotelService.calculateDistance(originLat, originLng, destLat, destLng);
+        km = distRes?.distanceKm ? String(distRes.distanceKm) : '';
+      }
+
+      setTempNearbyPlace(prev => ({
+        ...prev,
+        name: place.name || '',
+        distanceKm: km
+      }));
+      setNearbyResults([]);
+      setNearbySearchQuery('');
+    } catch {
+      setTempNearbyPlace(prev => ({ ...prev, name: place.name || '' }));
+    }
+  };
+
+  const startAddNearbyPlace = () => {
+    if (propertyForm.nearbyPlaces.length >= 5) {
+      setError('Maximum 5 nearby places allowed');
+      return;
+    }
+    setError('');
+    setEditingNearbyIndex(-1);
+    setTempNearbyPlace({ name: '', type: 'tourist', distanceKm: '' });
+    setNearbySearchQuery('');
+    setNearbyResults([]);
+  };
+
+  const startEditNearbyPlace = (index) => {
+    setError('');
+    setEditingNearbyIndex(index);
+    setTempNearbyPlace({ ...propertyForm.nearbyPlaces[index] });
+    setNearbySearchQuery('');
+    setNearbyResults([]);
+  };
+
+  const deleteNearbyPlace = (index) => {
+    const arr = propertyForm.nearbyPlaces.filter((_, i) => i !== index);
+    updatePropertyForm('nearbyPlaces', arr);
+  };
+
+  const saveNearbyPlace = () => {
+    if (!tempNearbyPlace.name || !tempNearbyPlace.distanceKm) {
+      setError('Name and Distance are required');
+      return;
+    }
+
+    const arr = [...propertyForm.nearbyPlaces];
+    if (editingNearbyIndex === -1) {
+      arr.push(tempNearbyPlace);
+    } else {
+      arr[editingNearbyIndex] = tempNearbyPlace;
+    }
+    updatePropertyForm('nearbyPlaces', arr);
+    setEditingNearbyIndex(null);
+    setError('');
+  };
+
+  const cancelEditNearbyPlace = () => {
+    setEditingNearbyIndex(null);
+    setError('');
+  };
+
+  const uploadImages = async (files, onDone) => {
+    try {
+      setUploading(true);
+      const fd = new FormData();
+      Array.from(files).forEach(f => fd.append('images', f));
+      const res = await hotelService.uploadImages(fd);
+      const urls = Array.isArray(res?.urls) ? res.urls : [];
+      onDone(urls);
+    } catch {
+      setError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
+  const startAddRoomType = () => {
+    setError('');
+    setEditingRoomTypeIndex(-1);
+    setEditingRoomType({
+      id: Date.now().toString() + Math.random().toString(36).slice(2),
+      name: 'Entire Villa',
+      inventoryType: 'entire',
+      roomCategory: 'entire',
+      maxAdults: 6,
+      maxChildren: 3,
+      totalInventory: 1,
+      pricePerNight: '',
+      extraAdultPrice: 0,
+      extraChildPrice: 0,
+      images: [],
+      amenities: ['Private Pool', 'Kitchen', 'WiFi'],
+      isActive: true
+    });
+  };
+
+  const startEditRoomType = (index) => {
+    setError('');
+    setEditingRoomTypeIndex(index);
+    const rt = roomTypes[index];
+    setEditingRoomType({
+      ...rt,
+      images: Array.isArray(rt.images) ? rt.images : [],
+      amenities: Array.isArray(rt.amenities) ? rt.amenities : []
+    });
+  };
+
+  const cancelEditRoomType = () => {
+    setEditingRoomTypeIndex(null);
+    setEditingRoomType(null);
+    setError('');
+  };
+
+  const saveEditingRoomType = () => {
+    const rt = editingRoomType;
+    if (!rt.name || !rt.pricePerNight) {
+      setError('Room type name and price required');
+      return;
+    }
+    if (!rt.images || rt.images.filter(Boolean).length < 4) {
+      setError('At least 4 images required');
+      return;
+    }
+    const payload = { ...rt };
+    if (editingRoomTypeIndex === -1) {
+      setRoomTypes(prev => [{ ...payload }, ...prev]);
+    } else {
+      setRoomTypes(prev => prev.map((x, i) => (i === editingRoomTypeIndex ? payload : x)));
+    }
+    setEditingRoomTypeIndex(null);
+    setEditingRoomType(null);
+    setError('');
+  };
+
+  const deleteRoomType = (index) => {
+    setRoomTypes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const nextFromBasic = () => {
+    setError('');
+    if (!propertyForm.propertyName || !propertyForm.shortDescription) {
+      setError('Name and short description required');
+      return;
+    }
+    setStep(2);
+  };
+
+  const nextFromLocation = () => {
+    setError('');
+    const { country, state, city, area, fullAddress, pincode } = propertyForm.address;
+    if (!country || !state || !city || !area || !fullAddress || !pincode) {
+      setError('All address fields are required');
+      return;
+    }
+    if (!propertyForm.location.coordinates[0] || !propertyForm.location.coordinates[1]) {
+      setError('Location coordinates are required');
+      return;
+    }
+    setStep(3);
+  };
+
+  const nextFromAmenities = () => {
+    setError('');
+    setStep(4);
+  };
+
+  const nextFromNearbyPlaces = () => {
+    if (propertyForm.nearbyPlaces.length < 3) {
+      setError('Please add at least 3 nearby places');
+      return;
+    }
+    setStep(5);
+  };
+
+  const nextFromImages = () => {
+    setError('');
+    if (!propertyForm.coverImage) {
+      setError('Cover image required');
+      return;
+    }
+    if ((propertyForm.propertyImages || []).filter(Boolean).length < 4) {
+      setError('Minimum 4 property images required');
+      return;
+    }
+    setStep(6);
+  };
+
+  const nextFromRoomTypes = () => {
+    setError('');
+    if (!roomTypes.length) {
+      setError('At least one RoomType required');
+      return;
+    }
+    for (const rt of roomTypes) {
+      if (!rt.name || !rt.pricePerNight) {
+        setError('Room type name and price required');
+        return;
+      }
+      if (!rt.images || rt.images.filter(Boolean).length < 4) {
+        setError('Each room type must have at least 4 images');
+        return;
+      }
+    }
+    setStep(7);
+  };
+
+  const nextFromRules = () => {
+    setError('');
+    if (!propertyForm.checkInTime || !propertyForm.checkOutTime) {
+      setError('Check-in and Check-out times are required');
+      return;
+    }
+    setStep(8);
+  };
+
+  const nextFromDocuments = () => {
+    setError('');
+    const missing = propertyForm.documents.some(d => !d.fileUrl);
+    if (missing) {
+      setError('Please upload all required documents');
+      return;
+    }
+    setStep(9);
+  };
+
+  const submitAll = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const propertyPayload = {
         propertyType: 'villa',
         propertyName: propertyForm.propertyName,
         description: propertyForm.description,
@@ -169,65 +489,63 @@ const AddVillaWizard = () => {
           ]
         },
         nearbyPlaces: propertyForm.nearbyPlaces.map(p => ({
-          name: p.name, type: p.type, distanceKm: Number(p.distanceKm || 0)
+          name: p.name,
+          type: p.type,
+          distanceKm: Number(p.distanceKm || 0)
         })),
         amenities: propertyForm.amenities,
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
-        houseRules: propertyForm.houseRules,
-        documents: propertyForm.documents.map(d => ({ name: d.name, fileUrl: d.fileUrl }))
+        houseRules: propertyForm.houseRules
       };
-      if (isEditMode && (createdProperty?._id || existingProperty?._id)) {
-        const id = createdProperty?._id || existingProperty._id;
-        const { documents, ...propertyPayload } = payload;
-        const updated = await propertyService.update(id, propertyPayload);
-        if (documents && documents.length) {
-          await propertyService.upsertDocuments(id, documents);
-        }
-        setCreatedProperty(updated.property || updated);
+      let propId = createdProperty?._id;
+      if (isEditMode && propId) {
+        const updated = await propertyService.update(propId, propertyPayload);
+        propId = updated.property?._id || propId;
       } else {
-        const res = await propertyService.create(payload);
+        const res = await propertyService.create(propertyPayload);
+        propId = res.property?._id;
         setCreatedProperty(res.property);
       }
-      setStep(2);
-    } catch (e) {
-      setError(e?.message || 'Failed to create property');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSubmitRoomType = async () => {
-    if (!createdProperty?._id) {
-      setError('Property not created yet'); return;
-    }
-    setLoading(true); setError('');
-    try {
-      const payload = {
-        name: roomTypeForm.name,
-        inventoryType: 'entire',
-        roomCategory: 'entire',
-        maxAdults: Number(roomTypeForm.maxAdults),
-        maxChildren: Number(roomTypeForm.maxChildren),
-        totalInventory: 1,
-        pricePerNight: Number(roomTypeForm.pricePerNight),
-        extraAdultPrice: Number(roomTypeForm.extraAdultPrice || 0),
-        extraChildPrice: Number(roomTypeForm.extraChildPrice || 0),
-        images: roomTypeForm.images.filter(Boolean),
-        amenities: roomTypeForm.amenities,
-      };
-      if (roomTypeBackendId) {
-        await propertyService.updateRoomType(createdProperty._id, roomTypeBackendId, payload);
-      } else {
-        const res = await propertyService.addRoomType(createdProperty._id, payload);
-        if (res.roomType?._id) {
-          setRoomTypeBackendId(res.roomType._id);
+      const documentsPayload = propertyForm.documents.map(d => ({ type: d.type, name: d.name, fileUrl: d.fileUrl }));
+      if (documentsPayload.length) {
+        await propertyService.upsertDocuments(propId, documentsPayload);
+      }
+      const existingIds = new Set(isEditMode ? originalRoomTypeIds : []);
+      const persistedIds = [];
+      for (const rt of roomTypes) {
+        const payload = {
+          name: rt.name,
+          inventoryType: 'entire',
+          roomCategory: 'entire',
+          maxAdults: Number(rt.maxAdults),
+          maxChildren: Number(rt.maxChildren || 0),
+          totalInventory: Number(rt.totalInventory || 1),
+          pricePerNight: Number(rt.pricePerNight),
+          extraAdultPrice: Number(rt.extraAdultPrice || 0),
+          extraChildPrice: Number(rt.extraChildPrice || 0),
+          images: rt.images.filter(Boolean),
+          amenities: rt.amenities
+        };
+        if (rt.backendId) {
+          await propertyService.updateRoomType(propId, rt.backendId, payload);
+          persistedIds.push(rt.backendId);
+        } else {
+          const created = await propertyService.addRoomType(propId, payload);
+          if (created.roomType?._id) {
+            persistedIds.push(created.roomType._id);
+          }
         }
       }
-      setStep(3);
+      for (const id of existingIds) {
+        if (!persistedIds.includes(id)) {
+          await propertyService.deleteRoomType(propId, id);
+        }
+      }
+      navigate('/hotel/dashboard');
     } catch (e) {
-      setError(e?.message || 'Failed to create room type');
+      setError(e?.message || 'Failed to submit property');
     } finally {
       setLoading(false);
     }
@@ -239,106 +557,545 @@ const AddVillaWizard = () => {
         <img src={logo} alt="Rukkoin" className="h-6" />
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-3xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           {step === 1 && (
             <>
               <div className="flex items-center gap-3 mb-4">
                 <Home size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Villa — Property Details + Documents</h2>
+                <h2 className="text-lg font-bold">Step 1 — Basic Info</h2>
               </div>
               {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
               <div className="grid grid-cols-1 gap-4">
-                <input className="input" placeholder="Property Name" value={propertyForm.propertyName} onChange={e => updatePropertyForm('propertyName', e.target.value)} />
-                <textarea className="input" placeholder="Short Description" value={propertyForm.shortDescription} onChange={e => updatePropertyForm('shortDescription', e.target.value)} />
+                <input
+                  className="input"
+                  placeholder="Property Name"
+                  value={propertyForm.propertyName}
+                  onChange={e => updatePropertyForm('propertyName', e.target.value)}
+                />
+                <textarea
+                  className="input"
+                  placeholder="Short Description"
+                  value={propertyForm.shortDescription}
+                  onChange={e => updatePropertyForm('shortDescription', e.target.value)}
+                />
                 <textarea className="input" placeholder="Description" value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
-                <input className="input" placeholder="Cover Image URL" value={propertyForm.coverImage} onChange={e => updatePropertyForm('coverImage', e.target.value)} />
-                <div className="grid grid-cols-2 gap-2">
-                  {[0,1,2,3].map(i => (
-                    <input key={i} className="input" placeholder={`Property Image ${i+1} URL`} value={propertyForm.propertyImages[i] || ''} onChange={e => {
-                      const arr = [...propertyForm.propertyImages]; arr[i] = e.target.value; updatePropertyForm('propertyImages', arr);
-                    }} />
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Country" value={propertyForm.address.country} onChange={e => updatePropertyForm(['address','country'], e.target.value)} />
-                  <input className="input" placeholder="State" value={propertyForm.address.state} onChange={e => updatePropertyForm(['address','state'], e.target.value)} />
-                  <input className="input" placeholder="City" value={propertyForm.address.city} onChange={e => updatePropertyForm(['address','city'], e.target.value)} />
-                  <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address','area'], e.target.value)} />
-                  <input className="input" placeholder="Full Address" value={propertyForm.address.fullAddress} onChange={e => updatePropertyForm(['address','fullAddress'], e.target.value)} />
-                  <input className="input" placeholder="Pincode" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address','pincode'], e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Longitude" value={propertyForm.location.coordinates[0]} onChange={e => {
-                    const coords = [...propertyForm.location.coordinates]; coords[0] = e.target.value; updatePropertyForm(['location','coordinates'], coords);
-                  }} />
-                  <input className="input" placeholder="Latitude" value={propertyForm.location.coordinates[1]} onChange={e => {
-                    const coords = [...propertyForm.location.coordinates]; coords[1] = e.target.value; updatePropertyForm(['location','coordinates'], coords);
-                  }} />
-                </div>
-                <div className="grid grid-cols-1 gap-2">
-                  {propertyForm.documents.map((d, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <FileText size={16} className="text-gray-500" />
-                      <span className="text-sm w-40">{d.name}</span>
-                      <input className="input flex-1" placeholder="File URL" value={d.fileUrl} onChange={e => {
-                        const arr = [...propertyForm.documents]; arr[i] = { ...arr[i], fileUrl: e.target.value }; updatePropertyForm('documents', arr);
-                      }} />
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Check-in Time" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
-                  <input className="input" placeholder="Check-out Time" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
-                </div>
-                <textarea className="input" placeholder="Cancellation Policy" value={propertyForm.cancellationPolicy} onChange={e => updatePropertyForm('cancellationPolicy', e.target.value)} />
-                <input className="input" placeholder="House Rules (comma separated)" value={propertyForm.houseRules.join(', ')} onChange={e => updatePropertyForm('houseRules', e.target.value.split(',').map(s => s.trim()))} />
               </div>
-              <button disabled={loading} onClick={onSubmitProperty} className="mt-4 px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">
-                {loading ? 'Creating...' : 'Create Property'}
-              </button>
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold"
+                  onClick={() => navigate(-1)}
+                >
+                  Back
+                </button>
+                <button disabled={loading} onClick={nextFromBasic} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
             </>
           )}
 
           {step === 2 && (
             <>
               <div className="flex items-center gap-3 mb-4">
-                <Image size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Villa — RoomType (Entire)</h2>
+                <MapPin size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 2 — Location</h2>
               </div>
               {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="grid grid-cols-1 gap-4">
-                <input className="input" placeholder="Price Per Night (₹)" value={roomTypeForm.pricePerNight} onChange={e => setRoomTypeForm(prev => ({ ...prev, pricePerNight: e.target.value }))} />
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Extra Adult Price (₹)" value={roomTypeForm.extraAdultPrice} onChange={e => setRoomTypeForm(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
-                  <input className="input" placeholder="Extra Child Price (₹)" value={roomTypeForm.extraChildPrice} onChange={e => setRoomTypeForm(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+              <div className="mb-3 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    className="input flex-1"
+                    placeholder="Search location"
+                    value={locationSearchQuery}
+                    onChange={e => setLocationSearchQuery(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={searchLocationForAddress}
+                    className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95"
+                  >
+                    Search
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Max Adults" value={roomTypeForm.maxAdults} onChange={e => setRoomTypeForm(prev => ({ ...prev, maxAdults: e.target.value }))} />
-                  <input className="input" placeholder="Max Children" value={roomTypeForm.maxChildren} onChange={e => setRoomTypeForm(prev => ({ ...prev, maxChildren: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[0,1,2,3].map(i => (
-                    <input key={i} className="input" placeholder={`Image ${i+1} URL`} value={roomTypeForm.images[i]} onChange={e => {
-                      const imgs = [...roomTypeForm.images]; imgs[i] = e.target.value; setRoomTypeForm(prev => ({ ...prev, images: imgs }));
-                    }} />
-                  ))}
-                </div>
+                {locationResults.length > 0 && (
+                  <div className="border border-gray-200 rounded-xl p-3">
+                    <div className="text-xs font-semibold mb-2">Results</div>
+                    <div className="space-y-1 max-h-40 overflow-auto">
+                      {locationResults.slice(0, 6).map((p, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => selectLocationResult(p)}
+                          className="w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm"
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <button disabled={loading} onClick={onSubmitRoomType} className="mt-4 px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">
-                {loading ? 'Saving...' : 'Save RoomType'}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="input" placeholder="Country" value={propertyForm.address.country} onChange={e => updatePropertyForm(['address', 'country'], e.target.value)} />
+                <input className="input" placeholder="State" value={propertyForm.address.state} onChange={e => updatePropertyForm(['address', 'state'], e.target.value)} />
+                <input className="input" placeholder="City" value={propertyForm.address.city} onChange={e => updatePropertyForm(['address', 'city'], e.target.value)} />
+                <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address', 'area'], e.target.value)} />
+                <input className="input col-span-2" placeholder="Full Address" value={propertyForm.address.fullAddress} onChange={e => updatePropertyForm(['address', 'fullAddress'], e.target.value)} />
+                <input className="input" placeholder="Pincode" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)} />
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button type="button" onClick={useCurrentLocation} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold inline-flex items-center gap-2">
+                  <MapPin size={16} />
+                  Use Current Location
+                </button>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(1)}>Back</button>
+                <button disabled={loading} onClick={nextFromLocation} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
             </>
           )}
 
           {step === 3 && (
-            <div className="flex flex-col items-center justify-center py-8">
-              <CheckCircle size={48} className="text-green-600 mb-3" />
-              <h3 className="text-xl font-bold mb-1">Villa setup complete</h3>
-              <p className="text-gray-500 text-sm">Admin verification ke baad property live ho jayegi.</p>
-              <button onClick={() => navigate('/hotel/dashboard')} className="mt-4 px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">
-                Go to Dashboard
-              </button>
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <Home size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 3 — Villa Amenities</h2>
+              </div>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {VILLA_AMENITIES.map(am => (
+                    <button
+                      key={am}
+                      type="button"
+                      onClick={() => {
+                        const has = propertyForm.amenities.includes(am);
+                        const arr = has ? propertyForm.amenities.filter(x => x !== am) : [...propertyForm.amenities, am];
+                        updatePropertyForm('amenities', arr);
+                      }}
+                      className={`px-3 py-1 rounded-full border text-xs font-semibold ${propertyForm.amenities.includes(am) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-700 border-gray-200'}`}
+                    >
+                      {am}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(2)}>Back</button>
+                <button disabled={loading} onClick={nextFromAmenities} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <Search size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 4 — Nearby Places</h2>
+              </div>
+
+              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+
+              <div className="space-y-2 mb-4">
+                {propertyForm.nearbyPlaces.map((place, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 border border-gray-200 rounded-xl bg-white">
+                    <div>
+                      <div className="font-semibold text-sm">{place.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {place.type} {place.distanceKm ? `• ${place.distanceKm} km` : ''}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditNearbyPlace(idx)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-50"
+                        disabled={editingNearbyIndex !== null}
+                      >
+                        <FileText size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteNearbyPlace(idx)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-full disabled:opacity-50"
+                        disabled={editingNearbyIndex !== null}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {propertyForm.nearbyPlaces.length === 0 && editingNearbyIndex === null && (
+                  <div className="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-300 rounded-xl">
+                    No nearby places added. Add at least 3.
+                  </div>
+                )}
+              </div>
+
+              {editingNearbyIndex !== null ? (
+                <div className="border border-[#004F4D] bg-[#004F4D]/5 rounded-xl p-4 space-y-3">
+                  <div className="font-bold text-sm text-[#004F4D]">
+                    {editingNearbyIndex === -1 ? 'Add Nearby Place' : 'Edit Nearby Place'}
+                  </div>
+
+                  <div className="relative space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        className="input flex-1"
+                        placeholder="Search places"
+                        value={nearbySearchQuery}
+                        onChange={e => setNearbySearchQuery(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={searchNearbyPlaces}
+                        className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold text-sm active:scale-95"
+                      >
+                        Search
+                      </button>
+                    </div>
+                    {nearbyResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
+                        {nearbyResults.slice(0, 6).map((p, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => selectNearbyPlace(p)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                          >
+                            <div className="font-medium">{p.name}</div>
+                            <div className="text-xs text-gray-500 truncate">{p.address || p.formatted_address}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <input
+                      className="input w-full"
+                      placeholder="Place Name"
+                      value={tempNearbyPlace.name}
+                      onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, name: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        className="input w-full"
+                        value={tempNearbyPlace.type}
+                        onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, type: e.target.value })}
+                      >
+                        <option value="tourist">Tourist Attraction</option>
+                        <option value="airport">Airport</option>
+                        <option value="market">Market</option>
+                        <option value="railway">Railway Station</option>
+                        <option value="bus_stop">Bus Stop</option>
+                        <option value="hospital">Hospital</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <input
+                        className="input w-full"
+                        type="number"
+                        placeholder="Distance (km)"
+                        value={tempNearbyPlace.distanceKm}
+                        onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={saveNearbyPlace}
+                      className="flex-1 py-2 bg-[#004F4D] text-white rounded-xl font-bold text-sm"
+                    >
+                      {editingNearbyIndex === -1 ? 'Save Place' : 'Update Place'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEditNearbyPlace}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl font-semibold text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startAddNearbyPlace}
+                  disabled={propertyForm.nearbyPlaces.length >= 5}
+                  className="w-full py-3 border-2 border-dashed border-[#004F4D]/40 text-[#004F4D] rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus size={18} />
+                  Add Nearby Place ({propertyForm.nearbyPlaces.length}/5)
+                </button>
+              )}
+
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(3)}>Back</button>
+                <button
+                  type="button"
+                  disabled={loading || editingNearbyIndex !== null}
+                  onClick={nextFromNearbyPlaces}
+                  className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <Image size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 5 — Property Images</h2>
+              </div>
+              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <button onClick={handleCoverImageClick} className="relative w-40 h-28 sm:w-48 sm:h-32 border-2 border-dashed border-[#004F4D]/40 rounded-2xl flex items-center justify-center bg-gray-50 overflow-hidden group">
+                    {propertyForm.coverImage ? (
+                      <>
+                        <img src={propertyForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <button type="button" onClick={e => { e.stopPropagation(); updatePropertyForm('coverImage', ''); }} className="absolute top-2 right-2 bg-white/90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow">
+                          ×
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-gray-500 text-xs">
+                        <div className="w-9 h-9 rounded-full bg-[#004F4D]/10 flex items-center justify-center mb-0.5">
+                          <Plus size={20} className="text-[#004F4D]" />
+                        </div>
+                        <span className="font-semibold">Upload Cover Image</span>
+                        <span className="text-[10px] text-gray-400">Click to choose from device</span>
+                      </div>
+                    )}
+                  </button>
+                  <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => onUploadFiles(e.target.files, 'cover')} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-2 text-xs text-gray-600">
+                    <Plus size={16} className="text-[#004F4D]" />
+                    <span>Property Images (min. 4)</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(propertyForm.propertyImages || []).map((url, idx) => (
+                      <div key={idx} className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200 relative">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => {
+                          const arr = propertyForm.propertyImages.filter((_, i) => i !== idx);
+                          updatePropertyForm('propertyImages', arr);
+                        }} className="absolute -top-2 -right-2 bg-white text-gray-700 rounded-full w-6 h-6 flex items-center justify-center shadow">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={handlePropertyImagesClick} className="w-16 h-16 rounded-xl border-2 border-dashed border-[#004F4D]/40 flex items-center justify-center bg-gray-50">
+                      <Plus size={18} className="text-[#004F4D]" />
+                    </button>
+                    <input ref={propertyImagesFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onUploadFiles(e.target.files, 'propertyImages')} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(4)}>Back</button>
+                <button disabled={loading} onClick={nextFromImages} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <BedDouble size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 6 — RoomType (Entire Villa)</h2>
+              </div>
+              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+              <div className="space-y-3">
+                {editingRoomType ? (
+                  <div className="space-y-3">
+                    <input className="input" placeholder="Room type name" value={editingRoomType.name} onChange={e => setEditingRoomType(prev => ({ ...prev, name: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input className="input" placeholder="Price Per Night (₹)" value={editingRoomType.pricePerNight} onChange={e => setEditingRoomType(prev => ({ ...prev, pricePerNight: e.target.value }))} />
+                      <input className="input" placeholder="Total Inventory" value={editingRoomType.totalInventory} onChange={e => setEditingRoomType(prev => ({ ...prev, totalInventory: e.target.value }))} />
+                      <input className="input" placeholder="Extra Adult Price (₹)" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
+                      <input className="input" placeholder="Extra Child Price (₹)" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+                      <input className="input" placeholder="Max Adults" value={editingRoomType.maxAdults} onChange={e => setEditingRoomType(prev => ({ ...prev, maxAdults: e.target.value }))} />
+                      <input className="input" placeholder="Max Children" value={editingRoomType.maxChildren} onChange={e => setEditingRoomType(prev => ({ ...prev, maxChildren: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-2 text-xs text-gray-600">
+                        <Plus size={16} className="text-[#004F4D]" />
+                        <span>Room images (min. 4)</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(editingRoomType.images || []).map((url, idx) => (
+                          <div key={idx} className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200 relative">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => {
+                              const arr = (editingRoomType.images || []).filter((_, i) => i !== idx);
+                              setEditingRoomType(prev => ({ ...prev, images: arr }));
+                            }} className="absolute -top-2 -right-2 bg-white text-gray-700 rounded-full w-6 h-6 flex items-center justify-center shadow">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={handleRoomImagesClick} className="w-16 h-16 rounded-xl border-2 border-dashed border-[#004F4D]/40 flex items-center justify-center bg-gray-50">
+                          <Plus size={18} className="text-[#004F4D]" />
+                        </button>
+                        <input ref={roomImagesFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onUploadFiles(e.target.files, 'roomImages')} />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {ROOM_AMENITIES.map(amenity => (
+                        <button
+                          key={amenity.key}
+                          type="button"
+                          onClick={() => {
+                            const has = editingRoomType.amenities.includes(amenity.label);
+                            const arr = has ? editingRoomType.amenities.filter(x => x !== amenity.label) : [...editingRoomType.amenities, amenity.label];
+                            setEditingRoomType(prev => ({ ...prev, amenities: arr }));
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${editingRoomType.amenities.includes(amenity.label) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-600 border-gray-200'} border`}
+                        >
+                          <amenity.icon size={12} />
+                          {amenity.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={saveEditingRoomType} className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold">Save</button>
+                      <button type="button" onClick={cancelEditRoomType} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600">Add at least one room type</div>
+                      <button type="button" onClick={startAddRoomType} className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold">Add Room Type</button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 mt-3">
+                      {roomTypes.map((rt, idx) => (
+                        <div key={rt.id} className="border border-gray-200 rounded-xl p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{rt.name}</div>
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => startEditRoomType(idx)} className="px-2 py-1 rounded-lg border border-gray-200 text-gray-700 text-xs font-semibold">Edit</button>
+                              <button type="button" onClick={() => deleteRoomType(idx)} className="px-2 py-1 rounded-lg border border-gray-200 text-red-600 text-xs font-semibold">Delete</button>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-600">₹{rt.pricePerNight} / night • {rt.maxAdults} adults, {rt.maxChildren} children</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(5)}>Back</button>
+                <button disabled={loading} onClick={nextFromRoomTypes} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
+            </>
+          )}
+
+          {step === 7 && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <Home size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 7 — Property Rules</h2>
+              </div>
+              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+              <div className="grid grid-cols-2 gap-2">
+                <input className="input" placeholder="Check-in Time" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
+                <input className="input" placeholder="Check-out Time" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
+              </div>
+              <textarea className="input mt-2" placeholder="Cancellation Policy" value={propertyForm.cancellationPolicy} onChange={e => updatePropertyForm('cancellationPolicy', e.target.value)} />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {HOUSE_RULES_OPTIONS.map(rule => (
+                  <button
+                    key={rule}
+                    type="button"
+                    onClick={() => {
+                      const has = propertyForm.houseRules.includes(rule);
+                      const arr = has ? propertyForm.houseRules.filter(x => x !== rule) : [...propertyForm.houseRules, rule];
+                      updatePropertyForm('houseRules', arr);
+                    }}
+                    className={`px-3 py-1 rounded-full border text-xs font-semibold ${propertyForm.houseRules.includes(rule) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-700 border-gray-200'}`}
+                  >
+                    {rule}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(6)}>Back</button>
+                <button disabled={loading} onClick={nextFromRules} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
+            </>
+          )}
+
+          {step === 8 && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <FileText size={18} className="text-[#004F4D]" />
+                <h2 className="text-lg font-bold">Step 8 — Documents</h2>
+              </div>
+              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
+              <div className="grid grid-cols-1 gap-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300">
+                <h4 className="text-sm font-bold text-gray-700 mb-1">Required Documents</h4>
+                {propertyForm.documents.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <FileText size={16} className="text-gray-500" />
+                    <span className="text-sm w-40 truncate" title={d.name}>{d.name}</span>
+                    <button type="button" onClick={() => document.getElementById(`doc-file-${i}`).click()} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold">
+                      {d.fileUrl ? 'Change File' : 'Upload File'}
+                    </button>
+                    <span className={`text-xs ${d.fileUrl ? 'text-green-600' : 'text-red-600'}`}>
+                      {d.fileUrl ? 'Uploaded' : 'Not Uploaded'}
+                    </span>
+                    <input id={`doc-file-${i}`} type="file" accept="image/*" className="hidden" onChange={e => onUploadFiles(e.target.files, `doc-${i}`)} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(7)}>Back</button>
+                <button disabled={loading} onClick={nextFromDocuments} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+              </div>
+            </>
+          )}
+
+          {step === 9 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <CheckCircle size={18} className="text-green-600" />
+                <h2 className="text-lg font-bold">Step 9 — Review & Submit</h2>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="font-semibold mb-2">Property</div>
+                <div className="text-sm text-gray-700">{propertyForm.propertyName}</div>
+                <div className="text-xs text-gray-500">{propertyForm.address.fullAddress}</div>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="font-semibold mb-2">Documents</div>
+                <ul className="text-sm text-gray-700">
+                  {propertyForm.documents.map((d, i) => (
+                    <li key={i}>{d.name}: {d.fileUrl ? 'Provided' : 'Missing'}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="font-semibold mb-2">Room Types</div>
+                <ul className="text-sm text-gray-700">
+                  {roomTypes.map((rt) => (
+                    <li key={rt.id}>{rt.name} — ₹{rt.pricePerNight}/night — {rt.maxAdults} adults, {rt.maxChildren} children</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex items-center justify-end">
+                <button disabled={loading} onClick={submitAll} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Submit</button>
+              </div>
             </div>
           )}
         </div>

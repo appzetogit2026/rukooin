@@ -6,16 +6,12 @@ import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, propertyType, description, shortDescription, coverImage, amenities, address, location, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities } = req.body;
+    const { propertyName, propertyType, description, shortDescription, coverImage, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
+    const nearbyPlacesArray = Array.isArray(nearbyPlaces) ? nearbyPlaces : [];
     const docsArray = Array.isArray(documents) ? documents : [];
-    const providedDocNames = docsArray.map(d => (d.name || d.type || '').trim());
-    const missing = requiredDocs.filter(reqName => !providedDocNames.includes(reqName));
-    if (requiredDocs.length && missing.length) {
-      return res.status(400).json({ message: `Missing required documents: ${missing.join(', ')}` });
-    }
     const doc = new Property({
       propertyName,
       propertyType: lowerType,
@@ -24,6 +20,7 @@ export const createProperty = async (req, res) => {
       partnerId: req.user._id,
       address,
       location,
+      nearbyPlaces: nearbyPlacesArray,
       amenities,
       coverImage,
       checkInTime,
@@ -148,6 +145,12 @@ export const addRoomType = async (req, res) => {
       return res.status(400).json({ message: 'Homestay must have inventoryType="room" or "entire"' });
     }
 
+    const normalizedImages = Array.isArray(images)
+      ? images.filter(Boolean)
+      : typeof images === 'string'
+        ? images.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
     const rt = await RoomType.create({
       propertyId,
       name,
@@ -160,7 +163,7 @@ export const addRoomType = async (req, res) => {
       pricePerNight,
       extraAdultPrice,
       extraChildPrice,
-      images,
+      images: normalizedImages,
       amenities
     });
     res.status(201).json({ success: true, roomType: rt });
@@ -205,6 +208,16 @@ export const updateRoomType = async (req, res) => {
         roomType[field] = payload[field];
       }
     });
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'images')) {
+      if (Array.isArray(payload.images)) {
+        roomType.images = payload.images.filter(Boolean);
+      } else if (typeof payload.images === 'string') {
+        roomType.images = payload.images.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        roomType.images = [];
+      }
+    }
 
     if (payload.inventoryType) {
       if (property.propertyType === 'villa' && roomType.inventoryType !== 'entire') {
@@ -266,7 +279,12 @@ export const upsertDocuments = async (req, res) => {
       { propertyId },
       {
         propertyType: property.propertyType,
-        documents: payloadDocs.map(d => ({ name: d.name, fileUrl: d.fileUrl, isRequired: required.includes(d.name) })),
+        documents: payloadDocs.map(d => ({
+          type: d.type,
+          name: d.name || d.type,
+          fileUrl: d.fileUrl,
+          isRequired: required.includes(d.name || d.type)
+        })),
         verificationStatus: 'pending',
         adminRemark: undefined,
         verifiedAt: undefined

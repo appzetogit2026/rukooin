@@ -16,9 +16,10 @@ const propertyDocumentSchema = new mongoose.Schema({
   },
 
   documents: [{
-    name: String,            // Trade License, FSSAI, Rent Agreement
-    fileUrl: String,
-    isRequired: Boolean
+    type: { type: String },     // trade_license, gst_certificate, etc.
+    name: { type: String },     // Display name if needed
+    fileUrl: { type: String },
+    isRequired: { type: Boolean }
   }],
 
   verificationStatus: {
