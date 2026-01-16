@@ -6,11 +6,12 @@ import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, propertyType, description, shortDescription, coverImage, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities } = req.body;
+    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
     const nearbyPlacesArray = Array.isArray(nearbyPlaces) ? nearbyPlaces : [];
+    const propertyImagesArray = Array.isArray(propertyImages) ? propertyImages : [];
     const docsArray = Array.isArray(documents) ? documents : [];
     const doc = new Property({
       propertyName,
@@ -23,6 +24,7 @@ export const createProperty = async (req, res) => {
       nearbyPlaces: nearbyPlacesArray,
       amenities,
       coverImage,
+      propertyImages: propertyImagesArray,
       checkInTime,
       checkOutTime,
       cancellationPolicy,
@@ -80,8 +82,10 @@ export const updateProperty = async (req, res) => {
       'shortDescription',
       'address',
       'location',
+      'nearbyPlaces',
       'amenities',
       'coverImage',
+      'propertyImages',
       'checkInTime',
       'checkOutTime',
       'cancellationPolicy',
