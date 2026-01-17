@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Home, Users, BedDouble, ArrowLeft, ArrowRight } from 'lucide-react';
-import logo from '../../../assets/rokologin-removebg-preview.png';
+import { Building2, Home, Users, BedDouble, ArrowLeft, ChevronRight } from 'lucide-react';
 
 const PartnerJoinPropertyType = () => {
   const navigate = useNavigate();
@@ -11,104 +10,109 @@ const PartnerJoinPropertyType = () => {
       key: 'hotel',
       label: 'Hotel',
       description: 'Multiple rooms, daily stays, front desk operations',
-      badge: 'Best for city & business stays',
+      badge: 'Business & Leisure',
       icon: Building2,
       route: '/hotel/join-hotel',
+      color: 'bg-blue-50 text-blue-600',
     },
     {
       key: 'resort',
       label: 'Resort',
       description: 'Destination stays with activities and experiences',
-      badge: 'Best for leisure & vacation',
+      badge: 'Vacation',
       icon: Home,
       route: '/hotel/join-resort',
+      color: 'bg-orange-50 text-orange-600',
     },
     {
       key: 'villa',
       label: 'Villa',
       description: 'Entire villa or premium holiday home',
-      badge: 'Best for families & groups',
+      badge: 'Family & Groups',
       icon: Home,
       route: '/hotel/join-villa',
+      color: 'bg-emerald-50 text-emerald-600',
     },
     {
       key: 'hostel',
       label: 'Hostel',
       description: 'Beds or dorms for backpackers and students',
-      badge: 'Best for budget travellers',
+      badge: 'Budget',
       icon: Users,
       route: '/hotel/join-hostel',
+      color: 'bg-yellow-50 text-yellow-600',
     },
     {
       key: 'pg',
       label: 'PG / Co-living',
       description: 'Long-stay beds or rooms with shared facilities',
-      badge: 'Best for working professionals',
+      badge: 'Long Term',
       icon: BedDouble,
       route: '/hotel/join-pg',
+      color: 'bg-purple-50 text-purple-600',
     },
     {
       key: 'homestay',
       label: 'Homestay',
       description: 'Live-with-host or family-run stays',
-      badge: 'Best for local experiences',
+      badge: 'Experience',
       icon: Home,
       route: '/hotel/join-homestay',
+      color: 'bg-rose-50 text-rose-600',
     },
   ];
 
-  const handleSelect = (route) => {
-    navigate(route);
-  };
-
   return (
-    <div className="min-h-screen bg-[#001F1E] text-white flex flex-col">
-      <header className="h-16 px-4 flex items-center justify-between">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <img src={logo} alt="Rukko" className="h-7 object-contain" />
-        <div className="w-9" />
-      </header>
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="font-bold text-lg text-gray-800">Select Property Type</div>
+          <div className="w-9"></div>
+        </div>
+      </div>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 pb-10">
-        <div className="w-full max-w-md">
-          <h1 className="text-2xl font-black mb-2">Choose your property type</h1>
-          <p className="text-sm text-white/70 mb-6">
-            Select what you want to list on Rukkoo. We will open the right setup flow for you.
-          </p>
+      <main className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6">
+        <div className="space-y-2 mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">What keeps you busy?</h1>
+          <p className="text-gray-500 text-sm">Select the type of property you want to list on Rukkoin.</p>
+        </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            {propertyTypes.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.key}
-                  onClick={() => handleSelect(item.route)}
-                  className="w-full flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 active:scale-[0.99] transition-all border border-white/10 rounded-2xl px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
-                      <Icon size={20} />
-                    </div>
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-bold">{item.label}</div>
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-white/80 font-semibold uppercase tracking-wide">
-                          {item.badge}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-white/70 mt-0.5">{item.description}</div>
-                    </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {propertyTypes.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                onClick={() => navigate(item.route)}
+                className="group relative flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 text-left active:scale-[0.98]"
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
+                  <Icon size={24} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                      {item.label}
+                    </h3>
                   </div>
-                  <ArrowRight size={18} className="text-white/60" />
-                </button>
-              );
-            })}
-          </div>
+                  <p className="text-xs text-gray-500 leading-relaxed mb-2 line-clamp-2">
+                    {item.description}
+                  </p>
+                  <span className="inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 rounded-md">
+                    {item.badge}
+                  </span>
+                </div>
+
+                <div className="absolute top-4 right-4 text-gray-300 group-hover:text-emerald-500 transition-colors">
+                  <ChevronRight size={16} />
+                </div>
+              </button>
+            );
+          })}
         </div>
       </main>
     </div>

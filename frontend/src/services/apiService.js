@@ -396,4 +396,48 @@ export const legalService = {
   }
 };
 
+// Availability & Inventory Services
+export const availabilityService = {
+  check: async (params) => {
+    try {
+      const response = await api.get('/availability/check', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  createWalkIn: async (data) => {
+    try {
+      const response = await api.post('/availability/partner/walkin', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  createExternal: async (data) => {
+    try {
+      const response = await api.post('/availability/partner/external-booking', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  blockDates: async (data) => {
+    try {
+      const response = await api.post('/availability/partner/block-inventory', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getLedger: async (params) => {
+    try {
+      const response = await api.get('/availability/partner/ledger', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;

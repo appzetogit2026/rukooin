@@ -58,6 +58,7 @@ import PartnerPage from './app/partner/pages/PartnerPage';
 import PartnerJoinPropertyType from './app/partner/pages/PartnerJoinPropertyType';
 import PartnerProperties from './app/partner/pages/PartnerProperties';
 import PartnerPropertyDetails from './app/partner/pages/PartnerPropertyDetails';
+import PartnerInventory from './app/partner/pages/PartnerInventory';
 import PartnerNotifications from './app/partner/pages/PartnerNotifications';
 import PartnerKYC from './app/partner/pages/PartnerKYC';
 import PartnerSupport from './app/partner/pages/PartnerSupport';
@@ -297,6 +298,7 @@ function App() {
               {/* Partner Sub-pages */}
               <Route path="properties" element={<PartnerProperties />} />
               <Route path="properties/:id" element={<PartnerPropertyDetails />} />
+              <Route path="inventory/:id" element={<PartnerInventory />} />
               <Route path="bookings" element={<PartnerBookings />} />
               <Route path="wallet" element={<PartnerWallet />} />
               <Route path="reviews" element={<PartnerReviews />} />
