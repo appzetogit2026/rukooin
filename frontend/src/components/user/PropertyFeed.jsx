@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { hotelService } from '../../services/apiService';
+import { propertyService } from '../../services/apiService';
 import PropertyCard from './PropertyCard';
 import { Loader2 } from 'lucide-react';
 
@@ -14,11 +14,22 @@ const PropertyFeed = ({ selectedType, selectedCity }) => {
       setError(null);
       try {
         const filters = {};
-        if (selectedType && selectedType !== 'All') filters.category = selectedType;
-        if (selectedCity && selectedCity !== 'All') filters.city = selectedCity;
+        // Backend expects 'type' for property type filtering
+        if (selectedType && selectedType !== 'All') filters.type = selectedType;
 
-        const data = await hotelService.getAll(filters);
-        setProperties(data);
+        // Note: Backend currently does not support 'city' filtering in main query. 
+        // We might need to filter client-side if strict filtering is needed.
+        // For now, we fetch based on type.
+
+        const data = await propertyService.getPublic(filters);
+
+        // Client-side filtering for City if selected (since backend ignores it)
+        let filteredData = data;
+        if (selectedCity && selectedCity !== 'All') {
+          filteredData = data.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
+        }
+
+        setProperties(filteredData);
       } catch (err) {
         console.error("Failed to fetch properties:", err);
         setError("Could not load properties. Please try again.");

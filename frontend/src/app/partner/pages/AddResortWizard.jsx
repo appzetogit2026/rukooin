@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
-  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun
+  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
@@ -571,63 +571,122 @@ const AddResortWizard = () => {
     }
   };
 
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleNext = () => {
+    if (loading) return;
+    switch (step) {
+      case 1:
+        nextFromBasic();
+        break;
+      case 2:
+        setStep(3);
+        break;
+      case 3:
+        setStep(4);
+        break;
+      case 4:
+        nextFromNearbyPlaces();
+        break;
+      case 5:
+        nextFromImages();
+        break;
+      case 6:
+        nextFromRoomTypes();
+        break;
+      case 7:
+        setStep(8);
+        break;
+      case 8:
+        setStep(9);
+        break;
+      case 9:
+        submitAll();
+        break;
+      default:
+        break;
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (step) {
+      case 1: return 'Basic Info';
+      case 2: return 'Location';
+      case 3: return 'Amenities';
+      case 4: return 'Nearby Places';
+      case 5: return 'Resort Images';
+      case 6: return 'Cottages & Rooms';
+      case 7: return 'Resort Rules';
+      case 8: return 'Documents';
+      case 9: return 'Review & Submit';
+      default: return '';
+    }
+  };
+
+  const isEditingSubItem = (step === 4 && editingNearbyIndex !== null) || (step === 6 && editingRoomType !== null);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="h-14 bg-white/60 border-b border-gray-100 backdrop-blur-sm flex items-center justify-center sticky top-0 z-50">
-        <img src={logo} alt="Rukkoin" className="h-6" />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+      <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
+        <button onClick={handleBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="text-sm font-bold text-gray-900">
+          Step {step} of 9
+        </div>
+        <div className="w-8" />
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="w-full h-1 bg-gray-200 sticky top-16 z-20">
+        <div className="h-full bg-emerald-600 transition-all duration-500 ease-out" style={{ width: `${(step / 9) * 100}%` }} />
+      </div>
 
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#004F4D] transition-all duration-300" style={{ width: `${(Math.min(step, 9) / 9) * 100}%` }} />
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-400 font-medium">
-              <span>Step {Math.min(step, 9)} of 9</span>
-              <span>
-                {step === 1 && 'Basic Info'}
-                {step === 2 && 'Location'}
-                {step === 3 && 'Amenities'}
-                {step === 4 && 'Nearby'}
-                {step === 5 && 'Images'}
-                {step === 6 && 'Cottages/Rooms'}
-                {step === 7 && 'Rules'}
-                {step === 8 && 'Docs'}
-                {step >= 9 && 'Review'}
-              </span>
-            </div>
-          </div>
+      <main className="flex-1 w-full max-w-2xl mx-auto p-4 md:p-6 pb-32">
+        <div className="mb-6">
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">{getStepTitle()}</h1>
+        </div>
 
+        <div className="bg-white md:p-6 md:rounded-2xl md:shadow-sm md:border md:border-gray-100 space-y-6">
           {step === 1 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <Home size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 1 — Basic Info</h2>
-              </div>
-              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="grid grid-cols-1 gap-4">
-                <input className="input" placeholder="Resort Name" value={propertyForm.propertyName} onChange={e => updatePropertyForm('propertyName', e.target.value)} />
-                <div className="grid grid-cols-2 gap-3">
-                  {RESORT_TYPES.map(type => (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => updatePropertyForm('resortType', type.value)}
-                      className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${propertyForm.resortType === type.value
-                          ? 'border-[#004F4D] bg-[#004F4D]/5 text-[#004F4D]'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                        }`}
-                    >
-                      <type.icon size={18} />
-                      <span className="text-sm font-semibold">{type.label}</span>
-                    </button>
-                  ))}
+            <div className="space-y-6">
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Resort Name</label>
+                  <input className="input w-full" placeholder="e.g. Blue Lagoon Resort" value={propertyForm.propertyName} onChange={e => updatePropertyForm('propertyName', e.target.value)} />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Activities</label>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-500">Resort Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {RESORT_TYPES.map(type => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => updatePropertyForm('resortType', type.value)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${propertyForm.resortType === type.value
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500'
+                          : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/50 text-gray-600'
+                          }`}
+                      >
+                        <div className={`p-2 rounded-lg ${propertyForm.resortType === type.value ? 'bg-white text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                          <type.icon size={20} />
+                        </div>
+                        <span className="text-sm font-bold">{type.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-500">Activities</label>
                   <div className="flex flex-wrap gap-2">
                     {RESORT_ACTIVITIES.map(act => (
                       <button
@@ -636,9 +695,9 @@ const AddResortWizard = () => {
                           const has = propertyForm.activities.includes(act);
                           updatePropertyForm('activities', has ? propertyForm.activities.filter(a => a !== act) : [...propertyForm.activities, act]);
                         }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${propertyForm.activities.includes(act)
-                            ? 'bg-[#004F4D] text-white border-[#004F4D]'
-                            : 'bg-white text-gray-600 border-gray-200'
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${propertyForm.activities.includes(act)
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-[1.02]'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         {act}
@@ -646,390 +705,630 @@ const AddResortWizard = () => {
                     ))}
                   </div>
                 </div>
-                <textarea className="input" placeholder="Short Description" value={propertyForm.shortDescription} onChange={e => updatePropertyForm('shortDescription', e.target.value)} />
-                <textarea className="input h-24" placeholder="Full Description" value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => navigate(-1)}>Back</button>
-                <button disabled={loading} onClick={nextFromBasic} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
 
-          {step === 2 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <MapPin size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 2 — Location</h2>
-              </div>
-              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="mb-3 space-y-2">
-                <div className="flex gap-2 relative">
-                  <input className="input flex-1" placeholder="Search location" value={locationSearchQuery} onChange={e => setLocationSearchQuery(e.target.value)} />
-                  <button type="button" onClick={searchLocationForAddress} className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Search</button>
-                  {locationResults.length > 0 && (
-                    <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-56 overflow-auto">
-                      {locationResults.map((r, i) => (
-                        <button key={i} type="button" onClick={() => selectLocationResult(r)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 text-sm">
-                          <div className="font-medium">{r.name}</div>
-                          <div className="text-xs text-gray-500 truncate">{r.formatted_address}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input className="input" placeholder="Country" value={propertyForm.address.country} onChange={e => updatePropertyForm(['address', 'country'], e.target.value)} />
-                <input className="input" placeholder="State" value={propertyForm.address.state} onChange={e => updatePropertyForm(['address', 'state'], e.target.value)} />
-                <input className="input" placeholder="City" value={propertyForm.address.city} onChange={e => updatePropertyForm(['address', 'city'], e.target.value)} />
-                <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address', 'area'], e.target.value)} />
-                <input className="input col-span-2" placeholder="Full Address" value={propertyForm.address.fullAddress} onChange={e => updatePropertyForm(['address', 'fullAddress'], e.target.value)} />
-                <input className="input" placeholder="Pincode" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)} />
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button type="button" onClick={useCurrentLocation} className="px-3 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold inline-flex items-center gap-2">
-                  <MapPin size={16} /> Use Current Location
-                </button>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(1)}>Back</button>
-                <button disabled={loading} onClick={nextFromLocation} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <Umbrella size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 3 — Amenities</h2>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {RESORT_AMENITIES.map(am => (
-                  <button key={am} type="button" onClick={() => {
-                    const has = propertyForm.amenities.includes(am);
-                    updatePropertyForm('amenities', has ? propertyForm.amenities.filter(x => x !== am) : [...propertyForm.amenities, am]);
-                  }} className={`px-3 py-1 rounded-full text-xs font-medium border ${propertyForm.amenities.includes(am) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-600 border-gray-200'}`}>
-                    {am}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(2)}>Back</button>
-                <button disabled={loading} onClick={nextFromAmenities} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 4 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <Search size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 4 — Nearby Places</h2>
-              </div>
-              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="space-y-2 mb-4">
-                {propertyForm.nearbyPlaces.map((place, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 border border-gray-200 rounded-xl bg-white">
-                    <div>
-                      <div className="font-semibold text-sm">{place.name}</div>
-                      <div className="text-xs text-gray-500">{place.type} • {place.distanceKm} km</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => startEditNearbyPlace(idx)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" disabled={editingNearbyIndex !== null}><FileText size={16} /></button>
-                      <button type="button" onClick={() => deleteNearbyPlace(idx)} className="p-2 text-red-600 hover:bg-red-50 rounded-full" disabled={editingNearbyIndex !== null}><Trash2 size={16} /></button>
-                    </div>
-                  </div>
-                ))}
-                {propertyForm.nearbyPlaces.length === 0 && editingNearbyIndex === null && (
-                  <div className="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-300 rounded-xl">No nearby places added. Add at least 3.</div>
-                )}
-              </div>
-
-              {editingNearbyIndex !== null ? (
-                <div className="border border-[#004F4D] bg-[#004F4D]/5 rounded-xl p-4 space-y-3">
-                  <div className="font-bold text-sm text-[#004F4D]">{editingNearbyIndex === -1 ? 'Add Nearby Place' : 'Edit Nearby Place'}</div>
-                  <div className="relative space-y-2">
-                    <div className="flex gap-2">
-                      <input className="input flex-1" placeholder="Search places" value={nearbySearchQuery} onChange={e => setNearbySearchQuery(e.target.value)} />
-                      <button type="button" onClick={searchNearbyPlaces} className="px-3 py-2 rounded-xl bg-[#004F4D] text-white font-bold text-sm active:scale-95">Search</button>
-                    </div>
-                    {nearbyResults.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-auto">
-                        {nearbyResults.slice(0, 6).map((p, i) => (
-                          <button key={i} type="button" onClick={() => selectNearbyPlace(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                            <div className="font-medium">{p.name}</div>
-                            <div className="text-xs text-gray-500 truncate">{p.address || p.formatted_address}</div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <input className="input w-full" placeholder="Place Name" value={tempNearbyPlace.name} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, name: e.target.value })} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <select className="input w-full" value={tempNearbyPlace.type} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, type: e.target.value })}>
-                        <option value="tourist">Tourist Attraction</option>
-                        <option value="airport">Airport</option>
-                        <option value="market">Market</option>
-                        <option value="railway">Railway Station</option>
-                        <option value="bus_stop">Bus Stop</option>
-                        <option value="hospital">Hospital</option>
-                      </select>
-                      <input className="input w-full" type="number" placeholder="Distance (km)" value={tempNearbyPlace.distanceKm} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <button type="button" onClick={saveNearbyPlace} className="flex-1 py-2 bg-[#004F4D] text-white rounded-xl font-bold text-sm">Save</button>
-                    <button type="button" onClick={cancelEditNearbyPlace} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl font-semibold text-sm">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <button type="button" onClick={startAddNearbyPlace} disabled={propertyForm.nearbyPlaces.length >= 5} className="w-full py-3 border-2 border-dashed border-[#004F4D]/40 text-[#004F4D] rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/5 disabled:opacity-50">
-                  <Plus size={18} /> Add Nearby Place ({propertyForm.nearbyPlaces.length}/5)
-                </button>
-              )}
-
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(3)}>Back</button>
-                <button type="button" disabled={loading || editingNearbyIndex !== null} onClick={nextFromNearby} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95 disabled:opacity-50">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 5 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <Image size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 5 — Property Images</h2>
-              </div>
-              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="grid grid-cols-1 gap-6">
-                {/* Cover */}
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-gray-600">Cover Image</div>
-                  <div className="flex justify-center">
-                    <button type="button" onClick={() => coverImageFileInputRef.current?.click()} className="relative w-40 h-28 sm:w-48 sm:h-32 border-2 border-dashed border-[#004F4D]/40 rounded-2xl flex items-center justify-center bg-gray-50 overflow-hidden group">
-                      {propertyForm.coverImage ? (
-                        <>
-                          <img src={propertyForm.coverImage} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <button type="button" onClick={e => { e.stopPropagation(); updatePropertyForm('coverImage', ''); }} className="absolute top-2 right-2 bg-white/90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow">×</button>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1 text-gray-500 text-xs text-center"><Plus size={20} className="text-[#004F4D]" /><span>Upload Cover</span></div>
-                      )}
-                    </button>
-                    <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => u[0] && updatePropertyForm('coverImage', u[0]))} />
-                  </div>
-                </div>
-                {/* Gallery */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-semibold text-gray-600">Property Images</div>
-                    <div className="text-[10px] text-gray-500">{propertyForm.propertyImages.length}/4 minimum</div>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {propertyForm.propertyImages.map((img, i) => (
-                      <div key={i} className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-                        <img src={img} className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => { const arr = [...propertyForm.propertyImages]; arr.splice(i, 1); updatePropertyForm('propertyImages', arr); }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-gray-700 text-[10px] flex items-center justify-center shadow">×</button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => propertyImagesFileInputRef.current?.click()} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 border-dashed border-[#004F4D]/40 flex items-center justify-center bg-white text-[#004F4D]"><Plus size={18} /></button>
-                    <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...u]))} />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(4)}>Back</button>
-                <button disabled={loading} onClick={nextFromImages} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 6 && (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <BedDouble size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 6 — Room Types</h2>
-              </div>
-              {error && <div className="text-red-600 text-sm mb-3">{error}</div>}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-600">Add different room categories/cottages.</p>
-                  <button type="button" onClick={startAddRoomType} className="text-xs font-bold text-[#004F4D] bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 hover:bg-teal-100">Add Room Type</button>
-                </div>
-                <div className="space-y-3">
-                  {roomTypes.map((rt, index) => (
-                    <div key={rt.id} className="p-3 border border-gray-200 rounded-xl bg-gray-50/60 flex items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="text-sm font-semibold text-gray-800">{rt.name}</div>
-                        <div className="text-[11px] text-gray-500">₹{rt.pricePerNight} / night · {rt.totalInventory} units</div>
-                        {rt.amenities.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rt.amenities.slice(0, 4).map(a => <span key={a} className="px-2 py-0.5 rounded-full bg-white text-[10px] text-gray-600 border border-gray-200">{a}</span>)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <button type="button" onClick={() => startEditRoomType(index)} className="text-[11px] font-semibold text-[#004F4D] px-2 py-1 rounded-lg bg-white border border-[#004F4D]/20">Edit</button>
-                        <button type="button" onClick={() => deleteRoomType(index)} className="text-[11px] font-semibold text-red-500 px-2 py-1 rounded-lg bg-white border border-red-100">Delete</button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Short Description</label>
+                  <textarea className="input w-full" placeholder="Brief summary for listings..." value={propertyForm.shortDescription} onChange={e => updatePropertyForm('shortDescription', e.target.value)} />
                 </div>
 
-                {editingRoomType && (
-                  <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
-                    <h3 className="text-sm font-bold text-gray-800">{editingRoomTypeIndex === -1 ? 'Add Room Type' : 'Edit Room Type'}</h3>
-                    <input className="input w-full" placeholder="Room Name (e.g. Deluxe Cottage)" value={editingRoomType.name} onChange={e => setEditingRoomType({ ...editingRoomType, name: e.target.value })} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input className="input" type="number" placeholder="Price (₹)" value={editingRoomType.pricePerNight} onChange={e => setEditingRoomType({ ...editingRoomType, pricePerNight: e.target.value })} />
-                      <input className="input" type="number" placeholder="Inventory" value={editingRoomType.totalInventory} onChange={e => setEditingRoomType({ ...editingRoomType, totalInventory: e.target.value })} />
-                      <input className="input" type="number" placeholder="Max Adults" value={editingRoomType.maxAdults} onChange={e => setEditingRoomType({ ...editingRoomType, maxAdults: e.target.value })} />
-                      <input className="input" type="number" placeholder="Max Children" value={editingRoomType.maxChildren} onChange={e => setEditingRoomType({ ...editingRoomType, maxChildren: e.target.value })} />
-                      <input className="input" type="number" placeholder="Extra Adult (₹)" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType({ ...editingRoomType, extraAdultPrice: e.target.value })} />
-                      <input className="input" type="number" placeholder="Extra Child (₹)" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType({ ...editingRoomType, extraChildPrice: e.target.value })} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-semibold text-gray-600">Room Images</div>
-                        <div className="text-[10px] text-gray-500">{(editingRoomType.images || []).filter(Boolean).length}/3 minimum</div>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
-                          <div key={i} className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-                            <img src={img} className="w-full h-full object-cover" />
-                            <button onClick={() => setEditingRoomType({ ...editingRoomType, images: editingRoomType.images.filter((_, x) => x !== i) })} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-gray-700 text-[10px] flex items-center justify-center shadow">×</button>
-                          </div>
-                        ))}
-                        <button onClick={() => roomImagesFileInputRef.current?.click()} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 border-dashed border-[#004F4D]/40 flex items-center justify-center bg-white text-[#004F4D]"><Plus size={18} /></button>
-                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => setEditingRoomType({ ...editingRoomType, images: [...editingRoomType.images, ...u] }))} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-600">Room Amenities</div>
-                      <div className="flex flex-wrap gap-2">
-                        {ROOM_AMENITIES_OPTIONS.map(opt => (
-                          <button key={opt.key} type="button" onClick={() => toggleRoomAmenity(opt.label)} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border ${editingRoomType.amenities.includes(opt.label) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-600 border-gray-200'}`}>
-                            <opt.icon size={14} /> <span>{opt.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 justify-end pt-2">
-                      <button onClick={cancelEditRoomType} className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700">Cancel</button>
-                      <button onClick={saveRoomType} className="px-4 py-1.5 rounded-xl bg-[#004F4D] text-white text-xs font-bold active:scale-95">Save Room Type</button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4 flex items-center justify-between">
-                  <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(5)}>Back</button>
-                  <button disabled={loading} onClick={nextFromRoomTypes} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Detailed Description</label>
+                  <textarea className="input w-full min-h-[100px]" placeholder="Tell guests what makes your resort unique..." value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
                 </div>
-              </div>
-            </>
-          )}
-
-          {step === 7 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <FileText size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 7 — Property Rules</h2>
-              </div>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <input className="input" placeholder="Check-in Time" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
-                  <input className="input" placeholder="Check-out Time" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
-                </div>
-                <textarea className="input" placeholder="Cancellation Policy" value={propertyForm.cancellationPolicy} onChange={e => updatePropertyForm('cancellationPolicy', e.target.value)} />
-                <div className="flex flex-wrap gap-2">
-                  {HOUSE_RULES_OPTIONS.map(r => (
-                    <button key={r} type="button" onClick={() => {
-                      const has = propertyForm.houseRules.includes(r);
-                      updatePropertyForm('houseRules', has ? propertyForm.houseRules.filter(x => x !== r) : [...propertyForm.houseRules, r]);
-                    }} className={`px-3 py-1 rounded-full text-xs font-medium border ${propertyForm.houseRules.includes(r) ? 'bg-[#004F4D] text-white border-[#004F4D]' : 'bg-white text-gray-600 border-gray-200'}`}>{r}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(6)}>Back</button>
-                <button disabled={loading} onClick={() => setStep(8)} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 8 && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <FileText size={18} className="text-[#004F4D]" />
-                <h2 className="text-lg font-bold">Step 8 — Documents</h2>
-              </div>
-              <div className="grid grid-cols-1 gap-3">
-                {propertyForm.documents.map((d, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-gray-500" />
-                      <span className="text-sm w-40">{d.name}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input id={`doc-file-${i}`} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => uploadImages(e.target.files, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u[0] || ''; updatePropertyForm('documents', arr); })} />
-                      <label htmlFor={`doc-file-${i}`} className="px-3 py-2 rounded-xl bg-[#004F4D] text-white text-xs font-bold cursor-pointer">{d.fileUrl ? 'Re-upload' : 'Upload'}</label>
-                      <span className={`text-xs font-semibold ${d.fileUrl ? 'text-green-600' : 'text-gray-500'}`}>{d.fileUrl ? 'Uploaded' : 'Not Uploaded'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(7)}>Back</button>
-                <button disabled={loading} onClick={nextFromDocs} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">Next</button>
-              </div>
-            </>
-          )}
-
-          {step === 9 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <CheckCircle size={18} className="text-green-600" />
-                <h2 className="text-lg font-bold">Step 9 — Review & Submit</h2>
-              </div>
-              <div className="border border-gray-200 rounded-xl p-4">
-                <div className="font-semibold mb-2">Property</div>
-                <div className="text-sm text-gray-700">{propertyForm.propertyName} ({propertyForm.resortType} Resort)</div>
-                <div className="text-xs text-gray-500">{propertyForm.address.fullAddress}</div>
-              </div>
-              <div className="border border-gray-200 rounded-xl p-4">
-                <div className="font-semibold mb-2">Documents</div>
-                <ul className="text-sm text-gray-700">
-                  {propertyForm.documents.map((d, i) => <li key={i}>{d.name}: {d.fileUrl ? 'Provided' : 'Missing'}</li>)}
-                </ul>
-              </div>
-              <div className="border border-gray-200 rounded-xl p-4">
-                <div className="font-semibold mb-2">Room Types</div>
-                <ul className="text-sm text-gray-700">
-                  {roomTypes.map(rt => <li key={rt.id}>{rt.name} — ₹{rt.pricePerNight}</li>)}
-                </ul>
-              </div>
-              {error && <div className="text-red-600 text-sm">{error}</div>}
-              <div className="mt-4 flex items-center justify-between">
-                <button type="button" className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-semibold" onClick={() => setStep(8)}>Back</button>
-                <button disabled={loading} onClick={submitAll} className="px-4 py-2 rounded-xl bg-[#004F4D] text-white font-bold active:scale-95">{loading ? 'Submitting...' : 'Submit Property'}</button>
               </div>
             </div>
           )}
 
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Search Address</label>
+                <div className="flex gap-2">
+                  <input
+                    className="input w-full"
+                    placeholder="Search location..."
+                    value={locationSearchQuery}
+                    onChange={e => setLocationSearchQuery(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={searchLocationForAddress}
+                    className="px-4 py-2 bg-[#004F4D] text-white rounded-xl font-bold text-sm hover:bg-[#003d3b] transition-colors"
+                  >
+                    Search
+                  </button>
+                </div>
+                {locationResults.length > 0 && (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden mt-1 shadow-lg bg-white max-h-48 overflow-y-auto z-10 relative">
+                    {locationResults.map((p, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => selectLocationResult(p)}
+                        className="w-full text-left px-4 py-3 hover:bg-emerald-50 border-b border-gray-50 text-sm transition-colors"
+                      >
+                        <div className="font-medium text-gray-900">{p.name}</div>
+                        <div className="text-xs text-gray-500">{p.formatted_address}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400 font-medium">Or Enter Manually</span></div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <input className="input col-span-2" placeholder="Full Address" value={propertyForm.address.fullAddress} onChange={e => updatePropertyForm(['address', 'fullAddress'], e.target.value)} />
+                <input className="input" placeholder="City" value={propertyForm.address.city} onChange={e => updatePropertyForm(['address', 'city'], e.target.value)} />
+                <input className="input" placeholder="State" value={propertyForm.address.state} onChange={e => updatePropertyForm(['address', 'state'], e.target.value)} />
+                <input className="input" placeholder="Country" value={propertyForm.address.country} onChange={e => updatePropertyForm(['address', 'country'], e.target.value)} />
+                <input className="input" placeholder="Pincode" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)} />
+                <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address', 'area'], e.target.value)} />
+              </div>
+
+              <button type="button" onClick={useCurrentLocation} className="w-full py-3 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors">
+                <MapPin size={18} /> Use Current Location
+              </button>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {RESORT_AMENITIES.map(am => {
+                  const isSelected = propertyForm.amenities.includes(am);
+                  return (
+                    <button
+                      key={am}
+                      type="button"
+                      onClick={() => {
+                        const has = propertyForm.amenities.includes(am);
+                        updatePropertyForm('amenities', has ? propertyForm.amenities.filter(x => x !== am) : [...propertyForm.amenities, am]);
+                      }}
+                      className={`
+                          relative p-4 rounded-2xl border text-left transition-all duration-200
+                          ${isSelected
+                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-md transform scale-[1.02]'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-200 hover:bg-emerald-50/30'
+                        }
+                        `}
+                    >
+                      <span className="font-semibold text-sm">{am}</span>
+                      {isSelected && <div className="absolute top-2 right-2 text-white/80"><CheckCircle size={14} /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-4">
+              {!editingNearbyIndex && editingNearbyIndex !== 0 ? (
+                <div className="space-y-4">
+                  {/* Add New Place Form Inline or via Button */}
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          className="input w-full pl-9 bg-white"
+                          placeholder="Search nearby places (e.g. Beaches, Airports)"
+                          value={nearbySearchQuery}
+                          onChange={e => handleNearbySearch(e.target.value)}
+                        />
+                        {nearbyResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 max-h-48 overflow-y-auto z-10">
+                            {nearbyResults.map((place, i) => (
+                              <button key={i} type="button" onClick={() => selectNearbyPlace(place)} className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-sm border-b border-gray-50 last:border-0">
+                                <div className="font-medium text-gray-800">{place.name}</div>
+                                <div className="text-xs text-gray-500 capitalize">{place.types?.[0]?.replace('_', ' ') || 'Place'}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List of Added Places */}
+                  <div className="space-y-3">
+                    {propertyForm.nearbyPlaces.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                        No nearby places added yet.
+                      </div>
+                    ) : (
+                      propertyForm.nearbyPlaces.map((place, index) => (
+                        <div key={index} className="flex justify-between items-center p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
+                          <div>
+                            <div className="font-bold text-gray-900">{place.name}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                              <span className="capitalize bg-gray-100 px-2 py-0.5 rounded text-gray-600">{place.type}</span>
+                              <span>•</span>
+                              <span>{place.distanceKm} km away</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => startEditNearby(index)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><div className="text-xs font-bold">Edit</div></button>
+                            <button type="button" onClick={() => removeNearbyPlace(index)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempNearbyPlace({ name: '', type: 'tourist', distanceKm: '' });
+                      setEditingNearbyIndex('new');
+                    }}
+                    className="w-full py-3 rounded-xl border border-dashed border-emerald-300 text-emerald-700 bg-emerald-50 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"
+                  >
+                    <Plus size={18} /> Add Place Manually
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-white border border-emerald-100 rounded-2xl p-5 shadow-lg animate-in fade-in slide-in-from-bottom-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">{editingNearbyIndex === 'new' ? 'Add New Place' : 'Edit Place'}</h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-500">Place Name</label>
+                      <input className="input w-full" placeholder="e.g. Baga Beach" value={tempNearbyPlace.name} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, name: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Type</label>
+                        <select className="input w-full" value={tempNearbyPlace.type} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, type: e.target.value })}>
+                          <option value="transport">Transport</option>
+                          <option value="tourist">Tourist Spot</option>
+                          <option value="hospital">Hospital</option>
+                          <option value="market">Market</option>
+                          <option value="restaurant">Restaurant</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Distance (km)</label>
+                        <input className="input w-full" type="number" placeholder="0.5" value={tempNearbyPlace.distanceKm} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={() => setEditingNearbyIndex(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50">Cancel</button>
+                      <button type="button" onClick={saveNearbyPlace} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md">Save Place</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-900">Cover Image</label>
+                  <div
+                    onClick={() => coverImageFileInputRef.current?.click()}
+                    className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer overflow-hidden hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group"
+                  >
+                    {propertyForm.coverImage ? (
+                      <img src={propertyForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center text-gray-400 group-hover:text-emerald-600 transition-colors">
+                        <Image size={40} className="mb-2 opacity-50" />
+                        <span className="text-xs font-bold">Upload Cover Photo</span>
+                      </div>
+                    )}
+                    {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full"></div></div>}
+                  </div>
+                  <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'cover')} />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-bold text-gray-900">Property Gallery</label>
+                    <span className="text-xs text-gray-500">{propertyForm.propertyImages.length} images</span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {propertyForm.propertyImages.map((img, i) => (
+                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                        <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => updatePropertyForm('propertyImages', propertyForm.propertyImages.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 bg-white/90 p-1 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => propertyImagesFileInputRef.current?.click()}
+                      className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all"
+                    >
+                      <Plus size={24} />
+                    </button>
+                  </div>
+                  <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'gallery')} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div className="space-y-4">
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+              {!editingRoomType && (
+                <div className="space-y-4">
+                  {roomTypes.length === 0 ? (
+                    <div className="text-center py-10 px-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                      <div className="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <BedDouble size={24} />
+                      </div>
+                      <p className="text-gray-500 font-medium">No cottages or rooms added yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Add details for atleast one category.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {roomTypes.map((rt, index) => (
+                        <div key={rt.id || index} className="p-4 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-bold text-gray-900">{rt.name}</h3>
+                              <div className="text-xs text-gray-500 font-medium mt-0.5">
+                                Inventory: <span className="text-gray-900">{rt.totalInventory}</span> · Capacity: <span className="text-gray-900">{rt.maxAdults}A, {rt.maxChildren}C</span>
+                              </div>
+                            </div>
+                            <div className="text-lg font-bold text-emerald-600">₹{rt.pricePerNight}</div>
+                          </div>
+
+                          {rt.amenities && rt.amenities.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {rt.amenities.slice(0, 3).map(a => (
+                                <span key={a} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-medium border border-gray-200">{a}</span>
+                              ))}
+                              {rt.amenities.length > 3 && <span className="px-2 py-0.5 text-[10px] text-gray-400">+{rt.amenities.length - 3} more</span>}
+                            </div>
+                          )}
+
+                          <div className="flex gap-2 mt-2 pt-3 border-t border-gray-100">
+                            <button onClick={() => startEditRoomType(index)} className="flex-1 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors">
+                              Edit
+                            </button>
+                            <button onClick={() => deleteRoomType(index)} className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={startAddRoomType}
+                    className="w-full py-4 border border-emerald-200 text-emerald-700 bg-emerald-50/50 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors"
+                  >
+                    <Plus size={20} />
+                    Add Cottage / Room
+                  </button>
+                </div>
+              )}
+
+              {editingRoomType && (
+                <div className="bg-white rounded-2xl border border-emerald-100 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+                    <span className="font-bold text-emerald-800 text-sm">
+                      {editingRoomTypeIndex === -1 || editingRoomTypeIndex == null ? 'Add Cottage/Room' : 'Edit Cottage/Room'}
+                    </span>
+                    <button onClick={cancelEditRoomType} className="text-emerald-600 hover:bg-emerald-100 p-1 rounded-md">
+                      <span className="text-xs font-bold">Close</span>
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-500">Name</label>
+                      <input
+                        className="input w-full"
+                        placeholder="e.g. Deluxe Beach Cottage"
+                        value={editingRoomType.name}
+                        onChange={e => setEditingRoomType({ ...editingRoomType, name: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Price / Night (₹)</label>
+                        <input className="input w-full" type="number" value={editingRoomType.pricePerNight} onChange={e => setEditingRoomType({ ...editingRoomType, pricePerNight: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Total Units</label>
+                        <input className="input w-full" type="number" value={editingRoomType.totalInventory} onChange={e => setEditingRoomType({ ...editingRoomType, totalInventory: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Max Adults</label>
+                        <input className="input w-full" type="number" value={editingRoomType.maxAdults} onChange={e => setEditingRoomType({ ...editingRoomType, maxAdults: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Max Children</label>
+                        <input className="input w-full" type="number" value={editingRoomType.maxChildren} onChange={e => setEditingRoomType({ ...editingRoomType, maxChildren: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹)</label>
+                        <input className="input w-full" type="number" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType({ ...editingRoomType, extraAdultPrice: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹)</label>
+                        <input className="input w-full" type="number" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType({ ...editingRoomType, extraChildPrice: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-semibold text-gray-500">Photos</label>
+                        <span className="text-[10px] text-gray-400">{(editingRoomType.images || []).filter(Boolean).length} / 3 min</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
+                          <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
+                            <img src={img} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => setEditingRoomType({ ...editingRoomType, images: editingRoomType.images.filter((_, x) => x !== i) })} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
+                          <Plus size={20} />
+                        </button>
+                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => setEditingRoomType({ ...editingRoomType, images: [...editingRoomType.images, ...u] }))} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <label className="text-xs font-semibold text-gray-500">Amenities</label>
+                      <div className="flex flex-wrap gap-2">
+                        {ROOM_AMENITIES_OPTIONS.map(opt => {
+                          const selected = editingRoomType.amenities.includes(opt.label);
+                          const Icon = opt.icon;
+                          return (
+                            <button key={opt.key} type="button" onClick={() => toggleRoomAmenity(opt.label)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${selected ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                            >
+                              <Icon size={14} /> {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button type="button" onClick={cancelEditRoomType} className="flex-1 py-3 text-gray-600 font-semibold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                      <button type="button" onClick={saveRoomType} className="flex-1 py-3 text-white font-bold bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all transform active:scale-95">Save</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 7 && (
+            <div className="space-y-6">
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Check-in Time</label>
+                    <div className="relative">
+                      <input className="input w-full pl-9" placeholder="3:00 PM" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><span className="text-xs">🕒</span></div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Check-out Time</label>
+                    <div className="relative">
+                      <input className="input w-full pl-9" placeholder="11:00 AM" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><span className="text-xs">🕒</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Cancellation Policy</label>
+                  <textarea
+                    className="input w-full min-h-[100px]"
+                    placeholder="e.g., Free cancellation before 10 days..."
+                    value={propertyForm.cancellationPolicy}
+                    onChange={e => updatePropertyForm('cancellationPolicy', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <label className="text-xs font-semibold text-gray-500">Resort Rules</label>
+                  <div className="flex flex-wrap gap-2">
+                    {HOUSE_RULES_OPTIONS.map(r => {
+                      const isSelected = propertyForm.houseRules.includes(r);
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => {
+                            const has = propertyForm.houseRules.includes(r);
+                            updatePropertyForm('houseRules', has ? propertyForm.houseRules.filter(x => x !== r) : [...propertyForm.houseRules, r]);
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${isSelected ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-emerald-50'}`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 8 && (
+            <div className="space-y-6">
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-gray-700">Please provide the following documents</div>
+                <div className="grid gap-3">
+                  {propertyForm.documents.map((doc, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-2xl bg-white hover:border-emerald-200 transition-colors shadow-sm">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="font-bold text-gray-900">{doc.name}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">Required document</div>
+                        </div>
+                        {doc.fileUrl ? (
+                          <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>
+                        ) : (
+                          <div className="bg-gray-100 text-gray-400 p-1.5 rounded-full"><FileText size={18} /></div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <label
+                          htmlFor={`doc-file-${idx}`}
+                          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-all cursor-pointer ${doc.fileUrl
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white hover:border-emerald-400 hover:text-emerald-600'
+                            }`}
+                        >
+                          {doc.fileUrl ? (
+                            <>Change File</>
+                          ) : (
+                            <><Plus size={16} /> Upload</>
+                          )}
+                        </label>
+                        {doc.fileUrl && (
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-gray-200 hover:border-emerald-200 bg-white">
+                            <Search size={18} />
+                          </a>
+                        )}
+                      </div>
+
+                      <input
+                        id={`doc-file-${idx}`}
+                        type="file"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          uploadImages([file], urls => {
+                            if (urls[0]) {
+                              const updated = [...propertyForm.documents];
+                              updated[idx] = { ...updated[idx], fileUrl: urls[0] };
+                              updatePropertyForm('documents', updated);
+                            }
+                          });
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 9 && (
+            <div className="space-y-6">
+              <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 flex gap-3">
+                <div className="bg-emerald-100 text-emerald-700 p-2 rounded-full h-fit"><CheckCircle size={20} /></div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Review Compliance</h3>
+                  <p className="text-xs text-gray-600 mt-1">Please review the details below carefully before submitting.</p>
+                </div>
+              </div>
+
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+
+              <div className="space-y-4">
+                <div className="border border-gray-200 rounded-2xl p-5 bg-white shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">Property Details</h3>
+                  <div className="space-y-1">
+                    <div className="text-lg font-bold text-emerald-900">{propertyForm.propertyName || 'No Name'}</div>
+                    <div className="text-sm font-semibold text-emerald-600">{propertyForm.resortType} Resort</div>
+                    <div className="text-sm text-gray-600 flex items-start gap-1">
+                      <MapPin size={14} className="mt-0.5 shrink-0" /> {propertyForm.address.fullAddress || 'No Address'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 rounded-2xl p-5 bg-white shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">Cottages & Rooms ({roomTypes.length})</h3>
+                  {roomTypes.length > 0 ? (
+                    <div className="space-y-2">
+                      {roomTypes.map((rt, i) => (
+                        <div key={i} className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600 font-medium">{rt.name}</span>
+                          <span className="font-bold text-gray-900">₹{rt.pricePerNight}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <div className="text-xs text-red-500 font-medium bg-red-50 p-2 rounded-lg">No room types added!</div>}
+                </div>
+
+                <div className="border border-gray-200 rounded-2xl p-5 bg-white shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 mb-3">Documents ({propertyForm.documents.filter(d => d.fileUrl).length}/{propertyForm.documents.length})</h3>
+                  <div className="space-y-2">
+                    {propertyForm.documents.map((doc, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          {doc.fileUrl ? <CheckCircle size={14} className="text-emerald-500" /> : <div className="w-3.5 h-3.5 rounded-full border border-red-300 bg-red-50"></div>}
+                          <span className={doc.fileUrl ? 'text-gray-700' : 'text-red-500'}>{doc.name}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{doc.fileUrl ? 'Attached' : 'Missing'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 md:px-6 z-40 bg-white/80 backdrop-blur-md">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+          <button
+            onClick={handleBack}
+            disabled={step === 1 || loading}
+            className="px-6 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={loading || (step === 8 && roomTypes.length === 0)}
+            className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          >
+            {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {step === 9 ? (loading ? 'Submitting...' : 'Submit Property') : 'Continue'}
+          </button>
+        </div>
+      </footer>
+
       <style>{`
-        .input { border: 1px solid #e5e7eb; padding: 10px 12px; border-radius: 12px; font-size: 14px; background: #fafafa; width: 100%; }
-        .input:focus { outline: none; border-color: #004F4D; background: #fff; }
+        .input { @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-gray-400; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );
