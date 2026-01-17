@@ -41,6 +41,7 @@ const AddHotelWizard = () => {
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
+  const documentInputRefs = useRef([]);
 
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
@@ -91,32 +92,49 @@ const AddHotelWizard = () => {
   };
 
   const useCurrentLocation = async () => {
+    setError('');
+    if (!navigator.geolocation) {
+      setError('Geolocation not supported by your browser');
+      return;
+    }
+
     try {
-      setError('');
-      if (!navigator.geolocation) {
-        setError('Geolocation not supported');
-        return;
-      }
-      await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
-      }).then(async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const res = await hotelService.getAddressFromCoordinates(lat, lng);
-        updatePropertyForm(['location', 'coordinates'], [String(lng), String(lat)]);
-        updatePropertyForm('address', {
-          country: res.country || '',
-          state: res.state || '',
-          city: res.city || '',
-          area: res.area || '',
-          fullAddress: res.fullAddress || '',
-          pincode: res.pincode || ''
+      // 1. Get Coordinates
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000
         });
-      }).catch(() => {
-        setError('Failed to get current location');
       });
-    } catch {
-      setError('Failed to fetch address');
+
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      // 2. Call Backend API
+      const res = await hotelService.getAddressFromCoordinates(lat, lng);
+
+      updatePropertyForm(['location', 'coordinates'], [String(lng), String(lat)]);
+      updatePropertyForm('address', {
+        country: res.country || '',
+        state: res.state || '',
+        city: res.city || '',
+        area: res.area || '',
+        fullAddress: res.fullAddress || '',
+        pincode: res.pincode || ''
+      });
+    } catch (err) {
+      console.error("Location Error:", err);
+      // Check if it's a GeolocationPositionError
+      if (err.code === 1) { // PERMISSION_DENIED
+        setError('Location permission denied. Please enable it in browser settings.');
+      } else if (err.code === 2) { // POSITION_UNAVAILABLE
+        setError('Location unavailable. Check your GPS/network.');
+      } else if (err.code === 3) { // TIMEOUT
+        setError('Location request timed out.');
+      } else {
+        // Validation/API error
+        setError(err.message || 'Failed to fetch address from coordinates');
+      }
     }
   };
 

@@ -9,6 +9,8 @@ const PartnerProperties = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [propertiesByType, setPropertiesByType] = useState({});
+  const [propertyToDelete, setPropertyToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -51,6 +53,30 @@ const PartnerProperties = () => {
 
   const handleViewDetails = (property) => {
     navigate(`/hotel/properties/${property._id}`);
+  };
+
+  const handleDeleteProperty = async () => {
+    if (!propertyToDelete) return;
+    setIsDeleting(true);
+    try {
+      await propertyService.delete(propertyToDelete._id);
+
+      // Update local state without refetching
+      const updatedGroups = { ...propertiesByType };
+      const type = propertyToDelete.propertyType || 'other';
+      if (updatedGroups[type]) {
+        updatedGroups[type] = updatedGroups[type].filter(p => p._id !== propertyToDelete._id);
+        if (updatedGroups[type].length === 0) {
+          delete updatedGroups[type];
+        }
+      }
+      setPropertiesByType(updatedGroups);
+      setPropertyToDelete(null);
+    } catch (e) {
+      setError(e?.message || 'Failed to delete property');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const sections = Object.entries(propertiesByType);
@@ -155,8 +181,8 @@ const PartnerProperties = () => {
                           </button>
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-50 text-red-500 border border-red-100"
-                            disabled
+                            onClick={() => setPropertyToDelete(property)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 transition-colors"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -170,6 +196,49 @@ const PartnerProperties = () => {
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {propertyToDelete && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-[999] backdrop-blur-sm transition-opacity" onClick={() => setPropertyToDelete(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1000] w-full max-w-sm px-4">
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+                  <Trash2 size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Property?</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete <span className="font-bold text-gray-800">{propertyToDelete.propertyName}</span>? This action cannot be undone and will delete all associated rooms and data.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPropertyToDelete(null)}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteProperty}
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-red-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

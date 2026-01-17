@@ -141,6 +141,14 @@ export const propertyService = {
       throw error.response?.data || error.message;
     }
   },
+  delete: async (id) => {
+    try {
+      const response = await api.delete(`/properties/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   addRoomType: async (propertyId, data) => {
     try {
       const response = await api.post(`/properties/${propertyId}/room-types`, data);

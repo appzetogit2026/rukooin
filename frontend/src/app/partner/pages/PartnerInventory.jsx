@@ -153,10 +153,16 @@ const PartnerInventory = () => {
         const dayStr = String(dateObj.getDate()).padStart(2, '0');
         const dateString = `${yearStr}-${monthStr}-${dayStr}`;
 
+        const nextDateObj = new Date(year, month, day + 1);
+        const nextYearStr = nextDateObj.getFullYear();
+        const nextMonthStr = String(nextDateObj.getMonth() + 1).padStart(2, '0');
+        const nextDayStr = String(nextDateObj.getDate()).padStart(2, '0');
+        const nextDateString = `${nextYearStr}-${nextMonthStr}-${nextDayStr}`;
+
         setFormData({
             ...formData,
             startDate: dateString,
-            endDate: dateString,
+            endDate: nextDateString,
             units: 1
         });
         setIsModalOpen(true);
@@ -170,11 +176,23 @@ const PartnerInventory = () => {
 
     const handleOpenModal = () => {
         // specific logic to set default dates
-        const today = new Date().toISOString().split('T')[0];
+        const todayObj = new Date();
+        const y = todayObj.getFullYear();
+        const m = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const d = String(todayObj.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
+        const tomObj = new Date(todayObj);
+        tomObj.setDate(tomObj.getDate() + 1);
+        const ty = tomObj.getFullYear();
+        const tm = String(tomObj.getMonth() + 1).padStart(2, '0');
+        const td = String(tomObj.getDate()).padStart(2, '0');
+        const tomStr = `${ty}-${tm}-${td}`;
+
         setFormData({
             ...formData,
-            startDate: today,
-            endDate: today,
+            startDate: todayStr,
+            endDate: tomStr,
             units: 1
         });
         setIsModalOpen(true);
@@ -416,7 +434,19 @@ const PartnerInventory = () => {
                                         <input
                                             type="date"
                                             value={formData.startDate}
-                                            onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                                            onChange={e => {
+                                                const newStart = e.target.value;
+                                                let newEnd = formData.endDate;
+                                                if (newEnd <= newStart) {
+                                                    const d = new Date(newStart);
+                                                    d.setDate(d.getDate() + 1);
+                                                    const y = d.getFullYear();
+                                                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                                                    const day = String(d.getDate()).padStart(2, '0');
+                                                    newEnd = `${y}-${m}-${day}`;
+                                                }
+                                                setFormData({ ...formData, startDate: newStart, endDate: newEnd });
+                                            }}
                                             className="w-full h-12 px-3 rounded-xl border border-gray-200 font-medium focus:border-black focus:ring-0"
                                         />
                                     </div>
@@ -425,7 +455,14 @@ const PartnerInventory = () => {
                                         <input
                                             type="date"
                                             value={formData.endDate}
-                                            min={formData.startDate}
+                                            min={(() => {
+                                                const d = new Date(formData.startDate);
+                                                d.setDate(d.getDate() + 1);
+                                                const y = d.getFullYear();
+                                                const m = String(d.getMonth() + 1).padStart(2, '0');
+                                                const day = String(d.getDate()).padStart(2, '0');
+                                                return `${y}-${m}-${day}`;
+                                            })()}
                                             onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                             className="w-full h-12 px-3 rounded-xl border border-gray-200 font-medium focus:border-black focus:ring-0"
                                         />

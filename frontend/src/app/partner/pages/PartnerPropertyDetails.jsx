@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   MapPin, IndianRupee, Users, BedDouble, ArrowLeft, CheckCircle,
   X, ChevronRight, Info, FileText, Image as ImageIcon, Shield, List,
-  Clock, Map, Building2, Calendar
+  Clock, Map, Building2, Calendar, ChevronLeft
 } from 'lucide-react';
 import { propertyService } from '../../../services/apiService';
 
@@ -15,8 +15,12 @@ const PartnerPropertyDetails = () => {
   const [property, setProperty] = useState(null);
   const [roomTypes, setRoomTypes] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPricing, setShowPricing] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -41,6 +45,17 @@ const PartnerPropertyDetails = () => {
     };
     fetchDetails();
   }, [id]);
+
+  // ESC key to close document viewer
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && selectedDocument) {
+        setSelectedDocument(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [selectedDocument]);
 
   const totalImages = (property?.coverImage ? 1 : 0) + (property?.propertyImages?.length || 0);
 
@@ -145,11 +160,6 @@ const PartnerPropertyDetails = () => {
             <span className="px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-md border border-white/20 text-[10px] font-bold uppercase tracking-widest">
               {property.propertyType}
             </span>
-            {totalImages > 0 && (
-              <span className="px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-md text-[10px] font-medium flex items-center gap-1">
-                <ImageIcon size={10} /> 1 / {totalImages}
-              </span>
-            )}
           </div>
           <h1 className="text-2xl font-bold leading-tight mb-1 shadow-black/10 drop-shadow-md">{property.propertyName}</h1>
           <div className="flex items-center gap-1.5 text-xs text-gray-100 font-medium opacity-90">
@@ -223,140 +233,245 @@ const PartnerPropertyDetails = () => {
               </button>
             </div>
 
-            {activeSection === 'basic' && (
-              <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-2 shadow-sm">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase">Property Name</h3>
-                  <p className="text-lg font-medium text-gray-900">{property.propertyName}</p>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-2 shadow-sm">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase">Description</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{property.description}</p>
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'location' && (
-              <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-3 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <MapPin className="text-emerald-600 mt-1" size={20} />
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900">Address</h3>
-                      <p className="text-sm text-gray-600 mt-1">{property.address?.fullAddress}</p>
-                      <p className="text-xs text-gray-400 mt-2">{property.address?.city}, {property.address?.state} - {property.address?.pincode}</p>
-                    </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-hide">
+              {activeSection === 'basic' && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-2 shadow-sm">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase">Property Name</h3>
+                    <p className="text-lg font-medium text-gray-900">{property.propertyName}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-2 shadow-sm">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase">Description</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{property.description}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeSection === 'images' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-900">Property Photos</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {property.coverImage && (
-                    <div className="aspect-square rounded-xl overflow-hidden shadow-sm relative col-span-2">
-                      <img src={property.coverImage} className="w-full h-full object-cover" alt="Cover" />
-                      <span className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] font-bold rounded">Cover</span>
-                    </div>
-                  )}
-                  {property.propertyImages?.map((img, i) => (
-                    <div key={i} className="aspect-square rounded-xl overflow-hidden shadow-sm bg-white">
-                      <img src={img} className="w-full h-full object-cover" alt={`Gallery ${i}`} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'amenities' && (
-              <div className="flex flex-wrap gap-2">
-                {property.amenities?.map((am, i) => (
-                  <span key={i} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 shadow-sm flex items-center gap-2">
-                    <CheckCircle size={12} className="text-emerald-500" />
-                    {am}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {activeSection === 'nearby' && (
-              <div className="space-y-3">
-                {property.nearbyPlaces?.map((place, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
-                      {place.name?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">{place.name}</p>
-                      <p className="text-xs text-gray-500 capitalize">{place.type?.replace('_', ' ')} • {place.distanceKm}km</p>
-                    </div>
-                  </div>
-                ))}
-                {(!property.nearbyPlaces || property.nearbyPlaces.length === 0) && (
-                  <p className="text-center text-sm text-gray-400 py-4">No nearby places added.</p>
-                )}
-              </div>
-            )}
-
-            {activeSection === 'rules' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-500 uppercase font-bold mb-1">Check-in</p>
-                    <p className="text-sm font-bold text-gray-900">{property.checkInTime || 'N/A'}</p>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-xs text-gray-500 uppercase font-bold mb-1">Check-out</p>
-                    <p className="text-sm font-bold text-gray-900">{property.checkOutTime || 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
-                  <h4 className="font-bold text-sm text-gray-900">Cancellation Policy</h4>
-                  <p className="text-sm text-gray-600">{property.cancellationPolicy || 'No policy specified.'}</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
-                  <h4 className="font-bold text-sm text-gray-900">House Rules</h4>
-                  {property.houseRules && property.houseRules.length > 0 ? (
-                    <ul className="list-disc list-inside space-y-1">
-                      {property.houseRules.map((rule, i) => (
-                        <li key={i} className="text-sm text-gray-600">{rule}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">No specific house rules.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeSection === 'documents' && (
-              <div className="space-y-3">
-                {property.documents?.map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${doc.fileUrl ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
-                        <FileText size={16} />
-                      </div>
+              {activeSection === 'location' && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="text-emerald-600 mt-1" size={20} />
                       <div>
-                        <p className="font-bold text-xs text-gray-900">{doc.name}</p>
-                        <p className={`text-[10px] font-bold uppercase ${doc.fileUrl ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {doc.fileUrl ? 'Uploaded' : 'Missing'}
-                        </p>
+                        <h3 className="text-sm font-bold text-gray-900">Address</h3>
+                        <p className="text-sm text-gray-600 mt-1">{property.address?.fullAddress}</p>
+                        <p className="text-xs text-gray-400 mt-2">{property.address?.city}, {property.address?.state} - {property.address?.pincode}</p>
                       </div>
                     </div>
-                    {doc.fileUrl && (
-                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-50 rounded-lg text-gray-500 hover:bg-gray-100">
-                        <ChevronRight size={16} />
-                      </a>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === 'images' && (
+                <div className="space-y-6 pb-4">
+                  {/* Property Photos Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <ImageIcon size={16} className="text-emerald-600" />
+                        Property Photos
+                      </h3>
+                      <span className="text-xs text-gray-400 font-medium">
+                        {(property.coverImage ? 1 : 0) + (property.propertyImages?.length || 0)} images
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {property.coverImage && (
+                        <div className="col-span-2 aspect-[16/10] rounded-2xl overflow-hidden shadow-md relative bg-gray-100">
+                          <img src={property.coverImage} className="w-full h-full object-cover" alt="Cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                          <span className="absolute bottom-3 left-3 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1">
+                            <ImageIcon size={12} />
+                            Cover Photo
+                          </span>
+                        </div>
+                      )}
+
+                      {property.propertyImages?.map((img, i) => (
+                        <div key={i} className="aspect-square rounded-xl overflow-hidden shadow-sm bg-gray-100 relative group">
+                          <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt={`Gallery ${i + 1}`} />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        </div>
+                      ))}
+                    </div>
+
+                    {(!property.coverImage && (!property.propertyImages || property.propertyImages.length === 0)) && (
+                      <div className="text-center py-8 text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        <ImageIcon size={32} className="mx-auto mb-2 opacity-30" />
+                        <p>No property photos added.</p>
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              )}
+
+              {activeSection === 'amenities' && (
+                <div className="flex flex-wrap gap-2">
+                  {property.amenities?.map((am, i) => (
+                    <span key={i} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 shadow-sm flex items-center gap-2">
+                      <CheckCircle size={12} className="text-emerald-500" />
+                      {am}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {activeSection === 'nearby' && (
+                <div className="space-y-3">
+                  {property.nearbyPlaces?.map((place, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                      <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold">
+                        {place.name?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{place.name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{place.type?.replace('_', ' ')} • {place.distanceKm}km</p>
+                      </div>
+                    </div>
+                  ))}
+                  {(!property.nearbyPlaces || property.nearbyPlaces.length === 0) && (
+                    <p className="text-center text-sm text-gray-400 py-4">No nearby places added.</p>
+                  )}
+                </div>
+              )}
+
+              {activeSection === 'rooms' && (
+                <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-hide">
+                  <div className="space-y-3">
+                    {roomTypes.length > 0 ? (
+                      roomTypes.map((room) => (
+                        <button
+                          key={room._id}
+                          onClick={() => setSelectedRoom(room)}
+                          className="w-full bg-white p-4 rounded-2xl border border-gray-100 shadow-sm active:scale-[0.98] transition-all hover:border-emerald-100 text-left"
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-900 text-sm mb-1">{room.name}</h3>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase">
+                                  {room.roomCategory}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-medium capitalize">
+                                  {room.inventoryType}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-emerald-700">₹{room.pricePerNight}</div>
+                              <div className="text-[10px] text-gray-400 font-medium">/ night</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Users size={12} />
+                              <span>{room.maxAdults} Adults</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users size={12} />
+                              <span>{room.maxChildren} Children</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <BedDouble size={12} />
+                              <span>{room.totalInventory} Units</span>
+                            </div>
+                          </div>
+
+                          {room.amenities && room.amenities.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {room.amenities.slice(0, 3).map((am, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[10px] text-gray-600 font-medium">
+                                  {am}
+                                </span>
+                              ))}
+                              {room.amenities.length > 3 && (
+                                <span className="px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[10px] text-gray-500 font-medium">
+                                  +{room.amenities.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                            <span className="text-xs text-gray-400 font-medium">Tap to view full details</span>
+                            <ChevronRight size={14} className="text-gray-300" />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        <BedDouble size={48} className="mx-auto mb-2 opacity-20" />
+                        <p>No room types added yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === 'rules' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Check-in</p>
+                      <p className="text-sm font-bold text-gray-900">{property.checkInTime || 'N/A'}</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Check-out</p>
+                      <p className="text-sm font-bold text-gray-900">{property.checkOutTime || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                    <h4 className="font-bold text-sm text-gray-900">Cancellation Policy</h4>
+                    <p className="text-sm text-gray-600">{property.cancellationPolicy || 'No policy specified.'}</p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                    <h4 className="font-bold text-sm text-gray-900">House Rules</h4>
+                    {property.houseRules && property.houseRules.length > 0 ? (
+                      <ul className="list-disc list-inside space-y-1">
+                        {property.houseRules.map((rule, i) => (
+                          <li key={i} className="text-sm text-gray-600">{rule}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No specific house rules.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSection === 'documents' && (
+                <div className="space-y-3">
+                  {property.documents?.map((doc, i) => (
+                    <button
+                      key={i}
+                      onClick={() => doc.fileUrl && setSelectedDocument(doc)}
+                      className="w-full flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-200 transition-all active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${doc.fileUrl ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                          <FileText size={16} />
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-xs text-gray-900">{doc.name}</p>
+                          <p className={`text-[10px] font-bold uppercase ${doc.fileUrl ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {doc.fileUrl ? 'Uploaded' : 'Missing'}
+                          </p>
+                        </div>
+                      </div>
+                      {doc.fileUrl && (
+                        <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
+                          <ChevronRight size={16} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -372,22 +487,90 @@ const PartnerPropertyDetails = () => {
             className="fixed bottom-0 left-0 right-0 bg-white z-[100] rounded-t-[2rem] shadow-[0_-4px_30px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out transform h-[90vh] flex flex-col animate-in slide-in-from-bottom-full"
           >
             {/* Image Carousel */}
-            <div className="relative h-64 w-full bg-gray-100 rounded-t-[2rem] overflow-hidden flex-shrink-0">
+            <div
+              className="relative h-64 w-full bg-gray-100 rounded-t-[2rem] overflow-hidden flex-shrink-0"
+              onTouchStart={(e) => {
+                setTouchEnd(null);
+                setTouchStart(e.targetTouches[0].clientX);
+              }}
+              onTouchMove={(e) => setTouchEnd(e.targetTouches[0].clientX)}
+              onTouchEnd={() => {
+                if (!touchStart || !touchEnd) return;
+                const distance = touchStart - touchEnd;
+                const isLeftSwipe = distance > 50;
+                const isRightSwipe = distance < -50;
+                if (isLeftSwipe && currentImageIndex < (selectedRoom.images?.length || 1) - 1) {
+                  setCurrentImageIndex(currentImageIndex + 1);
+                }
+                if (isRightSwipe && currentImageIndex > 0) {
+                  setCurrentImageIndex(currentImageIndex - 1);
+                }
+              }}
+            >
               {selectedRoom.images && selectedRoom.images.length > 0 ? (
-                <img src={selectedRoom.images[0]} className="w-full h-full object-cover" alt={selectedRoom.name} />
+                <img
+                  src={selectedRoom.images[currentImageIndex]}
+                  className="w-full h-full object-cover transition-all duration-300"
+                  alt={selectedRoom.name}
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400"><BedDouble size={48} opacity={0.3} /></div>
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <BedDouble size={48} opacity={0.3} />
+                </div>
               )}
+
+              {/* Close Button */}
               <button
-                onClick={() => setSelectedRoom(null)}
-                className="absolute top-4 right-4 p-2 bg-white/50 backdrop-blur-md rounded-full text-gray-800 hover:bg-white transition-colors"
+                onClick={() => {
+                  setSelectedRoom(null);
+                  setCurrentImageIndex(0);
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white transition-colors shadow-lg z-10"
               >
                 <X size={20} />
               </button>
+
+              {/* Navigation Arrows */}
+              {selectedRoom.images && selectedRoom.images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setCurrentImageIndex(Math.max(0, currentImageIndex - 1))}
+                    disabled={currentImageIndex === 0}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white transition-all shadow-lg disabled:opacity-30 disabled:cursor-not-allowed z-10"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentImageIndex(Math.min(selectedRoom.images.length - 1, currentImageIndex + 1))}
+                    disabled={currentImageIndex === selectedRoom.images.length - 1}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white transition-all shadow-lg disabled:opacity-30 disabled:cursor-not-allowed z-10"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
+
+              {/* Image Counter */}
               {selectedRoom.images?.length > 1 && (
-                <span className="absolute bottom-4 right-4 px-3 py-1 bg-black/50 backdrop-blur-md rounded-full text-white text-xs font-medium">
-                  1 / {selectedRoom.images.length}
+                <span className="absolute bottom-4 right-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-white text-xs font-medium shadow-lg">
+                  {currentImageIndex + 1} / {selectedRoom.images.length}
                 </span>
+              )}
+
+              {/* Dot Indicators */}
+              {selectedRoom.images && selectedRoom.images.length > 1 && selectedRoom.images.length <= 5 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                  {selectedRoom.images.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentImageIndex(idx)}
+                      className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex
+                        ? 'bg-white w-6'
+                        : 'bg-white/50 hover:bg-white/80'
+                        }`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
 
@@ -483,6 +666,99 @@ const PartnerPropertyDetails = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Document Viewer Modal */}
+      {selectedDocument && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/90 z-[110] backdrop-blur-sm transition-opacity"
+            onClick={() => setSelectedDocument(null)}
+          />
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <div className="relative w-full max-w-4xl h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="flex-none px-6 py-4 border-b border-gray-100 bg-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">{selectedDocument.name}</h3>
+                    <p className="text-xs text-gray-500">Document Preview</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={selectedDocument.fileUrl}
+                    download
+                    className="px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download
+                  </a>
+                  <button
+                    onClick={() => setSelectedDocument(null)}
+                    className="p-2 bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Document Display Area */}
+              <div className="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-6 relative">
+                {/* Floating Close Button */}
+                <button
+                  onClick={() => setSelectedDocument(null)}
+                  className="absolute top-4 right-4 z-10 p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white transition-all shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="relative max-w-full max-h-full">
+                  <img
+                    src={selectedDocument.fileUrl}
+                    alt={selectedDocument.name}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-xl"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden w-full h-64 items-center justify-center text-gray-400 flex-col gap-2">
+                    <FileText size={48} opacity={0.3} />
+                    <p className="text-sm">Unable to preview this document</p>
+                    <a
+                      href={selectedDocument.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Open in New Tab
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Info */}
+              <div className="flex-none px-6 py-3 border-t border-gray-100 bg-white">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Click outside to close or press ESC</span>
+                  <span className="text-emerald-600 font-semibold">
+                    {selectedDocument.type?.toUpperCase() || 'DOCUMENT'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
