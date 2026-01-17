@@ -99,7 +99,7 @@ export const bookingService = {
   },
   getMyBookings: async () => {
     try {
-      const response = await api.get('/bookings/my-bookings');
+      const response = await api.get('/bookings/my');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -107,7 +107,7 @@ export const bookingService = {
   },
   getPartnerBookings: async () => {
     try {
-      const response = await api.get('/bookings/partner/all');
+      const response = await api.get('/bookings/partner');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
