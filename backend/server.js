@@ -57,7 +57,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     // Check if origin is localhost or local network IP
-    const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+    const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173','https://rukkooproject.onrender.com'];
     const isLocalNetwork = origin.startsWith('http://192.168.') || origin.startsWith('http://10.');
 
     if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork) {
