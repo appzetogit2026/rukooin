@@ -3,6 +3,7 @@ import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import Property from '../models/Property.js';
+import RoomType from '../models/RoomType.js';
 import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
@@ -84,12 +85,35 @@ export const getAllHotels = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { search, status } = req.query;
+
+    const { search, status, type } = req.query;
+
     const query = {};
-    if (search) query.propertyName = { $regex: search, $options: 'i' };
-    if (status) query.status = status;
+
+    if (search) {
+      query.$or = [
+        { propertyName: { $regex: search, $options: 'i' } },
+        { 'address.city': { $regex: search, $options: 'i' } },
+        { 'address.state': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (type) {
+      query.propertyType = String(type).toLowerCase();
+    }
+
     const total = await Property.countDocuments(query);
-    const hotels = await Property.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+
+    const hotels = await Property.find(query)
+      .populate('partnerId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
     res.status(200).json({ success: true, hotels, total, page, limit });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching hotels' });
@@ -114,7 +138,9 @@ export const getAllBookings = async (req, res) => {
 
 export const getPropertyRequests = async (req, res) => {
   try {
-    const hotels = await Property.find({ status: 'pending' }).sort({ createdAt: -1 });
+    const hotels = await Property.find({ status: 'pending' })
+      .populate('partnerId', 'name email phone')
+      .sort({ createdAt: -1 });
     res.status(200).json({ success: true, hotels });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching property requests' });
@@ -123,12 +149,30 @@ export const getPropertyRequests = async (req, res) => {
 
 export const updateHotelStatus = async (req, res) => {
   try {
-    const { propertyId, status, isLive } = req.body;
+    const { propertyId, hotelId, status, isLive } = req.body;
+
+    const id = propertyId || hotelId;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Property id is required' });
+    }
+
     const update = {};
-    if (status) update.status = status;
-    if (typeof isLive === 'boolean') update.isLive = isLive;
-    const hotel = await Property.findByIdAndUpdate(propertyId, update, { new: true });
-    if (!hotel) return res.status(404).json({ message: 'Property not found' });
+    if (status) {
+      update.status = status;
+      if (status === 'approved') {
+        update.isLive = true;
+      }
+      if (status === 'rejected' || status === 'suspended' || status === 'draft') {
+        update.isLive = false;
+      }
+    }
+
+    if (typeof isLive === 'boolean') {
+      update.isLive = isLive;
+    }
+
+    const hotel = await Property.findByIdAndUpdate(id, update, { new: true });
+    if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
     res.status(200).json({ success: true, hotel });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
@@ -247,10 +291,19 @@ export const deleteUser = async (req, res) => {
 
 export const deleteHotel = async (req, res) => {
   try {
-    const { propertyId } = req.body;
-    const del = await Property.findByIdAndDelete(propertyId);
+    const { propertyId, hotelId } = req.body;
+    const id = propertyId || hotelId;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Property id is required' });
+    }
+
+    const del = await Property.findByIdAndDelete(id);
     if (!del) return res.status(404).json({ success: false, message: 'Property not found' });
-    await PropertyDocument.deleteMany({ propertyId });
+
+    await PropertyDocument.deleteMany({ propertyId: id });
+    await RoomType.deleteMany({ propertyId: id });
+
     res.status(200).json({ success: true });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error deleting property' });
@@ -294,10 +347,21 @@ export const getUserDetails = async (req, res) => {
 export const getHotelDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const property = await Property.findById(id);
+    const property = await Property.findById(id).populate('partnerId', 'name email phone');
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
-    const docs = await PropertyDocument.findOne({ propertyId: id });
-    res.status(200).json({ success: true, property, documents: docs });
+
+    const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
+    const documents = await PropertyDocument.findOne({ propertyId: id });
+
+    res.status(200).json({
+      success: true,
+      hotel: {
+        ...property.toObject(),
+        rooms: roomTypes
+      },
+      bookings: [],
+      documents
+    });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error fetching hotel details' });
   }

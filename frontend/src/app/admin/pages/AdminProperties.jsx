@@ -45,7 +45,8 @@ const AdminProperties = () => {
 
     const [filters, setFilters] = useState({
         search: '',
-        status: ''
+        status: '',
+        type: ''
     });
 
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -61,13 +62,18 @@ const AdminProperties = () => {
                 page,
                 limit,
                 search: currentFilters.search,
-                status: currentFilters.status
+                status: currentFilters.status,
+                type: currentFilters.type || undefined
             };
-            const data = await adminService.getHotels(params); // Using getHotels as properties are fetched via this
+            const data = await adminService.getHotels(params);
             if (data.success) {
-                setProperties(data.hotels);
-                setTotalProperties(data.total);
-                setTotalPages(Math.ceil(data.total / limit));
+                setProperties(data.hotels || []);
+                setTotalProperties(data.total || 0);
+                setTotalPages(Math.ceil((data.total || 0) / limit));
+            } else {
+                setProperties([]);
+                setTotalProperties(0);
+                setTotalPages(0);
             }
         } catch (error) {
             if (error.response?.status !== 401) {
@@ -98,7 +104,7 @@ const AdminProperties = () => {
             setModalConfig({
                 isOpen: true,
                 title: `${action.charAt(0).toUpperCase() + action.slice(1)} Property?`,
-                message: `Are you sure you want to ${action} "${property.name}"?`,
+                message: `Are you sure you want to ${action} "${property.propertyName}"?`,
                 type: action === 'approve' ? 'success' : 'warning',
                 confirmText: action.charAt(0).toUpperCase() + action.slice(1),
                 onConfirm: async () => {
@@ -117,7 +123,7 @@ const AdminProperties = () => {
             setModalConfig({
                 isOpen: true,
                 title: 'Delete Property?',
-                message: `Are you sure you want to delete "${property.name}"? This action cannot be undone and all data related to this property (including bookings) will be affected.`,
+                message: `Are you sure you want to delete "${property.propertyName}"? This action cannot be undone and all data related to this property (including bookings) will be affected.`,
                 type: 'danger',
                 confirmText: 'Delete Property',
                 onConfirm: async () => {
@@ -141,16 +147,16 @@ const AdminProperties = () => {
             return;
         }
 
-        const headers = ['ID', 'Property Name', 'Owner', 'Status', 'City', 'Price'];
+        const headers = ['ID', 'Property Name', 'Type', 'Owner', 'Status', 'City'];
         const csvContent = [
             headers.join(','),
             ...properties.map(h => [
                 h._id,
-                `"${h.name}"`,
-                `"${h.ownerId?.name}"`,
+                `"${h.propertyName}"`,
+                `"${h.propertyType}"`,
+                `"${h.partnerId?.name || ''}"`,
                 h.status,
-                `"${h.address?.city}"`,
-                h.price
+                `"${h.address?.city || ''}"`
             ].join(','))
         ].join('\n');
 
@@ -212,6 +218,19 @@ const AdminProperties = () => {
                         <option value="rejected">Rejected</option>
                         <option value="suspended">Suspended</option>
                     </select>
+                    <select
+                        value={filters.type}
+                        onChange={(e) => handleFilterChange('type', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">All Types</option>
+                        <option value="hotel">Hotel</option>
+                        <option value="villa">Villa</option>
+                        <option value="hostel">Hostel</option>
+                        <option value="pg">PG</option>
+                        <option value="resort">Resort</option>
+                        <option value="homestay">Homestay</option>
+                    </select>
                 </div>
             </div>
 
@@ -221,10 +240,9 @@ const AdminProperties = () => {
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
                                 <th className="p-4">Property Name</th>
+                                <th className="p-4">Type</th>
                                 <th className="p-4">Owner</th>
                                 <th className="p-4">Status</th>
-                                <th className="p-4">Rooms/Units</th>
-                                <th className="p-4">Pricing</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -248,12 +266,12 @@ const AdminProperties = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative"
                                             >
                                                 <td className="p-4">
-                                                    <Link to={`/admin/hotels/${property._id}`} className="flex items-center gap-3">
+                                                    <Link to={`/admin/properties/${property._id}`} className="flex items-center gap-3">
                                                         <div className="w-10 h-10 rounded-lg bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm">
                                                             <Building2 size={18} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.name || 'Untitled'}</p>
+                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
                                                             <div className="flex items-center text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">
                                                                 <MapPin size={10} className="mr-1" />
                                                                 {property.address?.city || 'No Address'}, {property.address?.state || ''}
@@ -262,17 +280,14 @@ const AdminProperties = () => {
                                                     </Link>
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.ownerId?.name || 'Unknown Partner'}</p>
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.propertyType || 'N/A'}</p>
+                                                </td>
+                                                <td className="p-4">
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.partnerId?.name || 'Unknown Partner'}</p>
                                                     <p className="text-[10px] text-gray-400 uppercase tracking-tighter">ID: {property._id.slice(-6)}</p>
                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />
-                                                </td>
-                                                <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.rooms?.length || 0} Categories</p>
-                                                </td>
-                                                <td className="p-4">
-                                                    <p className="text-sm font-bold text-gray-900 uppercase">₹{property.price?.toLocaleString() || 0}<span className="text-[10px] text-gray-400 font-bold ml-1">/NIGHT</span></p>
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
@@ -284,7 +299,7 @@ const AdminProperties = () => {
 
                                                     {activeDropdown === property._id && (
                                                         <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
-                                                            <Link to={`/admin/hotels/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                            <Link to={`/admin/properties/${property._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
                                                             {property.status === 'pending' && (

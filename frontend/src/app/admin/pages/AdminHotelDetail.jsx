@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
     ChevronLeft, Star, Bed, Calendar, ShieldCheck, AlertCircle,
-    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Camera, Image as ImageIcon, Users
+    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -21,49 +21,63 @@ const OverviewTab = ({ hotel }) => (
                 </h3>
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Property Name</span>
+                        <span className="font-bold text-gray-900">{hotel.propertyName}</span>
+                    </div>
+                    <div className="flex justify-between">
                         <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
-                        <span className="font-bold text-gray-900 capitalize">{hotel.propertyType || 'Hotel'}</span>
+                        <span className="font-bold text-gray-900 capitalize">{hotel.propertyType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Status</span>
+                        <span className="font-bold text-gray-900 capitalize">{hotel.status}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-500 font-bold uppercase text-[10px]">Joined Date</span>
-                        <span className="font-bold text-gray-900">{new Date(hotel.createdAt).toLocaleDateString()}</span>
+                        <span className="font-bold text-gray-900">{hotel.createdAt ? new Date(hotel.createdAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Total Rooms</span>
-                        <span className="font-bold text-gray-900">{hotel.rooms?.length || 0} Categories</span>
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Total Room Types</span>
+                        <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Price Starts</span>
-                        <span className="font-bold text-gray-900">₹{hotel.price || 0}</span>
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Live On Platform</span>
+                        <span className="font-bold text-gray-900 flex items-center gap-1">
+                            {hotel.isLive ? <CheckCircle size={12} className="text-green-600" /> : <XCircle size={12} className="text-red-500" />}
+                            {hotel.isLive ? 'Yes' : 'No'}
+                        </span>
                     </div>
                 </div>
             </div>
             <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                 <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
-                    <MapPin size={14} /> Contact & Location
+                    <MapPin size={14} /> Partner & Location
                 </h3>
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Email</span>
-                        <span className="font-bold text-gray-900">{hotel.ownerId?.email || 'N/A'}</span>
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Name</span>
+                        <span className="font-bold text-gray-900">{hotel.partnerId?.name || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500 font-bold uppercase text-[10px]">Phone</span>
-                        <span className="font-bold text-gray-900">{hotel.phone || hotel.ownerId?.phone || 'N/A'}</span>
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Email</span>
+                        <span className="font-bold text-gray-900">{hotel.partnerId?.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Partner Phone</span>
+                        <span className="font-bold text-gray-900">{hotel.partnerId?.phone || 'N/A'}</span>
                     </div>
                     <div className="pt-2">
                         <span className="text-gray-500 font-bold uppercase text-[10px] block mb-1">Full Address</span>
                         <span className="font-bold block text-gray-800 leading-relaxed">
-                            {hotel.address?.street || 'N/A'}, {hotel.address?.landmark && `near ${hotel.address.landmark},`}
+                            {hotel.address?.fullAddress || hotel.address?.area || 'N/A'}
                             <br />
-                            {hotel.address?.city}, {hotel.address?.state} - {hotel.address?.zipCode}
+                            {hotel.address?.city}, {hotel.address?.state} {hotel.address?.pincode && `- ${hotel.address.pincode}`}
                         </span>
                     </div>
                 </div>
             </div>
         </div>
 
-        {/* Description */}
         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">About Property</h3>
             <p className="text-sm font-bold text-gray-600 leading-relaxed uppercase tracking-tight">
@@ -71,33 +85,32 @@ const OverviewTab = ({ hotel }) => (
             </p>
         </div>
 
-        {/* Policies Grid */}
-        <div>
-            <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">Property Policies</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                    { key: 'coupleFriendly', label: 'Couples Allowed' },
-                    { key: 'petsAllowed', label: 'Pets Allowed' },
-                    { key: 'smokingAllowed', label: 'Smoking Allowed' },
-                    { key: 'localIdsAllowed', label: 'Local ID Allowed' },
-                    { key: 'alcoholAllowed', label: 'Alcohol Allowed' },
-                    { key: 'forEvents', label: 'Events Allowed' },
-                    { key: 'outsideFoodAllowed', label: 'Outside Food Allowed' },
-                ].map((policy) => (
-                    <div key={policy.key} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[9px] font-bold uppercase ${hotel.policies?.[policy.key] ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-400'}`}>
-                        {hotel.policies?.[policy.key] ? <CheckCircle size={10} /> : <XCircle size={10} />}
-                        {policy.label}
-                    </div>
-                ))}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Check In</h4>
+                <p className="text-sm font-bold text-gray-900">{hotel.checkInTime || 'Not set'}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Check Out</h4>
+                <p className="text-sm font-bold text-gray-900">{hotel.checkOutTime || 'Not set'}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-2">Average Rating</h4>
+                <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                    <Star size={14} className="text-yellow-400" />
+                    {hotel.avgRating?.toFixed(1) || '0.0'}
+                    <span className="text-[10px] text-gray-400 font-bold uppercase ml-1">
+                        ({hotel.totalReviews || 0} Reviews)
+                    </span>
+                </p>
             </div>
         </div>
 
-        {/* Amenities Grid */}
         <div>
-            <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">Amenities & Facilities</h3>
+            <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">Amenities</h3>
             <div className="flex flex-wrap gap-3">
-                {hotel.facilities && hotel.facilities.length > 0 ? (
-                    hotel.facilities.map((amenity, i) => (
+                {hotel.amenities && hotel.amenities.length > 0 ? (
+                    hotel.amenities.map((amenity, i) => (
                         <div key={i} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700">
                             <CheckCircle size={12} className="text-green-500" />
                             {amenity.replace(/_/g, ' ')}
@@ -185,79 +198,168 @@ const GalleryTab = ({ hotel }) => (
     </div>
 );
 
-const DocumentsTab = ({ hotel }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {hotel.kyc ? (
-            <>
+const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
+    const [remark, setRemark] = useState('');
+
+    if (!documents) {
+        return (
+            <div className="py-20 text-center bg-white border border-gray-200 rounded-2xl">
+                <ShieldCheck size={48} className="mx-auto text-gray-200 mb-4" />
+                <h3 className="text-gray-900 font-bold uppercase text-sm">No Documents Submitted</h3>
+                <p className="text-gray-400 text-xs mt-1">This property has not uploaded any verification documents yet.</p>
+            </div>
+        );
+    }
+
+    const status = documents.verificationStatus || 'pending';
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase text-xs tracking-wider">
-                        <FileText size={16} /> Identity Information
+                        <FileText size={16} /> Document Summary
                     </h4>
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Document Type</p>
-                            <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold uppercase border border-blue-100">
-                                    {hotel.kyc.docType || 'Not Provided'}
+                    <div className="space-y-4 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Property</span>
+                            <span className="font-bold text-gray-900">{hotel.propertyName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Property Type</span>
+                            <span className="font-bold text-gray-900 capitalize">{hotel.propertyType}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-500 font-bold uppercase text-[10px]">Verification Status</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 ${status === 'verified'
+                                    ? 'bg-green-100 text-green-700 border border-green-200'
+                                    : status === 'rejected'
+                                        ? 'bg-red-100 text-red-700 border border-red-200'
+                                        : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                }`}>
+                                {status === 'verified' && <ShieldCheck size={10} />}
+                                {status === 'rejected' && <XCircle size={10} />}
+                                {status === 'pending' && <Clock size={10} />}
+                                {status}
+                            </span>
+                        </div>
+                        {documents.verifiedAt && (
+                            <div className="flex justify-between">
+                                <span className="text-gray-500 font-bold uppercase text-[10px]">Last Updated</span>
+                                <span className="font-bold text-gray-900">
+                                    {new Date(documents.verifiedAt).toLocaleString()}
                                 </span>
-                                {hotel.kyc.verified && (
-                                    <span className="text-green-600 flex items-center gap-1 text-[10px] font-bold uppercase">
-                                        <ShieldCheck size={12} /> Verified
-                                    </span>
-                                )}
                             </div>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">ID Number</p>
-                            <p className="font-mono text-lg font-bold text-gray-900 tracking-wider">
-                                {hotel.kyc.idNumber || 'Not Provided'}
-                            </p>
-                        </div>
+                        )}
+                        {documents.adminRemark && (
+                            <div>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Admin Remark</p>
+                                <p className="text-xs font-bold text-gray-800">{documents.adminRemark}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase text-xs tracking-wider">
-                        <Camera size={16} /> Document Proofs
+                        <ShieldCheck size={16} /> Verification Actions
                     </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        {[
-                            { label: 'Front Side', url: hotel.kyc.docFront },
-                            { label: 'Back Side', url: hotel.kyc.docBack }
-                        ].map((doc, idx) => (
-                            <div key={idx} className="space-y-2">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold">{doc.label}</p>
-                                <div className="aspect-video bg-gray-50 rounded-lg border border-gray-200 overflow-hidden relative group">
-                                    {doc.url ? (
-                                        <img src={doc.url} alt={doc.label} className="w-full h-full object-cover" />
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Rejection Remark</p>
+                            <textarea
+                                value={remark}
+                                onChange={(e) => setRemark(e.target.value)}
+                                placeholder="Optional note in case of rejection"
+                                className="w-full min-h-[80px] text-xs font-bold uppercase border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-black"
+                            />
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                                type="button"
+                                disabled={verifying || status === 'verified'}
+                                onClick={() => onVerify && onVerify('approve', '')}
+                                className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${status === 'verified'
+                                        ? 'bg-green-100 text-green-500 border border-green-100 cursor-not-allowed'
+                                        : 'bg-green-600 text-white border border-green-600 hover:bg-green-700'
+                                    } ${verifying ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                <CheckCircle size={14} />
+                                Approve Documents
+                            </button>
+                            <button
+                                type="button"
+                                disabled={verifying || status === 'rejected'}
+                                onClick={() => onVerify && onVerify('reject', remark)}
+                                className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${status === 'rejected'
+                                        ? 'bg-red-100 text-red-500 border border-red-100 cursor-not-allowed'
+                                        : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
+                                    } ${verifying ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                <XCircle size={14} />
+                                Reject Documents
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase leading-relaxed">
+                            Approving documents will move the property to <span className="text-green-700">approved</span> status
+                            and make it live on the platform. Rejected properties will stay hidden from users until issues are fixed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase text-xs tracking-wider">
+                    <FileText size={16} /> Uploaded Documents
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {documents.documents && documents.documents.length > 0 ? (
+                        documents.documents.map((doc, idx) => (
+                            <div key={idx} className="border border-gray-200 rounded-xl p-4 flex flex-col justify-between bg-gray-50">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold text-gray-900 uppercase">
+                                            {doc.name || doc.type || 'Document'}
+                                        </span>
+                                        {doc.isRequired && (
+                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200">
+                                                Required
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 uppercase">
+                                        {doc.type || 'Uploaded File'}
+                                    </p>
+                                </div>
+                                <div className="mt-3">
+                                    {doc.fileUrl ? (
+                                        <a
+                                            href={doc.fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-100"
+                                        >
+                                            <FileText size={12} />
+                                            View File
+                                        </a>
                                     ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                                            <FileText size={24} className="mb-2 opacity-50" />
-                                            <span className="text-[9px] font-bold uppercase">Missing</span>
-                                        </div>
-                                    )}
-                                    {doc.url && (
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="bg-white text-black px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase shadow-lg transform scale-95 group-hover:scale-100 transition-all">
-                                                View Original
-                                            </a>
-                                        </div>
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400">
+                                            <AlertCircle size={11} /> No file
+                                        </span>
                                     )}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-8 text-[10px] font-bold uppercase text-gray-400">
+                            No individual documents uploaded
+                        </div>
+                    )}
                 </div>
-            </>
-        ) : (
-            <div className="col-span-full py-20 text-center">
-                <ShieldCheck size={48} className="mx-auto text-gray-200 mb-4" />
-                <h3 className="text-gray-900 font-bold uppercase text-sm">No KYC Information</h3>
-                <p className="text-gray-400 text-xs mt-1">This property has not submitted identity documents yet.</p>
             </div>
-        )}
-    </div>
-);
+        </div>
+    );
+};
 
 const RoomsTab = ({ rooms }) => (
     <div className="space-y-6">
@@ -368,9 +470,11 @@ const AdminHotelDetail = () => {
     const { id } = useParams();
     const [hotel, setHotel] = useState(null);
     const [bookings, setBookings] = useState([]);
+    const [documents, setDocuments] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
+    const [verifying, setVerifying] = useState(false);
 
     const fetchHotelDetails = useCallback(async () => {
         try {
@@ -378,7 +482,8 @@ const AdminHotelDetail = () => {
             const data = await adminService.getHotelDetails(id);
             if (data.success) {
                 setHotel(data.hotel);
-                setBookings(data.bookings);
+                setBookings(data.bookings || []);
+                setDocuments(data.documents || null);
             }
         } catch (error) {
             console.error('Error fetching hotel details:', error);
@@ -391,6 +496,37 @@ const AdminHotelDetail = () => {
     useEffect(() => {
         fetchHotelDetails();
     }, [fetchHotelDetails]);
+
+    const handleVerifyDocuments = (action, remark) => {
+        if (!hotel) return;
+
+        const isApprove = action === 'approve';
+
+        setModalConfig({
+            isOpen: true,
+            title: isApprove ? 'Approve Property Documents?' : 'Reject Property Documents?',
+            message: isApprove
+                ? 'This will mark all submitted documents as verified and move the property to approved status.'
+                : 'This will reject the submitted documents and keep the property hidden from users.',
+            type: isApprove ? 'success' : 'danger',
+            confirmText: isApprove ? 'Approve' : 'Reject',
+            onConfirm: async () => {
+                try {
+                    setVerifying(true);
+                    const res = await adminService.verifyPropertyDocuments(hotel._id, action, remark);
+                    if (res.success) {
+                        toast.success(isApprove ? 'Documents approved successfully' : 'Documents rejected successfully');
+                        setHotel(res.property);
+                        setDocuments(res.documents);
+                    }
+                } catch {
+                    toast.error('Failed to update document verification');
+                } finally {
+                    setVerifying(false);
+                }
+            }
+        });
+    };
 
     const handleStatusToggle = async () => {
         const isSuspended = hotel.status === 'suspended';
@@ -531,7 +667,14 @@ const AdminHotelDetail = () => {
                 >
                     {activeTab === 'overview' && <OverviewTab hotel={hotel} />}
                     {activeTab === 'gallery' && <GalleryTab hotel={hotel} />}
-                    {activeTab === 'documents' && <DocumentsTab hotel={hotel} />}
+                    {activeTab === 'documents' && (
+                        <DocumentsTab
+                            hotel={hotel}
+                            documents={documents}
+                            onVerify={handleVerifyDocuments}
+                            verifying={verifying}
+                        />
+                    )}
                     {activeTab === 'rooms' && <RoomsTab rooms={hotel.rooms} />}
                     {activeTab === 'bookings' && <BookingsTab bookings={bookings} />}
                 </motion.div>

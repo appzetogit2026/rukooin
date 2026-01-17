@@ -70,6 +70,11 @@ const adminService = {
     return response.data;
   },
 
+  verifyPropertyDocuments: async (propertyId, action, adminRemark) => {
+    const response = await axiosInstance.put('/admin/verify-documents', { propertyId, action, adminRemark });
+    return response.data;
+  },
+
   getUserDetails: async (userId) => {
     const response = await axiosInstance.get(`/admin/user-details/${userId}`);
     return response.data;
