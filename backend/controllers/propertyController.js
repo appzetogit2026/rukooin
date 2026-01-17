@@ -342,3 +342,29 @@ export const getPropertyDetails = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+
+export const deleteProperty = async (req, res) => {
+  try {
+    const propertyId = req.params.id;
+    // Ensure the property belongs to the logged-in partner
+    const property = await Property.findOne({ _id: propertyId, partnerId: req.user._id });
+
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found or unauthorized' });
+    }
+
+    // Delete associated room types
+    await RoomType.deleteMany({ propertyId });
+
+    // Delete associated documents
+    await PropertyDocument.deleteMany({ propertyId });
+
+    // Delete the property
+    await Property.findByIdAndDelete(propertyId);
+
+    res.status(200).json({ message: 'Property deleted successfully' });
+  } catch (error) {
+    console.error('Delete property error:', error);
+    res.status(500).json({ message: 'Failed to delete property' });
+  }
+};

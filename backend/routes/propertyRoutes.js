@@ -9,7 +9,8 @@ import {
   upsertDocuments,
   getPublicProperties,
   getPropertyDetails,
-  getMyProperties
+  getMyProperties,
+  deleteProperty
 } from '../controllers/propertyController.js';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.get('/my', protect, authorizedRoles('partner', 'admin'), getMyProperties)
 router.get('/:id', getPropertyDetails);
 router.post('/', protect, authorizedRoles('partner', 'admin'), createProperty);
 router.put('/:id', protect, authorizedRoles('partner', 'admin'), updateProperty);
+router.delete('/:id', protect, authorizedRoles('partner', 'admin'), deleteProperty);
 router.post('/:propertyId/room-types', protect, authorizedRoles('partner', 'admin'), addRoomType);
 router.put('/:propertyId/room-types/:roomTypeId', protect, authorizedRoles('partner', 'admin'), updateRoomType);
 router.delete('/:propertyId/room-types/:roomTypeId', protect, authorizedRoles('partner', 'admin'), deleteRoomType);
