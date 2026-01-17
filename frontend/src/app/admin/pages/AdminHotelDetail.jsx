@@ -126,71 +126,22 @@ const OverviewTab = ({ hotel }) => (
 
 const GalleryTab = ({ hotel }) => (
     <div className="space-y-10">
-        {/* Section 1: Property Wide Images */}
+        {/* Section: Property Wide Images */}
         <div>
             <div className="flex items-center gap-2 mb-4">
                 <Building2 size={20} className="text-blue-600" />
                 <h3 className="text-lg font-bold text-gray-900 uppercase">General Property Photos</h3>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {hotel.images && hotel.images.length > 0 ? (
-                    hotel.images.map((img, i) => (
+                {hotel.propertyImages && hotel.propertyImages.length > 0 ? (
+                    hotel.propertyImages.map((img, i) => (
                         <div key={i} className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group shadow-sm transition-all hover:shadow-md">
                             <img src={img.url || img} alt={`Property ${i}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            {img.category && (
-                                <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border border-white/20">
-                                    {img.category}
-                                </span>
-                            )}
                         </div>
                     ))
                 ) : (
                     <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
                         <p className="text-gray-400 font-bold uppercase text-xs">No General Photos</p>
-                    </div>
-                )}
-            </div>
-        </div>
-
-        {/* Section 2: Room Specific Images grouped by Room */}
-        <div>
-            <div className="flex items-center gap-2 mb-4">
-                <Bed size={20} className="text-purple-600" />
-                <h3 className="text-lg font-bold text-gray-900 uppercase">Room Category Photos</h3>
-            </div>
-
-            <div className="space-y-6">
-                {hotel.rooms && hotel.rooms.length > 0 ? (
-                    hotel.rooms.map((room, idx) => (
-                        <div key={idx} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                            <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-2">
-                                <div>
-                                    <h4 className="font-bold text-gray-900 text-sm uppercase">{room.title}</h4>
-                                    <p className="text-xs text-gray-400">Price: ₹{room.price} | Qty: {room.qty}</p>
-                                </div>
-                                <span className="text-[10px] font-bold bg-gray-100 px-2 py-1 rounded text-gray-600 uppercase">
-                                    {room.images?.length || 0} Photos
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-                                {room.images && room.images.length > 0 ? (
-                                    room.images.map((img, i) => (
-                                        <div key={i} className="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 relative group">
-                                            <img src={img.url || img} alt={`Room ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="col-span-full py-4 text-center">
-                                        <span className="text-[10px] text-gray-400 uppercase font-bold italic">No photos for this room</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <p className="text-gray-400 font-bold uppercase text-xs">No Rooms Added</p>
                     </div>
                 )}
             </div>
@@ -232,10 +183,10 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                         <div className="flex justify-between items-center">
                             <span className="text-gray-500 font-bold uppercase text-[10px]">Verification Status</span>
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 ${status === 'verified'
-                                    ? 'bg-green-100 text-green-700 border border-green-200'
-                                    : status === 'rejected'
-                                        ? 'bg-red-100 text-red-700 border border-red-200'
-                                        : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                ? 'bg-green-100 text-green-700 border border-green-200'
+                                : status === 'rejected'
+                                    ? 'bg-red-100 text-red-700 border border-red-200'
+                                    : 'bg-amber-100 text-amber-700 border border-amber-200'
                                 }`}>
                                 {status === 'verified' && <ShieldCheck size={10} />}
                                 {status === 'rejected' && <XCircle size={10} />}
@@ -280,8 +231,8 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                                 disabled={verifying || status === 'verified'}
                                 onClick={() => onVerify && onVerify('approve', '')}
                                 className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${status === 'verified'
-                                        ? 'bg-green-100 text-green-500 border border-green-100 cursor-not-allowed'
-                                        : 'bg-green-600 text-white border border-green-600 hover:bg-green-700'
+                                    ? 'bg-green-100 text-green-500 border border-green-100 cursor-not-allowed'
+                                    : 'bg-green-600 text-white border border-green-600 hover:bg-green-700'
                                     } ${verifying ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 <CheckCircle size={14} />
@@ -292,8 +243,8 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
                                 disabled={verifying || status === 'rejected'}
                                 onClick={() => onVerify && onVerify('reject', remark)}
                                 className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-bold uppercase flex items-center justify-center gap-2 ${status === 'rejected'
-                                        ? 'bg-red-100 text-red-500 border border-red-100 cursor-not-allowed'
-                                        : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
+                                    ? 'bg-red-100 text-red-500 border border-red-100 cursor-not-allowed'
+                                    : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'
                                     } ${verifying ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 <XCircle size={14} />
@@ -361,49 +312,145 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
     );
 };
 
-const RoomsTab = ({ rooms }) => (
-    <div className="space-y-6">
-        <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900 uppercase">Room Inventory</h3>
-        </div>
+const RoomsTab = ({ rooms }) => {
+    const [expandedRoomId, setExpandedRoomId] = useState(null);
 
-        <div className="grid grid-cols-1 gap-4">
-            {rooms && rooms.length > 0 ? (
-                rooms.map((room, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="w-full md:w-32 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-400 relative overflow-hidden">
-                            {room.images && room.images[0] ? (
-                                <img src={room.images[0].url || room.images[0]} alt={room.title} className="w-full h-full object-cover" />
-                            ) : (
-                                <Bed size={32} />
-                            )}
-                        </div>
-                        <div className="flex-1 w-full text-center md:text-left">
-                            <h4 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{room.title}</h4>
-                            <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-[10px] font-bold uppercase text-gray-400">
-                                <span className="flex items-center gap-1"><Users size={12} /> Max {room.occupancy} People</span>
-                                <span className="flex items-center gap-1"><Building2 size={12} /> {room.qty} Rooms Total</span>
-                                <span className="flex items-center gap-1 text-green-600"><ShieldCheck size={12} /> Verified Category</span>
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900 uppercase">Room Inventory</h3>
+            </div>
+
+            <div className="space-y-4">
+                {rooms && rooms.length > 0 ? (
+                    rooms.map((room, i) => {
+                        const isExpanded = expandedRoomId === room._id;
+                        return (
+                            <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                <div
+                                    className="p-5 flex flex-col md:flex-row items-center gap-6 cursor-pointer"
+                                    onClick={() => setExpandedRoomId(isExpanded ? null : room._id)}
+                                >
+                                    <div className="w-full md:w-32 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-400 relative overflow-hidden">
+                                        {room.images && room.images[0] ? (
+                                            <img src={room.images[0].url || room.images[0]} alt={room.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Bed size={32} />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 w-full text-center md:text-left">
+                                        <h4 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{room.name}</h4>
+                                        <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-[10px] font-bold uppercase text-gray-400">
+                                            <span className="flex items-center gap-1"><Users size={12} /> Max {room.maxAdults} Adults, {room.maxChildren} Child</span>
+                                            <span className="flex items-center gap-1"><Building2 size={12} /> {room.totalInventory} Rooms Total</span>
+                                            <span className="flex items-center gap-1 text-green-600"><ShieldCheck size={12} /> {room.inventoryType}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-gray-100 pt-4 md:pt-0">
+                                        <div className="text-center">
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Status</p>
+                                            <span className={`inline-block px-3 py-1 text-[10px] font-bold rounded-full uppercase ${room.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {room.isActive ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Price / Night</p>
+                                            <p className="text-xl font-bold text-gray-900">₹{room.pricePerNight}</p>
+                                        </div>
+                                        <ChevronLeft
+                                            size={20}
+                                            className={`text-gray-400 transition-transform duration-300 ${isExpanded ? '-rotate-90' : 'rotate-0'}`}
+                                        />
+                                    </div>
+                                </div>
+
+                                <AnimatePresence>
+                                    {isExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="border-t border-gray-100 bg-gray-50"
+                                        >
+                                            <div className="p-6">
+                                                {/* Details Grid */}
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Pricing Details</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Base Price</span>
+                                                                <span className="font-bold text-gray-900">₹{room.pricePerNight}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Extra Adult</span>
+                                                                <span className="font-bold text-gray-900">₹{room.extraAdultPrice}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Extra Child</span>
+                                                                <span className="font-bold text-gray-900">₹{room.extraChildPrice}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Configuration</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Category</span>
+                                                                <span className="font-bold text-gray-900 uppercase">{room.roomCategory}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Inventory Type</span>
+                                                                <span className="font-bold text-gray-900 uppercase">{room.inventoryType}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Total Inventory</span>
+                                                                <span className="font-bold text-gray-900">{room.totalInventory} Units</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Amenities</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap gap-2">
+                                                            {room.amenities.map((amenity, idx) => (
+                                                                <span key={idx} className="px-2 py-1 bg-gray-50 rounded border border-gray-100 text-[10px] font-bold text-gray-600 uppercase">
+                                                                    {amenity}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Room Images */}
+                                                <div>
+                                                    <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Room Photos</h5>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {room.images && room.images.map((img, idx) => (
+                                                            <div key={idx} className="aspect-video bg-gray-200 rounded-lg overflow-hidden border border-gray-200 group relative">
+                                                                <img
+                                                                    src={img.url || img}
+                                                                    alt={`${room.name} ${idx}`}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-gray-100 pt-4 md:pt-0">
-                            <div className="text-center">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Quantity</p>
-                                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-sm font-bold rounded-full">{room.qty}</span>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Price / Night</p>
-                                <p className="text-xl font-bold text-gray-900">₹{room.price}</p>
-                            </div>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <div className="py-10 text-center text-gray-400 font-bold uppercase text-xs">No room data available</div>
-            )}
+                        );
+                    })
+                ) : (
+                    <div className="py-10 text-center text-gray-400 font-bold uppercase text-xs">No room data available</div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const BookingsTab = ({ bookings }) => (
     <div className="space-y-4">
@@ -535,8 +582,8 @@ const AdminHotelDetail = () => {
             isOpen: true,
             title: isSuspended ? 'Activate Hotel?' : 'Suspend Hotel?',
             message: isSuspended
-                ? `Hotel "${hotel.name}" will be able to receive bookings again.`
-                : `Suspending "${hotel.name}" will prevent it from receiving new bookings.`,
+                ? `Hotel "${hotel.propertyName}" will be able to receive bookings again.`
+                : `Suspending "${hotel.propertyName}" will prevent it from receiving new bookings.`,
             type: isSuspended ? 'success' : 'danger',
             confirmText: isSuspended ? 'Activate' : 'Suspend',
             onConfirm: async () => {
@@ -587,21 +634,21 @@ const AdminHotelDetail = () => {
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
                 <Link to="/admin/hotels" className="hover:text-black transition-colors">Hotels</Link>
                 <span>/</span>
-                <span className="text-black font-bold">{hotel.name}</span>
+                <span className="text-black font-bold">{hotel.propertyName}</span>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex items-center gap-5">
                     <div className="w-20 h-20 rounded-xl bg-gray-100 shadow-inner flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
-                        {hotel.images && hotel.images[0] ? (
-                            <img src={hotel.images[0].url || hotel.images[0]} alt="Hotel" className="w-full h-full object-cover" />
+                        {hotel.coverImage || (hotel.propertyImages && hotel.propertyImages[0]) ? (
+                            <img src={hotel.coverImage || (hotel.propertyImages && hotel.propertyImages[0].url) || (hotel.propertyImages && hotel.propertyImages[0])} alt="Hotel" className="w-full h-full object-cover" />
                         ) : (
                             <Building2 size={32} className="text-gray-300" />
                         )}
                     </div>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">{hotel.name}</h1>
+                            <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">{hotel.propertyName}</h1>
                             {hotel.status === 'suspended' ? (
                                 <span className="px-2.5 py-0.5 bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold rounded-full flex items-center uppercase">
                                     <Ban size={10} className="mr-1" /> SUSPENDED
@@ -616,7 +663,7 @@ const AdminHotelDetail = () => {
                         <p className="text-gray-500 text-[10px] font-bold uppercase mt-1 flex items-center">
                             <MapPin size={12} className="mr-1 text-gray-400" /> {hotel.address?.city}, {hotel.address?.state}
                             <span className="mx-2 text-gray-300">|</span>
-                            Owner: {hotel.ownerId?.name || 'N/A'}
+                            Owner: {hotel.partnerId?.name || 'N/A'}
                         </p>
                     </div>
                 </div>
