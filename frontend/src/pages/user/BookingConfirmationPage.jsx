@@ -1,625 +1,296 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft, MapPin, Calendar, Clock, Lock,
-    CreditCard, Phone, MessageCircle, HelpCircle,
-    ChevronRight, Users, Copy, CheckCircle,
-    ShieldCheck, AlertTriangle, X
+    CheckCircle, MapPin, Calendar, Users, FileText,
+    Phone, Navigation, Share2, Home, Download, Printer
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
+import { bookingService } from '../../services/apiService';
 
 const BookingConfirmationPage = () => {
-    const navigate = useNavigate();
     const location = useLocation();
+    const navigate = useNavigate();
+    const { booking, animate } = location.state || {};
 
-    // Success Animation State
-    // Success Animation State
-    const [showSuccess, setShowSuccess] = useState(location.state?.animate || false);
-
-    // Modal States
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [showCancelModal, setShowCancelModal] = useState(false);
-    const [guestName, setGuestName] = useState("Hritik Raghuwanshi"); // Editable state
+    const [imgError, setImgError] = useState(false);
 
     useEffect(() => {
-        if (showSuccess) {
-            // Clear the state so animation doesn't replay on refresh or back
-            window.history.replaceState({}, '');
+        if (!booking) {
+            navigate('/');
+            return;
+        }
 
-            // Trigger Flower Blast (Confetti)
-            const duration = 2000;
-            const end = Date.now() + duration;
+        if (animate) {
+            const end = Date.now() + 3000;
+            const colors = ['#10B981', '#3B82F6', '#F59E0B'];
 
-            const frame = () => {
+            (function frame() {
                 confetti({
-                    particleCount: 5,
+                    particleCount: 3,
                     angle: 60,
                     spread: 55,
                     origin: { x: 0 },
-                    colors: ['#ACDCD9', '#004F4D', '#ffffff'] // Theme Colors
+                    colors: colors
                 });
                 confetti({
-                    particleCount: 5,
+                    particleCount: 3,
                     angle: 120,
                     spread: 55,
                     origin: { x: 1 },
-                    colors: ['#ACDCD9', '#004F4D', '#ffffff']
+                    colors: colors
                 });
 
                 if (Date.now() < end) {
                     requestAnimationFrame(frame);
                 }
-            };
-            frame();
-
-            // 2. Blast from center specifically
-            setTimeout(() => {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#ACDCD9', '#004F4D', '#ffffff']
-                });
-            }, 500);
-
-            const timer = setTimeout(() => {
-                setShowSuccess(false);
-            }, 3000);
-            return () => clearTimeout(timer);
+            }());
         }
-    }, [showSuccess]);
+    }, [booking, animate, navigate]);
 
-    // Get booking data from navigation state, or use mock data
-    const passedBooking = location.state?.booking;
-    const passedHotel = location.state?.hotel;
+    if (!booking) return null;
 
-    // Get real user data from localStorage
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    // Derived Data Safe Access
+    const property = booking.propertyId || {};
+    const room = booking.roomTypeId || {};
+    const user = booking.userId || {};
 
-    // Helper to format date
-    const formatDate = (dateInput) => {
-        if (!dateInput) return { dateNum: '', month: '', day: '', full: '' };
-
-        // If it's already the custom object from HotelDetails (check if dateNum exists)
-        if (dateInput.dateNum && dateInput.month) {
-            return {
-                dateNum: dateInput.dateNum,
-                month: dateInput.month,
-                day: dateInput.day || '',
-                full: dateInput.fullDate || `${dateInput.dateNum} ${dateInput.month}`
-            };
-        }
-
-        // Parse string or Date object
-        const date = new Date(dateInput);
-        if (isNaN(date.getTime())) return { dateNum: '?', month: '?', day: '?', full: '' };
-
-        return {
-            dateNum: date.getDate(),
-            month: date.toLocaleDateString('en-US', { month: 'short' }),
-            day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-            full: date.toISOString().split('T')[0]
-        };
-    };
-
-    const checkInDate = formatDate(passedBooking?.checkIn);
-    const checkOutDate = formatDate(passedBooking?.checkOut);
-
-    // Calculate nights
-    const calculateNights = () => {
-        if (!passedBooking) return 1;
-
-        let start, end;
-        if (passedBooking.checkIn?.fullDate) {
-            start = new Date(passedBooking.checkIn.fullDate);
-            end = new Date(passedBooking.checkOut?.fullDate);
-        } else {
-            start = new Date(passedBooking.checkIn);
-            end = new Date(passedBooking.checkOut);
-        }
-
-        if (isNaN(start) || isNaN(end)) return 1;
-        return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
-    };
-
-    // Helper for address
-    const getAddress = (addr) => {
-        if (!addr) return "Plot No. 16, 17 & 18, Scheme No. 94, Ring Road, Bhawarkua, Indore, Madhya Pradesh";
-        if (typeof addr === 'string') return addr;
-        // Backend address object
-        return `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}`.replace(/^, /, '').replace(/, $/, '').replace(/, ,/g, ',');
-    };
-
-    // Helper for Image
-    const getImage = (imgData) => {
-        if (typeof imgData === 'string') return imgData;
-        if (imgData?.url) return imgData.url; // Backend image object
-        return "https://picsum.photos/seed/hotel1/800/600";
-    }
-
-    const booking = {
-        id: passedBooking?.bookingId || passedBooking?.id || 'BKID-UNKNOWN',
-        amount: passedBooking?.pricing?.userPayableAmount || passedBooking?.totalAmount || passedHotel?.price || "998",
-        paymentMethod: passedBooking?.paymentStatus === "paid" ? "Paid Online" : "Pay at Hotel",
-        status: passedBooking?.status || "Confirmed",
-        hotel: {
-            name: passedBooking?.hotelId?.name || passedHotel?.name || "Super Collection O Ring Road",
-            address: getAddress(passedBooking?.hotelId?.address) || passedHotel?.address,
-            image: getImage(passedBooking?.hotelId?.images?.[0]) || passedHotel?.image,
-            rating: passedBooking?.hotelId?.propertyRating || passedBooking?.hotelId?.rating || passedHotel?.rating || 3
-        },
-        dates: {
-            checkIn: `${checkInDate.dateNum} ${checkInDate.month}`,
-            checkOut: `${checkOutDate.dateNum} ${checkOutDate.month}`,
-            checkInDay: checkInDate.day,
-            checkOutDay: checkOutDate.day,
-            nights: calculateNights()
-        },
-        user: {
-            name: passedBooking?.userId?.name || userData.name || guestName,
-            phone: passedBooking?.userId?.phone || userData.phone || "+91 00000 00000",
-            email: passedBooking?.userId?.email || userData.email || "user@example.com"
-        },
-        guests: {
-            rooms: passedBooking?.guests?.rooms || passedBooking?.rooms || 1,
-            adults: passedBooking?.guests?.adults || passedBooking?.adults || 2,
-            children: passedBooking?.guests?.children || passedBooking?.children || 0
-        },
-        pricing: passedBooking?.pricing || {
-            baseAmount: passedBooking?.totalAmount || 0,
-            discountAmount: 0,
-            userPayableAmount: passedBooking?.totalAmount || 0
-        }
-    };
-
-    // Handlers
     const handleDirections = () => {
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.hotel.address)}`, '_blank');
+        if (property.address) {
+            const query = `${property.name}, ${property.address.city || property.address}`;
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+        }
     };
 
-    const handleCall = () => {
-        window.location.href = "tel:+919876543210";
-    };
-
-    const handleSupport = () => {
-        navigate('/support');
-    };
-
-    const handlePayment = () => {
-        // Ensure we have a proper booking object with all required fields
-        const paymentBooking = passedBooking || {
-            bookingId: booking.id,
-            amount: booking.amount,
-            pricing: {
-                baseAmount: parseInt(booking.amount) || 0,
-                discountAmount: 0,
-                userPayableAmount: parseInt(booking.amount) || 0
-            },
-            hotelId: booking.hotel,
-            checkIn: booking.dates.checkIn,
-            checkOut: booking.dates.checkOut,
-            guests: booking.guests,
-            userId: booking.user
-        };
-
-        console.log('Navigating to payment with booking:', paymentBooking);
-
-        // Pass booking data to payment page
-        navigate('/payment', {
-            state: {
-                booking: paymentBooking
-            }
-        });
+    const handlePrint = () => {
+        window.print();
     };
 
     return (
-        <div className="relative min-h-screen bg-gray-50">
-            <AnimatePresence>
-                {showSuccess && (
-                    <div className="fixed inset-0 z-50 flex flex-col pointer-events-none">
-                        {/* Top Curtain */}
-                        <motion.div
-                            initial={{ y: 0 }}
-                            exit={{ y: "-100%" }}
-                            transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
-                            className="h-[50vh] w-full bg-surface relative z-20 pointer-events-auto"
-                        />
-
-                        {/* Bottom Curtain */}
-                        <motion.div
-                            initial={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
-                            className="h-[50vh] w-full bg-surface relative z-20 pointer-events-auto"
-                        />
-
-                        {/* Centered Content (Checkmark) */}
-                        <motion.div
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.3 }}
-                            className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none"
-                        >
-                            <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                                className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-green-900/50"
-                            >
-                                <motion.svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="64"
-                                    height="64"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="#004F4D"
-                                    strokeWidth="3"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <motion.path
-                                        d="M20 6L9 17l-5-5"
-                                        initial={{ pathLength: 0 }}
-                                        animate={{ pathLength: 1 }}
-                                        transition={{ duration: 0.5, delay: 0.2 }}
-                                    />
-                                </motion.svg>
-                            </motion.div>
-
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 }}
-                                className="text-center"
-                            >
-                                <h1 className="text-3xl font-black text-white mb-2">Booking Confirmed!</h1>
-                                <p className="text-white/80 text-sm font-medium">Getting your trip ready...</p>
-                            </motion.div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Main Content (Revealed after split) */}
-            <div className={`pb-24 transition-all duration-500 ${showEditModal || showCancelModal ? 'brightness-50 scale-[0.98]' : ''}`}>
-                {/* 1. Header: Booking Status & Amount */}
-                <div className="bg-surface text-white px-5 pt-8 pb-16 relative rounded-b-[30px] shadow-lg">
-                    <div className="flex justify-between items-start mb-6">
-                        <button onClick={() => navigate('/bookings')} className="p-2 bg-white/10 rounded-full backdrop-blur-sm hover:bg-white/20 transition">
-                            <ArrowLeft size={20} />
-                        </button>
-                        <div className="text-right">
-                            <p className="text-xs text-white/70 font-medium">Booking ID</p>
-                            <p className="text-sm font-bold tracking-wider">{booking.id}</p>
-                        </div>
-                    </div>
-
-                    <div className="text-center mb-2 flex flex-col items-center">
-                        <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/30 px-3 py-1 rounded-full backdrop-blur-md mb-3">
-                            <CheckCircle size={14} className="text-green-400 fill-current" />
-                            <span className="text-xs font-bold text-green-100 uppercase tracking-wide">Booking Confirmed</span>
-                        </div>
-                        <h1 className="text-4xl font-black mb-1">₹{booking.amount}</h1>
-                        <p className="text-sm text-white/80 font-medium bg-white/10 px-3 py-1 rounded-lg mb-4">
-                            {booking.paymentMethod}
-                        </p>
-
-                        <button
-                            onClick={handlePayment}
-                            className="bg-white text-surface font-black text-sm py-3 px-8 rounded-xl shadow-lg shadow-black/10 active:scale-95 transition-transform flex items-center gap-2 animate-[pulse_3s_infinite]"
-                        >
-                            <CreditCard size={18} />
-                            PAY NOW
-                        </button>
-                        <p className="text-[10px] text-white/60 mt-2 font-medium">To avoid queue at hotel</p>
-                    </div>
-                </div>
-
-                <div className="px-5 -mt-10 relative z-10 flex flex-col gap-5">
-
-                    {/* 2. Hotel Info Card */}
-                    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-gray-200/50 border border-white">
-                        <div className="flex gap-4 cursor-pointer" onClick={() => navigate('/hotel/1')}>
-                            <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden shrink-0 shadow-sm">
-                                <img src={booking.hotel.image} className="w-full h-full object-cover" alt="Hotel" />
-                            </div>
-                            <div className="flex-1">
-                                <h2 className="font-bold text-surface text-sm leading-tight mb-1">{booking.hotel.name}</h2>
-                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{booking.hotel.address}</p>
-                                <div className="flex items-center gap-1 mt-2">
-                                    <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                        {booking.hotel.rating} ★
-                                    </span>
-                                    <span className="text-[10px] text-gray-400">• Premium Partner</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3. Action Grid */}
-                        <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-50">
-                            {[
-                                { icon: Clock, label: "Check In", color: "text-blue-600", bg: "bg-blue-50", action: () => alert("Check-in starts at 12:00 PM") },
-                                { icon: MapPin, label: "Directions", color: "text-green-600", bg: "bg-green-50", action: handleDirections },
-                                { icon: Phone, label: "Call Hotel", color: "text-surface", bg: "bg-surface/5", action: handleCall },
-                                { icon: HelpCircle, label: "Need Help", color: "text-orange-500", bg: "bg-orange-50", action: handleSupport },
-                            ].map((action, i) => (
-                                <button
-                                    key={i}
-                                    onClick={action.action}
-                                    className="flex flex-col items-center gap-2 group active:scale-95 transition-transform"
-                                >
-                                    <div className={`w-10 h-10 ${action.bg} ${action.color} rounded-full flex items-center justify-center transition-transform group-active:scale-90`}>
-                                        <action.icon size={18} />
-                                    </div>
-                                    <span className="text-[10px] font-bold text-gray-600 leading-tight text-center">{action.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 2.5. Pricing Breakdown Card - NEW */}
-                    {passedBooking?.pricing && (
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                            <h3 className="font-bold text-surface mb-4 flex items-center gap-2">
-                                <CreditCard size={18} />
-                                Payment Breakdown
-                            </h3>
-
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-600">Base Amount</span>
-                                    <span className="font-bold text-surface">₹{passedBooking.pricing.baseAmount?.toLocaleString('en-IN')}</span>
-                                </div>
-
-                                {passedBooking.pricing.discountAmount > 0 && (
-                                    <>
-                                        <div className="flex justify-between items-center text-green-600">
-                                            <span className="text-sm">Coupon Discount ({passedBooking.couponApplied?.code})</span>
-                                            <span className="font-bold">-₹{passedBooking.pricing.discountAmount?.toLocaleString('en-IN')}</span>
-                                        </div>
-
-                                        <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-                                            <p className="text-xs text-green-700 font-medium">
-                                                🎉 You saved ₹{passedBooking.pricing.discountAmount?.toLocaleString('en-IN')}!
-                                            </p>
-                                        </div>
-                                    </>
-                                )}
-
-                                <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
-                                    <span className="font-bold text-surface">You Paid</span>
-                                    <span className="text-2xl font-black text-green-600">₹{passedBooking.pricing.userPayableAmount?.toLocaleString('en-IN')}</span>
-                                </div>
-
-                                {/* Partner & Admin Split Info Removed */}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 4. Booking Details */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-5">
-
-                        {/* Dates */}
-                        <div className="flex items-center justify-between">
-                            <div className="text-left">
-                                <p className="text-xs text-gray-400 font-medium mb-0.5">Check-in</p>
-                                <p className="font-bold text-surface text-lg">{booking.dates.checkIn}</p>
-                                <p className="text-xs text-gray-500">{booking.dates.checkInDay}, 12:00 PM</p>
-                            </div>
-                            <div className="flex flex-col items-center px-4">
-                                <div className="border-t-2 border-dashed border-gray-200 w-12 mb-1"></div>
-                                <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                                    {booking.dates.nights} Night
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs text-gray-400 font-medium mb-0.5">Check-out</p>
-                                <p className="font-bold text-surface text-lg">{booking.dates.checkOut}</p>
-                                <p className="text-xs text-gray-500">{booking.dates.checkOutDay}, 11:00 AM</p>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-gray-50"></div>
-
-                        {/* Meta Info */}
-                        <div className="grid grid-cols-1 gap-4">
-
-                            {/* Reserved For */}
-                            <div className="flex justify-between items-center group">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                                        <ShieldCheck size={16} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Reserved For</p>
-                                        <p className="text-sm font-bold text-surface">{booking.user.name}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Rooms & Guests */}
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
-                                        <Users size={16} />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Occupancy</p>
-                                        <p className="text-sm font-bold text-surface">{booking.guests.rooms} Room, {booking.guests.adults} Guests</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Contact Info */}
-                            <div className="bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Contact Information</p>
-                                <p className="text-xs font-bold text-surface">{booking.user.phone}</p>
-                                <p className="text-xs text-gray-500">{booking.user.email}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 5. WhatsApp Update */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-green-100 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg shadow-green-200">
-                            <MessageCircle size={20} fill="currentColor" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-surface">Get updates on WhatsApp</h3>
-                            <p className="text-[10px] text-gray-500">Booking details, maps & directions</p>
-                        </div>
-                    </div>
-
-                    {/* 6. Rules & Policies */}
-                    <div className="space-y-3">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Important Information</h3>
-
-                        <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                            <div className="p-4 border-b border-gray-50">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <AlertTriangle size={16} className="text-orange-500" />
-                                    <h4 className="text-sm font-bold text-surface">Rules & Restrictions</h4>
-                                </div>
-                                <ul className="list-disc list-inside text-xs text-gray-500 space-y-1 pl-1">
-                                    <li>Couples are welcome</li>
-                                    <li>Guests can check in using any local or outstation ID proof (PAN Card not accepted).</li>
-                                    <li>This hotel is serviced under the trade name of Rukko Stay.</li>
-                                </ul>
-                            </div>
-
-                            <div className="p-4 bg-gray-50/50">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <ShieldCheck size={16} className="text-surface" />
-                                    <h4 className="text-sm font-bold text-surface">Cancellation Policy</h4>
-                                </div>
-                                <p className="text-xs text-gray-500 leading-relaxed">
-                                    Free cancellation until <span className="font-bold text-surface">23 Dec, 11:00 AM</span>.
-                                    After that, the cancellation fee will be ₹998.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 7. Manage Booking Buttons */}
-                    <div className="space-y-3 pb-8">
-                        <button
-                            onClick={() => setShowCancelModal(true)}
-                            className="w-full bg-red-50 text-red-600 font-bold py-3.5 rounded-xl text-sm active:scale-[0.98] transition-all hover:bg-red-100 flex items-center justify-center gap-2"
-                        >
-                            Cancel Booking
-                        </button>
-                    </div>
-
+        <div className="min-h-screen bg-gray-50 pb-12">
+            {/* Header */}
+            <div className="bg-white border-b border-gray-200 sticky top-0 z-30 print:hidden">
+                <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <button onClick={() => navigate('/')} className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors font-medium">
+                        <Home size={18} />
+                        <span className="hidden sm:inline">Home</span>
+                    </button>
+                    <h1 className="text-lg font-bold text-gray-900">Booking Confirmation</h1>
+                    <button onClick={handlePrint} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
+                        <Printer size={20} />
+                    </button>
                 </div>
             </div>
 
-            {/* MODALS */}
-            <AnimatePresence>
-                {/* EDIT GUEST MODAL */}
-                {showEditModal && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowEditModal(false)}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
-                        />
-                        <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            drag="y"
-                            dragConstraints={{ top: 0, bottom: 0 }}
-                            dragElastic={{ top: 0, bottom: 0.5 }}
-                            onDragEnd={(e, info) => {
-                                if (info.offset.y > 100) {
-                                    setShowEditModal(false);
-                                }
-                            }}
-                            className="bg-white w-full max-w-md rounded-t-[30px] p-6 relative z-10 pointer-events-auto shadow-2xl cursor-grab active:cursor-grabbing"
-                        >
-                            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 hover:bg-gray-400 transition-colors" />
-                            <h3 className="text-lg font-bold text-surface mb-2">Edit Guest Details</h3>
-                            <p className="text-xs text-gray-500 mb-6">Update the primary guest name for this booking.</p>
+            <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-                            <div className="mb-4">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Guest Name</label>
-                                <input
-                                    type="text"
-                                    value={guestName}
-                                    onChange={(e) => setGuestName(e.target.value)}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-surface focus:outline-none focus:border-surface focus:ring-1 focus:ring-surface transition-all"
-                                />
-                            </div>
-
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className="w-full bg-surface text-white font-bold py-3.5 rounded-xl shadow-lg shadow-surface/30 active:scale-95 transition-transform"
-                            >
-                                Save Changes
-                            </button>
-                        </motion.div>
+                {/* 1. Success Message */}
+                <div className="bg-white rounded-3xl p-8 text-center shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-600"></div>
+                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                        <CheckCircle size={40} className="text-green-600" />
                     </div>
-                )}
+                    <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Booking Confirmed!</h1>
+                    <p className="text-gray-500 max-w-md mx-auto">
+                        Your reservation ID is <span className="font-mono font-bold text-gray-800">#{booking.bookingId || booking._id?.slice(-8).toUpperCase()}</span>.
+                        We've sent a confirmation email to <span className="font-medium text-gray-800">{user.email}</span>.
+                    </p>
+                </div>
 
-                {/* CANCEL BOOKING MODAL */}
-                {showCancelModal && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowCancelModal(false)}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
-                        />
-                        <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            drag="y"
-                            dragConstraints={{ top: 0, bottom: 0 }}
-                            dragElastic={{ top: 0, bottom: 0.5 }}
-                            onDragEnd={(e, info) => {
-                                if (info.offset.y > 100) {
-                                    setShowCancelModal(false);
-                                }
-                            }}
-                            className="bg-white w-full max-w-md rounded-t-[30px] p-6 relative z-10 pointer-events-auto shadow-2xl cursor-grab active:cursor-grabbing"
-                        >
-                            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 hover:bg-gray-400 transition-colors" />
-                            <div className="flex items-center gap-3 mb-2 text-red-600">
-                                <AlertTriangle size={24} />
-                                <h3 className="text-lg font-bold">Cancel Booking?</h3>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                                Are you sure you want to cancel? This action cannot be undone.
-                                <br /><span className="text-xs text-gray-400 mt-1 block">Cancellation fee: ₹998 may apply after 11:00 AM.</span>
-                            </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowCancelModal(false)}
-                                    className="flex-1 bg-gray-100 text-surface font-bold py-3.5 rounded-xl active:scale-95 transition-transform"
-                                >
-                                    Don't Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setShowCancelModal(false);
-                                        navigate('/');
-                                    }}
-                                    className="flex-1 bg-red-50 text-red-600 border border-red-100 font-bold py-3.5 rounded-xl active:scale-95 transition-transform"
-                                >
-                                    Yes, Cancel
-                                </button>
+                    {/* Left Col: Property & Actions */}
+                    <div className="md:col-span-2 space-y-6">
+
+                        {/* Property Card */}
+                        <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
+                            <div className="flex flex-col sm:flex-row gap-5">
+                                <div className="w-full sm:w-32 h-32 bg-gray-200 rounded-2xl overflow-hidden shrink-0">
+                                    <img
+                                        src={!imgError && property.images?.[0]?.url ? property.images[0].url : (property.coverImage || "https://via.placeholder.com/150")}
+                                        alt={property.name}
+                                        className="w-full h-full object-cover"
+                                        onError={() => setImgError(true)}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{property.propertyType}</span>
+                                            <h2 className="text-xl font-bold text-gray-900 leading-tight mb-2">{property.name}</h2>
+                                            <div className="flex items-start gap-1 text-gray-500 text-sm mb-4">
+                                                <MapPin size={16} className="mt-0.5 shrink-0" />
+                                                <p>{property.address?.city || property.address?.street}, {property.address?.state}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 print:hidden">
+                                        <button
+                                            onClick={handleDirections}
+                                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Navigation size={14} /> Directions
+                                        </button>
+                                        <button
+                                            className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Phone size={14} /> Contact Property
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </motion.div>
+                        </div>
+
+                        {/* Booking Details */}
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2">
+                                <FileText size={18} className="text-gray-400" />
+                                Reservation Details
+                            </h3>
+                            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                <div className="p-4 bg-gray-50 rounded-2xl">
+                                    <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-in</p>
+                                    <p className="font-bold text-gray-900 text-lg">
+                                        {new Date(booking.checkInDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{property.checkInTime || '12:00 PM'}</p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-2xl">
+                                    <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-out</p>
+                                    <p className="font-bold text-gray-900 text-lg">
+                                        {new Date(booking.checkOutDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{property.checkOutTime || '11:00 AM'}</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-gray-400 font-bold mb-1">Total Nights</p>
+                                    <p className="font-semibold text-gray-900">{booking.totalNights} Night(s)</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400 font-bold mb-1">Room Type</p>
+                                    <p className="font-semibold text-gray-900">{room.name || room.type}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400 font-bold mb-1">Guests</p>
+                                    <p className="font-semibold text-gray-900">{booking.guests?.adults || 1} Adults, {booking.guests?.children || 0} Children</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400 font-bold mb-1">Booking Unit</p>
+                                    <p className="font-semibold text-gray-900 capitalize">{booking.bookingUnit}</p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
-                )}
-            </AnimatePresence>
+
+                    {/* Right Col: Price & Payment */}
+                    <div className="space-y-6">
+
+                        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 h-fit">
+                            <h3 className="font-bold text-gray-900 mb-5">Payment Summary</h3>
+
+                            <div className="space-y-3 mb-6">
+                                <div className="flex justify-between text-sm text-gray-600">
+                                    <span>Base Price</span>
+                                    <span>₹{booking.baseAmount?.toLocaleString()}</span>
+                                </div>
+                                {(booking.extraCharges > 0) && (
+                                    <div className="flex justify-between text-sm text-gray-600">
+                                        <span>Extra Charges</span>
+                                        <span>₹{booking.extraCharges?.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-sm text-gray-600">
+                                    <span>Taxes & Fees</span>
+                                    <span>₹{booking.taxes?.toLocaleString()}</span>
+                                </div>
+                                {(booking.discount > 0) && (
+                                    <div className="flex justify-between text-sm text-green-600 font-medium">
+                                        <span>Discount</span>
+                                        <span>-₹{booking.discount?.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                <div className="border-t border-gray-100 pt-3 flex justify-between items-center bg-gray-50 -mx-6 px-6 py-4 mt-4">
+                                    <span className="font-bold text-gray-900">Total Amount</span>
+                                    <span className="text-xl font-black text-gray-900">₹{booking.totalAmount?.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            <div className={`p-4 rounded-xl flex items-center gap-3 ${booking.paymentStatus === 'paid' ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                                    {booking.paymentStatus === 'paid' ? <CheckCircle size={20} /> : <FileText size={20} />}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold uppercase text-gray-500">Payment Status</p>
+                                    <p className={`font-bold ${booking.paymentStatus === 'paid' ? 'text-green-700' : 'text-yellow-700'}`}>
+                                        {booking.paymentStatus === 'paid' ? 'Paid Completely' : 'Pay at Hotel'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => navigate('/bookings')}
+                            className="w-full bg-black text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                        >
+                            My Bookings
+                        </button>
+
+                        {/* Cancel Booking Option */}
+                        {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const checkIn = new Date(booking.checkInDate);
+                            checkIn.setHours(0, 0, 0, 0);
+                            const isCancellableTime = today < checkIn;
+                            const isActive = ['confirmed', 'pending'].includes(booking.bookingStatus);
+
+                            if (!isActive) return null;
+
+                            return (
+                                <>
+                                    {isCancellableTime ? (
+                                        <button
+                                            onClick={async () => {
+                                                if (window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+                                                    try {
+                                                        const loadToast = toast.loading('Cancelling...');
+                                                        // Fallback ID usage: booking._id or booking.bookingId might be different depending on API
+                                                        const idToCancel = booking._id || booking.id;
+                                                        await bookingService.cancel(idToCancel);
+                                                        toast.dismiss(loadToast);
+                                                        toast.success('Booking cancelled successfully');
+                                                        navigate('/bookings');
+                                                    } catch (error) {
+                                                        toast.dismiss();
+                                                        toast.error(error.response?.data?.message || 'Failed to cancel booking');
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full bg-white border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl shadow-sm hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 mt-4"
+                                        >
+                                            Cancel Booking
+                                        </button>
+                                    ) : (
+                                        <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-bold py-4 rounded-2xl text-center mt-4 text-xs">
+                                            Cancellation unavailable (Policy: Up to 1 day before Check-in)
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
+
+                        {booking.bookingStatus === 'cancelled' && (
+                            <div className="w-full bg-red-50 border border-red-100 text-red-600 font-bold py-4 rounded-2xl text-center mt-4">
+                                This booking has been cancelled
+                            </div>
+                        )}
+                    </div>
+
+                </div>
+            </main>
         </div>
     );
 };

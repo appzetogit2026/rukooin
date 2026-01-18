@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { hotelService, bookingService } from '../../services/apiService';
+import { propertyService, bookingService, legalService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Wifi, Coffee, Car, Shield, Info, CheckCircle, Clock,
@@ -18,14 +18,75 @@ const PropertyDetailsPage = () => {
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [taxRate, setTaxRate] = useState(0); // Fetched from backend
+
+  useEffect(() => {
+    legalService.getFinancialSettings()
+      .then(res => {
+        if (res.success) setTaxRate(res.taxRate || 0);
+      })
+      .catch(err => console.error("Failed to fetch tax rate", err));
+  }, []);
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const data = await hotelService.getById(id);
-        setProperty(data);
-        if (data.inventory && data.inventory.length > 0) {
-          setSelectedRoom(data.inventory[0]);
+        const response = await propertyService.getDetails(id);
+
+        // Adapter: Backend Response ({ property, roomTypes }) -> Frontend State
+        if (response && response.property) {
+          const p = response.property;
+          const rts = response.roomTypes || [];
+
+          const adapted = {
+            ...p,
+            _id: p._id,
+            name: p.propertyName,
+            description: p.description,
+            address: p.address,
+            avgRating: p.avgRating || 0,
+            images: {
+              cover: p.coverImage,
+              gallery: p.propertyImages || []
+            },
+            propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
+            amenities: p.amenities || [],
+            inventory: rts.map(rt => ({
+              _id: rt._id,
+              type: rt.name,
+              price: rt.pricePerNight,
+              description: rt.description || '',
+              amenities: rt.amenities || [],
+              maxAdults: rt.maxAdults,
+              maxChildren: rt.maxChildren,
+              images: rt.images || [],
+              pricing: {
+                basePrice: rt.pricePerNight,
+                extraAdultPrice: rt.extraAdultPrice,
+                extraChildPrice: rt.extraChildPrice
+              }
+            })),
+            policies: {
+              checkInTime: p.checkInTime,
+              checkOutTime: p.checkOutTime,
+              cancellationPolicy: p.cancellationPolicy,
+              houseRules: p.houseRules,
+              petsAllowed: p.petsAllowed,
+              coupleFriendly: p.coupleFriendly
+            },
+            config: {
+              pgType: p.pgType,
+              resortType: p.resortType,
+              foodType: p.foodType
+            }
+          };
+
+          setProperty(adapted);
+          if (adapted.inventory && adapted.inventory.length > 0) {
+            setSelectedRoom(adapted.inventory[0]);
+          }
+        } else {
+          setProperty(response);
         }
       } catch (error) {
         console.error("Error fetching property details:", error);
@@ -56,7 +117,7 @@ const PropertyDetailsPage = () => {
   if (!property) return <div className="h-screen flex items-center justify-center">Property not found</div>;
 
   const {
-    _id, name, address, images, description, rating,
+    _id, name, address, images, description, avgRating: rating,
     inventory, amenities, policies, config
   } = property;
 
@@ -120,28 +181,31 @@ const PropertyDetailsPage = () => {
   };
 
   const getMaxAdults = () => {
+    // If a specific room/unit is selected (which contains the limits), use it
+    if (selectedRoom) {
+      // Multiply by number of units/rooms selected if applicable
+      // But for 'Entire Villa' (inventoryType='entire'), usually quantity is 1 which is guests.rooms
+      return (selectedRoom.maxAdults || 12) * (isWholeUnit ? 1 : guests.rooms);
+    }
+
     if (isWholeUnit) return property.structure?.maxGuests || property.maxGuests || 12;
     if (isBedBased) return guests.rooms; // 1 person per bed
 
-    // If a room is selected, prioritize its specific limits
-    if (selectedRoom) {
-      if (selectedRoom.maxAdults) return selectedRoom.maxAdults * guests.rooms;
-      if (selectedRoom.capacity) return selectedRoom.capacity * guests.rooms;
-    }
-
-    if (propertyType === 'Resort') return guests.rooms * 4; // Resorts often allow more
-    return guests.rooms * 3; // Max 3 adults per room standard
+    if (propertyType === 'Resort') return guests.rooms * 4;
+    return guests.rooms * 3;
   };
 
   const getMaxChildren = () => {
+    if (selectedRoom) {
+      if (selectedRoom.maxChildren !== undefined) {
+        return selectedRoom.maxChildren * (isWholeUnit ? 1 : guests.rooms);
+      }
+    }
+
     if (isBedBased) return 0;
     if (isWholeUnit) return 6;
 
-    if (selectedRoom && selectedRoom.maxChildren !== undefined) {
-      return selectedRoom.maxChildren * guests.rooms;
-    }
-
-    return guests.rooms * 2; // Max 2 children per room
+    return guests.rooms * 2;
   };
 
   const getUnitLabel = () => {
@@ -169,10 +233,65 @@ const PropertyDetailsPage = () => {
   const stayPricing = getNightBreakup(activeRoom);
   const bookingRoom = selectedRoom || activeRoom;
   const extraPricingLabels = getExtraPricingLabels(bookingRoom);
+  const getPriceBreakdown = () => {
+    if (!selectedRoom || !dates.checkIn || !dates.checkOut) return null;
+
+    const { nights, perNight } = stayPricing;
+    if (nights === 0) return null;
+
+    const units = isWholeUnit ? 1 : guests.rooms;
+
+    // Base Occupancy Logic
+    // If Villa/WholeUnit -> assuming base is 2 per unit for calculation if extraAdultPrice > 0, 
+    // BUT usually 'Entire Villa' standard price covers up to a certain amount.
+    // Given the user prompt implies dynamic calculation, we assume Standard Base = 2.
+    // Ideally this should come from backend (e.g. baseAdults). Defaults to 2.
+    // Dynamic Base Capacity from Room/Property
+    const baseAdultsPerUnit = selectedRoom.maxAdults || property.maxGuests || 2;
+    const baseChildrenPerUnit = selectedRoom.maxChildren !== undefined ? selectedRoom.maxChildren : 0;
+
+    // Calculate Extras
+    // Total Adults - (Base * Units)
+    const extraAdultsCount = Math.max(0, guests.adults - (baseAdultsPerUnit * units));
+    const extraChildrenCount = Math.max(0, guests.children - (baseChildrenPerUnit * units));
+
+    const pricePerNight = getRoomPrice(selectedRoom);
+    const extraAdultPrice = selectedRoom.pricing?.extraAdultPrice || 0;
+    const extraChildPrice = selectedRoom.pricing?.extraChildPrice || 0;
+
+    const totalBasePrice = pricePerNight * nights * units;
+    const totalExtraAdultCharge = extraAdultsCount * extraAdultPrice * nights;
+    const totalExtraChildCharge = extraChildrenCount * extraChildPrice * nights;
+
+    const taxableAmount = totalBasePrice + totalExtraAdultCharge + totalExtraChildCharge;
+    const taxAmount = Math.ceil(taxableAmount * (taxRate / 100));
+    const grandTotal = taxableAmount + taxAmount;
+
+    return {
+      nights,
+      units,
+      baseAdultsPerUnit,
+      extraAdultsCount,
+      extraChildrenCount,
+      pricePerNight,
+      extraAdultPrice,
+      extraChildPrice,
+      totalBasePrice,
+      totalExtraAdultCharge,
+      totalExtraChildCharge,
+      taxableAmount,
+      taxAmount,
+      grandTotal
+
+    };
+  };
+
   const bookingBarPrice =
     stayPricing.nights > 0
       ? stayPricing.perNight
       : getRoomPrice(bookingRoom) || property.minPrice || null;
+
+  const priceBreakdown = getPriceBreakdown();
 
   const handlePrevImage = () => {
     if (galleryImages.length <= 1) return;
@@ -184,7 +303,7 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
-  const handleBook = async () => {
+  const handleBook = () => {
     if (!dates.checkIn || !dates.checkOut) {
       toast.error("Please select check-in and check-out dates");
       return;
@@ -195,31 +314,25 @@ const PropertyDetailsPage = () => {
       return;
     }
 
-    setBookingLoading(true);
-    try {
-      const payload = {
-        hotelId: _id,
-        inventoryId: selectedRoom?._id, // undefined for whole unit
-        checkIn: dates.checkIn,
-        checkOut: dates.checkOut,
+    if (!localStorage.getItem('token')) {
+      toast.error("Please login to book");
+      navigate('/login', { state: { from: `/hotel/${id}` } });
+      return;
+    }
+
+    navigate('/checkout', {
+      state: {
+        property,
+        selectedRoom,
+        dates,
         guests: {
           ...guests,
-          units: guests.rooms // Backend uses 'units' or 'rooms'
+          rooms: guests.rooms
         },
-        // totalAmount is calculated on backend usually, but we can pass estimate if needed
-      };
-
-      const response = await bookingService.create(payload);
-      toast.success("Booking initiated!");
-      navigate(`/booking/${response.bookingId || response.booking?.bookingId || response._id}`, {
-        state: { booking: response.booking || response }
-      });
-    } catch (error) {
-      console.error("Booking Error:", error);
-      toast.error(error.message || "Failed to initiate booking");
-    } finally {
-      setBookingLoading(false);
-    }
+        priceBreakdown,
+        taxRate
+      }
+    });
   };
 
   return (
@@ -281,17 +394,17 @@ const PropertyDetailsPage = () => {
                 <span className="bg-surface/10 text-surface text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                   {propertyType}
                 </span>
-                {rating && (
+                {rating !== undefined && rating !== null && (
                   <div className="flex items-center gap-1 bg-honey/10 text-honey-dark px-2 py-0.5 rounded text-[10px] font-bold">
                     <Star size={10} className="fill-honey text-honey" />
-                    {rating}
+                    {Number(rating) > 0 ? Number(rating).toFixed(1) : 'New'}
                   </div>
                 )}
               </div>
               <h1 className="text-xl md:text-3xl font-bold text-textDark mb-1 leading-tight">{name}</h1>
               <div className="flex items-start gap-1.5 text-gray-500 text-xs md:text-sm">
                 <MapPin size={14} className="mt-0.5 shrink-0" />
-                <span className="line-clamp-2 md:line-clamp-1">{address?.addressLine}, {address?.city}, {address?.state}</span>
+                <span className="line-clamp-3 md:line-clamp-1">{address?.fullAddress}</span>
               </div>
             </div>
             <div className="hidden md:block text-right">
@@ -317,8 +430,8 @@ const PropertyDetailsPage = () => {
 
           {/* Amenities */}
           {amenities && amenities.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-textDark mb-4">What this place offers</h2>
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-textDark mb-2">What this place offers</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {amenities.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
@@ -332,6 +445,21 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
+          {/* Room Amenities */}
+          {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
+            <div className="mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {selectedRoom.amenities.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
+                    <div className="p-2 bg-gray-50 rounded-lg">
+                      <CheckCircle size={16} className="text-surface" />
+                    </div>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Type Specific Info - Dynamic Rendering */}
           {propertyType === 'PG' && config && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">
@@ -360,6 +488,7 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
+          {/* Have to check these later */}
           {propertyType === 'Villa' && (property.structure || config) && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">
               <div className="p-4 bg-green-50 rounded-xl">
@@ -377,6 +506,20 @@ const PropertyDetailsPage = () => {
                   )}
                 </ul>
               </div>
+
+              {/* Price Details Card */}
+              {selectedRoom && (
+                <div className="p-4 bg-white rounded-xl border border-gray-200">
+                  <h3 className="text-gray-500 text-sm mb-1">Price per night</h3>
+                  <div className="text-2xl font-bold text-surface mb-2">
+                    ₹{(getRoomPrice(selectedRoom) || 0).toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <div>Extra adult: ₹{selectedRoom.pricing?.extraAdultPrice || selectedRoom.extraAdultPrice || 0} / night •</div>
+                    <div>Extra child: ₹{selectedRoom.pricing?.extraChildPrice || selectedRoom.extraChildPrice || 0} / night</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -531,32 +674,72 @@ const PropertyDetailsPage = () => {
 
               <div className="col-span-1">
                 <label className="text-xs text-gray-500 block mb-1">Adults</label>
-                <select
+                <input
+                  type="number"
+                  min="1"
                   className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                   value={guests.adults}
-                  onChange={e => setGuests({ ...guests, adults: parseInt(e.target.value) })}
+                  onChange={e => setGuests({ ...guests, adults: Math.max(1, parseInt(e.target.value) || 0) })}
                   disabled={isBedBased}
-                >
-                  {Array.from({ length: getMaxAdults() }, (_, i) => i + 1).map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               {!isBedBased && (
                 <div className="col-span-1">
                   <label className="text-xs text-gray-500 block mb-1">Children</label>
-                  <select
+                  <input
+                    type="number"
+                    min="0"
                     className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                     value={guests.children}
-                    onChange={e => setGuests({ ...guests, children: parseInt(e.target.value) })}
-                  >
-                    {Array.from({ length: getMaxChildren() + 1 }, (_, i) => i).map(n => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
+                    onChange={e => setGuests({ ...guests, children: Math.max(0, parseInt(e.target.value) || 0) })}
+                  />
                 </div>
               )}
+            </div>
+
+
+            {/* Price Breakdown Display */}
+            {priceBreakdown && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-dashed border-gray-300">
+                <h4 className="font-bold text-gray-800 text-sm mb-3">Price Breakdown</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Base Price ({priceBreakdown.nights} nights x {priceBreakdown.units} units)</span>
+                    <span className="font-medium">₹{priceBreakdown.totalBasePrice.toLocaleString()}</span>
+                  </div>
+                  {priceBreakdown.totalExtraAdultCharge > 0 && (
+                    <div className="flex justify-between text-orange-700">
+                      <span>Extra Adults ({priceBreakdown.extraAdultsCount} x ₹{priceBreakdown.extraAdultPrice}/night)</span>
+                      <span>+ ₹{priceBreakdown.totalExtraAdultCharge.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.totalExtraChildCharge > 0 && (
+                    <div className="flex justify-between text-orange-700">
+                      <span>Extra Children ({priceBreakdown.extraChildrenCount} x ₹{priceBreakdown.extraChildPrice}/night)</span>
+                      <span>+ ₹{priceBreakdown.totalExtraChildCharge.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.taxAmount > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Taxes & Fees ({taxRate}%)</span>
+                      <span>+ ₹{priceBreakdown.taxAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-bold text-base text-surface">
+                    <span>Total Amount</span>
+                    <span>₹{priceBreakdown.grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Note about limits */}
+            <div className="mt-3 bg-blue-50 text-blue-800 text-xs p-3 rounded-lg flex items-start gap-2">
+              <Info size={14} className="mt-0.5 shrink-0" />
+              <p>
+                Max allowed: <strong>{getMaxAdults()} Adults</strong> and <strong>{getMaxChildren()} Children</strong> for current selection.
+              </p>
             </div>
           </div>
 
@@ -649,6 +832,31 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
+          {/* Nearby Places */}
+          {property.nearbyPlaces && property.nearbyPlaces.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-bold text-textDark mb-4">Nearby Places</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {property.nearbyPlaces.map((place, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-lg shadow-sm text-surface">
+                        <MapPin size={16} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-textDark">{place.name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{place.type}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-surface bg-surface/5 px-2 py-1 rounded-md">
+                      {place.distanceKm} km
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -656,9 +864,9 @@ const PropertyDetailsPage = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs text-gray-500">Price per night</p>
+            <p className="text-xs text-gray-500">{priceBreakdown ? 'Total Amount' : 'Price per night'}</p>
             <p className="font-bold text-lg text-surface">
-              ₹{bookingBarPrice || 'N/A'}
+              ₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}
             </p>
             {extraPricingLabels.length > 0 && (
               <p className="text-[11px] text-gray-500">

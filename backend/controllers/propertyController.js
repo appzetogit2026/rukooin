@@ -306,13 +306,51 @@ export const upsertDocuments = async (req, res) => {
 
 export const getPublicProperties = async (req, res) => {
   try {
-    const query = { status: 'approved', isLive: true };
+    const matchStage = { status: 'approved', isLive: true };
+
     if (req.query.type) {
-      query.propertyType = String(req.query.type).toLowerCase();
+      matchStage.propertyType = String(req.query.type).toLowerCase();
     }
-    const list = await Property.find(query).sort({ createdAt: -1 });
+
+    // Use dynamic collection name for robustness (avoids case sensitivity issues)
+    const roomTypeCollection = RoomType.collection.name;
+
+    const list = await Property.aggregate([
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: roomTypeCollection,
+          localField: '_id',
+          foreignField: 'propertyId',
+          as: 'roomTypes'
+        }
+      },
+      {
+        $addFields: {
+          // Filter to include only active room types
+          roomTypes: {
+            $filter: {
+              input: '$roomTypes',
+              as: 'rt',
+              cond: { $eq: ['$$rt.isActive', true] }
+            }
+          }
+        }
+      },
+      {
+        // Add startingPrice field, defaulting to 0 if calculation fails
+        $addFields: {
+          startingPrice: {
+            $ifNull: [{ $min: "$roomTypes.pricePerNight" }, 0]
+          }
+        }
+      }
+    ]);
+
     res.json(list);
   } catch (e) {
+    console.error("Error in getPublicProperties:", e);
     res.status(500).json({ message: e.message });
   }
 };

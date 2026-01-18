@@ -58,6 +58,7 @@ import PartnerPage from './app/partner/pages/PartnerPage';
 import PartnerJoinPropertyType from './app/partner/pages/PartnerJoinPropertyType';
 import PartnerProperties from './app/partner/pages/PartnerProperties';
 import PartnerPropertyDetails from './app/partner/pages/PartnerPropertyDetails';
+import PartnerBookingDetail from './app/partner/pages/PartnerBookingDetail';
 import PartnerInventory from './app/partner/pages/PartnerInventory';
 import PartnerNotifications from './app/partner/pages/PartnerNotifications';
 import PartnerKYC from './app/partner/pages/PartnerKYC';
@@ -90,6 +91,7 @@ import AmenitiesPage from './pages/user/AmenitiesPage';
 import ReviewsPage from './pages/user/ReviewsPage';
 import OffersPage from './pages/user/OffersPage';
 import ProfileEdit from './pages/user/ProfileEdit';
+import BookingCheckoutPage from './pages/user/BookingCheckoutPage';
 
 import { useLenis } from './app/shared/hooks/useLenis';
 import { legalService } from './services/apiService';
@@ -299,7 +301,9 @@ function App() {
               <Route path="properties" element={<PartnerProperties />} />
               <Route path="properties/:id" element={<PartnerPropertyDetails />} />
               <Route path="inventory/:id" element={<PartnerInventory />} />
+              <Route path="inventory/:id" element={<PartnerInventory />} />
               <Route path="bookings" element={<PartnerBookings />} />
+              <Route path="bookings/:id" element={<PartnerBookingDetail />} />
               <Route path="wallet" element={<PartnerWallet />} />
               <Route path="reviews" element={<PartnerReviews />} />
               <Route path="transactions" element={<PartnerTransactions />} />
@@ -356,6 +360,7 @@ function App() {
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/support" element={<SupportPage />} />
+            <Route path="/checkout" element={<BookingCheckoutPage />} />
             <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
             <Route path="/booking/:id" element={<BookingConfirmationPage />} />
             <Route path="/refer" element={<ReferAndEarnPage />} />

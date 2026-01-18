@@ -544,6 +544,13 @@ export const updatePlatformSettings = async (req, res) => {
       settings.maintenanceMessage = maintenanceMessage;
     }
 
+    if (req.body.defaultCommission !== undefined) {
+      settings.defaultCommission = Number(req.body.defaultCommission);
+    }
+    if (req.body.taxRate !== undefined) {
+      settings.taxRate = Number(req.body.taxRate);
+    }
+
     await settings.save();
 
     res.status(200).json({ success: true, settings });

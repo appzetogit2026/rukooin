@@ -20,6 +20,23 @@ api.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
+// Interceptor to handle 401 Unauthorized (Token invalid/expired)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Clear invalid token and redirect if not already on auth pages
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
+        console.warn("Session expired or invalid token. Redirecting to login...");
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // User Auth Services
 export const authService = {
   // Send OTP
@@ -97,17 +114,51 @@ export const bookingService = {
       throw error.response?.data || error.message;
     }
   },
-  getMyBookings: async () => {
+  getMyBookings: async (type) => {
     try {
-      const response = await api.get('/bookings/my');
+      const url = type ? `/bookings/my?type=${type}` : '/bookings/my';
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-  getPartnerBookings: async () => {
+  getPartnerBookings: async (status) => {
     try {
-      const response = await api.get('/bookings/partner');
+      const url = status ? `/bookings/partner?status=${status}` : '/bookings/partner';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getPartnerBookingDetail: async (id) => {
+    try {
+        const response = await api.get(`/bookings/${id}/partner-detail`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+  },
+  markAsPaid: async (id) => {
+    try {
+        const response = await api.put(`/bookings/${id}/mark-paid`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+  },
+  markNoShow: async (id) => {
+    try {
+        const response = await api.put(`/bookings/${id}/no-show`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+  },
+  cancel: async (bookingId, reason) => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/cancel`, { reason });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -377,6 +428,27 @@ export const offerService = {
   }
 };
 
+
+
+export const paymentService = {
+  createOrder: async (bookingId) => {
+    try {
+      const response = await api.post('/payments/create-order', { bookingId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  verifyPayment: async (paymentData) => {
+    try {
+      const response = await api.post('/payments/verify', paymentData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export const legalService = {
   getPage: async (audience, slug) => {
     try {
@@ -389,6 +461,14 @@ export const legalService = {
   getPlatformStatus: async () => {
     try {
       const response = await api.get('/info/platform/status');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getFinancialSettings: async () => {
+    try {
+      const response = await api.get('/info/platform/financials');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

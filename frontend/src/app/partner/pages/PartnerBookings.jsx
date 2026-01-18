@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Calendar, User, Phone,
     Clock, MapPin, ChevronRight, BedDouble
@@ -8,23 +9,27 @@ import PartnerHeader from '../components/PartnerHeader';
 
 // --- Card Component ---
 const BookingCard = ({ booking }) => {
+    const navigate = useNavigate();
     const statusConfig = {
         pending: { color: 'text-yellow-600 bg-yellow-50 border-yellow-100', label: 'Pending' },
         confirmed: { color: 'text-blue-600 bg-blue-50 border-blue-100', label: 'Confirmed' },
         completed: { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', label: 'Completed' },
         cancelled: { color: 'text-red-500 bg-red-50 border-red-100', label: 'Cancelled' },
+        no_show: { color: 'text-gray-500 bg-gray-100 border-gray-200', label: 'No Show' },
     };
 
-    const status = statusConfig[booking.status] || statusConfig.pending;
+    const status = statusConfig[booking.bookingStatus] || statusConfig.pending; // Use bookingStatus
 
     // Helper to format dates
     const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     };
 
     // Calculate nights
     const calculateNights = (checkIn, checkOut) => {
+        if (!checkIn || !checkOut) return 1;
         const start = new Date(checkIn);
         const end = new Date(checkOut);
         const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
@@ -32,16 +37,19 @@ const BookingCard = ({ booking }) => {
     };
 
     const guestName = booking.userId?.name || 'Guest User';
-    const checkInDate = formatDate(booking.checkIn);
-    const checkOutDate = formatDate(booking.checkOut);
-    const nights = calculateNights(booking.checkIn, booking.checkOut);
+    const checkInDate = formatDate(booking.checkInDate || booking.checkIn); // Handle both formats
+    const checkOutDate = formatDate(booking.checkOutDate || booking.checkOut);
+    const nights = calculateNights(booking.checkInDate || booking.checkIn, booking.checkOutDate || booking.checkOut);
     const guestCount = (booking.guests?.adults || 1) + (booking.guests?.children || 0);
-    const roomsCount = booking.guests?.rooms || 1;
-    const hotelName = booking.hotelId?.name || 'Hotel Property';
+    const roomsCount = 1; // Default to 1 for now as per schema
+    const hotelName = booking.propertyId?.propertyName || booking.propertyId?.name || 'Hotel Property';
     const bookingId = booking.bookingId || booking._id?.slice(-6).toUpperCase();
 
     return (
-        <div className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm active:scale-[0.99] transition-transform">
+        <div 
+            onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
+            className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm active:scale-[0.99] transition-transform cursor-pointer"
+        >
             {/* Header: ID & Status */}
             <div className="flex justify-between items-start mb-3">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
@@ -75,28 +83,38 @@ const BookingCard = ({ booking }) => {
                     <span className="font-medium">{guestCount} Guests</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin size={14} className="text-[#004F4D]" />
+                    <BedDouble size={14} className="text-[#004F4D]" />
                     <span className="font-medium">{roomsCount} Room</span>
                 </div>
             </div>
 
             {/* Earning Section */}
             <div className="flex items-center justify-between pt-3 border-t border-dashed border-gray-200 mb-4">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Earning</span>
-                <span className="font-black text-[#004F4D] text-lg">₹{booking.pricing.partnerEarning || 0}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Payout</span>
+                <span className="font-black text-[#004F4D] text-lg">₹{booking.partnerPayout?.toLocaleString('en-IN') || 0}</span>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-                <button className="flex-1 bg-[#004F4D] text-white h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform hover:bg-[#003f3d]">
+                <button
+                    onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
+                    className="flex-1 bg-[#004F4D] text-white h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform hover:bg-[#003f3d]"
+                >
                     View Details
                 </button>
                 {booking.userId?.phone && (
-                    <a href={`tel:${booking.userId.phone}`} className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center border border-gray-100 hover:bg-gray-100 active:scale-95 transition-transform">
+                    <a
+                        href={`tel:${booking.userId.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center border border-gray-100 hover:bg-gray-100 active:scale-95 transition-transform"
+                    >
                         <Phone size={14} />
                     </a>
                 )}
-                <button className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center border border-gray-100 hover:bg-gray-100 active:scale-95 transition-transform">
+                <button
+                    onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
+                    className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center border border-gray-100 hover:bg-gray-100 active:scale-95 transition-transform"
+                >
                     <ChevronRight size={16} />
                 </button>
             </div>
@@ -107,15 +125,16 @@ const BookingCard = ({ booking }) => {
 // --- Main Component ---
 const PartnerBookings = () => {
     const [activeTab, setActiveTab] = useState('confirmed');
-    const [allBookings, setAllBookings] = useState([]);
+    const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchBookings = async () => {
             try {
                 setLoading(true);
-                const data = await bookingService.getPartnerBookings();
-                setAllBookings(data);
+                // Fetch with server-side filtering
+                const data = await bookingService.getPartnerBookings(activeTab);
+                setBookings(data);
             } catch (error) {
                 console.error('Failed to fetch partner bookings:', error);
             } finally {
@@ -123,12 +142,10 @@ const PartnerBookings = () => {
             }
         };
         fetchBookings();
-    }, []);
+    }, [activeTab]);
 
-    const filteredBookings = allBookings.filter(b => {
-        if (activeTab === 'all') return true;
-        return b.status === activeTab;
-    });
+    // Client-side filtering removed as backend handles it
+    const filteredBookings = bookings;
 
     const tabs = [
         { id: 'confirmed', label: 'Upcoming' },

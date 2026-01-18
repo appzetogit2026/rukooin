@@ -45,6 +45,8 @@ const AdminSettings = () => {
     const [bookingMessage, setBookingMessage] = useState('');
     const [maintenanceTitle, setMaintenanceTitle] = useState('');
     const [maintenanceMessage, setMaintenanceMessage] = useState('');
+    const [commission, setCommission] = useState(10);
+    const [taxRate, setTaxRate] = useState(12);
 
     const [loadingSettings, setLoadingSettings] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
@@ -73,6 +75,8 @@ const AdminSettings = () => {
                     setBookingMessage(res.settings.bookingDisabledMessage || '');
                     setMaintenanceTitle(res.settings.maintenanceTitle || '');
                     setMaintenanceMessage(res.settings.maintenanceMessage || '');
+                    setCommission(res.settings.defaultCommission || 10);
+                    setTaxRate(res.settings.taxRate || 12);
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');
@@ -114,7 +118,9 @@ const AdminSettings = () => {
                 maintenanceMode: maintenance,
                 bookingDisabledMessage: bookingMessage,
                 maintenanceTitle,
-                maintenanceMessage
+                maintenanceMessage,
+                defaultCommission: Number(commission),
+                taxRate: Number(taxRate)
             });
             toast.success('Platform settings updated');
         } catch (error) {
@@ -225,6 +231,37 @@ const AdminSettings = () => {
                         />
                     </div>
                 </div>
+                <div className="mt-4">
+                    <div className="pb-4 font-bold text-lg flex items-center gap-4"><Globe size={18} />Financial Rule</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Default Commission (%)</label>
+                            <input
+                                type="number"
+                                value={commission}
+                                onChange={(e) => setCommission(e.target.value)}
+                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax Rate (%)</label>
+                            <input
+                                type="number"
+                                value={taxRate}
+                                onChange={(e) => setTaxRate(e.target.value)}
+                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                            />
+                        </div>
+                    </div>
+                    {/* <div className="flex items-center justify-between pt-2">
+                    <div>
+                        <p className="font-medium text-gray-900">Automatic Payouts</p>
+                        <p className="text-sm text-gray-500">Automatically release payments to hotels every Monday.</p>
+                    </div>
+                    <ToggleSwitch enabled={autoPayout} onChange={setAutoPayout} />
+                </div> */}
+                </div>
+
                 <div className="flex justify-end pt-2">
                     <button
                         type="button"
@@ -238,27 +275,7 @@ const AdminSettings = () => {
                 </div>
             </Section>
 
-            <Section title="Financial Rules" icon={Globe}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Commission (%)</label>
-                        <input type="number" defaultValue={15} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax Rate (%)</label>
-                        <input type="number" defaultValue={18} className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black" />
-                    </div>
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                    <div>
-                        <p className="font-medium text-gray-900">Automatic Payouts</p>
-                        <p className="text-sm text-gray-500">Automatically release payments to hotels every Monday.</p>
-                    </div>
-                    <ToggleSwitch enabled={autoPayout} onChange={setAutoPayout} />
-                </div>
-            </Section>
-
-            <Section title="Security & Access" icon={Shield}>
+            {/* <Section title="Security & Access" icon={Shield}>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="font-medium text-gray-900">Two-Factor Auth (Admin)</p>
@@ -274,7 +291,7 @@ const AdminSettings = () => {
                         <option>1 Hour</option>
                     </select>
                 </div>
-            </Section>
+            </Section> */}
 
         </div>
     );

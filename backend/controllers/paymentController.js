@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import Booking from '../models/Booking.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -40,8 +42,20 @@ export const createPaymentOrder = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.paymentStatus === 'paid') return res.status(400).json({ message: 'Booking already paid' });
-    const amountInPaise = Math.round(booking.totalAmount * 100);
+
+    let amountInPaise = Math.round(booking.totalAmount * 100);
     if (!amountInPaise || amountInPaise <= 0) return res.status(400).json({ message: 'Invalid booking amount' });
+
+    // WORKAROUND: Razorpay Test Accounts often have a limit (e.g., ₹15,000).
+    // If using Test Keys, cap the request amount to ₹10,000 to allow testing the flow.
+    const isTestKey = PaymentConfig.razorpayKeyId?.startsWith('rzp_test');
+    const MAX_TEST_AMOUNT = 10000 * 100; // ₹10,000
+
+    if (isTestKey && amountInPaise > MAX_TEST_AMOUNT) {
+      console.warn(`⚠️ Capping Test Payment of ₹${booking.totalAmount} to ₹10,000 to avoid Razorpay Limit Check.`);
+      amountInPaise = MAX_TEST_AMOUNT;
+    }
+
     const options = {
       amount: amountInPaise,
       currency: PaymentConfig.currency,
@@ -70,7 +84,10 @@ export const createPaymentOrder = async (req, res) => {
     });
   } catch (error) {
     console.error('Create Payment Order Error:', error);
-    res.status(500).json({ message: 'Failed to create payment order', error: error.message });
+    res.status(500).json({
+      message: 'Failed to create payment order',
+      error: error.error?.description || error.message // Return specific Razorpay error if available
+    });
   }
 };
 
@@ -95,14 +112,75 @@ export const verifyPayment = async (req, res) => {
     booking.paymentId = razorpay_payment_id;
     booking.paymentMethod = 'razorpay';
     await booking.save();
+
+    // --- PARTNER WALLET CREDIT LOGIC ---
+    try {
+      // 1. Get Property to find Partner
+      const property = await Booking.findById(bookingId).populate('propertyId'); // Access property via populate or stored ID
+      // Actually booking.propertyId is an ID, unless we populate it.
+      // But we can assume we need to find the specific wallet for the partner owner.
+      // We can fetch Property separately or use populate.
+      // Let's rely on Property model check if needed, but booking usually has logic.
+      // Wait, we can't easily get partnerId from booking unless populated.
+      // Let's populate 'propertyId' to get 'partnerId'.
+    } catch (err) { console.error("Wallet Credit Prep Failed", err); }
+
+    const fullBooking = await Booking.findById(bookingId).populate('propertyId'); // We need partnerId from property
+    const partnerId = fullBooking.propertyId?.partnerId;
+
+    if (partnerId) {
+      let partnerWallet = await Wallet.findOne({ partnerId: partnerId, role: 'partner' });
+      if (!partnerWallet) {
+        partnerWallet = await Wallet.create({
+          partnerId: partnerId,
+          role: 'partner',
+          balance: 0
+        });
+      }
+
+      const payout = fullBooking.partnerPayout || 0;
+      if (payout > 0) {
+        // Credit Wallet
+        partnerWallet.balance += payout;
+        partnerWallet.totalEarnings += payout;
+
+        // Pending Clearance logic? Usually money is "pending" until checkout.
+        // For now, user requested "wallet balance reflect", so we add to balance.
+        // If strict logic needed, we'd add to 'pendingClearance' instead.
+        // Let's stick to balance for immediate visibility as requested.
+
+        await partnerWallet.save();
+
+        // Create Transaction
+        await Transaction.create({
+          walletId: partnerWallet._id,
+          partnerId: partnerId,
+          type: 'credit',
+          category: 'booking_payment',
+          amount: payout,
+          balanceAfter: partnerWallet.balance,
+          description: `Payment for Booking #${fullBooking.bookingId}`,
+          reference: fullBooking.bookingId,
+          status: 'completed',
+          metadata: {
+            bookingId: fullBooking._id.toString()
+          }
+        });
+        console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
+      }
+    }
+    // --- END PARTNER WALLET ---
+
+    // Return full populated booking for confirmation page
+    const populatedBooking = await Booking.findById(bookingId)
+      .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
+      .populate('roomTypeId', 'name type inventoryType')
+      .populate('userId', 'name email phone');
+
     res.json({
       success: true,
       message: 'Payment verified successfully',
-      booking: {
-        id: booking._id,
-        status: booking.bookingStatus,
-        paymentStatus: booking.paymentStatus
-      }
+      booking: populatedBooking
     });
   } catch (error) {
     console.error('Verify Payment Error:', error);

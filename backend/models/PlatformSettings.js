@@ -21,6 +21,14 @@ const platformSettingsSchema = new mongoose.Schema(
     maintenanceMessage: {
       type: String,
       default: 'The platform is under scheduled maintenance. Please check back in some time.'
+    },
+    defaultCommission: {
+      type: Number,
+      default: 10 // Percentage
+    },
+    taxRate: {
+      type: Number,
+      default: 12 // Percentage (GST)
     }
   },
   { timestamps: true }

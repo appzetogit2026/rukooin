@@ -15,6 +15,12 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
 
+  bookingId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+
   // PROPERTY
   propertyId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -58,7 +64,11 @@ const bookingSchema = new mongoose.Schema({
   extraCharges: { type: Number, default: 0 }, // extra guests * nights
 
   taxes: { type: Number, default: 0 },
+  taxes: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
+
+  adminCommission: { type: Number, default: 0 },
+  partnerPayout: { type: Number, default: 0 },
 
   totalAmount: { type: Number, required: true },
 
