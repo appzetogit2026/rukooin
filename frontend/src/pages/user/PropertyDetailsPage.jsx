@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, bookingService, legalService } from '../../services/apiService';
+import { propertyService, bookingService, legalService, reviewService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Wifi, Coffee, Car, Shield, Info, CheckCircle, Clock,
-  Users, Calendar, Loader2, ChevronLeft, ChevronRight
+  Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -20,6 +20,12 @@ const PropertyDetailsPage = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [taxRate, setTaxRate] = useState(0); // Fetched from backend
 
+  // Reviews State
+  const [reviews, setReviews] = useState([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [submitReviewLoading, setSubmitReviewLoading] = useState(false);
+
   useEffect(() => {
     legalService.getFinancialSettings()
       .then(res => {
@@ -28,74 +34,60 @@ const PropertyDetailsPage = () => {
       .catch(err => console.error("Failed to fetch tax rate", err));
   }, []);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const response = await propertyService.getDetails(id);
-
-        // Adapter: Backend Response ({ property, roomTypes }) -> Frontend State
-        if (response && response.property) {
-          const p = response.property;
-          const rts = response.roomTypes || [];
-
-          const adapted = {
-            ...p,
-            _id: p._id,
-            name: p.propertyName,
-            description: p.description,
-            address: p.address,
-            avgRating: p.avgRating || 0,
-            images: {
-              cover: p.coverImage,
-              gallery: p.propertyImages || []
-            },
-            propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
-            amenities: p.amenities || [],
-            inventory: rts.map(rt => ({
-              _id: rt._id,
-              type: rt.name,
-              price: rt.pricePerNight,
-              description: rt.description || '',
-              amenities: rt.amenities || [],
-              maxAdults: rt.maxAdults,
-              maxChildren: rt.maxChildren,
-              images: rt.images || [],
-              pricing: {
-                basePrice: rt.pricePerNight,
-                extraAdultPrice: rt.extraAdultPrice,
-                extraChildPrice: rt.extraChildPrice
-              }
-            })),
-            policies: {
-              checkInTime: p.checkInTime,
-              checkOutTime: p.checkOutTime,
-              cancellationPolicy: p.cancellationPolicy,
-              houseRules: p.houseRules,
-              petsAllowed: p.petsAllowed,
-              coupleFriendly: p.coupleFriendly
-            },
-            config: {
-              pgType: p.pgType,
-              resortType: p.resortType,
-              foodType: p.foodType
-            }
-          };
-
-          setProperty(adapted);
-          if (adapted.inventory && adapted.inventory.length > 0) {
-            setSelectedRoom(adapted.inventory[0]);
-          }
-        } else {
-          setProperty(response);
+  const loadPropertyDetails = async () => {
+    try {
+      const response = await propertyService.getDetails(id);
+      if (response && response.property) {
+        const p = response.property;
+        const rts = response.roomTypes || [];
+        const adapted = {
+          ...p,
+          _id: p._id,
+          name: p.propertyName,
+          description: p.description,
+          address: p.address,
+          avgRating: p.avgRating || 0,
+          images: { cover: p.coverImage, gallery: p.propertyImages || [] },
+          propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
+          amenities: p.amenities || [],
+          inventory: rts.map(rt => ({
+            _id: rt._id,
+            type: rt.name,
+            price: rt.pricePerNight,
+            description: rt.description || '',
+            amenities: rt.amenities || [],
+            maxAdults: rt.maxAdults,
+            maxChildren: rt.maxChildren,
+            images: rt.images || [],
+            pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice }
+          })),
+          policies: {
+            checkInTime: p.checkInTime,
+            checkOutTime: p.checkOutTime,
+            cancellationPolicy: p.cancellationPolicy,
+            houseRules: p.houseRules,
+            petsAllowed: p.petsAllowed,
+            coupleFriendly: p.coupleFriendly
+          },
+          config: { pgType: p.pgType, resortType: p.resortType, foodType: p.foodType }
+        };
+        setProperty(adapted);
+        // Only set selected room on first load if not set
+        if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
+          setSelectedRoom(adapted.inventory[0]);
         }
-      } catch (error) {
-        console.error("Error fetching property details:", error);
-        toast.error("Failed to load property details");
-      } finally {
-        setLoading(false);
+      } else {
+        setProperty(response);
       }
-    };
-    fetchDetails();
+    } catch (error) {
+      console.error("Error fetching property details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPropertyDetails();
   }, [id]);
 
   // Helper derived state for hooks (safe access)
@@ -108,6 +100,45 @@ const PropertyDetailsPage = () => {
       setGuests(prev => ({ ...prev, adults: prev.rooms, children: 0 }));
     }
   }, [guests.rooms, isBedBased]);
+
+  useEffect(() => {
+    if (id) {
+      fetchReviews();
+    }
+  }, [id]);
+
+  const fetchReviews = async () => {
+    try {
+      const data = await reviewService.getPropertyReviews(id);
+      setReviews(data);
+    } catch (error) {
+      console.error("Failed to fetch reviews");
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!localStorage.getItem('token')) {
+      toast.error('Please login to submit a review');
+      return;
+    }
+    setSubmitReviewLoading(true);
+    try {
+      await reviewService.createReview({
+        propertyId: id,
+        ...reviewData
+      });
+      toast.success('Review submitted!');
+      setReviewData({ rating: 5, comment: '' });
+      setShowReviewForm(false);
+      fetchReviews();
+      loadPropertyDetails();
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit review');
+    } finally {
+      setSubmitReviewLoading(false);
+    }
+  };
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -856,6 +887,107 @@ const PropertyDetailsPage = () => {
               </div>
             </div>
           )}
+
+          {/* User Reviews Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-textDark flex items-center gap-2">
+                Guest Reviews
+                <span className="text-sm font-normal text-gray-500">
+                  {reviews.length > 0 ? `(${reviews.length})` : ''}
+                  {rating ? ` • ${Number(rating).toFixed(1)}` : ' • New'}
+                  <Star size={12} className="inline fill-honey text-honey mb-0.5" />
+                </span>
+              </h2>
+              <button
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className="text-sm font-bold text-surface border border-surface px-4 py-2 rounded-lg hover:bg-surface hover:text-white transition-all flex items-center gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={16} /> <span>Write a Review</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Review Form */}
+            {showReviewForm && (
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 animate-fadeIn">
+                <h3 className="font-bold text-gray-800 mb-3">Rate your experience</h3>
+                <form onSubmit={handleReviewSubmit}>
+                  <div className="flex gap-2 mb-4">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewData({ ...reviewData, rating: star })}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          size={24}
+                          className={`${reviewData.rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reviewData.comment}
+                    onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
+                    placeholder="Share your experience..."
+                    rows={3}
+                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-surface outline-none mb-3"
+                    required
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowReviewForm(false)}
+                      className="px-4 py-2 text-gray-500 font-medium hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitReviewLoading}
+                      className="px-6 py-2 bg-black text-white rounded-lg font-bold disabled:opacity-50"
+                    >
+                      {submitReviewLoading ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Reviews Display - Carousel if > 3 */}
+            {reviews.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-xl border border-dotted border-gray-300">
+                <p className="text-gray-500">No reviews yet. Be the first to share your experience!</p>
+              </div>
+            ) : (
+              // Simple Scrollable Row for simplicity and UX
+              <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
+                {reviews.slice(0, 3).map((review) => (
+                  <div key={review._id} className="min-w-[280px] md:min-w-[320px] max-w-[320px] bg-white p-4 rounded-xl border border-gray-100 shadow-sm snap-center flex-shrink-0">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-surface/10 flex items-center justify-center text-surface font-bold text-lg">
+                        {review.userId?.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-800 text-sm line-clamp-1">{review.userId?.name || 'User'}</p>
+                        <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div className="ml-auto flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">
+                        {review.rating} <Star size={10} className="fill-yellow-500 text-yellow-500" />
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-4">
+                      "{review.comment}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          </div>
 
         </div>
       </div>

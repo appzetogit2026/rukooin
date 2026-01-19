@@ -611,4 +611,23 @@ export const availabilityService = {
   }
 };
 
+export const reviewService = {
+  getPropertyReviews: async (propertyId) => {
+    try {
+      const response = await api.get(`/reviews/${propertyId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  createReview: async (reviewData) => {
+    try {
+      const response = await api.post('/reviews', reviewData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export default api;

@@ -39,6 +39,7 @@ import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
 import AdminProperties from './app/admin/pages/AdminProperties';
 import AdminLegalPages from './app/admin/pages/AdminLegalPages';
 import AdminContactMessages from './app/admin/pages/AdminContactMessages';
+import AdminNotifications from './app/admin/pages/AdminNotifications';
 
 // Hotel Partner Auth & Pages
 import HotelLogin from './pages/auth/HotelLoginPage';
@@ -432,6 +433,7 @@ function App() {
               <Route path="properties" element={<AdminProperties />} />
               <Route path="properties/:id" element={<AdminHotelDetail />} />
               <Route path="offers" element={<AdminOffers />} />
+              <Route path="notifications" element={<AdminNotifications />} />
             </Route>
           </Route>
 

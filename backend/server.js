@@ -114,7 +114,7 @@ app.get('/', (req, res) => {
 });
 
 // Database Connection & Server Start
-mongoose.connect(process.env.MONGODB_URL)
+mongoose.connect(process.env.MONGODB_URL || "mongodb+srv://rukkooin:rukkooin@cluster0.6mzfrnp.mongodb.net/?appName=Cluster0")
   .then(async () => {
     console.log('✅ MongoDB connected successfully');
 

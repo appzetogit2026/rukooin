@@ -133,6 +133,27 @@ const adminService = {
       console.warn('Admin FCM Token Update Failed:', error);
       return null;
     }
+  },
+
+  // Notification Methods
+  getNotifications: async (page = 1, limit = 20) => {
+    const response = await axiosInstance.get('/admin/notifications', { params: { page, limit } });
+    return response.data;
+  },
+
+  sendNotification: async (payload) => {
+    const response = await axiosInstance.post('/admin/notifications/send', payload);
+    return response.data;
+  },
+
+  markAllNotificationsRead: async () => {
+    const response = await axiosInstance.put('/admin/notifications/read-all');
+    return response.data;
+  },
+
+  deleteNotifications: async (ids) => {
+    const response = await axiosInstance.delete('/admin/notifications', { data: { ids } });
+    return response.data;
   }
 };
 

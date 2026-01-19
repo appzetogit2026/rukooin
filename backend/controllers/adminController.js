@@ -8,6 +8,7 @@ import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
+import Notification from '../models/Notification.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -616,3 +617,142 @@ export const updateFcmToken = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// ==========================================
+// NOTIFICATION CONTROLLERS
+// ==========================================
+
+export const getAdminNotifications = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter = {
+      userId: req.user._id,
+      userType: 'admin'
+    };
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Notification.countDocuments(filter);
+    const unreadCount = await Notification.countDocuments({ ...filter, isRead: false });
+
+    res.status(200).json({
+      success: true,
+      notifications,
+      meta: {
+        total,
+        page,
+        limit,
+        unreadCount
+      }
+    });
+  } catch (error) {
+    console.error('Get Admin Notifications Error:', error);
+    res.status(500).json({ message: 'Server error fetching notifications' });
+  }
+};
+
+export const createBroadcastNotification = async (req, res) => {
+  try {
+    const { title, body, targetAudience, type = 'general' } = req.body; // targetAudience: 'users', 'partners', 'all'
+
+    if (!title || !body || !targetAudience) {
+      return res.status(400).json({ message: 'Title, Body and Target Audience are required' });
+    }
+
+    let query = {};
+    if (targetAudience === 'users') {
+      query = { role: 'user' };
+    } else if (targetAudience === 'partners') {
+      query = { role: 'partner' };
+    } else if (targetAudience === 'all') {
+      query = { role: { $in: ['user', 'partner'] } };
+    } else {
+      return res.status(400).json({ message: 'Invalid Target Audience' });
+    }
+
+    // Find recipients
+    // Optimize: If 'all', we might have too many users.
+    // Ideally we use a background job. For now, assuming manageable scale (<10k users).
+    const recipients = await User.find(query).select('_id role');
+
+    if (recipients.length === 0) {
+      return res.status(404).json({ message: 'No recipients found for this audience' });
+    }
+
+    // Bulk Insert Notifications
+    // Note: This can be heavy.
+    const notifications = recipients.map(user => ({
+      userId: user._id,
+      userType: user.role, // 'user' or 'partner'
+      userModel: 'User',
+      title,
+      body,
+      type: 'broadcast',
+      isRead: false
+    }));
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
+    // Log for Admin (Sent Tab)
+    await Notification.create({
+      userId: req.user._id,
+      userType: 'admin',
+      userModel: 'Admin',
+      title: `Broadcast Sent: ${title}`,
+      body: `Sent to ${targetAudience} (${recipients.length} recipients). Content: ${body}`,
+      type: 'broadcast_log',
+      isRead: true,
+      data: { originalTitle: title, originalBody: body, targetAudience, recipientCount: recipients.length }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Notification queued for ${recipients.length} recipients.`
+    });
+
+  } catch (error) {
+    console.error('Create Broadcast Error:', error);
+    res.status(500).json({ message: 'Server error sending broadcast' });
+  }
+};
+
+export const markAllAdminNotificationsRead = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { userId: req.user._id, userType: 'admin', isRead: false },
+      { $set: { isRead: true, readAt: new Date() } }
+    );
+    res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const deleteAdminNotifications = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No IDs provided' });
+    }
+
+    await Notification.deleteMany({
+      _id: { $in: ids },
+      userId: req.user._id,
+      userType: 'admin'
+    });
+
+    res.status(200).json({ success: true, message: 'Notifications deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+

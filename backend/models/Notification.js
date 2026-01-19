@@ -59,13 +59,12 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ userId: 1, userType: 1, isRead: 1, createdAt: -1 });
 
 // Pre-save hook to set userModel based on userType
-notificationSchema.pre('save', function (next) {
+notificationSchema.pre('save', async function () {
   if (this.userType === 'admin') {
     this.userModel = 'Admin';
   } else {
     this.userModel = 'User';
   }
-  next();
 });
 
 const Notification = mongoose.model('Notification', notificationSchema);

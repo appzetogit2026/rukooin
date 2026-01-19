@@ -24,7 +24,11 @@ import {
   getBookingDetails,
   updateBookingStatus,
   deleteHotel,
-  updateFcmToken
+  updateFcmToken,
+  getAdminNotifications,
+  createBroadcastNotification,
+  markAllAdminNotificationsRead,
+  deleteAdminNotifications
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -32,6 +36,12 @@ const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin'));
+
+// Notifications
+router.get('/notifications', getAdminNotifications);
+router.post('/notifications/send', createBroadcastNotification);
+router.put('/notifications/read-all', markAllAdminNotificationsRead);
+router.delete('/notifications', deleteAdminNotifications);
 
 router.put('/fcm-token', updateFcmToken);
 router.get('/dashboard-stats', getDashboardStats);

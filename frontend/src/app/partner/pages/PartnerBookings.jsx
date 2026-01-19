@@ -46,7 +46,7 @@ const BookingCard = ({ booking }) => {
     const bookingId = booking.bookingId || booking._id?.slice(-6).toUpperCase();
 
     return (
-        <div 
+        <div
             onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
             className="bg-white rounded-2xl p-4 mb-4 border border-gray-100 shadow-sm active:scale-[0.99] transition-transform cursor-pointer"
         >
