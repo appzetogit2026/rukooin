@@ -248,8 +248,14 @@ export const registerPartner = async (req, res) => {
 
     // 1. Check if PARTNER ALREADY exists with this phone
     let existingUser = await User.findOne({ phone, role: 'partner' });
-    if (existingUser && existingUser.isVerified) {
-      return res.status(409).json({ message: 'Partner account with this phone already exists. Please login.' });
+    if (existingUser) {
+      if (existingUser.isVerified) {
+        return res.status(409).json({ message: 'Partner account with this phone already exists. Please login.' });
+      } else {
+        // If exists but not verified (orphaned?), we can update it? 
+        // Or just fail. Let's fail for now to be safe, or update if we want to support retries.
+        // Given the new flow "creates" user directly, we should treat it as conflict if exists.
+      }
     }
 
     if (email) {
@@ -259,20 +265,13 @@ export const registerPartner = async (req, res) => {
       }
     }
 
-    // Generate OTP
-    const isBypassed = BYPASS_NUMBERS.includes(phone);
-    const otp = isBypassed ? DEFAULT_OTP : generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-    // Prepare TEMP User Data
-    const tempUserData = {
+    // Prepare User Data
+    const userData = {
       name: full_name,
       email: email,
       phone: phone,
       role: 'partner', // Enforced
-      isPartner: false, // Will be set/used by logic? Actually schema has isPartner boolean.
-      // Usually isPartner=true indicates they have access.
-      // But here role='partner' is primary.
+      isPartner: false, // Access granted only after approval
       partnerApprovalStatus: 'pending',
       termsAccepted: termsAccepted,
       aadhaarNumber: aadhaar_number,
@@ -288,47 +287,36 @@ export const registerPartner = async (req, res) => {
         country: owner_address.country || 'India',
         coordinates: owner_address.coordinates
       } : undefined,
-      passwordHash: await bcrypt.hash(Math.random().toString(36), 10) // Pre-hash password
+      password: await bcrypt.hash(Math.random().toString(36), 10), // Random password for now
+      isVerified: true // Auto-verified phone (since we removed OTP per request, assuming trust or different flow)
     };
 
-    // Store in Otp Collection with tempData
-    await Otp.findOneAndUpdate(
-      { phone },
-      {
-        otp,
-        expiresAt: otpExpires,
-        tempData: tempUserData
-      },
-      { upsert: true, new: true }
-    );
+    // Create New Partner User
+    const newUser = new User(userData);
+    await newUser.save();
 
-    // Send SMS
-    if (isBypassed) {
-      console.log(`🛡️ Partner OTP Bypassed for ${phone}: ${otp}`);
-      return res.status(200).json({
-        success: true,
-        message: 'OTP sent (Bypassed)',
-        phone
-      });
-    }
+    const token = generateToken(newUser._id, newUser.role);
 
-    const smsResponse = await smsService.sendOTP(phone, otp, 'partner-register');
-
-    if (!smsResponse.success) {
-      return res.status(200).json({
-        success: false,
-        message: 'SMS Failed. OTP generated for dev.',
-        devOtp: otp
-      });
-    }
-
-    res.status(200).json({
+    res.status(201).json({
       success: true,
-      message: 'OTP sent successfully to ' + phone
+      message: 'Partner registration completed successfully. Waiting for Admin Approval.',
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        isPartner: newUser.isPartner,
+        partnerApprovalStatus: newUser.partnerApprovalStatus
+      }
     });
 
   } catch (error) {
     console.error('Register Partner Error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'Email or Phone already exists.' });
+    }
     res.status(500).json({ message: 'Server error during partner registration' });
   }
 };

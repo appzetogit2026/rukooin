@@ -9,12 +9,11 @@ import { authService } from '../../services/apiService';
 // Updated Steps Components
 import StepUserRegistration from '../../app/partner/steps/StepUserRegistration';
 import StepOwnerDetails from '../../app/partner/steps/StepOwnerDetails';
-import StepOtp from '../../app/partner/steps/StepOtp';
+
 
 const steps = [
     { id: 1, title: 'Registration', desc: 'Create your partner account' },
     { id: 2, title: 'Owner Details', desc: 'Identity and Address' },
-    { id: 3, title: 'Verification', desc: 'Verify your mobile number' },
 ];
 
 const HotelSignup = () => {
@@ -60,43 +59,19 @@ const HotelSignup = () => {
                 return setError('Complete address details are required');
             }
 
-            // SUBMIT TO BACKEND (Register & Send OTP)
+            // SUBMIT TO BACKEND (Register Direct)
             setLoading(true);
             try {
                 // Ensure role is partner
                 const payload = { ...formData, role: 'partner' };
                 await authService.registerPartner(payload);
 
-                // If successful, move to OTP step
-                nextStep();
+                // Success
+                alert("Registration successful! Your account is pending admin approval.");
+                navigate('/hotel/login');
             } catch (err) {
                 console.error("Registration Error:", err);
                 setError(err.message || "Registration failed. Please check your details.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        // --- STEP 3: OTP VERIFICATION ---
-        else if (currentStep === 3) {
-            if (!formData.otpCode || formData.otpCode.length < 6) return setError('Please enter the 6-digit OTP');
-
-            setLoading(true);
-            try {
-                const response = await authService.verifyPartnerOtp({
-                    phone: formData.phone,
-                    otp: formData.otpCode
-                });
-
-                console.log("Verification Success:", response);
-                alert("Account verified. Your partner access is pending admin approval.");
-                navigate('/hotel/login');
-
-                // Optional: Reset store
-                // resetForm(); 
-            } catch (err) {
-                console.error("Verification Error:", err);
-                setError(err.message || "Invalid OTP. Please try again.");
             } finally {
                 setLoading(false);
             }
@@ -115,7 +90,6 @@ const HotelSignup = () => {
         switch (currentStep) {
             case 1: return <StepUserRegistration />;
             case 2: return <StepOwnerDetails />;
-            case 3: return <StepOtp autoSend={false} />;
             default: return <div>Unknown Step</div>;
         }
     };
