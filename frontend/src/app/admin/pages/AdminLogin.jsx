@@ -5,8 +5,15 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
+import adminService from '../../../services/adminService';
+import { requestNotificationPermission } from '../../../utils/firebase';
 
 const AdminLogin = () => {
+    // ...
+    // Note: The above imports are additive. The tool will merge or I must ensure context.
+    // Since I'm replacing a block, I must be careful.
+    // I will use a larger block replacement for the whole logic.
+
     const navigate = useNavigate();
     const login = useAdminStore(state => state.login);
     const checkAuth = useAdminStore(state => state.checkAuth);
@@ -49,6 +56,17 @@ const AdminLogin = () => {
 
         if (result.success) {
             toast.success('Admin login successful!');
+            
+            // Update FCM Token
+            try {
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await adminService.updateFcmToken(token, 'web');
+                }
+            } catch (fcmError) {
+                console.warn('FCM update failed', fcmError);
+            }
+
             navigate('/admin/dashboard');
         } else {
             setError(result.message);

@@ -123,6 +123,16 @@ const adminService = {
   updateAdminProfile: async (payload) => {
     const response = await axiosInstance.put('/auth/admin/update-profile', payload);
     return response.data;
+  },
+
+  updateFcmToken: async (fcmToken, platform = 'web') => {
+    try {
+      const response = await axiosInstance.put('/admin/fcm-token', { fcmToken, platform });
+      return response.data;
+    } catch (error) {
+      console.warn('Admin FCM Token Update Failed:', error);
+      return null;
+    }
   }
 };
 

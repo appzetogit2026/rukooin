@@ -558,3 +558,61 @@ export const updatePlatformSettings = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error updating platform settings' });
   }
 };
+
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide FCM token'
+      });
+    }
+
+    const targetPlatform = platform === 'app' ? 'app' : 'web';
+
+    // We are in admin controller, assuming req.user is set by admin auth middleware
+    // However, Admin model import might be needed if not present, but usually req.user is the document or plain object.
+    // If req.user is populated from token, check if it's admin.
+
+    // Checking where Admin is imported? Line 1: User.. 
+    // Wait, Admin model is NOT imported in adminController based on view_file output. 
+    // It seems admin controller uses User model a lot but where does it get Admin?
+    // Oh, adminController functions usually don't manipulate Admin self profile except maybe unrelated?
+    // I need to import Admin model if I want to update Admin's token.
+
+    // The previous view_file of adminController didn't show Admin import. I should add it.
+
+    // But first, let's write the function logic assuming I will fix imports.
+    const Admin = (await import('../models/Admin.js')).default;
+
+    const admin = await Admin.findById(req.user._id);
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    // Initialize fcmTokens object if it doesn't exist
+    if (!admin.fcmTokens) {
+      admin.fcmTokens = { app: null, web: null };
+    }
+
+    // Update the specific platform token
+    admin.fcmTokens[targetPlatform] = fcmToken;
+
+    await admin.save();
+
+    res.json({
+      success: true,
+      message: `FCM token updated successfully for ${targetPlatform} platform`,
+      data: {
+        platform: targetPlatform,
+        tokenUpdated: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Update Admin FCM Token Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

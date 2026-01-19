@@ -481,7 +481,7 @@ export const markBookingAsPaid = async (req, res) => {
     }
 
     if (booking.paymentStatus === 'paid') {
-      return res.status(400).json({ message: 'Booking is already paid' });
+      return res.status(200).json({ success: true, message: 'Booking is already marked as paid.', booking });
     }
 
     // Logic for "Pay at Hotel"
@@ -546,6 +546,12 @@ export const markBookingNoShow = async (req, res) => {
     // 1. Update Status
     booking.bookingStatus = 'no_show';
     booking.cancellationReason = 'Guest No Show';
+
+    // Self-healing: Ensure bookingId exists
+    if (!booking.bookingId) {
+      booking.bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
+
     await booking.save();
 
     // 2. Release Inventory

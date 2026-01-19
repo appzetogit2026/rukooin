@@ -64,7 +64,6 @@ const bookingSchema = new mongoose.Schema({
   extraCharges: { type: Number, default: 0 }, // extra guests * nights
 
   taxes: { type: Number, default: 0 },
-  taxes: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
 
   adminCommission: { type: Number, default: 0 },
@@ -85,7 +84,7 @@ const bookingSchema = new mongoose.Schema({
   // BOOKING STATUS
   bookingStatus: {
     type: String,
-    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled"],
+    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"],
     default: "pending"
   },
 

@@ -83,6 +83,20 @@ export const authService = {
     }
   },
 
+  // Upload Partner Docs
+  uploadDocs: async (formData) => {
+    try {
+      const response = await api.post('/auth/partner/upload-docs', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
 
 
   // Update Profile
@@ -134,26 +148,26 @@ export const bookingService = {
   },
   getPartnerBookingDetail: async (id) => {
     try {
-        const response = await api.get(`/bookings/${id}/partner-detail`);
-        return response.data;
+      const response = await api.get(`/bookings/${id}/partner-detail`);
+      return response.data;
     } catch (error) {
-        throw error.response?.data || error.message;
+      throw error.response?.data || error.message;
     }
   },
   markAsPaid: async (id) => {
     try {
-        const response = await api.put(`/bookings/${id}/mark-paid`);
-        return response.data;
+      const response = await api.put(`/bookings/${id}/mark-paid`);
+      return response.data;
     } catch (error) {
-        throw error.response?.data || error.message;
+      throw error.response?.data || error.message;
     }
   },
   markNoShow: async (id) => {
     try {
-        const response = await api.put(`/bookings/${id}/no-show`);
-        return response.data;
+      const response = await api.put(`/bookings/${id}/no-show`);
+      return response.data;
     } catch (error) {
-        throw error.response?.data || error.message;
+      throw error.response?.data || error.message;
     }
   },
   cancel: async (bookingId, reason) => {
@@ -384,6 +398,17 @@ export const userService = {
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
+    }
+  },
+  // Update FCM Token
+  updateFcmToken: async (fcmToken, platform = 'web') => {
+    try {
+      const response = await api.put('/users/fcm-token', { fcmToken, platform });
+      return response.data;
+    } catch (error) {
+      // Log but don't throw to avoid disrupting app flow if token update fails
+      console.warn('FCM Token Update Failed:', error);
+      return null;
     }
   }
 };

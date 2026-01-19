@@ -94,9 +94,12 @@ import ProfileEdit from './pages/user/ProfileEdit';
 import BookingCheckoutPage from './pages/user/BookingCheckoutPage';
 
 import { useLenis } from './app/shared/hooks/useLenis';
-import { legalService } from './services/apiService';
+import { legalService, userService } from './services/apiService';
+import adminService from './services/adminService';
+import { requestNotificationPermission, onMessageListener } from './utils/firebase';
 import { Clock } from 'lucide-react';
 import logo from './assets/rokologin-removebg-preview.png';
+import toast from 'react-hot-toast';
 
 // Wrapper to conditionally render Navbars & Handle Lenis
 const Layout = ({ children }) => {
@@ -265,6 +268,94 @@ const PublicRoute = ({ children }) => {
 import ScrollToTop from './components/ui/ScrollToTop';
 
 function App() {
+  React.useEffect(() => {
+    const initFcm = async () => {
+      // 1. Check if running in a WebView with a native bridge (e.g. Flutter)
+      if (window.NativeApp && window.NativeApp.getFcmToken) {
+        try {
+          const appToken = await window.NativeApp.getFcmToken();
+          if (appToken) {
+            console.log('Received App Token from Native Bridge:', appToken);
+            // Perform update for 'app' platform
+            const adminToken = localStorage.getItem('adminToken');
+            if (adminToken) {
+              await adminService.updateFcmToken(appToken, 'app');
+            } else {
+              const tokenAuth = localStorage.getItem('token');
+              if (tokenAuth) {
+                await userService.updateFcmToken(appToken, 'app');
+              }
+            }
+            // If native token found, we might skip web token request or do both. 
+            // Usually for hybrid app, we rely on native token.
+            return;
+          }
+        } catch (err) {
+          console.error('Error getting token from native bridge:', err);
+        }
+      }
+
+      // 2. Also listen for window message events from the native app (alternative bridge method)
+      window.addEventListener('message', async (event) => {
+        if (event.data && event.data.type === 'FCM_TOKEN_UPDATE') {
+          const appToken = event.data.token;
+          console.log('Received App Token via postMessage:', appToken);
+          const adminToken = localStorage.getItem('adminToken');
+          if (adminToken) {
+            await adminService.updateFcmToken(appToken, 'app');
+          } else if (localStorage.getItem('token')) {
+            await userService.updateFcmToken(appToken, 'app');
+          }
+        }
+      });
+
+      try {
+        const token = await requestNotificationPermission();
+        if (token) {
+          // Check for Admin Token first
+          const adminToken = localStorage.getItem('adminToken');
+          if (adminToken) {
+            console.log('FCM Token received, updating for Admin');
+            await adminService.updateFcmToken(token, 'web');
+            return;
+          }
+
+          // Check for User/Partner Token
+          const tokenAuth = localStorage.getItem('token');
+          const userStr = localStorage.getItem('user');
+
+          if (tokenAuth && userStr) {
+            const user = JSON.parse(userStr);
+            console.log('FCM Token received, updating backend for role:', user.role);
+            await userService.updateFcmToken(token, 'web');
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing FCM:", error);
+      }
+    };
+
+    initFcm();
+
+    // Listen for foreground messages
+    onMessageListener((payload) => {
+      console.log('Foreground Message:', payload);
+      toast((t) => (
+        <div className="flex flex-col">
+          <span className="font-bold">{payload.notification?.title || 'Notification'}</span>
+          <span className="text-sm">{payload.notification?.body}</span>
+        </div>
+      ), {
+        duration: 5000,
+        position: 'top-right',
+        style: {
+          background: '#333',
+          color: '#fff',
+        },
+      });
+    });
+  }, []);
+
   return (
     <Router>
       <ScrollToTop />

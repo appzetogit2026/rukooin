@@ -122,3 +122,51 @@ export const toggleSavedHotel = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+/**
+ * @desc    Update FCM Token
+ * @route   PUT /api/users/fcm-token
+ * @access  Private
+ */
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide FCM token'
+      });
+    }
+
+    const targetPlatform = platform === 'app' ? 'app' : 'web';
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Initialize fcmTokens object if it doesn't exist
+    if (!user.fcmTokens) {
+      user.fcmTokens = { app: null, web: null };
+    }
+
+    // Update the specific platform token
+    user.fcmTokens[targetPlatform] = fcmToken;
+
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `FCM token updated successfully for ${targetPlatform} platform`,
+      data: {
+        platform: targetPlatform,
+        tokenUpdated: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Update FCM Token Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

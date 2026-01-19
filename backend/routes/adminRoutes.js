@@ -23,7 +23,8 @@ import {
   getHotelDetails,
   getBookingDetails,
   updateBookingStatus,
-  deleteHotel
+  deleteHotel,
+  updateFcmToken
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -32,6 +33,7 @@ const router = express.Router();
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin'));
 
+router.put('/fcm-token', updateFcmToken);
 router.get('/dashboard-stats', getDashboardStats);
 router.get('/users', getAllUsers);
 router.get('/hotels', getAllHotels);
