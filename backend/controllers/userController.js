@@ -170,3 +170,136 @@ export const updateFcmToken = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+/**
+ * @desc    Get user notifications
+ * @route   GET /api/users/notifications
+ * @access  Private
+ */
+export const getNotifications = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const Notification = (await import('../models/Notification.js')).default;
+
+    // Create filter for the current user
+    const filter = {
+      userId: req.user._id,
+      userType: req.user.role === 'partner' ? 'partner' : 'user'
+    };
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Notification.countDocuments(filter);
+    const unreadCount = await Notification.countDocuments({ ...filter, isRead: false });
+
+    res.json({
+      success: true,
+      notifications,
+      meta: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        unreadCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Get Notifications Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Initialize/Mark Notification as Read (optional, but requested implicitly functionality usually goes with this)
+ * @route   PUT /api/users/notifications/:id/read
+ * @access  Private
+ */
+export const markNotificationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Notification = (await import('../models/Notification.js')).default;
+
+    const notification = await Notification.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    notification.isRead = true;
+    notification.readAt = Date.now();
+    await notification.save();
+
+    res.json({ success: true, message: 'Marked as read' });
+  } catch (error) {
+    console.error('Mark Read Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Delete Notifications (Single or Bulk)
+ * @route   DELETE /api/users/notifications
+ * @access  Private
+ * @body    { ids: ["id1", "id2"] } or implicit query for single
+ */
+export const deleteNotifications = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    const Notification = (await import('../models/Notification.js')).default;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No notification IDs provided' });
+    }
+
+    const result = await Notification.deleteMany({
+      _id: { $in: ids },
+      userId: req.user._id
+    }); // end deleteMany
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} notifications`,
+      deletedCount: result.deletedCount
+    });
+
+  } catch (error) {
+    console.error('Delete Notifications Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Mark All Notifications as Read
+ * @route   PUT /api/users/notifications/read-all
+ * @access  Private
+ */
+export const markAllNotificationsRead = async (req, res) => {
+  try {
+    const Notification = (await import('../models/Notification.js')).default;
+
+    const result = await Notification.updateMany(
+      { userId: req.user._id, isRead: false },
+      { $set: { isRead: true, readAt: new Date() } }
+    );
+
+    res.json({
+      success: true,
+      message: 'All notifications marked as read',
+      updatedCount: result.modifiedCount
+    });
+
+  } catch (error) {
+    console.error('Mark All Read Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

@@ -40,9 +40,9 @@ api.interceptors.response.use(
 // User Auth Services
 export const authService = {
   // Send OTP
-  sendOtp: async (phone, type = 'login') => {
+  sendOtp: async (phone, type = 'login', role = 'user') => {
     try {
-      const response = await api.post('/auth/send-otp', { phone, type });
+      const response = await api.post('/auth/send-otp', { phone, type, role });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -173,6 +173,34 @@ export const bookingService = {
   cancel: async (bookingId, reason) => {
     try {
       const response = await api.post(`/bookings/${bookingId}/cancel`, { reason });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Notification Methods for Partners
+  getNotifications: async (page = 1, limit = 20) => {
+    try {
+      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  markAllNotificationsRead: async () => {
+    try {
+      const response = await api.put('/hotel/notifications/read-all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  deleteNotifications: async (ids) => {
+    try {
+      const response = await api.delete('/hotel/notifications', { data: { ids } });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -406,9 +434,39 @@ export const userService = {
       const response = await api.put('/users/fcm-token', { fcmToken, platform });
       return response.data;
     } catch (error) {
-      // Log but don't throw to avoid disrupting app flow if token update fails
       console.warn('FCM Token Update Failed:', error);
       return null;
+    }
+  },
+
+  // Get Notifications
+  getNotifications: async (page = 1, limit = 20) => {
+    try {
+      const response = await api.get(`/users/notifications?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete Notifications (Bulk)
+  deleteNotifications: async (ids) => {
+    try {
+      // Use DELETE method with data body (supported by Axios)
+      const response = await api.delete('/users/notifications', { data: { ids } });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Mark All Notifications Read
+  markAllNotificationsRead: async () => {
+    try {
+      const response = await api.put('/users/notifications/read-all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
     }
   }
 };

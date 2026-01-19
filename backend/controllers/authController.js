@@ -20,29 +20,29 @@ const BYPASS_NUMBERS = ['9685974247', '9009925021', '6261096283'];
 const DEFAULT_OTP = '123456';
 
 /**
- * @desc    Send OTP for Login/Register (USER ROLE)
+ * @desc    Send OTP for Login/Register (Support User/Partner)
  * @route   POST /api/auth/send-otp
  * @access  Public
  */
 export const sendOtp = async (req, res) => {
   try {
-    const { phone, type } = req.body; // type: 'login' | 'register'
+    const { phone, type, role = 'user' } = req.body; // type: 'login' | 'register', role: 'user' | 'partner'
 
     if (!phone || phone.length !== 10) {
       return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
     }
 
-    // Role is explicitly 'user' for this endpoint (Customer App)
-    let user = await User.findOne({ phone, role: 'user' });
+    // Role is dynamic now
+    let user = await User.findOne({ phone, role });
 
     // Login Flow Validation
     if (type === 'login' && !user) {
-      return res.status(404).json({ message: 'User not found. Please register first.' });
+      return res.status(404).json({ message: `${role === 'partner' ? 'Partner' : 'User'} not found. Please register first.` });
     }
 
     // Register Flow Validation
     if (type === 'register' && user) {
-      return res.status(409).json({ message: 'User already exists. Please login.' });
+      return res.status(409).json({ message: `${role === 'partner' ? 'Partner' : 'User'} already exists. Please login.` });
     }
 
     // Generate OTP
@@ -61,7 +61,7 @@ export const sendOtp = async (req, res) => {
       // Upsert to handle retries
       await Otp.findOneAndUpdate(
         { phone },
-        { otp, expiresAt: otpExpires, tempData: { role: 'user', phone } },
+        { otp, expiresAt: otpExpires, tempData: { role, phone } }, // Store role
         { upsert: true, new: true }
       );
     }
@@ -93,20 +93,20 @@ export const sendOtp = async (req, res) => {
 };
 
 /**
- * @desc    Verify OTP and Authenticate User (Login or Register) (USER ROLE)
+ * @desc    Verify OTP and Authenticate User (Login or Register)
  * @route   POST /api/auth/verify-otp
  * @access  Public
  */
 export const verifyOtp = async (req, res) => {
   try {
-    const { phone, otp, name, email } = req.body;
+    const { phone, otp, name, email, role = 'user' } = req.body; // Default role user
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check if it's an existing user (Login Flow) - Only 'user' role
-    let user = await User.findOne({ phone, role: 'user' }).select('+otp +otpExpires');
+    // 1. Check if it's an existing user (Login Flow) - Use role specific
+    let user = await User.findOne({ phone, role }).select('+otp +otpExpires');
     let isRegistration = false;
 
     if (user) {
@@ -134,9 +134,9 @@ export const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
 
-      // Ensure this OTP was meant for a user registration (not partner)
-      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== 'user') {
-        return res.status(400).json({ message: 'Invalid role context. Please try again.' });
+      // Ensure this OTP was meant for the correct role
+      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
+        return res.status(400).json({ message: 'Invalid role context. Please try again with correct role.' });
       }
 
       // For registration, 'name' is required

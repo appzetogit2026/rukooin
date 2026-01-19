@@ -60,7 +60,7 @@ import PartnerProperties from './app/partner/pages/PartnerProperties';
 import PartnerPropertyDetails from './app/partner/pages/PartnerPropertyDetails';
 import PartnerBookingDetail from './app/partner/pages/PartnerBookingDetail';
 import PartnerInventory from './app/partner/pages/PartnerInventory';
-import PartnerNotifications from './app/partner/pages/PartnerNotifications';
+import PartnerNotifications from './app/partner/pages/PartnerNotificationsPage';
 import PartnerKYC from './app/partner/pages/PartnerKYC';
 import PartnerSupport from './app/partner/pages/PartnerSupport';
 import PartnerProfile from './app/partner/pages/PartnerProfile';

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Lock, Globe, Moon, CreditCard, ChevronRight, LogOut, FileText, Shield, Info, Phone } from 'lucide-react';
+import { userService } from '../../services/apiService';
 
 const SettingsPage = () => {
     const navigate = useNavigate();
@@ -10,11 +11,12 @@ const SettingsPage = () => {
         {
             title: "Preferences",
             items: [
-                { icon: Bell, label: "Push Notifications", type: "toggle", value: notifications, onToggle: () => setNotifications(!notifications) },
+                { icon: Bell, label: "Push Notifications", type: "nav", path: "/notifications" },
                 { icon: Globe, label: "Language", type: "link", value: "English (US)" },
                 { icon: Moon, label: "Dark Mode", type: "toggle", value: false }, // Mocked
             ]
         },
+        // ... (rest of sections unchanged)
         {
             title: "Security & Payments",
             items: [
@@ -34,9 +36,7 @@ const SettingsPage = () => {
     ];
 
     const handleLogout = () => {
-        // Clear local storage or session tokens
         localStorage.clear();
-        // Navigate to login
         navigate('/login');
     };
 
@@ -79,6 +79,13 @@ const SettingsPage = () => {
                                         >
                                             <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${item.value ? 'translate-x-4' : 'translate-x-0'}`} />
                                         </button>
+                                    ) : item.badge ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                {item.badge}
+                                            </div>
+                                            <ChevronRight size={16} className="text-gray-300" />
+                                        </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             {item.value && <span className="text-xs text-gray-400 font-medium">{item.value}</span>}
