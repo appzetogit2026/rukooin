@@ -65,6 +65,7 @@ const bookingSchema = new mongoose.Schema({
 
   taxes: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
+  couponCode: String,
 
   adminCommission: { type: Number, default: 0 },
   partnerPayout: { type: Number, default: 0 },

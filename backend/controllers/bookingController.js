@@ -123,7 +123,12 @@ export const createBooking = async (req, res) => {
       if (!offer) return res.status(400).json({ message: 'Invalid coupon code' });
       const now = new Date();
       if (offer.startDate && offer.startDate > now) return res.status(400).json({ message: 'Coupon not active yet' });
-      if (offer.endDate && offer.endDate < now) return res.status(400).json({ message: 'Coupon expired' });
+      // Fix: Compare against end of the 'endDate' day to allow usage on the expiry day itself
+      if (offer.endDate) {
+        const expiry = new Date(offer.endDate);
+        expiry.setHours(23, 59, 59, 999);
+        if (expiry < now) return res.status(400).json({ message: 'Coupon expired' });
+      }
       // Helper total for min booking check (usually checks pre-tax base)
       if (grossAmount < offer.minBookingAmount) return res.status(400).json({ message: `Minimum booking amount should be ₹${offer.minBookingAmount}` });
       if (offer.usageLimit && offer.usageCount >= offer.usageLimit) return res.status(400).json({ message: 'Coupon limit reached' });
@@ -165,6 +170,7 @@ export const createBooking = async (req, res) => {
       extraCharges,
       taxes: taxAmount,
       discount,
+      couponCode: appliedOffer ? appliedOffer.code : null,
       adminCommission,
       partnerPayout,
       totalAmount,

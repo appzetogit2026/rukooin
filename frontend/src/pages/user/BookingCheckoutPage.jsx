@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Users, MapPin, CreditCard,
-  ShieldCheck, Lock, ChevronRight, Building, CheckCircle
+  ShieldCheck, Lock, ChevronRight, Building, CheckCircle, Tag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { bookingService, paymentService } from '../../services/apiService';
@@ -68,7 +68,7 @@ const BookingCheckoutPage = () => {
         extraChildren: priceBreakdown?.extraChildrenCount || 0
       },
       bookingUnit: selectedRoom.inventoryType || 'room',
-      couponCode: null,
+      couponCode: priceBreakdown?.couponCode || null,
       paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'pay_at_hotel', // 'razorpay' for DB consistency
       paymentStatus: 'pending', // Always pending initially
       totalAmount: priceBreakdown.grandTotal
@@ -262,6 +262,12 @@ const BookingCheckoutPage = () => {
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Extra Children Charges</span>
                 <span>₹{priceBreakdown.totalExtraChildCharge.toLocaleString()}</span>
+              </div>
+            )}
+            {(priceBreakdown?.discountAmount > 0) && (
+              <div className="flex justify-between text-sm text-green-700 font-medium">
+                <span className="flex items-center gap-1"><Tag size={12} /> Coupon Discount</span>
+                <span>- ₹{priceBreakdown.discountAmount.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between text-sm text-gray-600">

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, bookingService, legalService, reviewService } from '../../services/apiService';
+import { propertyService, bookingService, legalService, reviewService, offerService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
-  Wifi, Coffee, Car, Shield, Info, CheckCircle, Clock,
-  Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare
+  Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
+  CheckCircle, Shield, Info, Clock, Wifi, Coffee, Car
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -25,6 +25,11 @@ const PropertyDetailsPage = () => {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
   const [submitReviewLoading, setSubmitReviewLoading] = useState(false);
+
+  // Offers State
+  const [offers, setOffers] = useState([]);
+  const [appliedOffer, setAppliedOffer] = useState(null);
+  const [showOffersModal, setShowOffersModal] = useState(false);
 
   useEffect(() => {
     legalService.getFinancialSettings()
@@ -104,8 +109,18 @@ const PropertyDetailsPage = () => {
   useEffect(() => {
     if (id) {
       fetchReviews();
+      fetchOffers();
     }
   }, [id]);
+
+  const fetchOffers = async () => {
+    try {
+      const data = await offerService.getActive();
+      setOffers(data || []);
+    } catch (error) {
+      console.error("Failed to fetch offers");
+    }
+  };
 
   const fetchReviews = async () => {
     try {
@@ -294,7 +309,34 @@ const PropertyDetailsPage = () => {
     const totalExtraAdultCharge = extraAdultsCount * extraAdultPrice * nights;
     const totalExtraChildCharge = extraChildrenCount * extraChildPrice * nights;
 
-    const taxableAmount = totalBasePrice + totalExtraAdultCharge + totalExtraChildCharge;
+    const grossAmount = totalBasePrice + totalExtraAdultCharge + totalExtraChildCharge;
+
+    // --- DISCOUNT CALCULATION ---
+    let discountAmount = 0;
+    if (appliedOffer) {
+      // Validate Min Booking Amount
+      if (grossAmount >= (appliedOffer.minBookingAmount || 0)) {
+        if (appliedOffer.discountType === 'percentage') {
+          discountAmount = (grossAmount * appliedOffer.discountValue) / 100;
+          if (appliedOffer.maxDiscount) {
+            discountAmount = Math.min(discountAmount, appliedOffer.maxDiscount);
+          }
+        } else {
+          discountAmount = appliedOffer.discountValue;
+        }
+        discountAmount = Math.floor(discountAmount);
+      } else {
+        // Auto-remove if condition met no longer? Or simply don't apply.
+        // Let's not apply but maybe don't remove so user sees why?
+        // Simpler: Just 0 discount.
+        discountAmount = 0;
+      }
+    }
+
+    // Ensure we don't discount below 0
+    discountAmount = Math.min(discountAmount, grossAmount);
+
+    const taxableAmount = grossAmount - discountAmount;
     const taxAmount = Math.ceil(taxableAmount * (taxRate / 100));
     const grandTotal = taxableAmount + taxAmount;
 
@@ -310,10 +352,12 @@ const PropertyDetailsPage = () => {
       totalBasePrice,
       totalExtraAdultCharge,
       totalExtraChildCharge,
+      grossAmount,
+      discountAmount,
+      couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
       taxableAmount,
       taxAmount,
       grandTotal
-
     };
   };
 
@@ -361,9 +405,27 @@ const PropertyDetailsPage = () => {
           rooms: guests.rooms
         },
         priceBreakdown,
-        taxRate
+        taxRate,
+        couponCode: priceBreakdown.couponCode
       }
     });
+  };
+
+  const handleApplyOffer = (offer) => {
+    // Basic pre-validation
+    const gross = priceBreakdown ? priceBreakdown.grossAmount : (bookingBarPrice || 0);
+    if (offer.minBookingAmount && gross < offer.minBookingAmount) {
+      toast.error(`Min booking amount of ₹${offer.minBookingAmount} required`);
+      return;
+    }
+    setAppliedOffer(offer);
+    setShowOffersModal(false);
+    toast.success(`'${offer.code}' applied!`);
+  };
+
+  const handleRemoveOffer = () => {
+    setAppliedOffer(null);
+    toast.success('Coupon removed');
   };
 
   return (
@@ -730,6 +792,68 @@ const PropertyDetailsPage = () => {
             </div>
 
 
+            {/* --- OFFERS SECTION --- */}
+            {offers.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <Gift size={16} className="text-surface" />
+                    Offers & Coupons
+                  </h4>
+                  <button
+                    onClick={() => setShowOffersModal(true)}
+                    className="text-xs font-bold text-surface hover:underline"
+                  >
+                    View All
+                  </button>
+                </div>
+
+                {/* Applied Offer State */}
+                {appliedOffer ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between relative overflow-hidden">
+                    <div className="flex items-center gap-3 relative z-10">
+                      <div className="p-1.5 bg-green-100 rounded-lg text-green-700">
+                        <Tag size={16} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-green-800 text-sm">{appliedOffer.code}</p>
+                        <p className="text-xs text-green-600">
+                          {appliedOffer.discountType === 'percentage'
+                            ? `${appliedOffer.discountValue}% Off applied`
+                            : `₹${appliedOffer.discountValue} Off applied`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleRemoveOffer}
+                      className="p-1.5 hover:bg-white/50 rounded-full text-green-700 transition-colors z-10"
+                    >
+                      <X size={16} />
+                    </button>
+                    <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-green-100 rounded-full opacity-50" />
+                  </div>
+                ) : (
+                  /* Carousel of Top 3 Offers */
+                  <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar snap-x">
+                    {offers.slice(0, 3).map((offer) => (
+                      <div
+                        key={offer._id}
+                        onClick={() => handleApplyOffer(offer)}
+                        className="min-w-[200px] bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-surface transition-all snap-center relative overflow-hidden group"
+                      >
+                        <div className={`absolute top-0 right-0 px-2 py-0.5 text-[9px] font-bold text-white rounded-bl-lg ${offer.bg || 'bg-black'}`}>
+                          {offer.code}
+                        </div>
+                        <p className="font-bold text-xs text-gray-800 mt-2">{offer.title}</p>
+                        <p className="text-[10px] text-gray-500 line-clamp-1">{offer.subtitle}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+
             {/* Price Breakdown Display */}
             {priceBreakdown && (
               <div className="mt-4 p-4 bg-white rounded-lg border border-dashed border-gray-300">
@@ -739,6 +863,13 @@ const PropertyDetailsPage = () => {
                     <span className="text-gray-600">Base Price ({priceBreakdown.nights} nights x {priceBreakdown.units} units)</span>
                     <span className="font-medium">₹{priceBreakdown.totalBasePrice.toLocaleString()}</span>
                   </div>
+
+                  {priceBreakdown.discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600 font-medium">
+                      <span className="flex items-center gap-1"><Tag size={12} /> Coupon Discount ({appliedOffer?.code})</span>
+                      <span>- ₹{priceBreakdown.discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
                   {priceBreakdown.totalExtraAdultCharge > 0 && (
                     <div className="flex justify-between text-orange-700">
                       <span>Extra Adults ({priceBreakdown.extraAdultsCount} x ₹{priceBreakdown.extraAdultPrice}/night)</span>
@@ -1015,6 +1146,64 @@ const PropertyDetailsPage = () => {
           </button>
         </div>
       </div>
+
+      {/* ALL OFFERS MODAL */}
+      {showOffersModal && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 animate-fadeIn">
+          <div className="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col shadow-2xl animate-slideUp">
+
+            {/* Modal Header */}
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0 rounded-t-2xl">
+              <h3 className="font-bold text-lg text-gray-900">Available Offers</h3>
+              <button
+                onClick={() => setShowOffersModal(false)}
+                className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
+              >
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="p-4 overflow-y-auto overflow-x-hidden space-y-4 bg-gray-50 flex-1">
+              {offers.map((offer) => (
+                <div
+                  key={offer._id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative flex flex-col"
+                >
+                  <div className={`h-24 ${offer.bg || 'bg-gray-800'} relative p-4 flex flex-col justify-center text-white`}>
+                    {offer.image && (
+                      <img src={offer.image} alt="offer" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    )}
+                    <div className="relative z-10">
+                      <h4 className="font-black text-xl">{offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}</h4>
+                      <p className="text-xs opacity-90 font-medium">{offer.title}</p>
+                    </div>
+                    <div className="absolute top-3 right-3 bg-white text-black text-xs font-bold px-2 py-1 rounded shadow-sm z-10">
+                      {offer.code}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-gray-600 text-sm mb-3">{offer.description || offer.subtitle}</p>
+
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="text-[10px] text-gray-400 font-medium">
+                        {offer.minBookingAmount > 0 ? `Min. Spend: ₹${offer.minBookingAmount}` : 'No Min Spend'}
+                      </div>
+                      <button
+                        onClick={() => handleApplyOffer(offer)}
+                        className="bg-surface text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md shadow-surface/20 active:scale-95 transition-all"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
