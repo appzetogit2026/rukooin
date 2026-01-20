@@ -147,6 +147,36 @@ const SearchPage = () => {
                         Filters
                     </button>
                 </div>
+
+                {/* Radius Slider - Shows when Near Me is active */}
+                {location && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 transition-all animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                                <MapPin size={12} />
+                                Search Radius
+                            </label>
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {filters.radius} km
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1"
+                            max="100"
+                            step="1"
+                            value={filters.radius}
+                            onChange={(e) => updateFilter('radius', Number(e.target.value))}
+                            onMouseUp={() => fetchProperties()}
+                            onTouchEnd={() => fetchProperties()}
+                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <div className="flex justify-between mt-1">
+                            <span className="text-[10px] text-gray-400 font-medium">1 km</span>
+                            <span className="text-[10px] text-gray-400 font-medium">100 km</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Content Area */}

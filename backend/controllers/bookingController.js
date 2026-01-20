@@ -6,6 +6,24 @@ import PlatformSettings from '../models/PlatformSettings.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
+import Razorpay from 'razorpay';
+import PaymentConfig from '../config/payment.config.js';
+import mongoose from 'mongoose'; // Added mongoose import
+
+// Initialize Razorpay
+let razorpay;
+try {
+  if (PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeySecret) {
+    razorpay = new Razorpay({
+      key_id: PaymentConfig.razorpayKeyId,
+      key_secret: PaymentConfig.razorpayKeySecret
+    });
+  } else {
+    razorpay = {
+      orders: { create: () => Promise.reject(new Error("Razorpay Not Initialized")) }
+    }
+  }
+} catch (err) { console.error("Razorpay Init Failed:", err.message); }
 
 const nightsBetween = (checkInDate, checkOutDate) => {
   const a = new Date(checkInDate);
@@ -166,12 +184,149 @@ export const createBooking = async (req, res) => {
     const adminCommission = Math.ceil(grossAmount * (commissionRate / 100));
     const partnerPayout = Math.max(0, grossAmount - adminCommission);
 
-    // --- DECISION: ONLINE vs OFFLINE ---
+    // --- WALLET CALCULATION ---
+    let walletUsedAmount = 0;
+    let finalPayable = totalAmount;
 
-    // ONLINE
+    if (req.body.useWallet) {
+      const userWallet = await Wallet.findOne({ partnerId: req.user._id, role: 'user' });
+      if (userWallet && userWallet.balance > 0) {
+        walletUsedAmount = Math.min(userWallet.balance, totalAmount);
+        finalPayable = totalAmount - walletUsedAmount;
+      }
+    }
+
+    const paymentMethod = req.body.paymentMethod;
+
+    // --- CASE 1: FULL WALLET PAYMENT ---
+    if (finalPayable === 0 && paymentMethod === 'online') {
+      const bookingId = 'BK' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+
+      // 1. Debit User Wallet
+      const userWallet = await Wallet.findOne({ partnerId: req.user._id, role: 'user' });
+      userWallet.balance -= walletUsedAmount;
+      await userWallet.save();
+
+      await Transaction.create({
+        walletId: userWallet._id,
+        partnerId: req.user._id,
+        type: 'debit',
+        category: 'booking_payment',
+        amount: walletUsedAmount,
+        balanceAfter: userWallet.balance,
+        description: `Payment for Booking #${bookingId}`,
+        reference: bookingId,
+        status: 'completed'
+      });
+
+      // 2. Create Booking
+      const booking = await Booking.create({
+        userId: req.user._id,
+        bookingId,
+        propertyId,
+        propertyType: property.propertyType,
+        roomTypeId,
+        bookingUnit,
+        checkInDate,
+        checkOutDate,
+        totalNights: nights,
+        guests: { adults: Number(guests?.adults || 1), children: Number(guests?.children || 0) },
+        pricePerNight,
+        baseAmount,
+        extraAdultPrice,
+        extraChildPrice,
+        extraCharges,
+        taxes: taxAmount,
+        discount,
+        couponCode: appliedOffer ? appliedOffer.code : null,
+        adminCommission,
+        partnerPayout,
+        totalAmount,
+        paymentStatus: 'paid',
+        bookingStatus: 'confirmed',
+        paymentMethod: 'wallet',
+        amountPaid: walletUsedAmount,
+        remainingAmount: 0
+      });
+
+      await AvailabilityLedger.create({
+        propertyId,
+        roomTypeId,
+        inventoryType: bookingUnit,
+        source: 'platform',
+        referenceId: booking._id,
+        startDate: new Date(checkInDate),
+        endDate: new Date(checkOutDate),
+        units: 1,
+        createdBy: 'system'
+      });
+
+      if (appliedOffer) {
+        await Offer.findByIdAndUpdate(appliedOffer._id, { $inc: { usageCount: 1 } });
+      }
+
+      // 3. Credit Partner Wallet
+      if (partnerPayout > 0 && property.partnerId) {
+        let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
+        if (!partnerWallet) partnerWallet = await Wallet.create({ partnerId: property.partnerId, role: 'partner', balance: 0 });
+
+        partnerWallet.balance += partnerPayout;
+        partnerWallet.totalEarnings += partnerPayout;
+        await partnerWallet.save();
+
+        await Transaction.create({
+          walletId: partnerWallet._id,
+          partnerId: property.partnerId,
+          type: 'credit',
+          category: 'booking_payment',
+          amount: partnerPayout,
+          balanceAfter: partnerWallet.balance,
+          description: `Payment for Booking #${bookingId}`,
+          reference: bookingId,
+          status: 'completed',
+          metadata: { bookingId: booking._id.toString() }
+        });
+      }
+
+      // 4. Credit Admin Wallet
+      const totalAdminCredit = adminCommission + taxAmount;
+      if (totalAdminCredit > 0) {
+        const AdminUser = mongoose.model('User');
+        const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } });
+        if (adminUser) {
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+          if (!adminWallet) adminWallet = await Wallet.create({ partnerId: adminUser._id, role: 'admin', balance: 0 });
+
+          adminWallet.balance += totalAdminCredit;
+          adminWallet.totalEarnings += totalAdminCredit;
+          await adminWallet.save();
+
+          await Transaction.create({
+            walletId: adminWallet._id,
+            partnerId: adminUser._id,
+            type: 'credit',
+            category: 'commission_tax',
+            amount: totalAdminCredit,
+            balanceAfter: adminWallet.balance,
+            description: `Commission (₹${adminCommission}) & Tax (₹${taxAmount}) for Booking #${bookingId}`,
+            reference: bookingId,
+            status: 'completed',
+            metadata: { bookingId: booking._id.toString() }
+          });
+        }
+      }
+
+      const populatedBooking = await Booking.findById(booking._id)
+        .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
+        .populate('roomTypeId', 'name type inventoryType')
+        .populate('userId', 'name email phone');
+
+      return res.status(201).json({ success: true, booking: populatedBooking });
+    }
+
+    // --- CASE 2: ONLINE (PARTIAL or FULL via Gateway) ---
     if (paymentMethod === 'razorpay' || paymentMethod === 'online') {
-      // Create Razorpay Pending Order only
-      let amountInPaise = Math.round(totalAmount * 100);
+      let amountInPaise = Math.round(finalPayable * 100);
       const isTestKey = PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeyId.startsWith('rzp_test');
       if (isTestKey && amountInPaise > 1000000) { amountInPaise = 1000000; }
 
@@ -179,7 +334,6 @@ export const createBooking = async (req, res) => {
         amount: amountInPaise,
         currency: 'INR',
         receipt: `rcpt_${Date.now()}`,
-        // We pass Booking Data via Notes (limit 15 keys, values MUST be string)
         notes: {
           type: 'booking_init',
           userId: req.user._id.toString(),
@@ -187,10 +341,9 @@ export const createBooking = async (req, res) => {
           roomTypeId: roomTypeId,
           checkInDate: checkInDate,
           checkOutDate: checkOutDate,
-          guests: JSON.stringify(guests), // Be careful of length limit (256 chars)
+          guests: JSON.stringify(guests),
           bookingUnit: bookingUnit,
           totalNights: String(nights),
-          // Financials
           pricePerNight: String(pricePerNight),
           baseAmount: String(baseAmount),
           extraCharges: String(extraCharges),
@@ -199,27 +352,18 @@ export const createBooking = async (req, res) => {
           couponCode: appliedOffer ? appliedOffer.code : '',
           adminCommission: String(adminCommission),
           partnerPayout: String(partnerPayout),
-          totalAmount: String(totalAmount)
+          totalAmount: String(totalAmount),
+          walletUsedAmount: String(walletUsedAmount),
+          finalPayable: String(finalPayable)
         }
       };
 
       const order = await razorpay.orders.create(options);
-
       return res.status(200).json({
         success: true,
         paymentRequired: true,
-        order: {
-          id: order.id,
-          amount: order.amount,
-          currency: order.currency
-        },
-        key: PaymentConfig.razorpayKeyId,
-        // Send back basic booking info for UI preview if needed
-        tempDetails: {
-          totalAmount,
-          checkInDate,
-          checkOutDate
-        }
+        order: { id: order.id, amount: order.amount, currency: order.currency },
+        key: PaymentConfig.razorpayKeyId
       });
     }
 
@@ -227,12 +371,33 @@ export const createBooking = async (req, res) => {
     // Create actual booking
     const bookingId = 'BK' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
 
+    // Debit Wallet if used (Partial Payment for Pay At Hotel)
+    if (walletUsedAmount > 0) {
+      const userWallet = await Wallet.findOne({ partnerId: req.user._id, role: 'user' });
+      // We assume validity checked above, but good to be safe
+      if (userWallet && userWallet.balance >= walletUsedAmount) {
+        userWallet.balance -= walletUsedAmount;
+        await userWallet.save();
+        await Transaction.create({
+          walletId: userWallet._id,
+          partnerId: req.user._id,
+          type: 'debit',
+          category: 'booking_payment',
+          amount: walletUsedAmount,
+          balanceAfter: userWallet.balance,
+          description: `Partial Payment for Booking #${bookingId}`,
+          reference: bookingId,
+          status: 'completed'
+        });
+      }
+    }
+
     const booking = await Booking.create({
       userId: req.user._id,
       bookingId,
       propertyId,
       propertyType: property.propertyType,
-      roomTypeId: roomTypeId,
+      roomTypeId,
       bookingUnit,
       checkInDate,
       checkOutDate,
@@ -249,7 +414,9 @@ export const createBooking = async (req, res) => {
       adminCommission,
       partnerPayout,
       totalAmount,
-      paymentStatus: 'pending',
+      paymentStatus: (walletUsedAmount > 0) ? 'partial' : 'pending',
+      amountPaid: walletUsedAmount || 0,
+      remainingAmount: finalPayable,
       bookingStatus: 'confirmed', // Pay At Hotel = Confirmed immediately
       paymentMethod: 'pay_at_hotel'
     });

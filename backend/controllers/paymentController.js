@@ -167,9 +167,34 @@ export const verifyPayment = async (req, res) => {
         totalAmount: Number(notes.totalAmount),
         paymentStatus: 'paid', // Immediately Paid
         bookingStatus: 'confirmed',
-        paymentMethod: 'razorpay',
-        paymentId: razorpay_payment_id
+        paymentMethod: 'online', // or 'razorpay'
+        paymentId: razorpay_payment_id,
+        amountPaid: Number(notes.totalAmount), // Full amount paid
+        remainingAmount: 0 // Full amount paid
       });
+
+      const walletUsedAmount = Number(notes.walletUsedAmount) || 0;
+      // Debit User Wallet if used (Partial Online Payment)
+      if (walletUsedAmount > 0) {
+        const userWallet = await Wallet.findOne({ partnerId: notes.userId, role: 'user' });
+        if (userWallet) {
+          userWallet.balance -= walletUsedAmount;
+          await userWallet.save();
+
+          await Transaction.create({
+            walletId: userWallet._id,
+            partnerId: notes.userId,
+            type: 'debit',
+            category: 'booking_payment',
+            amount: walletUsedAmount,
+            balanceAfter: userWallet.balance,
+            description: `Partial Wallet Payment for Booking #${newBookingId}`,
+            reference: newBookingId,
+            status: 'completed',
+            metadata: { bookingId: booking._id.toString() }
+          });
+        }
+      }
 
       // Create Ledger
       await AvailabilityLedger.create({
