@@ -306,49 +306,150 @@ export const upsertDocuments = async (req, res) => {
 
 export const getPublicProperties = async (req, res) => {
   try {
-    const matchStage = { status: 'approved', isLive: true };
+    const {
+      search,
+      type,
+      minPrice,
+      maxPrice,
+      amenities,
+      lat,
+      lng,
+      radius = 50, // default 50km
+      guests,
+      sort
+    } = req.query;
 
-    if (req.query.type) {
-      matchStage.propertyType = String(req.query.type).toLowerCase();
+    const pipeline = [];
+
+    // 1. Geospatial Search (Must be first if used)
+    if (lat && lng) {
+      pipeline.push({
+        $geoNear: {
+          near: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+          distanceField: "distance",
+          maxDistance: parseFloat(radius) * 1000, // convert km to meters
+          spherical: true,
+          query: { status: 'approved', isLive: true }
+        }
+      });
+    } else {
+      // Basic match if no geo
+      pipeline.push({ $match: { status: 'approved', isLive: true } });
     }
 
-    // Use dynamic collection name for robustness (avoids case sensitivity issues)
+    // 2. Text/Filter Match
+    const matchConditions = {};
+
+    if (type && type !== 'all') {
+      matchConditions.propertyType = type.toLowerCase();
+    }
+
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      matchConditions.$or = [
+        { propertyName: regex },
+        { "address.city": regex },
+        { "address.area": regex },
+        { "address.fullAddress": regex }
+      ];
+    }
+
+    if (amenities) {
+      const amList = Array.isArray(amenities) ? amenities : amenities.split(',');
+      if (amList.length > 0) {
+        matchConditions.amenities = { $all: amList };
+      }
+    }
+
+    if (Object.keys(matchConditions).length > 0) {
+      pipeline.push({ $match: matchConditions });
+    }
+
+    // 3. Lookup Room Types (For Price & Guest Capacity)
+    // Use dynamic collection name for robustness
     const roomTypeCollection = RoomType.collection.name;
 
-    const list = await Property.aggregate([
-      { $match: matchStage },
-      { $sort: { createdAt: -1 } },
-      {
-        $lookup: {
-          from: roomTypeCollection,
-          localField: '_id',
-          foreignField: 'propertyId',
-          as: 'roomTypes'
-        }
-      },
-      {
-        $addFields: {
-          // Filter to include only active room types
-          roomTypes: {
-            $filter: {
-              input: '$roomTypes',
-              as: 'rt',
-              cond: { $eq: ['$$rt.isActive', true] }
-            }
-          }
-        }
-      },
-      {
-        // Add startingPrice field, defaulting to 0 if calculation fails
-        $addFields: {
-          startingPrice: {
-            $ifNull: [{ $min: "$roomTypes.pricePerNight" }, 0]
+    pipeline.push({
+      $lookup: {
+        from: roomTypeCollection,
+        localField: '_id',
+        foreignField: 'propertyId',
+        as: 'roomTypes'
+      }
+    });
+
+    // 4. Filter Active Room Types & Guest Capacity
+    let roomFilter = { $eq: ['$$rt.isActive', true] };
+
+    if (guests) {
+      const guestCount = parseInt(guests);
+      // Room must accommodate guests (base adults + children? simplified to maxAdults for now)
+      // Usually users search by "2 adults", so check maxAdults
+      roomFilter = {
+        $and: [
+          { $eq: ['$$rt.isActive', true] },
+          { $gte: ['$$rt.maxAdults', guestCount] }
+        ]
+      };
+    }
+
+    pipeline.push({
+      $addFields: {
+        roomTypes: {
+          $filter: {
+            input: '$roomTypes',
+            as: 'rt',
+            cond: roomFilter
           }
         }
       }
-    ]);
+    });
 
+    // 5. Calculate Starting Price (Min Price of valid rooms)
+    pipeline.push({
+      $addFields: {
+        startingPrice: {
+          $cond: {
+            if: { $gt: [{ $size: "$roomTypes" }, 0] },
+            then: { $min: "$roomTypes.pricePerNight" },
+            else: null // Will filter out properties with no matching rooms later if strictly needed
+          }
+        },
+        hasMatchingRooms: { $gt: [{ $size: "$roomTypes" }, 0] }
+      }
+    });
+
+    // 6. Filter by Price Range
+    const priceMatch = {};
+    // Only show properties that actually have available room types matching criteria
+    priceMatch.hasMatchingRooms = true;
+
+    if (minPrice) {
+      priceMatch.startingPrice = { ...priceMatch.startingPrice, $gte: parseInt(minPrice) };
+    }
+    if (maxPrice) {
+      priceMatch.startingPrice = { ...priceMatch.startingPrice, ...(priceMatch.startingPrice || {}), $lte: parseInt(maxPrice) };
+    }
+
+    if (Object.keys(priceMatch).length > 0) {
+      pipeline.push({ $match: priceMatch });
+    }
+
+    // 7. Sorting
+    let sortStage = { createdAt: -1 }; // Default new
+    if (sort) {
+      if (sort === 'price_low') sortStage = { startingPrice: 1 };
+      if (sort === 'price_high') sortStage = { startingPrice: -1 };
+      if (sort === 'rating') sortStage = { avgRating: -1 };
+      if (sort === 'distance' && lat && lng) sortStage = { distance: 1 };
+    }
+
+    pipeline.push({ $sort: sortStage });
+
+    // Execute
+    const list = await Property.aggregate(pipeline);
     res.json(list);
+
   } catch (e) {
     console.error("Error in getPublicProperties:", e);
     res.status(500).json({ message: e.message });

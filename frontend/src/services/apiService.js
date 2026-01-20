@@ -630,4 +630,10 @@ export const reviewService = {
   }
 };
 
+export const handleResponse = (response) => response.data;
+
+export const handleError = (error) => {
+  throw error.response?.data || error.message;
+};
+
 export default api;

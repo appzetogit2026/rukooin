@@ -101,80 +101,88 @@ const BookingCheckoutPage = () => {
           throw new Error("Razorpay SDK failed to load. Please check your internet connection.");
         }
 
-        // 2. Create Booking (Pending)
-        console.log("Creating Pending Booking for Payment:", payload);
+        // 2. Create Booking (or Initiate Payment)
+        console.log("Creating Booking (Initiate):", payload);
         const bookingRes = await bookingService.create(payload);
-        if (!bookingRes.success || !bookingRes.booking) {
+
+        if (!bookingRes.success) {
           throw new Error(bookingRes.message || "Failed to initialize booking");
         }
-        const bookingId = bookingRes.booking._id || bookingRes.booking.id;
 
-        // 3. Create Razorpay Order
-        const orderRes = await paymentService.createOrder(bookingId);
-        if (!orderRes.success) {
-          throw new Error("Failed to create payment order");
+        // SCENARIO A: Online Payment (Deferred Creation)
+        if (bookingRes.paymentRequired && bookingRes.order) {
+          const { order, key } = bookingRes;
+
+          const options = {
+            key: key,
+            amount: order.amount,
+            currency: order.currency,
+            name: "AppZeto Hotels",
+            description: `Booking Checkout`,
+            order_id: order.id,
+            handler: async function (response) {
+              try {
+                // 3. Verify Payment with Razorpay Details (Backend creates actual booking now)
+                const verifyPayload = {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  bookingId: null // Explicitly null as booking is not created yet
+                };
+
+                const verifyRes = await paymentService.verifyPayment(verifyPayload);
+
+                if (verifyRes.success) {
+                  toast.success("Payment Successful!");
+                  navigate('/booking-confirmation', {
+                    state: {
+                      booking: verifyRes.booking,
+                      animate: true
+                    }
+                  });
+                } else {
+                  toast.error("Payment Verification Failed");
+                }
+
+              } catch (err) {
+                console.error("Payment Verification Error:", err);
+                toast.error("Payment verification failed. Please contact support.");
+              }
+            },
+            prefill: {
+              name: user?.name || '',
+              email: user?.email || '',
+              contact: user?.phone || ''
+            },
+            theme: {
+              color: "#000000"
+            }
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.on('payment.failed', function (response) {
+            toast.error(response.error.description || "Payment Failed");
+          });
+          rzp.open();
+          return;
         }
 
-        const { order, razorpayKeyId } = orderRes;
-
-        // 4. Open Razorpay Checkout
-        const options = {
-          key: razorpayKeyId,
-          amount: order.amount,
-          currency: order.currency,
-          name: "Rukko Hotels", // Or Property Name
-          description: `Booking #${bookingId.substring(0, 8)}`,
-          // image: "logo_url_here",
-          order_id: order.id,
-          handler: async function (response) {
-            try {
-              // 5. Verify Payment on Success
-              const verifyPayload = {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                bookingId: bookingId
-              };
-
-              const verifyRes = await paymentService.verifyPayment(verifyPayload);
-
-              if (verifyRes.success) {
-                toast.success("Payment Successful!");
-                navigate('/booking-confirmation', {
-                  state: {
-                    booking: verifyRes.booking, // Updated booking from backend
-                    animate: true
-                  }
-                });
-              } else {
-                toast.error("Payment Verification Failed");
-              }
-
-            } catch (err) {
-              console.error("Payment Verification Error:", err);
-              toast.error("Payment verification failed. Please contact support.");
+        // SCENARIO B: Pay at Hotel (Immediate Booking)
+        if (bookingRes.booking) {
+          toast.success("Booking Confirmed!");
+          navigate('/booking-confirmation', {
+            state: {
+              booking: bookingRes.booking,
+              animate: true
             }
-          },
-          prefill: {
-            name: user?.name || '',
-            email: user?.email || '',
-            contact: user?.phone || ''
-          },
-          notes: {
-            bookingId: bookingId
-          },
-          theme: {
-            color: "#000000"
-          }
-        };
+          });
+          return;
+        }
 
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', function (response) {
-          toast.error(response.error.description || "Payment Failed");
-        });
-        rzp.open();
+        // Fallback
+        throw new Error("Unexpected response from booking service");
+
       }
-
     } catch (error) {
       console.error("Booking/Payment Error:", error);
       toast.error(error.message || "Something went wrong. Please try again.");

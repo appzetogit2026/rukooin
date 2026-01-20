@@ -4,12 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
-import SearchExpandedModal from '../../components/modals/SearchExpandedModal';
 
 const HeroSection = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
 
@@ -33,12 +31,15 @@ const HeroSection = () => {
     useEffect(() => {
         const handleScroll = () => {
             const scrollY = window.scrollY;
-            // Sticky threshold: approx after header height
             setIsSticky(scrollY > 80);
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    const handleSearchClick = () => {
+        navigate('/search');
+    };
 
     return (
         <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-4 md:gap-6 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
@@ -83,7 +84,7 @@ const HeroSection = () => {
                  ${isSticky ? 'fixed top-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-xl shadow-md border-b border-surface/5' : 'relative'}
             `}>
                 <div
-                    onClick={() => setIsSearchModalOpen(true)}
+                    onClick={handleSearchClick}
                     className={`
                     w-full 
                     bg-white
@@ -134,8 +135,6 @@ const HeroSection = () => {
             )}
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-
-            <SearchExpandedModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
 
         </section>
     );

@@ -121,12 +121,27 @@ export const createBooking = async (req, res) => {
     if (couponCode) {
       const offer = await Offer.findOne({ code: couponCode.toUpperCase(), isActive: true });
       if (!offer) return res.status(400).json({ message: 'Invalid coupon code' });
+      console.log('--- Debug Coupon Validation ---');
+      console.log('Coupon Code:', couponCode);
+      console.log('Offer Found:', offer ? offer.code : 'No');
       const now = new Date();
+      console.log('Server Time (now):', now.toString());
+
+      if (offer.startDate) {
+        console.log('Start Date:', offer.startDate.toString());
+        if (offer.startDate > now) console.log('FAIL: startDate > now');
+      }
+
       if (offer.startDate && offer.startDate > now) return res.status(400).json({ message: 'Coupon not active yet' });
+
       // Fix: Compare against end of the 'endDate' day to allow usage on the expiry day itself
       if (offer.endDate) {
         const expiry = new Date(offer.endDate);
         expiry.setHours(23, 59, 59, 999);
+        console.log('End Date (Raw):', offer.endDate.toString());
+        console.log('Calculated Expiry:', expiry.toString());
+        console.log('Is Expired (expiry < now):', expiry < now);
+
         if (expiry < now) return res.status(400).json({ message: 'Coupon expired' });
       }
       // Helper total for min booking check (usually checks pre-tax base)
@@ -146,10 +161,70 @@ export const createBooking = async (req, res) => {
     const taxAmount = Math.ceil(netAmount * (taxRate / 100));
     const totalAmount = netAmount + taxAmount;
 
-    // Commission Split (on Net Amount, i.e. excluding tax)
-    const adminCommission = Math.ceil(netAmount * (commissionRate / 100));
-    const partnerPayout = Math.max(0, netAmount - adminCommission);
+    // Commission Split (Admin bears discount loss)
+    // We calculate commission and payout based on the Original GROSS Amount, regardless of discount.
+    const adminCommission = Math.ceil(grossAmount * (commissionRate / 100));
+    const partnerPayout = Math.max(0, grossAmount - adminCommission);
 
+    // --- DECISION: ONLINE vs OFFLINE ---
+
+    // ONLINE
+    if (paymentMethod === 'razorpay' || paymentMethod === 'online') {
+      // Create Razorpay Pending Order only
+      let amountInPaise = Math.round(totalAmount * 100);
+      const isTestKey = PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeyId.startsWith('rzp_test');
+      if (isTestKey && amountInPaise > 1000000) { amountInPaise = 1000000; }
+
+      const options = {
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: `rcpt_${Date.now()}`,
+        // We pass Booking Data via Notes (limit 15 keys, values MUST be string)
+        notes: {
+          type: 'booking_init',
+          userId: req.user._id.toString(),
+          propertyId: propertyId,
+          roomTypeId: roomTypeId,
+          checkInDate: checkInDate,
+          checkOutDate: checkOutDate,
+          guests: JSON.stringify(guests), // Be careful of length limit (256 chars)
+          bookingUnit: bookingUnit,
+          totalNights: String(nights),
+          // Financials
+          pricePerNight: String(pricePerNight),
+          baseAmount: String(baseAmount),
+          extraCharges: String(extraCharges),
+          taxes: String(taxAmount),
+          discount: String(discount),
+          couponCode: appliedOffer ? appliedOffer.code : '',
+          adminCommission: String(adminCommission),
+          partnerPayout: String(partnerPayout),
+          totalAmount: String(totalAmount)
+        }
+      };
+
+      const order = await razorpay.orders.create(options);
+
+      return res.status(200).json({
+        success: true,
+        paymentRequired: true,
+        order: {
+          id: order.id,
+          amount: order.amount,
+          currency: order.currency
+        },
+        key: PaymentConfig.razorpayKeyId,
+        // Send back basic booking info for UI preview if needed
+        tempDetails: {
+          totalAmount,
+          checkInDate,
+          checkOutDate
+        }
+      });
+    }
+
+    // PAY AT HOTEL (or Default)
+    // Create actual booking
     const bookingId = 'BK' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
 
     const booking = await Booking.create({
@@ -175,8 +250,8 @@ export const createBooking = async (req, res) => {
       partnerPayout,
       totalAmount,
       paymentStatus: 'pending',
-      bookingStatus: 'pending',
-      paymentMethod: undefined
+      bookingStatus: 'confirmed', // Pay At Hotel = Confirmed immediately
+      paymentMethod: 'pay_at_hotel'
     });
 
     await AvailabilityLedger.create({
@@ -187,7 +262,7 @@ export const createBooking = async (req, res) => {
       referenceId: booking._id,
       startDate: new Date(checkInDate),
       endDate: new Date(checkOutDate),
-      units: 1, // Assuming 1 unit per booking
+      units: 1,
       createdBy: 'system'
     });
     if (appliedOffer) {
@@ -200,7 +275,9 @@ export const createBooking = async (req, res) => {
       .populate('userId', 'name email phone');
 
     res.status(201).json({ success: true, booking: populatedBooking });
+
   } catch (e) {
+    console.error("Create Booking Error:", e);
     res.status(500).json({ message: e.message });
   }
 };

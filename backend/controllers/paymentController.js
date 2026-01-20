@@ -5,6 +5,8 @@ import Booking from '../models/Booking.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
+import Offer from '../models/Offer.js';
+import Property from '../models/Property.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -19,7 +21,8 @@ try {
     console.warn("⚠️ Razorpay Keys missing. Payment features will fail if used.");
     razorpay = {
       orders: {
-        create: () => Promise.reject(new Error("Razorpay Not Initialized"))
+        create: () => Promise.reject(new Error("Razorpay Not Initialized")),
+        fetch: () => Promise.reject(new Error("Razorpay Not Initialized"))
       },
       payments: {
         fetch: () => Promise.reject(new Error("Razorpay Not Initialized")),
@@ -86,7 +89,7 @@ export const createPaymentOrder = async (req, res) => {
     console.error('Create Payment Order Error:', error);
     res.status(500).json({
       message: 'Failed to create payment order',
-      error: error.error?.description || error.message // Return specific Razorpay error if available
+      error: error.error?.description || error.message
     });
   }
 };
@@ -99,80 +102,136 @@ export const createPaymentOrder = async (req, res) => {
 export const verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+
+    // 1. Verify Signature
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac('sha256', PaymentConfig.razorpayKeySecret)
       .update(sign.toString())
       .digest('hex');
-    if (razorpay_signature !== expectedSign) return res.status(400).json({ message: 'Invalid payment signature' });
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ message: 'Booking not found' });
-    booking.paymentStatus = 'paid';
-    booking.bookingStatus = 'confirmed';
-    booking.paymentId = razorpay_payment_id;
-    booking.paymentMethod = 'razorpay';
-    await booking.save();
 
-    // --- PARTNER WALLET CREDIT LOGIC ---
-    try {
-      // 1. Get Property to find Partner
-      const property = await Booking.findById(bookingId).populate('propertyId'); // Access property via populate or stored ID
-      // Actually booking.propertyId is an ID, unless we populate it.
-      // But we can assume we need to find the specific wallet for the partner owner.
-      // We can fetch Property separately or use populate.
-      // Let's rely on Property model check if needed, but booking usually has logic.
-      // Wait, we can't easily get partnerId from booking unless populated.
-      // Let's populate 'propertyId' to get 'partnerId'.
-    } catch (err) { console.error("Wallet Credit Prep Failed", err); }
+    if (razorpay_signature !== expectedSign) {
+      return res.status(400).json({ message: 'Invalid payment signature' });
+    }
 
-    const fullBooking = await Booking.findById(bookingId).populate('propertyId'); // We need partnerId from property
-    const partnerId = fullBooking.propertyId?.partnerId;
+    let booking;
 
-    if (partnerId) {
-      let partnerWallet = await Wallet.findOne({ partnerId: partnerId, role: 'partner' });
-      if (!partnerWallet) {
-        partnerWallet = await Wallet.create({
-          partnerId: partnerId,
-          role: 'partner',
-          balance: 0
-        });
+    if (bookingId) {
+      // --- LEGACY FLOW (Pre-Existing Booking) ---
+      booking = await Booking.findById(bookingId);
+      if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+      booking.paymentStatus = 'paid';
+      booking.bookingStatus = 'confirmed';
+      booking.paymentId = razorpay_payment_id;
+      booking.paymentMethod = 'razorpay';
+      await booking.save();
+
+    } else {
+      // --- NEW FLOW (Deferred Creation) ---
+      // Fetch Order to retrieve Notes containing booking details
+      const order = await razorpay.orders.fetch(razorpay_order_id);
+      if (!order || !order.notes || order.notes.type !== 'booking_init') {
+        // Fallback: If notes missing, we can't create booking properly.
+        // But we have payment. This is a critical edge case.
+        return res.status(400).json({ message: 'Order context missing. Cannot create booking.' });
       }
 
-      const payout = fullBooking.partnerPayout || 0;
-      if (payout > 0) {
-        // Credit Wallet
-        partnerWallet.balance += payout;
-        partnerWallet.totalEarnings += payout;
+      const notes = order.notes;
 
-        // Pending Clearance logic? Usually money is "pending" until checkout.
-        // For now, user requested "wallet balance reflect", so we add to balance.
-        // If strict logic needed, we'd add to 'pendingClearance' instead.
-        // Let's stick to balance for immediate visibility as requested.
+      // Fetch Booking Property to get Type
+      const property = await Property.findById(notes.propertyId).select('propertyType');
+      const propertyType = property ? property.propertyType : 'Hotel';
 
-        await partnerWallet.save();
+      const newBookingId = 'BK' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
 
-        // Create Transaction
-        await Transaction.create({
-          walletId: partnerWallet._id,
-          partnerId: partnerId,
-          type: 'credit',
-          category: 'booking_payment',
-          amount: payout,
-          balanceAfter: partnerWallet.balance,
-          description: `Payment for Booking #${fullBooking.bookingId}`,
-          reference: fullBooking.bookingId,
-          status: 'completed',
-          metadata: {
-            bookingId: fullBooking._id.toString()
-          }
-        });
-        console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
+      booking = await Booking.create({
+        userId: notes.userId,
+        bookingId: newBookingId,
+        propertyId: notes.propertyId,
+        propertyType: propertyType,
+        roomTypeId: notes.roomTypeId,
+        bookingUnit: notes.bookingUnit,
+        checkInDate: notes.checkInDate,
+        checkOutDate: notes.checkOutDate,
+        totalNights: Number(notes.totalNights),
+        guests: JSON.parse(notes.guests),
+        pricePerNight: Number(notes.pricePerNight),
+        baseAmount: Number(notes.baseAmount),
+        extraCharges: Number(notes.extraCharges),
+        taxes: Number(notes.taxes),
+        discount: Number(notes.discount),
+        couponCode: notes.couponCode || null,
+        adminCommission: Number(notes.adminCommission),
+        partnerPayout: Number(notes.partnerPayout),
+        totalAmount: Number(notes.totalAmount),
+        paymentStatus: 'paid', // Immediately Paid
+        bookingStatus: 'confirmed',
+        paymentMethod: 'razorpay',
+        paymentId: razorpay_payment_id
+      });
+
+      // Create Ledger
+      await AvailabilityLedger.create({
+        propertyId: notes.propertyId,
+        roomTypeId: notes.roomTypeId,
+        inventoryType: notes.bookingUnit,
+        source: 'platform',
+        referenceId: booking._id,
+        startDate: new Date(notes.checkInDate),
+        endDate: new Date(notes.checkOutDate),
+        units: 1,
+        createdBy: 'system'
+      });
+
+      // Increment Offer Usage
+      if (notes.couponCode) {
+        await Offer.findOneAndUpdate({ code: notes.couponCode }, { $inc: { usageCount: 1 } });
       }
     }
-    // --- END PARTNER WALLET ---
+
+    // --- PARTNER WALLET CREDIT LOGIC (Common) ---
+    try {
+      const fullBooking = await Booking.findById(booking._id).populate('propertyId');
+      const partnerId = fullBooking.propertyId?.partnerId;
+
+      if (partnerId) {
+        let partnerWallet = await Wallet.findOne({ partnerId: partnerId, role: 'partner' });
+        if (!partnerWallet) {
+          partnerWallet = await Wallet.create({
+            partnerId: partnerId,
+            role: 'partner',
+            balance: 0
+          });
+        }
+
+        const payout = fullBooking.partnerPayout || 0;
+        if (payout > 0) {
+          partnerWallet.balance += payout;
+          partnerWallet.totalEarnings += payout;
+          await partnerWallet.save();
+
+          await Transaction.create({
+            walletId: partnerWallet._id,
+            partnerId: partnerId,
+            type: 'credit',
+            category: 'booking_payment',
+            amount: payout,
+            balanceAfter: partnerWallet.balance,
+            description: `Payment for Booking #${fullBooking.bookingId}`,
+            reference: fullBooking.bookingId,
+            status: 'completed',
+            metadata: {
+              bookingId: fullBooking._id.toString()
+            }
+          });
+          console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
+        }
+      }
+    } catch (err) { console.error("Wallet Credit Failed", err); }
 
     // Return full populated booking for confirmation page
-    const populatedBooking = await Booking.findById(bookingId)
+    const populatedBooking = await Booking.findById(booking._id)
       .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
       .populate('roomTypeId', 'name type inventoryType')
       .populate('userId', 'name email phone');

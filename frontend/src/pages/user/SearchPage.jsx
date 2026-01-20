@@ -1,236 +1,316 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, User, MapPin, Search, History, Sparkles, Calendar as CalendarIcon, Map } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { propertyService } from '../../services/propertyService';
+import { MapPin, Search, Filter, Star, IndianRupee, Navigation } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
-
 const SearchPage = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-    const [selectedDate, setSelectedDate] = useState(0);
-    const [searchFocused, setSearchFocused] = useState(false);
 
-    // Mock Date Generation
-    const days = Array.from({ length: 14 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        return {
-            id: i,
-            day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-            date: date.getDate(),
-            fullDate: date
-        };
+    const [properties, setProperties] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showFilters, setShowFilters] = useState(false); // Mobile toggle
+
+    // Filters State
+    const [filters, setFilters] = useState({
+        search: searchParams.get('search') || '',
+        type: searchParams.get('type') || 'all',
+        minPrice: searchParams.get('minPrice') || '',
+        maxPrice: searchParams.get('maxPrice') || '',
+        sort: searchParams.get('sort') || 'newest',
+        amenities: [],
+        radius: 50
     });
 
-    const recentSearches = [
-        "Vijay Nagar, Indore", "Bhawarkua", "Rau Pithampur"
-    ];
+    const [location, setLocation] = useState(null); // { lat, lng }
 
-    const suggestedHotels = [
-        {
-            id: 1,
-            image: "https://images.unsplash.com/photo-1571474005506-6690ca67b4d9?w=800&q=80",
-            name: "Rukko Premier: Skyline",
-            location: "Indore, Vijay Nagar",
-            price: "2000",
-            rating: "5.0",
-            isVerified: true,
-            amenities: ["2 Beds", "Wifi"]
-        },
-        {
-            id: 2,
-            image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80",
-            name: "Rukko Grand: Central",
-            location: "Calea Victoriei",
-            price: "1500",
-            rating: "4.8",
-            isVerified: true,
-            amenities: ["1 Bed", "Spa"]
+    useEffect(() => {
+        fetchProperties();
+    }, [searchParams, location]);
+
+    const fetchProperties = async () => {
+        setLoading(true);
+        try {
+            const params = Object.fromEntries([...searchParams]);
+
+            // Add location if present
+            if (location) {
+                params.lat = location.lat;
+                params.lng = location.lng;
+                params.radius = filters.radius;
+            }
+
+            const res = await propertyService.getPublicProperties(params);
+
+            // Backend returns a direct array of properties
+            if (Array.isArray(res)) {
+                setProperties(res);
+            } else if (res.success && Array.isArray(res.properties)) {
+                // Fallback for wrapped response
+                setProperties(res.properties);
+            } else {
+                setProperties([]);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to load properties');
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
-    const popularCities = [
-        { name: "Indore", image: "https://images.unsplash.com/photo-1564053489984-317bbd824340?w=200&q=80" },
-        { name: "Bhopal", image: "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=200&q=80" },
-        { name: "Ujjain", image: "https://images.unsplash.com/photo-1558997519-83ea9252edf8?w=200&q=80" },
+    const updateFilter = (key, value) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const applyFilters = () => {
+        const params = {};
+        if (filters.search) params.search = filters.search;
+        if (filters.type && filters.type !== 'all') params.type = filters.type;
+        if (filters.minPrice) params.minPrice = filters.minPrice;
+        if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+        if (filters.sort) params.sort = filters.sort;
+        if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
+
+        setSearchParams(params);
+        setShowFilters(false); // Close mobile menu if open
+    };
+
+    const handleNearMe = async () => {
+        try {
+            toast.loading('Getting location...');
+            const loc = await propertyService.getCurrentLocation();
+            toast.dismiss();
+            toast.success('Location found!');
+            setLocation(loc);
+            // Automatically confirm params with sort by distance
+            updateFilter('sort', 'distance');
+            setSearchParams(prev => {
+                const p = Object.fromEntries([...prev]);
+                p.sort = 'distance';
+                return p;
+            });
+        } catch (err) {
+            toast.dismiss();
+            toast.error('Could not get location. Please enable permissions.');
+        }
+    };
+
+    const propertyTypes = ['All', 'Hotel', 'Villa', 'Resort', 'Homestay', 'PG', 'Hostel'];
+    const sortOptions = [
+        { label: 'Newest', value: 'newest' },
+        { label: 'Price: Low to High', value: 'price_low' },
+        { label: 'Price: High to Low', value: 'price_high' },
+        { label: 'Top Rated', value: 'rating' },
+        { label: 'Nearest', value: 'distance' },
     ];
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="min-h-screen bg-gray-50/50 pb-20 relative"
-        >
-            {/* Background Decorative Elements */}
-            <div className="fixed top-0 left-0 right-0 h-64 bg-gradient-to-b from-teal-50/50 to-transparent -z-10" />
+        <div className="min-h-screen bg-white pb-24">
 
-            {/* Header section with Glassmorphism */}
-            <div className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-white/50 shadow-[0_4px_30px_rgba(0,0,0,0.03)] pt-safe-top">
-                <div className="px-5 py-4 flex flex-col gap-4">
-                    {/* Top Row: Back & Title */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 hover:scale-105 active:scale-95 transition-all text-surface"
-                        >
-                            <ArrowLeft size={20} />
-                        </button>
-                        <h1 className="text-lg font-bold text-surface tracking-tight">Plan your stay</h1>
-                    </div>
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 pb-3 pt-3 px-4 shadow-sm">
 
-                    {/* Search Input - Hero Style */}
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.1 }}
-                        className={`
-                            relative flex items-center bg-white rounded-2xl shadow-lg shadow-gray-200/50 border transition-all duration-300
-                            ${searchFocused ? 'ring-2 ring-surface/10 border-surface' : 'border-transparent'}
-                        `}
+                {/* Search Input Row */}
+                <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Search by city, hotel, or area..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm font-medium text-gray-700 bg-gray-50/50"
+                        value={filters.search}
+                        onChange={(e) => updateFilter('search', e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                    />
+                </div>
+
+                {/* Actions Row */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleNearMe}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-bold transition-all active:scale-95
+                        ${location
+                                ? 'bg-primary/5 text-primary border-primary'
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                     >
-                        <div className="pl-4 pr-3 text-surface">
-                            <Search size={22} strokeWidth={2.5} />
-                        </div>
-                        <div className="flex-1 py-3.5">
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Destination</label>
-                            <input
-                                type="text"
-                                placeholder="Search 'Vijay Nagar'..."
-                                className="w-full bg-transparent outline-none text-base font-bold text-surface placeholder-gray-300"
-                                onFocus={() => setSearchFocused(true)}
-                                onBlur={() => setSearchFocused(false)}
-                                autoFocus
-                            />
-                        </div>
-                        <button className="mr-2 p-2 bg-gray-50 rounded-xl text-gray-400 hover:text-surface hover:bg-gray-100 transition-colors">
-                            <Map size={20} />
-                        </button>
-                    </motion.div>
-                </div>
+                        <Navigation size={14} className={location ? "fill-primary" : ""} />
+                        {location ? "Nearby Active" : "Near Me"}
+                    </button>
 
-                {/* Date Scroll Row - Integrated into Header area for better UX */}
-                <div className="pl-5 pb-4 overflow-x-auto no-scrollbar flex gap-3">
-                    {days.map((d, i) => (
-                        <motion.button
-                            key={d.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.1 + (i * 0.05) }}
-                            onClick={() => setSelectedDate(i)}
-                            className={`
-                                flex-shrink-0 flex flex-col items-center justify-center 
-                                w-[62px] h-[72px] rounded-2xl border transition-all duration-300 relative overflow-hidden group
-                                ${selectedDate === i
-                                    ? 'bg-surface text-white border-surface shadow-lg shadow-surface/20 translate-y-[-2px]'
-                                    : 'bg-white text-gray-400 border-gray-100 hover:border-gray-300'
-                                }
-                            `}
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all active:scale-95
+                        ${showFilters ? 'bg-gray-100' : 'bg-white'}`}
+                    >
+                        <Filter size={14} />
+                        Filters
+                    </button>
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="px-4 py-4">
+
+                {/* Results Count & Sort */}
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-bold text-gray-800">
+                        {properties.length} properties found
+                    </h2>
+
+                    {/* Sort Dropdown (Small) */}
+                    <div className="relative">
+                        <select
+                            value={filters.sort}
+                            onChange={(e) => updateFilter('sort', e.target.value)}
+                            className="text-xs font-bold text-gray-500 bg-transparent outline-none pr-1 cursor-pointer"
                         >
-                            {/* Shiny effect on active */}
-                            {selectedDate === i && (
-                                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
-                            )}
+                            {sortOptions.map(opt => (
+                                <option key={opt.value} value={opt.value} disabled={opt.value === 'distance' && !location}>
+                                    Sort by {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
 
-                            <span className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${selectedDate === i ? 'text-white/80' : 'text-gray-400'}`}>{d.day}</span>
-                            <span className="text-xl font-bold font-outfit">{d.date}</span>
-                        </motion.button>
-                    ))}
+                {/* Grid */}
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="bg-white h-64 rounded-2xl animate-pulse border border-gray-100"></div>
+                        ))}
+                    </div>
+                ) : properties.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="bg-gray-50 p-6 rounded-full mb-6">
+                            <Search size={40} className="text-gray-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">No properties found</h3>
+                        <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                            Try changing your search or filters to find what you're looking for.
+                        </p>
+                        <button
+                            onClick={() => {
+                                setFilters({
+                                    search: '',
+                                    type: 'all',
+                                    minPrice: '',
+                                    maxPrice: '',
+                                    sort: 'newest',
+                                    amenities: [],
+                                    radius: 50
+                                });
+                                setLocation(null);
+                                setSearchParams({});
+                            }}
+                            className="mt-8 text-sm font-bold text-primary hover:underline"
+                        >
+                            Clear all filters
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {properties.map(property => (
+                            <PropertyCard key={property._id} property={property} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Filters Sidebar/Modal (Same logic, slightly updated style if needed) */}
+            <div className={`
+                fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300
+                ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+            `} onClick={() => setShowFilters(false)}>
+                <div
+                    className={`
+                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-5 overflow-y-auto transition-transform duration-300
+                        ${showFilters ? 'translate-x-0' : 'translate-x-full'}
+                    `}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">Filters</h2>
+                        <button onClick={() => setShowFilters(false)} className="p-2 rounded-full hover:bg-gray-100">✕</button>
+                    </div>
+
+                    <div className="space-y-8">
+                        {/* Type */}
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-3">Property Type</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {propertyTypes.map(type => (
+                                    <button
+                                        key={type}
+                                        onClick={() => updateFilter('type', type.toLowerCase())}
+                                        className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all
+                                        ${(filters.type === type.toLowerCase() || (type === 'All' && filters.type === 'all'))
+                                                ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Price */}
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-3">Price Range</label>
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                    <input
+                                        type="number"
+                                        placeholder="Min"
+                                        className="w-full pl-6 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-primary"
+                                        value={filters.minPrice}
+                                        onChange={(e) => updateFilter('minPrice', e.target.value)}
+                                    />
+                                </div>
+                                <span className="text-gray-400 font-bold">-</span>
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                    <input
+                                        type="number"
+                                        placeholder="Max"
+                                        className="w-full pl-6 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-primary"
+                                        value={filters.maxPrice}
+                                        onChange={(e) => updateFilter('maxPrice', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Radius */}
+                        {location && (
+                            <div>
+                                <div className="flex justify-between mb-2">
+                                    <label className="text-sm font-bold text-gray-700">Search Radius</label>
+                                    <span className="text-xs font-bold text-primary">{filters.radius} km</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1" max="50"
+                                    value={filters.radius}
+                                    onChange={(e) => updateFilter('radius', e.target.value)}
+                                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                                />
+                            </div>
+                        )}
+
+                        <button
+                            onClick={applyFilters}
+                            className="w-full bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/25 active:scale-95 transition-transform"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="px-5 pt-6 pb-24 space-y-8">
-
-                {/* 1. Quick Location Action */}
-                <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 p-1 rounded-2xl flex items-center gap-4 group"
-                >
-                    <div className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-4 w-full border border-blue-100/50">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                            <MapPin size={22} fill="currentColor" className="text-blue-600/20" strokeWidth={2.5} />
-                            <MapPin size={22} className="absolute text-blue-600" strokeWidth={2.5} />
-                        </div>
-                        <div className="text-left">
-                            <h4 className="text-sm font-bold text-surface">Near Current Location</h4>
-                            <p className="text-xs text-gray-500 font-medium">Find stays around you</p>
-                        </div>
-                    </div>
-                </motion.button>
-
-                {/* 2. Recent Searches */}
-                <section>
-                    <div className="flex items-center gap-2 mb-4 px-1">
-                        <History size={18} className="text-gray-400" />
-                        <h3 className="text-sm font-bold text-surface">Recent Searches</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                        {recentSearches.map((term, i) => (
-                            <motion.button
-                                key={i}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-4 py-2.5 bg-white border border-gray-100 rounded-full text-sm font-medium text-gray-600 flex items-center gap-2 shadow-sm hover:shadow-md hover:border-surface/20 transition-all"
-                            >
-                                <Search size={14} className="text-gray-400" />
-                                {term}
-                            </motion.button>
-                        ))}
-                    </div>
-                </section>
-
-                {/* 3. Popular Cities */}
-                <section>
-                    <div className="flex items-center gap-2 mb-4 px-1">
-                        <Sparkles size={18} className="text-yellow-500 fill-yellow-500" />
-                        <h3 className="text-sm font-bold text-surface">Popular Cities</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        {popularCities.map((city, i) => (
-                            <motion.div
-                                key={i}
-                                className="relative rounded-xl overflow-hidden aspect-square group cursor-pointer"
-                            >
-                                <img src={city.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors" />
-                                <span className="absolute bottom-2 left-0 right-0 text-center text-xs font-bold text-white mb-1">{city.name}</span>
-                            </motion.div>
-                        ))}
-                    </div>
-                </section>
-
-                {/* 4. Suggested Stays - Using existing Hotel Cards */}
-                <section>
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <h3 className="text-base font-bold text-surface">Suggested for You</h3>
-                        <span className="text-xs font-bold text-accent cursor-pointer">View All</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {suggestedHotels.map((hotel, index) => (
-                            <motion.div
-                                key={hotel.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 + (index * 0.1) }}
-                            >
-                                <PropertyCard
-                                    data={{
-                                        _id: hotel.id,
-                                        name: hotel.name,
-                                        address: { city: hotel.location },
-                                        startingPrice: hotel.price,
-                                        rating: hotel.rating,
-                                        images: { cover: hotel.image },
-                                        propertyType: 'Hotel', // Default for mock data
-                                        details: { amenities: hotel.amenities }
-                                    }}
-                                />
-                            </motion.div>
-                        ))}
-                    </div>
-                </section>
-
-            </div>
-        </motion.div>
+        </div>
     );
 };
 

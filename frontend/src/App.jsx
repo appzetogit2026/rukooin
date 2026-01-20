@@ -449,7 +449,7 @@ function App() {
             <Route path="/hotel/:id/offers" element={<OffersPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
-            <Route path="/listings" element={<ListingPage />} />
+            <Route path="/listings" element={<Navigate to="/search" replace />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/support" element={<SupportPage />} />
