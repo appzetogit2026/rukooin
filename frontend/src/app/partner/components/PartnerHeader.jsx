@@ -4,26 +4,40 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import PartnerSidebar from './PartnerSidebar';
 import { hotelService } from '../../../services/apiService';
+import walletService from '../../../services/walletService';
 
 const PartnerHeader = ({ title, subtitle }) => {
     const navigate = useNavigate();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [walletBalance, setWalletBalance] = useState(0);
 
     useEffect(() => {
-        const fetchUnread = async () => {
+        const fetchWallet = async () => {
             try {
-                // We use getNotifications to get metadata. Ideally a lightweight endpoint is better but this works.
-                // Reusing apiService for hotel
-                const data = await hotelService.getNotifications(1, 1);
-                if (data.success && data.meta) {
-                    setUnreadCount(data.meta.unreadCount);
+                const walletData = await walletService.getWallet();
+                if (walletData.success && walletData.wallet) {
+                    setWalletBalance(walletData.wallet.balance);
+                }
+            } catch (error) {
+                console.error('Failed to fetch wallet', error);
+            }
+        };
+
+        const fetchNotifications = async () => {
+            try {
+                // Fetch Notifications
+                const notifData = await hotelService.getNotifications(1, 1);
+                if (notifData.success && notifData.meta) {
+                    setUnreadCount(notifData.meta.unreadCount);
                 }
             } catch (error) {
                 console.error('Failed to fetch notifications', error);
             }
         };
-        fetchUnread();
+
+        fetchWallet();
+        fetchNotifications();
     }, []);
 
     return (
@@ -60,7 +74,14 @@ const PartnerHeader = ({ title, subtitle }) => {
                         </div>
                         <div className="flex flex-col items-start leading-none mr-0.5">
                             <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wide">Wallet</span>
-                            <span className="text-[10px] font-bold text-[#003836]">₹0</span>
+                            <span className="text-[10px] font-bold text-[#003836]">
+                                {new Intl.NumberFormat('en-IN', {
+                                    style: 'currency',
+                                    currency: 'INR',
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0
+                                }).format(walletBalance)}
+                            </span>
                         </div>
                     </button>
                 </div>

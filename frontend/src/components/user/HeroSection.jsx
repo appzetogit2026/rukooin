@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
+import walletService from '../../services/walletService';
 
 const HeroSection = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
+    const [walletBalance, setWalletBalance] = useState(0);
 
     const placeholders = [
         "Search in Bucharest...",
@@ -18,6 +20,23 @@ const HeroSection = () => {
         "Couple friendly stays...",
         "Search near Red Square..."
     ];
+
+    useEffect(() => {
+        const fetchWallet = async () => {
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user) {
+                    const walletData = await walletService.getWallet();
+                    if (walletData.success && walletData.wallet) {
+                        setWalletBalance(walletData.wallet.balance);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch wallet', error);
+            }
+        };
+        fetchWallet();
+    }, []);
 
     // Placeholder Rotation
     useEffect(() => {
@@ -73,7 +92,14 @@ const HeroSection = () => {
                     </div>
                     <div className="flex flex-col items-start leading-none mr-0.5">
                         <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide">Wallet</span>
-                        <span className="text-[10px] font-bold text-surface">₹500</span>
+                        <span className="text-[10px] font-bold text-surface">
+                            {new Intl.NumberFormat('en-IN', {
+                                style: 'currency',
+                                currency: 'INR',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0
+                            }).format(walletBalance)}
+                        </span>
                     </div>
                 </button>
             </div>
