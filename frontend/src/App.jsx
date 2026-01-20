@@ -32,7 +32,7 @@ import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
 
 import AdminPartners from './app/admin/pages/AdminPartners';
 import AdminReviews from './app/admin/pages/AdminReviews';
-import AdminFinance from './app/admin/pages/AdminFinance';
+import AdminFinance from './pages/admin/FinanceAndPayoutsPage';
 import AdminSettings from './app/admin/pages/AdminSettings';
 import AdminOffers from './app/admin/pages/AdminOffers';
 import AdminProtectedRoute from './app/admin/AdminProtectedRoute';

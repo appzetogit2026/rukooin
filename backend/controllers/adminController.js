@@ -756,3 +756,70 @@ export const deleteAdminNotifications = async (req, res) => {
   }
 };
 
+import Wallet from '../models/Wallet.js';
+
+export const getFinanceStats = async (req, res) => {
+  try {
+    // 1. Get Admin Wallet Balance
+    let adminWallet = await Wallet.findOne({ role: 'admin' });
+
+    // If no admin wallet exists, try to find one associated with the current admin user or create a dummy one
+    // Ideally, there should be one system wallet.
+    const adminBalance = adminWallet ? adminWallet.balance : 0;
+
+    // 2. Aggregate Booking Financials
+    // Match only valid bookings (paid and confirmed/checked_in/checked_out)
+    const matchStage = {
+      bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+      paymentStatus: 'paid'
+    };
+
+    const financialsOr = await Booking.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalGross: { $sum: '$totalAmount' },
+          totalCommission: { $sum: '$adminCommission' },
+          totalTax: { $sum: '$taxes' },
+          totalPayout: { $sum: '$partnerPayout' }
+        }
+      }
+    ]);
+
+    const financials = financialsOr[0] || {
+      totalGross: 0,
+      totalCommission: 0,
+      totalTax: 0,
+      totalPayout: 0
+    };
+
+    // 3. Fetch Transaction List (Bookings Breakdown)
+    const transactions = await Booking.find(matchStage)
+      .select('bookingId createdAt totalAmount adminCommission taxes partnerPayout bookingStatus paymentStatus userId propertyId')
+      .populate('userId', 'name email')
+      .populate({
+        path: 'propertyId',
+        select: 'propertyName partnerId',
+        populate: { path: 'partnerId', select: 'name email' } // Get Partner Info
+      })
+      .sort({ createdAt: -1 })
+      .limit(50); // Limit to last 50 for now
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        adminBalance,
+        totalRevenue: financials.totalGross, // Total Booking Value
+        totalEarnings: financials.totalCommission, // Actual Platform Income
+        totalTax: financials.totalTax,
+        totalPayouts: financials.totalPayout
+      },
+      transactions
+    });
+
+  } catch (error) {
+    console.error('Get Finance Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching finance stats' });
+  }
+};

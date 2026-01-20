@@ -154,6 +154,11 @@ const adminService = {
   deleteNotifications: async (ids) => {
     const response = await axiosInstance.delete('/admin/notifications', { data: { ids } });
     return response.data;
+  },
+
+  getFinanceStats: async () => {
+    const response = await axiosInstance.get('/admin/finance');
+    return response.data;
   }
 };
 

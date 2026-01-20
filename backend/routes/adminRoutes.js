@@ -28,7 +28,8 @@ import {
   getAdminNotifications,
   createBroadcastNotification,
   markAllAdminNotificationsRead,
-  deleteAdminNotifications
+  deleteAdminNotifications,
+  getFinanceStats
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 
@@ -45,6 +46,7 @@ router.delete('/notifications', deleteAdminNotifications);
 
 router.put('/fcm-token', updateFcmToken);
 router.get('/dashboard-stats', getDashboardStats);
+router.get('/finance', getFinanceStats);
 router.get('/users', getAllUsers);
 router.get('/hotels', getAllHotels);
 router.get('/bookings', getAllBookings);

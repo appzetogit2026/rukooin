@@ -230,6 +230,56 @@ export const verifyPayment = async (req, res) => {
       }
     } catch (err) { console.error("Wallet Credit Failed", err); }
 
+    // --- ADMIN WALLET CREDIT LOGIC ---
+    try {
+      const commission = booking.adminCommission || 0;
+      const taxes = booking.taxes || 0;
+      const totalAdminCredit = commission + taxes;
+
+      if (totalAdminCredit > 0) {
+        const AdminUser = mongoose.model('User');
+        // Find *any* admin to associate the system wallet with (since Wallet requires a partnerId/userId)
+        // In a real system, you'd have a specific "System User" or "Super Admin".
+        const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+
+        if (adminUser) {
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+
+          if (!adminWallet) {
+            adminWallet = await Wallet.create({
+              partnerId: adminUser._id,
+              role: 'admin',
+              balance: 0
+            });
+          }
+
+          // Credit the wallet (Commission + Tax)
+          adminWallet.balance += totalAdminCredit;
+          // Note: totalEarnings usually tracks revenue. We'll add both here as per request 
+          // (assuming Admin handles tax remittance).
+          adminWallet.totalEarnings += totalAdminCredit;
+          await adminWallet.save();
+
+          // Log Transaction
+          await Transaction.create({
+            walletId: adminWallet._id,
+            partnerId: adminUser._id,
+            type: 'credit',
+            category: 'commission_tax', // Updated category
+            amount: totalAdminCredit,
+            balanceAfter: adminWallet.balance,
+            description: `Commission (₹${commission}) & Tax (₹${taxes}) for Booking #${booking.bookingId}`,
+            reference: booking.bookingId,
+            status: 'completed',
+            metadata: { bookingId: booking._id.toString() }
+          });
+          console.log(`[Payment] Credited ₹${totalAdminCredit} (Comm: ${commission}, Tax: ${taxes}) to Admin Wallet`);
+        } else {
+          console.warn("⚠️ No Admin user found. Cannot credit commission/tax.");
+        }
+      }
+    } catch (err) { console.error("Admin Wallet Credit Failed", err); }
+
     // Return full populated booking for confirmation page
     const populatedBooking = await Booking.findById(booking._id)
       .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
