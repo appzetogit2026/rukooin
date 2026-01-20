@@ -1,0 +1,268 @@
+– Hotel Booking Mediator Platform (MERN Stack)
+🔹 Project Overview
+
+Build a full-stack hotel booking platform using Vite + React.js + Tailwind CSS + Node.js (MERN) that acts as a mediator between customers and hotels.
+
+The platform helps:
+
+Customers find the best hotels based on their requirements
+
+Hotels/Vendors increase revenue through bookings
+
+Admin (Platform Owner) earn through ads + commissions
+
+The product should be fully modular, mobile-first, high-performance, and animation-rich, similar in experience to OYO or other hotel booking apps.
+
+🔹 Tech Stack & Tools
+Frontend
+
+Vite + React.js
+
+Tailwind CSS (centralized theme & tokens)
+
+GSAP → complex scroll & entrance animations
+
+Framer Motion → micro-interactions & UI transitions
+
+Lenis → smooth scrolling experience
+
+Component Libraries (Radix UI / ShadCN / Headless UI)
+
+Icon Libraries (Lucide / Heroicons)
+
+Backend
+
+Node.js + Express.js
+
+MongoDB + Mongoose
+
+JWT Authentication
+
+Role-Based Access Control
+
+REST APIs (scalable & modular)
+
+Others
+
+Wallet & Transaction System
+
+Live Location Tracking
+
+Notification System
+
+Analytics Dashboard
+
+🔹 Application Architecture
+
+The application must be fully modular with three independent yet connected modules, all fully responsive:
+
+1️⃣ Master Admin Module
+2️⃣ Customer/User Module
+3️⃣ Hotel/Vendor Module
+
+Each module must have:
+
+Independent dashboards
+
+Secure authentication
+
+Role-specific features
+
+Mobile + tablet + desktop support
+
+🔹 Core Business Logic
+🏨 Hotel Ownership & Commission Model
+
+Some hotels are admin-owned → 0% commission
+
+Other hotels are vendor-owned
+
+Platform charges 15–20% commission per booking
+
+Commission rules configurable from admin panel
+
+🔹 Wallet System (Very Important)
+
+Implement a centralized Wallet System:
+
+Wallet Users:
+
+Customers
+
+Hotels/Vendors
+
+Admin
+
+Wallet Features:
+
+Add / withdraw balance
+
+Booking payments
+
+Commission deduction
+
+Referral rewards
+
+Refund handling
+
+Transaction history & invoices
+
+🔹 Live Location Tracking (Security Feature)
+
+Purpose:
+
+Prevent hotels from bypassing the platform and avoiding commission
+
+Features:
+
+Track customer live location during booking journey
+
+Admin can see:
+
+Active booking status
+
+Customer movement (limited & privacy-safe)
+
+Used only for fraud prevention
+
+🔹 Advanced Filtering System
+
+Filters must include:
+
+Location / Area wise
+
+Price range
+
+Rating
+
+Recommended / Popular
+
+Verified hotels
+
+Amenities
+
+Availability
+
+Admin-owned vs Vendor-owned
+
+Filtering must be:
+
+Fast
+
+Dynamic
+
+User-friendly
+
+🔹 Referral & Earn System
+
+Customers can refer new users
+
+Referral reward credited directly to wallet
+
+Referral history & earnings dashboard
+
+Configurable referral reward rules (admin)
+
+🔹 Verified Badge System
+
+Hotels that generate higher revenue or maintain trust score
+
+Earn a “Verified” badge
+
+Badge impacts:
+
+Search ranking
+
+Customer trust
+
+Visibility
+
+🔹 Additional Core Features (OYO-Inspired)
+
+Must include:
+
+Hotel listing & management
+
+Room types & pricing
+
+Booking & cancellation
+
+Reviews & ratings
+
+Image galleries
+
+Offers & discounts
+
+Push / Email notifications
+
+Ads management (admin-controlled)
+
+CMS for static pages
+
+SEO-friendly architecture
+
+🔹 UI/UX & Design Requirements
+
+Mobile-first approach
+
+Centralized theme (colors, spacing, typography)
+
+Modern & minimal UI
+
+Smooth transitions everywhere
+
+Micro-animations for buttons, cards, filters
+
+Skeleton loaders & empty states
+
+Accessibility-friendly design
+
+🔹 Development Guidelines
+
+Reusable components
+
+Clean folder structure
+
+Scalable API architecture
+
+Environment-based configuration
+
+Centralized state management
+
+Performance optimized
+
+Secure authentication & authorization
+
+Production-ready codebase
+
+🔹 Reference Applications
+
+Take inspiration from:
+
+OYO
+
+Booking.com
+
+Airbnb (feature-level only)
+
+Implement all essential hotel booking features while maintaining original architecture and UI.
+
+🎯 Final Goal
+
+Generate:
+
+Complete system architecture
+
+Page-wise feature breakdown
+
+Database schema
+
+API structure
+
+Component hierarchy
+
+Admin, Vendor & User workflows
+
+Monetization logic
+
+Security & scalability considerations
