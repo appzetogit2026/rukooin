@@ -318,7 +318,7 @@ export const hotelService = {
   },
   getMyHotels: async () => {
     try {
-      const response = await api.get('/hotels/partner/my-hotels');
+      const response = await api.get('/properties/my');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -623,6 +623,39 @@ export const reviewService = {
   createReview: async (reviewData) => {
     try {
       const response = await api.post('/reviews', reviewData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getPartnerStats: async () => {
+    try {
+      const response = await api.get('/reviews/partner/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getAllPartnerReviews: async (status) => {
+    try {
+      const url = status ? `/reviews/partner/all?status=${status}` : '/reviews/partner/all';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  reply: async (reviewId, reply) => {
+    try {
+      const response = await api.post(`/reviews/${reviewId}/reply`, { reply });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  toggleHelpful: async (reviewId) => {
+    try {
+      const response = await api.post(`/reviews/${reviewId}/helpful`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
