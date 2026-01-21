@@ -7,6 +7,7 @@ import {
   TicketPercent, Image as ImageIcon, LayoutGrid, List
 } from 'lucide-react';
 import { axiosInstance } from '../store/adminStore';
+import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
 const AdminOffers = () => {
@@ -32,7 +33,8 @@ const AdminOffers = () => {
     endDate: '',
     usageLimit: '1000',
     userLimit: '1',
-    isActive: true
+    isActive: true,
+    applicablePropertyTypes: []
   });
 
   useEffect(() => {
@@ -42,8 +44,8 @@ const AdminOffers = () => {
   const fetchOffers = async () => {
     try {
       setLoading(true);
-      const res = await axiosInstance.get('/offers/all');
-      setOffers(res.data);
+      const data = await adminService.getOffers();
+      setOffers(data);
     } catch {
       toast.error("Failed to fetch offers");
     } finally {
@@ -78,7 +80,8 @@ const AdminOffers = () => {
       image: offer.image || '',
       usageLimit: offer.usageLimit || '1000',
       userLimit: offer.userLimit || '1',
-      isActive: offer.isActive ?? true
+      isActive: offer.isActive ?? true,
+      applicablePropertyTypes: offer.applicablePropertyTypes || []
     });
     setSelectedOfferId(offer._id);
     setIsEditing(true);
@@ -89,7 +92,7 @@ const AdminOffers = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this offer?")) return;
     try {
-      await axiosInstance.delete(`/offers/${id}`);
+      await adminService.deleteOffer(id);
       toast.success("Offer deleted successfully");
       fetchOffers();
     } catch {
@@ -106,7 +109,11 @@ const AdminOffers = () => {
       if (imageFile) {
         data = new FormData();
         Object.keys(formData).forEach(key => {
-          data.append(key, formData[key]);
+          if (key === 'applicablePropertyTypes') {
+            formData[key].forEach(val => data.append('applicablePropertyTypes[]', val));
+          } else {
+            data.append(key, formData[key]);
+          }
         });
         data.append('image', imageFile);
         headers['Content-Type'] = 'multipart/form-data';
@@ -115,10 +122,10 @@ const AdminOffers = () => {
       }
 
       if (isEditing) {
-        await axiosInstance.put(`/offers/${selectedOfferId}`, data, { headers });
+        await adminService.updateOffer(selectedOfferId, data, headers);
         toast.success("Offer updated successfully");
       } else {
-        await axiosInstance.post('/offers', data, { headers });
+        await adminService.createOffer(data, headers);
         toast.success("Offer created successfully");
       }
 
@@ -168,7 +175,8 @@ const AdminOffers = () => {
                 title: '', subtitle: '', code: '', discountType: 'percentage',
                 discountValue: '', minBookingAmount: '', maxDiscount: '',
                 description: '', startDate: new Date().toISOString().split('T')[0],
-                endDate: '', image: '', usageLimit: '1000', userLimit: '1', isActive: true
+                endDate: '', image: '', usageLimit: '1000', userLimit: '1', isActive: true,
+                applicablePropertyTypes: []
               });
               setImagePreview('');
               setImageFile(null);
@@ -246,7 +254,17 @@ const AdminOffers = () => {
               </div>
 
               <div className="p-5">
-                <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-4">{offer.subtitle}</p>
+                <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-2">{offer.subtitle}</p>
+
+                {offer.applicablePropertyTypes?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {offer.applicablePropertyTypes.map(t => (
+                      <span key={t} className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[8px] font-black uppercase rounded-full border border-gray-200">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
@@ -530,6 +548,30 @@ const AdminOffers = () => {
                           <div className={`w-2 h-2 rounded-full mr-2 ${formData.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
                           <span className="text-sm font-bold uppercase tracking-widest">{formData.isActive ? 'Active' : 'Paused'}</span>
                         </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Applicable For (Leave empty for All)</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Hotel', 'Hostel', 'PG', 'Villa', 'Resort', 'Homestay'].map(type => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => {
+                              const types = formData.applicablePropertyTypes.includes(type)
+                                ? formData.applicablePropertyTypes.filter(t => t !== type)
+                                : [...formData.applicablePropertyTypes, type];
+                              setFormData({ ...formData, applicablePropertyTypes: types });
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase border transition-all ${formData.applicablePropertyTypes.includes(type)
+                                ? 'bg-black text-white border-black'
+                                : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                              }`}
+                          >
+                            {type}
+                          </button>
+                        ))}
                       </div>
                     </div>
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Image</label>

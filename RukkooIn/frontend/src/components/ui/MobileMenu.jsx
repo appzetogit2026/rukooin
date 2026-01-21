@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3 } from 'lucide-react';
 import logo from '../../assets/rokologin-removebg-preview.png';
-import { userService } from '../../services/apiService';
 
 import { useNavigate } from 'react-router-dom';
 
 const MobileMenu = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
-    const [unreadCount, setUnreadCount] = useState(0);
-
     const user = React.useMemo(() => {
         const savedUser = localStorage.getItem('user');
         if (!savedUser) return null;
@@ -20,23 +17,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
             return null;
         }
     }, []);
-
-    useEffect(() => {
-        // Fetch unread count whenever menu opens
-        if (isOpen && user) {
-            const fetchUnread = async () => {
-                try {
-                    const data = await userService.getNotifications(1, 1);
-                    if (data.success && data.meta) {
-                        setUnreadCount(data.meta.unreadCount);
-                    }
-                } catch (error) {
-                    console.error('Error fetching unread count', error);
-                }
-            };
-            fetchUnread();
-        }
-    }, [isOpen, user]);
 
     // Disable body scroll when sidebar is open
     useEffect(() => {
@@ -84,7 +64,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
     ];
 
     const settingItems = [
-        { icon: Bell, label: 'Notifications', path: '/notifications', badge: unreadCount > 0 ? unreadCount : null },
+        { icon: Bell, label: 'Notifications', path: '/notifications' },
         { icon: Settings, label: 'Settings', path: '/settings' },
         { icon: HelpCircle, label: 'Need Help?', path: '/support' },
     ];
@@ -101,7 +81,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
         }
     };
 
-    const MenuItem = ({ icon: Icon, label, path, badge }) => (
+    const MenuItem = ({ icon: Icon, label, path }) => (
         <button
             onClick={() => handleNavigation(path)}
             className="flex items-center gap-4 w-full p-2.5 hover:bg-gray-50 rounded-xl transition-all group active:scale-95"
@@ -110,13 +90,6 @@ const MobileMenu = ({ isOpen, onClose }) => {
                 <Icon size={16} className="text-surface" />
             </div>
             <span className="flex-1 text-left font-medium text-gray-700 text-sm">{label}</span>
-
-            {badge && (
-                <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
-                    {badge}
-                </div>
-            )}
-
             <ChevronRight size={14} className="text-gray-300 group-hover:text-surface transition-colors" />
         </button>
     );

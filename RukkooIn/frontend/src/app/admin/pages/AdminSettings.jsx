@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Settings, Shield, Bell, CreditCard, ToggleLeft,
-    ToggleRight, Save, Globe, Lock
+    Settings, Shield, Bell, CreditCard, ToggleLeft, ToggleRight, Save, Globe, Lock, Clock, CalendarDays, Mail, Phone
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAdminStore from '../store/adminStore';
@@ -45,14 +44,19 @@ const AdminSettings = () => {
     const [bookingMessage, setBookingMessage] = useState('');
     const [maintenanceTitle, setMaintenanceTitle] = useState('');
     const [maintenanceMessage, setMaintenanceMessage] = useState('');
-    const [commission, setCommission] = useState(10);
-    const [taxRate, setTaxRate] = useState(12);
+    const [defaultCommission, setDefaultCommission] = useState(15);
+    const [taxRate, setTaxRate] = useState(18);
+    const [autoPayout, setAutoPayout] = useState(false);
+
+    const [checkInTime, setCheckInTime] = useState('12:00 PM');
+    const [checkOutTime, setCheckOutTime] = useState('11:00 AM');
+    const [pgMinStay, setPgMinStay] = useState(30);
+    const [supportEmail, setSupportEmail] = useState('support@rukkoo.in');
+    const [supportPhone, setSupportPhone] = useState('+91 9999999999');
 
     const [loadingSettings, setLoadingSettings] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [savingSettings, setSavingSettings] = useState(false);
-
-    const [autoPayout, setAutoPayout] = useState(false);
 
     useEffect(() => {
         if (admin) {
@@ -75,8 +79,14 @@ const AdminSettings = () => {
                     setBookingMessage(res.settings.bookingDisabledMessage || '');
                     setMaintenanceTitle(res.settings.maintenanceTitle || '');
                     setMaintenanceMessage(res.settings.maintenanceMessage || '');
-                    setCommission(res.settings.defaultCommission || 10);
-                    setTaxRate(res.settings.taxRate || 12);
+                    setDefaultCommission(res.settings.defaultCommission || 15);
+                    setTaxRate(res.settings.taxRate || 18);
+                    setAutoPayout(res.settings.autoPayoutEnabled || false);
+                    setCheckInTime(res.settings.defaultCheckInTime || '12:00 PM');
+                    setCheckOutTime(res.settings.defaultCheckOutTime || '11:00 AM');
+                    setPgMinStay(res.settings.pgMinStay || 30);
+                    setSupportEmail(res.settings.supportEmail || 'support@rukkoo.in');
+                    setSupportPhone(res.settings.supportPhone || '+91 9999999999');
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');
@@ -119,8 +129,14 @@ const AdminSettings = () => {
                 bookingDisabledMessage: bookingMessage,
                 maintenanceTitle,
                 maintenanceMessage,
-                defaultCommission: Number(commission),
-                taxRate: Number(taxRate)
+                defaultCommission,
+                taxRate,
+                autoPayoutEnabled: autoPayout,
+                defaultCheckInTime: checkInTime,
+                defaultCheckOutTime: checkOutTime,
+                pgMinStay,
+                supportEmail,
+                supportPhone
             });
             toast.success('Platform settings updated');
         } catch (error) {
@@ -231,37 +247,6 @@ const AdminSettings = () => {
                         />
                     </div>
                 </div>
-                <div className="mt-4">
-                    <div className="pb-4 font-bold text-lg flex items-center gap-4"><Globe size={18} />Financial Rule</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Default Commission (%)</label>
-                            <input
-                                type="number"
-                                value={commission}
-                                onChange={(e) => setCommission(e.target.value)}
-                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax Rate (%)</label>
-                            <input
-                                type="number"
-                                value={taxRate}
-                                onChange={(e) => setTaxRate(e.target.value)}
-                                className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
-                            />
-                        </div>
-                    </div>
-                    {/* <div className="flex items-center justify-between pt-2">
-                    <div>
-                        <p className="font-medium text-gray-900">Automatic Payouts</p>
-                        <p className="text-sm text-gray-500">Automatically release payments to hotels every Monday.</p>
-                    </div>
-                    <ToggleSwitch enabled={autoPayout} onChange={setAutoPayout} />
-                </div> */}
-                </div>
-
                 <div className="flex justify-end pt-2">
                     <button
                         type="button"
@@ -275,7 +260,135 @@ const AdminSettings = () => {
                 </div>
             </Section>
 
-            {/* <Section title="Security & Access" icon={Shield}>
+            <Section title="Lodging & PG Rules" icon={Clock}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Default Check-in Time</label>
+                        <input
+                            type="text"
+                            value={checkInTime}
+                            onChange={(e) => setCheckInTime(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="12:00 PM"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Default Check-out Time</label>
+                        <input
+                            type="text"
+                            value={checkOutTime}
+                            onChange={(e) => setCheckOutTime(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                            placeholder="11:00 AM"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">PG Minimum Stay (Days)</label>
+                        <input
+                            type="number"
+                            value={pgMinStay}
+                            onChange={(e) => setPgMinStay(Number(e.target.value))}
+                            className="w-full p-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onClick={handleSavePlatformSettings}
+                        disabled={savingSettings || loadingSettings}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60"
+                    >
+                        <Save size={16} />
+                        {savingSettings || loadingSettings ? 'Saving...' : 'Save Lodging Rules'}
+                    </button>
+                </div>
+            </Section>
+
+            <Section title="Platform Support" icon={Mail}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Support Email</label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="email"
+                                value={supportEmail}
+                                onChange={(e) => setSupportEmail(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                                placeholder="support@rukkoo.in"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Support Phone</label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="tel"
+                                value={supportPhone}
+                                onChange={(e) => setSupportPhone(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black text-sm"
+                                placeholder="+91 9999999999"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onClick={handleSavePlatformSettings}
+                        disabled={savingSettings || loadingSettings}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60"
+                    >
+                        <Save size={16} />
+                        {savingSettings || loadingSettings ? 'Saving...' : 'Save Support Info'}
+                    </button>
+                </div>
+            </Section>
+
+            <Section title="Financial Rules" icon={CreditCard}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Commission (%)</label>
+                        <input
+                            type="number"
+                            value={defaultCommission}
+                            onChange={(e) => setDefaultCommission(Number(e.target.value))}
+                            className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax Rate (%)</label>
+                        <input
+                            type="number"
+                            value={taxRate}
+                            onChange={(e) => setTaxRate(Number(e.target.value))}
+                            className="w-full p-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-black"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                    <div>
+                        <p className="font-medium text-gray-900">Automatic Payouts</p>
+                        <p className="text-sm text-gray-500">Automatically release payments to hotels every Monday (Beta).</p>
+                    </div>
+                    <ToggleSwitch enabled={autoPayout} onChange={setAutoPayout} />
+                </div>
+                <div className="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onClick={handleSavePlatformSettings}
+                        disabled={savingSettings || loadingSettings}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-bold rounded-xl shadow-md hover:bg-gray-900 active:scale-95 disabled:opacity-60"
+                    >
+                        <Save size={16} />
+                        {savingSettings || loadingSettings ? 'Saving...' : 'Update Financial Rules'}
+                    </button>
+                </div>
+            </Section>
+
+            <Section title="Security & Access" icon={Shield}>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="font-medium text-gray-900">Two-Factor Auth (Admin)</p>
@@ -291,7 +404,7 @@ const AdminSettings = () => {
                         <option>1 Hour</option>
                     </select>
                 </div>
-            </Section> */}
+            </Section>
 
         </div>
     );

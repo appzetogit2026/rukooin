@@ -10,7 +10,7 @@ const BottomNavbar = () => {
     const navItems = [
         { name: 'Home', icon: Home, route: '/' },
         { name: 'Bookings', icon: Briefcase, route: '/bookings' },
-        { name: 'Search', icon: Search, route: '/search' },
+        { name: 'Search', icon: Search, route: '/listings' },
         { name: 'Wallet', icon: Wallet, route: '/wallet' },
         { name: 'Profile', icon: User, route: '/profile/edit' },
     ];

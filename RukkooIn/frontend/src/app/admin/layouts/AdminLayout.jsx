@@ -1,64 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, Layers, ShieldCheck, TrendingUp, UserCheck
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
-import adminService from '../../../services/adminService';
 
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const location = useLocation();
     const navigate = useNavigate();
     const logout = useAdminStore(state => state.logout);
-
-    // Notifications State
-    const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [isNotifOpen, setIsNotifOpen] = useState(false);
-    const notifRef = useRef(null);
-
-    useEffect(() => {
-        loadNotifications();
-        // Close dropdown when clicking outside
-        function handleClickOutside(event) {
-            if (notifRef.current && !notifRef.current.contains(event.target)) {
-                setIsNotifOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const loadNotifications = async () => {
-        try {
-            const data = await adminService.getNotifications(1, 5); // Fetch top 5 for dropdown
-            if (data.success) {
-                setNotifications(data.notifications);
-                setUnreadCount(data.meta.unreadCount);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const handleViewAll = async () => {
-        setIsNotifOpen(false);
-        // Mark all as read when going to view all? The user requirement says "click view all -> redirect to received tab -> status change to read".
-        // We can do marking read on the page itself or here. Let's do it here for smoother UX or let the page handle it.
-        // Requirement: "View all notifications option ho uspr click krne pr recieved notification ki tab pr redirect ho jaye admin and all the unread notifications ka status change hoke read ho jaye"
-        try {
-            await adminService.markAllNotificationsRead();
-            setUnreadCount(0); // Optimistic update
-            navigate('/admin/notifications');
-        } catch (err) {
-            navigate('/admin/notifications');
-        }
-    };
+    const admin = useAdminStore(state => state.admin);
 
     const handleLogout = () => {
         logout();
@@ -70,13 +26,18 @@ const AdminLayout = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
+        { icon: ShieldCheck, label: 'Verification Center', path: '/admin/kyc' },
         { icon: ClipboardCheck, label: 'Property Management', path: '/admin/properties' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
-        { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
+        { icon: TrendingUp, label: 'Reports & Analytics', path: '/admin/reports' },
         { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
-        { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
+        { icon: Layers, label: 'CMS & Content', path: '/admin/cms' },
+        { icon: Star, label: 'Reviews & Ratings', path: '/admin/reviews' },
+        { icon: UserCheck, label: 'Staff Management', path: '/admin/staff' },
         { icon: MessageSquare, label: 'Contact Messages', path: '/admin/contact-messages' },
+        { icon: Bell, label: 'Blast Notifications', path: '/admin/notifications' },
+        { icon: ShieldCheck, label: 'Audit Logs', path: '/admin/audit-logs' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 
@@ -164,59 +125,44 @@ const AdminLayout = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4" ref={notifRef}>
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsNotifOpen(!isNotifOpen)}
-                                className="relative p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-                            >
-                                <Bell size={20} />
-                                {unreadCount > 0 && (
-                                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                                )}
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate('/admin/notifications')}
+                            className="relative p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+                        >
+                            <Bell size={20} />
+                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                        </button>
+                        <div className="relative group">
+                            <button className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm hover:ring-2 hover:ring-gray-300 transition-all">
+                                {admin?.name?.charAt(0) || 'A'}
                             </button>
-
-                            {/* Dropdown */}
-                            <AnimatePresence>
-                                {isNotifOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 origin-top-right"
+                            {/* Profile Dropdown */}
+                            <div className="absolute right-0 top-12 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <div className="p-4 border-b border-gray-100">
+                                    <p className="font-bold text-gray-900">{admin?.name || 'Admin'}</p>
+                                    <p className="text-xs text-gray-500">{admin?.email || 'admin@rukkoo.in'}</p>
+                                    <span className="inline-block mt-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
+                                        {admin?.role?.toUpperCase() || 'ADMIN'}
+                                    </span>
+                                </div>
+                                <div className="p-2">
+                                    <button
+                                        onClick={() => navigate('/admin/settings')}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors text-left"
                                     >
-                                        <div className="p-3 border-b flex justify-between items-center bg-gray-50/50">
-                                            <h3 className="font-bold text-sm text-gray-800">Notifications</h3>
-                                            {unreadCount > 0 && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{unreadCount} New</span>}
-                                        </div>
-                                        <div className="max-h-64 overflow-y-auto">
-                                            {notifications.length > 0 ? (
-                                                notifications.slice(0, 3).map((n) => (
-                                                    <div key={n._id} className={`p-3 border-b hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-blue-50/30' : ''}`}>
-                                                        <p className="text-sm font-semibold text-gray-800 line-clamp-1">{n.title}</p>
-                                                        <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{n.body}</p>
-                                                        <span className="text-[10px] text-gray-400 mt-1 block">{new Date(n.createdAt).toLocaleDateString()}</span>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="p-8 text-center text-gray-400 text-sm">No notifications</div>
-                                            )}
-                                        </div>
-                                        <div className="p-2 border-t bg-gray-50">
-                                            <button
-                                                onClick={handleViewAll}
-                                                className="w-full text-center text-xs font-bold text-black hover:underline py-1"
-                                            >
-                                                View All Notifications
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        <div className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm">
-                            A
+                                        <Settings size={16} />
+                                        <span className="text-sm font-medium">Settings</span>
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors text-left"
+                                    >
+                                        <LogOut size={16} />
+                                        <span className="text-sm font-medium">Logout</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </header>

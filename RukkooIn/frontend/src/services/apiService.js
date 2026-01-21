@@ -20,29 +20,12 @@ api.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor to handle 401 Unauthorized (Token invalid/expired)
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // Clear invalid token and redirect if not already on auth pages
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
-        console.warn("Session expired or invalid token. Redirecting to login...");
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
 // User Auth Services
 export const authService = {
   // Send OTP
-  sendOtp: async (phone, type = 'login', role = 'user') => {
+  sendOtp: async (phone, type = 'login') => {
     try {
-      const response = await api.post('/auth/send-otp', { phone, type, role });
+      const response = await api.post('/auth/send-otp', { phone, type });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -83,20 +66,6 @@ export const authService = {
     }
   },
 
-  // Upload Partner Docs
-  uploadDocs: async (formData) => {
-    try {
-      const response = await api.post('/auth/partner/upload-docs', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
 
 
   // Update Profile
@@ -128,79 +97,17 @@ export const bookingService = {
       throw error.response?.data || error.message;
     }
   },
-  getMyBookings: async (type) => {
+  getMyBookings: async () => {
     try {
-      const url = type ? `/bookings/my?type=${type}` : '/bookings/my';
-      const response = await api.get(url);
+      const response = await api.get('/bookings/my-bookings');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-  getPartnerBookings: async (status) => {
+  getPartnerBookings: async () => {
     try {
-      const url = status ? `/bookings/partner?status=${status}` : '/bookings/partner';
-      const response = await api.get(url);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  getPartnerBookingDetail: async (id) => {
-    try {
-      const response = await api.get(`/bookings/${id}/partner-detail`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  markAsPaid: async (id) => {
-    try {
-      const response = await api.put(`/bookings/${id}/mark-paid`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  markNoShow: async (id) => {
-    try {
-      const response = await api.put(`/bookings/${id}/no-show`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  cancel: async (bookingId, reason) => {
-    try {
-      const response = await api.post(`/bookings/${bookingId}/cancel`, { reason });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Notification Methods for Partners
-  getNotifications: async (page = 1, limit = 20) => {
-    try {
-      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  markAllNotificationsRead: async () => {
-    try {
-      const response = await api.put('/hotel/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  deleteNotifications: async (ids) => {
-    try {
-      const response = await api.delete('/hotel/notifications', { data: { ids } });
+      const response = await api.get('/bookings/partner/all');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -318,7 +225,7 @@ export const hotelService = {
   },
   getMyHotels: async () => {
     try {
-      const response = await api.get('/properties/my');
+      const response = await api.get('/hotels/partner/my-hotels');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -427,47 +334,6 @@ export const userService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
-  },
-  // Update FCM Token
-  updateFcmToken: async (fcmToken, platform = 'web') => {
-    try {
-      const response = await api.put('/users/fcm-token', { fcmToken, platform });
-      return response.data;
-    } catch (error) {
-      console.warn('FCM Token Update Failed:', error);
-      return null;
-    }
-  },
-
-  // Get Notifications
-  getNotifications: async (page = 1, limit = 20) => {
-    try {
-      const response = await api.get(`/users/notifications?page=${page}&limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Delete Notifications (Bulk)
-  deleteNotifications: async (ids) => {
-    try {
-      // Use DELETE method with data body (supported by Axios)
-      const response = await api.delete('/users/notifications', { data: { ids } });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  // Mark All Notifications Read
-  markAllNotificationsRead: async () => {
-    try {
-      const response = await api.put('/users/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
   }
 };
 
@@ -511,27 +377,6 @@ export const offerService = {
   }
 };
 
-
-
-export const paymentService = {
-  createOrder: async (bookingId) => {
-    try {
-      const response = await api.post('/payments/create-order', { bookingId });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  verifyPayment: async (paymentData) => {
-    try {
-      const response = await api.post('/payments/verify', paymentData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  }
-};
-
 export const legalService = {
   getPage: async (audience, slug) => {
     try {
@@ -544,14 +389,6 @@ export const legalService = {
   getPlatformStatus: async () => {
     try {
       const response = await api.get('/info/platform/status');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  getFinancialSettings: async () => {
-    try {
-      const response = await api.get('/info/platform/financials');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -609,64 +446,6 @@ export const availabilityService = {
       throw error.response?.data || error.message;
     }
   }
-};
-
-export const reviewService = {
-  getPropertyReviews: async (propertyId) => {
-    try {
-      const response = await api.get(`/reviews/${propertyId}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  createReview: async (reviewData) => {
-    try {
-      const response = await api.post('/reviews', reviewData);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  getPartnerStats: async () => {
-    try {
-      const response = await api.get('/reviews/partner/stats');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  getAllPartnerReviews: async (status) => {
-    try {
-      const url = status ? `/reviews/partner/all?status=${status}` : '/reviews/partner/all';
-      const response = await api.get(url);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  reply: async (reviewId, reply) => {
-    try {
-      const response = await api.post(`/reviews/${reviewId}/reply`, { reply });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-  toggleHelpful: async (reviewId) => {
-    try {
-      const response = await api.post(`/reviews/${reviewId}/helpful`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  }
-};
-
-export const handleResponse = (response) => response.data;
-
-export const handleError = (error) => {
-  throw error.response?.data || error.message;
 };
 
 export default api;

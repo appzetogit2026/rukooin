@@ -71,6 +71,11 @@ const offerSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  applicablePropertyTypes: {
+    type: [String],
+    enum: ['Hotel', 'Hostel', 'PG', 'Villa', 'Resort', 'Homestay'],
+    default: []
   }
 }, { timestamps: true });
 

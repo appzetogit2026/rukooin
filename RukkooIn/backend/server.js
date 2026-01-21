@@ -2,7 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { initializeFirebase } from './config/firebase.js';
+import './utils/firebase.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import morgan from 'morgan';

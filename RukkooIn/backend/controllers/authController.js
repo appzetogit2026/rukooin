@@ -4,7 +4,7 @@ import Otp from '../models/Otp.js';
 import smsService from '../utils/smsService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import Wallet from '../models/Wallet.js';
+import { logAuditAction } from '../utils/auditLogger.js';
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -21,29 +21,28 @@ const BYPASS_NUMBERS = ['9685974247', '9009925021', '6261096283'];
 const DEFAULT_OTP = '123456';
 
 /**
- * @desc    Send OTP for Login/Register (Support User/Partner)
+ * @desc    Send OTP for Login/Register
  * @route   POST /api/auth/send-otp
  * @access  Public
  */
 export const sendOtp = async (req, res) => {
   try {
-    const { phone, type, role = 'user' } = req.body; // type: 'login' | 'register', role: 'user' | 'partner'
+    const { phone, type } = req.body; // type: 'login' | 'register'
 
     if (!phone || phone.length !== 10) {
       return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
     }
 
-    // Role is dynamic now
-    let user = await User.findOne({ phone, role });
+    let user = await User.findOne({ phone });
 
     // Login Flow Validation
     if (type === 'login' && !user) {
-      return res.status(404).json({ message: `${role === 'partner' ? 'Partner' : 'User'} not found. Please register first.` });
+      return res.status(404).json({ message: 'User not found. Please register first.' });
     }
 
     // Register Flow Validation
     if (type === 'register' && user) {
-      return res.status(409).json({ message: `${role === 'partner' ? 'Partner' : 'User'} already exists. Please login.` });
+      return res.status(409).json({ message: 'User already exists. Please login.' });
     }
 
     // Generate OTP
@@ -62,7 +61,7 @@ export const sendOtp = async (req, res) => {
       // Upsert to handle retries
       await Otp.findOneAndUpdate(
         { phone },
-        { otp, expiresAt: otpExpires, tempData: { role, phone } }, // Store role
+        { otp, expiresAt: otpExpires },
         { upsert: true, new: true }
       );
     }
@@ -100,14 +99,14 @@ export const sendOtp = async (req, res) => {
  */
 export const verifyOtp = async (req, res) => {
   try {
-    const { phone, otp, name, email, role = 'user' } = req.body; // Default role user
+    const { phone, otp, name, email } = req.body;
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check if it's an existing user (Login Flow) - Use role specific
-    let user = await User.findOne({ phone, role }).select('+otp +otpExpires');
+    // 1. Check if it's an existing user (Login Flow)
+    let user = await User.findOne({ phone }).select('+otp +otpExpires');
     let isRegistration = false;
 
     if (user) {
@@ -135,19 +134,9 @@ export const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
 
-      // Ensure this OTP was meant for the correct role
-      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
-        return res.status(400).json({ message: 'Invalid role context. Please try again with correct role.' });
-      }
-
       // For registration, 'name' is required
       if (!name) {
         return res.status(400).json({ message: 'Name is required for registration.' });
-      }
-
-      if (email) {
-        const emailExists = await User.findOne({ email, role: 'user' });
-        if (emailExists) return res.status(409).json({ message: 'Email already exists for a user account.' });
       }
 
       // Create New User
@@ -155,7 +144,6 @@ export const verifyOtp = async (req, res) => {
         name,
         phone,
         email,
-        role: 'user', // Enforce role
         isVerified: true,
         // Password is required by schema, setting a random hash for OTP-only users
         password: await bcrypt.hash(Math.random().toString(36), 10)
@@ -169,14 +157,7 @@ export const verifyOtp = async (req, res) => {
     // Save/Update User
     if (isRegistration || name || email) {
       if (name) user.name = name;
-      if (email) {
-        // Check uniqueness for update if email changed
-        if (email !== user.email) {
-          const emailExists = await User.findOne({ email, role: 'user', _id: { $ne: user._id } });
-          if (emailExists) return res.status(409).json({ message: 'Email already in use.' });
-          user.email = email;
-        }
-      }
+      if (email) user.email = email;
       user.isVerified = true;
     }
 
@@ -192,12 +173,6 @@ export const verifyOtp = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id, user.role);
-    // Fetch Wallet Balance
-    let walletBalance = 0;
-    if (['user', 'partner'].includes(user.role)) {
-      const wallet = await Wallet.findOne({ partnerId: user._id, role: user.role });
-      walletBalance = wallet ? wallet.balance : 0;
-    }
 
     res.status(200).json({
       message: isRegistration ? 'Registration successful' : 'Login successful',
@@ -208,9 +183,8 @@ export const verifyOtp = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isPartner: user.isPartner || false,
-        partnerApprovalStatus: user.partnerApprovalStatus,
-        walletBalance // Include wallet balance
+        isPartner: user.isPartner,
+        partnerApprovalStatus: user.partnerApprovalStatus
       }
     });
 
@@ -235,12 +209,6 @@ export const register = async (req, res) => {
  * @route   POST /api/auth/partner/register
  * @access  Public
  */
-
-/**
- * @desc    Register Partner (Step 1 & 2: Details + Send OTP)
- * @route   POST /api/auth/partner/register
- * @access  Public
- */
 export const registerPartner = async (req, res) => {
   try {
     const {
@@ -254,39 +222,44 @@ export const registerPartner = async (req, res) => {
       return res.status(400).json({ message: 'Phone and Name are required' });
     }
 
-    // 1. Check if PARTNER ALREADY exists with this phone
-    let existingUser = await User.findOne({ phone, role: 'partner' });
-    if (existingUser) {
-      if (existingUser.isVerified) {
-        return res.status(409).json({ message: 'Partner account with this phone already exists. Please login.' });
-      } else {
-        // If exists but not verified (orphaned?), we can update it? 
-        // Or just fail. Let's fail for now to be safe, or update if we want to support retries.
-        // Given the new flow "creates" user directly, we should treat it as conflict if exists.
-      }
+    // Check if user exists
+    let user = await User.findOne({ phone });
+
+    if (user && user.isVerified) {
+      return res.status(409).json({ message: 'User with this phone already exists. Please login.' });
     }
 
     if (email) {
-      const existingEmail = await User.findOne({ email, role: 'partner' });
-      if (existingEmail && existingEmail.isVerified) {
-        return res.status(409).json({ message: 'Email already in use for a partner account.' });
+      const emailUser = await User.findOne({ email });
+      if (emailUser && emailUser.isVerified && (!user || emailUser._id.toString() !== user._id.toString())) {
+        return res.status(409).json({ message: 'Email already in use.' });
       }
     }
+
+    // Generate OTP
+    const isBypassed = BYPASS_NUMBERS.includes(phone);
+    const otp = isBypassed ? DEFAULT_OTP : generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     // Prepare User Data
     const userData = {
       name: full_name,
       email: email,
       phone: phone,
-      role: 'partner', // Enforced
-      isPartner: false, // Access granted only after approval
+      role: 'partner',
+      isPartner: false,
       partnerApprovalStatus: 'pending',
       termsAccepted: termsAccepted,
+
+      // Extended Partner Details
+      // Note: mapping owner_name to existing logic if needed, or keeping it separate? 
+      // User model usually stores the main name.
       aadhaarNumber: aadhaar_number,
       aadhaarFront: aadhaar_front,
       aadhaarBack: aadhaar_back,
       panNumber: pan_number,
       panCardImage: pan_card_image,
+
       address: owner_address ? {
         street: owner_address.street,
         city: owner_address.city,
@@ -295,36 +268,47 @@ export const registerPartner = async (req, res) => {
         country: owner_address.country || 'India',
         coordinates: owner_address.coordinates
       } : undefined,
-      password: await bcrypt.hash(Math.random().toString(36), 10), // Random password for now
-      isVerified: true // Auto-verified phone (since we removed OTP per request, assuming trust or different flow)
+
+      otp: otp,
+      otpExpires: otpExpires,
+      isVerified: false
     };
 
-    // Create New Partner User
-    const newUser = new User(userData);
-    await newUser.save();
+    if (user) {
+      Object.assign(user, userData);
+      await user.save();
+    } else {
+      userData.password = await bcrypt.hash(Math.random().toString(36), 10);
+      user = await User.create(userData);
+    }
 
-    const token = generateToken(newUser._id, newUser.role);
+    // Send SMS
+    if (isBypassed) {
+      console.log(`🛡️ Partner OTP Bypassed for ${phone}: ${otp}`);
+      return res.status(200).json({
+        success: true,
+        message: 'OTP sent (Bypassed)',
+        phone
+      });
+    }
 
-    res.status(201).json({
+    const smsResponse = await smsService.sendOTP(phone, otp, 'partner-register');
+
+    if (!smsResponse.success) {
+      return res.status(200).json({
+        success: false, // Frontend should treat as warning or handled dev mode
+        message: 'SMS Failed. OTP generated for dev.',
+        devOtp: otp
+      });
+    }
+
+    res.status(200).json({
       success: true,
-      message: 'Partner registration completed successfully. Waiting for Admin Approval.',
-      token,
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
-      }
+      message: 'OTP sent successfully to ' + phone
     });
 
   } catch (error) {
     console.error('Register Partner Error:', error);
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Email or Phone already exists.' });
-    }
     res.status(500).json({ message: 'Server error during partner registration' });
   }
 };
@@ -342,77 +326,44 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check OTP in Otp collection
-    const otpRecord = await Otp.findOne({ phone });
+    const user = await User.findOne({ phone }).select('+otp +otpExpires');
 
-    if (!otpRecord) {
-      return res.status(400).json({ message: 'Invalid request or OTP expired. Please register again.' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found. Please register first.' });
     }
 
-    if (otpRecord.otp !== otp) {
+    if (user.otp !== otp) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    if (otpRecord.expiresAt < Date.now()) {
+    if (user.otpExpires < Date.now()) {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    // 2. Create User from tempData
-    const userData = otpRecord.tempData;
-    if (!userData) {
-      return res.status(400).json({ message: 'Registration data not found. Please register again.' });
-    }
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.isVerified = true;
+    user.isPartner = false;
+    user.partnerApprovalStatus = 'pending';
 
-    // Role check for safety
-    if (userData.role !== 'partner') {
-      return res.status(400).json({ message: 'Invalid registration context.' });
-    }
-
-    // Check if Partner already exists
-    const existingUser = await User.findOne({ phone, role: 'partner' });
-    if (existingUser) {
-      return res.status(409).json({ message: 'Partner account already exists.' });
-    }
-
-    // Create New Partner User
-    const newUser = new User({
-      ...userData,
-      password: userData.passwordHash,
-      isVerified: true
-    });
-
-    await newUser.save();
-
-    // 3. Cleanup OTP
-    await Otp.deleteOne({ phone });
-
-    const token = generateToken(newUser._id, newUser.role);
-
-    // Initialize Wallet (Optional, or just return 0)
-    // Controller creates on get, but let's return 0 here
-    const walletBalance = 0;
+    await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Partner registration completed successfully.',
-      token,
+      message: 'Partner registration completed successfully. Your account is pending admin approval.',
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus,
-        walletBalance: 0
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner,
+        partnerApprovalStatus: user.partnerApprovalStatus
       }
     });
 
   } catch (error) {
     console.error('Verify Partner OTP Error:', error);
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Email or Phone already exists for this role.' });
-    }
     res.status(500).json({ message: 'Server error verifying partner OTP' });
   }
 };
@@ -457,6 +408,16 @@ export const adminLogin = async (req, res) => {
     admin.lastLogin = new Date();
     await admin.save();
 
+    // Log the successful login
+    await logAuditAction({
+      adminId: admin._id,
+      action: 'LOGIN',
+      description: `Admin ${admin.name} logged in successfully`,
+      targetType: 'Admin',
+      targetId: admin._id,
+      req
+    });
+
     const token = generateToken(admin._id, admin.role);
 
     res.status(200).json({
@@ -496,15 +457,6 @@ export const getMe = async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // If user is a partner, attach wallet balance
-    // Fetch wallet balance for both users and partners
-    let walletBalance = 0;
-    if (['user', 'partner'].includes(user.role)) {
-      // Use imported Wallet model
-      const wallet = await Wallet.findOne({ partnerId: user._id, role: user.role });
-      walletBalance = wallet ? wallet.balance : 0;
-    }
-
     res.status(200).json({
       success: true,
       user: {
@@ -514,8 +466,7 @@ export const getMe = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner || false,
-        address: user.address,
-        walletBalance // Added wallet balance
+        address: user.address
       }
     });
   } catch (error) {
@@ -659,50 +610,3 @@ export const updateAdminProfile = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Upload Documents (Public for Registration)
- * @route   POST /api/auth/partner/upload-docs
- * @access  Public
- */
-export const uploadDocs = async (req, res) => {
-  try {
-    if (!req.files || !req.files.length) {
-      return res.status(400).json({ message: 'No documents provided' });
-    }
-    const urls = req.files.map((f) => f.path);
-    res.json({ success: true, urls });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-/**
- * @desc    Update FCM Token for Push Notifications
- * @route   PUT /api/auth/update-fcm
- * @access  Private
- */
-export const updateFcmToken = async (req, res) => {
-  try {
-    const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json({ message: 'fcmToken is required' });
-
-    // Try finding in User first
-    let user = await User.findById(req.user.id);
-
-    // If not found, check Admin
-    if (!user) {
-      user = await Admin.findById(req.user.id);
-    }
-
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    user.fcmToken = fcmToken;
-    await user.save();
-
-    res.json({ success: true, message: 'FCM Token updated successfully' });
-  } catch (error) {
-    console.error('Update FCM Token Error:', error);
-    res.status(500).json({ message: 'Server error updating FCM token' });
-  }
-};
