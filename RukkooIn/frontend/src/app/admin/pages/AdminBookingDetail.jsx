@@ -36,10 +36,15 @@ const AdminBookingDetail = () => {
 
     // Status Colors
     const getStatusColor = (s) => {
-        if (s === 'confirmed') return 'text-green-600 bg-green-50 border-green-200 font-bold';
+        if (s === 'confirmed' || s === 'checked_in') return 'text-green-600 bg-green-50 border-green-200 font-bold';
         if (s === 'cancelled') return 'text-red-600 bg-red-50 border-red-200 font-bold';
-        if (s === 'completed') return 'text-blue-600 bg-blue-50 border-blue-200 font-bold';
+        if (s === 'checked_out') return 'text-blue-600 bg-blue-50 border-blue-200 font-bold';
         return 'text-amber-600 bg-amber-50 border-amber-200 font-bold';
+    };
+
+    const statusMap = {
+        checked_in: 'Checked In',
+        checked_out: 'Checked Out',
     };
 
     const handleCancel = () => {
@@ -98,9 +103,9 @@ const AdminBookingDetail = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <h1 className="text-2xl font-bold text-gray-900 uppercase">Booking #{booking.bookingId || booking._id.slice(-6)}</h1>
-                        <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border uppercase ${getStatusColor(booking.status)} flex items-center gap-1`}>
-                            {booking.status === 'confirmed' ? <CheckCircle size={10} /> : <XCircle size={10} />}
-                            {booking.status}
+                        <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border uppercase ${getStatusColor(booking.bookingStatus)} flex items-center gap-1`}>
+                            {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'checked_in') ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                            {statusMap[booking.bookingStatus] || booking.bookingStatus}
                         </span>
                     </div>
                     <p className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">Booked on {new Date(booking.createdAt).toLocaleDateString()} • {new Date(booking.createdAt).toLocaleTimeString()}</p>
@@ -109,7 +114,7 @@ const AdminBookingDetail = () => {
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors">
                         <Download size={14} /> Download Receipt
                     </button>
-                    {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                    {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'pending') && (
                         <button
                             onClick={handleCancel}
                             className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold uppercase hover:bg-red-100 transition-colors"
@@ -131,18 +136,18 @@ const AdminBookingDetail = () => {
                         <div className="p-6 grid grid-cols-2 gap-6">
                             <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Check-in</p>
-                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkIn).toLocaleDateString()}</p>
+                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkInDate).toLocaleDateString()}</p>
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">After 12:00 PM</p>
                             </div>
                             <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Check-out</p>
-                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkOut).toLocaleDateString()}</p>
+                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">Before 11:00 AM</p>
                             </div>
                             <div className="col-span-2 pt-4 border-t border-gray-100">
-                                <p className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-tight">Hotel: {booking.hotelId?.name || 'Deleted Property'}</p>
+                                <p className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-tight">Property: {booking.propertyId?.propertyName || 'Deleted Property'}</p>
                                 <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1 uppercase">
-                                    <MapPin size={12} /> {booking.hotelId?.address?.city}, {booking.hotelId?.address?.state}
+                                    <MapPin size={12} /> {booking.propertyId?.address?.city}, {booking.propertyId?.address?.state}
                                 </p>
                             </div>
                         </div>
@@ -165,6 +170,9 @@ const AdminBookingDetail = () => {
                                     </p>
                                     <p className="text-gray-400 flex items-center gap-2">
                                         <Phone size={12} /> {booking.userId?.phone || 'N/A'}
+                                    </p>
+                                    <p className="text-gray-400 flex items-center gap-2 mt-2">
+                                        <ShieldCheck size={12} /> KYC: {booking.userId?.aadhaarNumber ? 'Aadhaar Provided' : 'Pending'}
                                     </p>
                                 </div>
                             </div>

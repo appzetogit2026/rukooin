@@ -31,15 +31,21 @@ import AdminBookings from './app/admin/pages/AdminBookings';
 import AdminBookingDetail from './app/admin/pages/AdminBookingDetail';
 
 import AdminPartners from './app/admin/pages/AdminPartners';
+import AdminPartnerDetail from './app/admin/pages/AdminPartnerDetail';
 import AdminReviews from './app/admin/pages/AdminReviews';
-import AdminFinance from './pages/admin/FinanceAndPayoutsPage';
+import AdminFinance from './app/admin/pages/AdminFinance';
 import AdminSettings from './app/admin/pages/AdminSettings';
 import AdminOffers from './app/admin/pages/AdminOffers';
 import AdminProtectedRoute from './app/admin/AdminProtectedRoute';
 import AdminProperties from './app/admin/pages/AdminProperties';
 import AdminLegalPages from './app/admin/pages/AdminLegalPages';
 import AdminContactMessages from './app/admin/pages/AdminContactMessages';
+import AdminKYC from './app/admin/pages/AdminKYC';
+import AdminCMS from './app/admin/pages/AdminCMS';
 import AdminNotifications from './app/admin/pages/AdminNotifications';
+import AdminReports from './app/admin/pages/AdminReports';
+import AdminStaff from './app/admin/pages/AdminStaff';
+import AdminAuditLogs from './app/admin/pages/AdminAuditLogs';
 
 // Hotel Partner Auth & Pages
 import HotelLogin from './pages/auth/HotelLoginPage';
@@ -59,9 +65,8 @@ import PartnerPage from './app/partner/pages/PartnerPage';
 import PartnerJoinPropertyType from './app/partner/pages/PartnerJoinPropertyType';
 import PartnerProperties from './app/partner/pages/PartnerProperties';
 import PartnerPropertyDetails from './app/partner/pages/PartnerPropertyDetails';
-import PartnerBookingDetail from './app/partner/pages/PartnerBookingDetail';
 import PartnerInventory from './app/partner/pages/PartnerInventory';
-import PartnerNotifications from './app/partner/pages/PartnerNotificationsPage';
+import PartnerNotifications from './app/partner/pages/PartnerNotifications';
 import PartnerKYC from './app/partner/pages/PartnerKYC';
 import PartnerSupport from './app/partner/pages/PartnerSupport';
 import PartnerProfile from './app/partner/pages/PartnerProfile';
@@ -92,15 +97,11 @@ import AmenitiesPage from './pages/user/AmenitiesPage';
 import ReviewsPage from './pages/user/ReviewsPage';
 import OffersPage from './pages/user/OffersPage';
 import ProfileEdit from './pages/user/ProfileEdit';
-import BookingCheckoutPage from './pages/user/BookingCheckoutPage';
 
 import { useLenis } from './app/shared/hooks/useLenis';
-import { legalService, userService } from './services/apiService';
-import adminService from './services/adminService';
-import { requestNotificationPermission, onMessageListener } from './utils/firebase';
+import { legalService } from './services/apiService';
 import { Clock } from 'lucide-react';
 import logo from './assets/rokologin-removebg-preview.png';
-import toast from 'react-hot-toast';
 
 // Wrapper to conditionally render Navbars & Handle Lenis
 const Layout = ({ children }) => {
@@ -269,94 +270,6 @@ const PublicRoute = ({ children }) => {
 import ScrollToTop from './components/ui/ScrollToTop';
 
 function App() {
-  React.useEffect(() => {
-    const initFcm = async () => {
-      // 1. Check if running in a WebView with a native bridge (e.g. Flutter)
-      if (window.NativeApp && window.NativeApp.getFcmToken) {
-        try {
-          const appToken = await window.NativeApp.getFcmToken();
-          if (appToken) {
-            console.log('Received App Token from Native Bridge:', appToken);
-            // Perform update for 'app' platform
-            const adminToken = localStorage.getItem('adminToken');
-            if (adminToken) {
-              await adminService.updateFcmToken(appToken, 'app');
-            } else {
-              const tokenAuth = localStorage.getItem('token');
-              if (tokenAuth) {
-                await userService.updateFcmToken(appToken, 'app');
-              }
-            }
-            // If native token found, we might skip web token request or do both. 
-            // Usually for hybrid app, we rely on native token.
-            return;
-          }
-        } catch (err) {
-          console.error('Error getting token from native bridge:', err);
-        }
-      }
-
-      // 2. Also listen for window message events from the native app (alternative bridge method)
-      window.addEventListener('message', async (event) => {
-        if (event.data && event.data.type === 'FCM_TOKEN_UPDATE') {
-          const appToken = event.data.token;
-          console.log('Received App Token via postMessage:', appToken);
-          const adminToken = localStorage.getItem('adminToken');
-          if (adminToken) {
-            await adminService.updateFcmToken(appToken, 'app');
-          } else if (localStorage.getItem('token')) {
-            await userService.updateFcmToken(appToken, 'app');
-          }
-        }
-      });
-
-      try {
-        const token = await requestNotificationPermission();
-        if (token) {
-          // Check for Admin Token first
-          const adminToken = localStorage.getItem('adminToken');
-          if (adminToken) {
-            console.log('FCM Token received, updating for Admin');
-            await adminService.updateFcmToken(token, 'web');
-            return;
-          }
-
-          // Check for User/Partner Token
-          const tokenAuth = localStorage.getItem('token');
-          const userStr = localStorage.getItem('user');
-
-          if (tokenAuth && userStr) {
-            const user = JSON.parse(userStr);
-            console.log('FCM Token received, updating backend for role:', user.role);
-            await userService.updateFcmToken(token, 'web');
-          }
-        }
-      } catch (error) {
-        console.error("Error initializing FCM:", error);
-      }
-    };
-
-    initFcm();
-
-    // Listen for foreground messages
-    onMessageListener((payload) => {
-      console.log('Foreground Message:', payload);
-      toast((t) => (
-        <div className="flex flex-col">
-          <span className="font-bold">{payload.notification?.title || 'Notification'}</span>
-          <span className="text-sm">{payload.notification?.body}</span>
-        </div>
-      ), {
-        duration: 5000,
-        position: 'top-right',
-        style: {
-          background: '#333',
-          color: '#fff',
-        },
-      });
-    });
-  }, []);
-
   return (
     <Router>
       <ScrollToTop />
@@ -393,9 +306,7 @@ function App() {
               <Route path="properties" element={<PartnerProperties />} />
               <Route path="properties/:id" element={<PartnerPropertyDetails />} />
               <Route path="inventory/:id" element={<PartnerInventory />} />
-              <Route path="inventory/:id" element={<PartnerInventory />} />
               <Route path="bookings" element={<PartnerBookings />} />
-              <Route path="bookings/:id" element={<PartnerBookingDetail />} />
               <Route path="wallet" element={<PartnerWallet />} />
               <Route path="reviews" element={<PartnerReviews />} />
               <Route path="transactions" element={<PartnerTransactions />} />
@@ -425,15 +336,21 @@ function App() {
               <Route path="bookings" element={<AdminBookings />} />
               <Route path="bookings/:id" element={<AdminBookingDetail />} />
               <Route path="partners" element={<AdminPartners />} />
+              <Route path="partners/:id" element={<AdminPartnerDetail />} />
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="finance" element={<AdminFinance />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="cms" element={<AdminCMS />} />
+              <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="staff" element={<AdminStaff />} />
+              <Route path="audit-logs" element={<AdminAuditLogs />} />
               <Route path="legal" element={<AdminLegalPages />} />
               <Route path="contact-messages" element={<AdminContactMessages />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="properties" element={<AdminProperties />} />
               <Route path="properties/:id" element={<AdminHotelDetail />} />
+              <Route path="kyc" element={<AdminKYC />} />
               <Route path="offers" element={<AdminOffers />} />
-              <Route path="notifications" element={<AdminNotifications />} />
             </Route>
           </Route>
 
@@ -449,11 +366,10 @@ function App() {
             <Route path="/hotel/:id/offers" element={<OffersPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
-            <Route path="/listings" element={<Navigate to="/search" replace />} />
+            <Route path="/listings" element={<ListingPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/support" element={<SupportPage />} />
-            <Route path="/checkout" element={<BookingCheckoutPage />} />
             <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
             <Route path="/booking/:id" element={<BookingConfirmationPage />} />
             <Route path="/refer" element={<ReferAndEarnPage />} />

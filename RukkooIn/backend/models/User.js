@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
+    unique: true,
     sparse: true, // Allows null/undefined values to duplicate (i.e., multiple users without email)
     lowercase: true,
     trim: true
@@ -15,6 +16,7 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
+    unique: true,
     trim: true
   },
   password: {
@@ -38,16 +40,9 @@ const userSchema = new mongoose.Schema({
   partnerSince: {
     type: Date
   },
-  // Platform-based FCM tokens (app and web)
-  fcmTokens: {
-    app: {
-      type: String,
-      default: null
-    },
-    web: {
-      type: String,
-      default: null
-    }
+  fcmToken: {
+    type: String,
+    default: null
   },
   isVerified: {
     type: Boolean,
@@ -88,15 +83,29 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  isSuspicious: {
+    type: Boolean,
+    default: false
+  },
+  commissionPercentage: {
+    type: Number,
+    default: 15, // Default platform commission
+    min: 0,
+    max: 100
+  },
+  payoutOnHold: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 }, { timestamps: true });
-
-// Compound indexes to allow same phone/email for different roles
-userSchema.index({ phone: 1, role: 1 }, { unique: true });
-userSchema.index({ email: 1, role: 1 }, { unique: true, sparse: true });
 
 const User = mongoose.model('User', userSchema);
 export default User;

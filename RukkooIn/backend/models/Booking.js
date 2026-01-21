@@ -15,12 +15,6 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
 
-  bookingId: {
-    type: String,
-    required: true,
-    unique: true
-  },
-
   // PROPERTY
   propertyId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -65,10 +59,6 @@ const bookingSchema = new mongoose.Schema({
 
   taxes: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
-  couponCode: String,
-
-  adminCommission: { type: Number, default: 0 },
-  partnerPayout: { type: Number, default: 0 },
 
   totalAmount: { type: Number, required: true },
 
@@ -85,7 +75,7 @@ const bookingSchema = new mongoose.Schema({
   // BOOKING STATUS
   bookingStatus: {
     type: String,
-    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"],
+    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled"],
     default: "pending"
   },
 

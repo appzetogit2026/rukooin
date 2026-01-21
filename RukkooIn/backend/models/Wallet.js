@@ -4,18 +4,13 @@ const walletSchema = new mongoose.Schema({
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
-    // unique: true - Removed to allow multiple wallets (user/partner) for same ID
-  },
-  role: {
-    type: String,
-    enum: ['user', 'partner', 'admin'],
-    default: 'partner',
-    required: true
+    required: true,
+    unique: true
   },
   balance: {
     type: Number,
-    default: 0
+    default: 0,
+    min: 0
   },
   totalEarnings: {
     type: Number,
@@ -104,7 +99,6 @@ walletSchema.methods.debit = async function (amount, description, reference, typ
 
 // Indexes
 walletSchema.index({ createdAt: -1 });
-walletSchema.index({ partnerId: 1, role: 1 }, { unique: true }); // Composite key
 
 const Wallet = mongoose.model('Wallet', walletSchema);
 export default Wallet;

@@ -35,52 +35,18 @@ try {
  * @route   GET /api/wallet
  * @access  Private (Partner)
  */
-import Booking from '../models/Booking.js';
-
-/**
- * @desc    Get wallet balance and details
- * @route   GET /api/wallet
- * @access  Private (Partner/User)
- */
-// Helper to get wallet role based on user role
-const getWalletRole = (userRole) => {
-  return userRole === 'user' ? 'user' : 'partner'; // Default admin to partner or handle separately if needed
-};
-
-/**
- * @desc    Get wallet balance and details
- * @route   GET /api/wallet
- * @access  Private (Partner/User)
- */
 export const getWallet = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role);
-    let wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    let wallet = await Wallet.findOne({ partnerId: req.user._id });
 
     // Create wallet if doesn't exist
     if (!wallet) {
       wallet = await Wallet.create({
         partnerId: req.user._id,
-        role,
         balance: 0
       });
     }
 
-    // Role-based response
-    if (req.user.role === 'user') {
-      return res.json({
-        success: true,
-        wallet: {
-          balance: wallet.balance,
-          totalEarnings: 0,
-          totalWithdrawals: 0,
-          pendingClearance: 0,
-          lastTransactionAt: wallet.lastTransactionAt
-        }
-      });
-    }
-
-    // Partner/Admin Response
     res.json({
       success: true,
       wallet: {
@@ -100,74 +66,28 @@ export const getWallet = async (req, res) => {
 };
 
 /**
- * @desc    Get wallet transactions (Merged with Bookings for Users)
+ * @desc    Get wallet transactions
  * @route   GET /api/wallet/transactions
- * @access  Private
+ * @access  Private (Partner)
  */
 export const getTransactions = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type } = req.query;
-    const skip = (page - 1) * limit;
-    const role = getWalletRole(req.user.role);
+    const { page = 1, limit = 20, type, category } = req.query;
 
-    // Find the specific wallet first to get its ID
-    const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
-    // If no wallet yet, return empty (or handling it gracefully)
-    if (!wallet) {
-      // If it's a user, they might have bookings but no wallet tx yet.
-      // We'll proceed with walletId = null for tx query (returns nothing)
-    }
+    const query = { partnerId: req.user._id };
+    if (type) query.type = type;
+    if (category) query.category = category;
 
-    // 1. Fetch Wallet Transactions (Top-ups, etc) linked to this specific WALLET
-    const txQuery = { walletId: wallet?._id };
-    if (type) txQuery.type = type;
+    const transactions = await Transaction.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
 
-    let walletTransactions = [];
-    if (wallet) {
-      walletTransactions = await Transaction.find(txQuery)
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
-    }
-
-    let mergedList = [...walletTransactions];
-
-    // 2. If User, Fetch Bookings as "Transactions"
-    if (req.user.role === 'user') {
-      const bookingQuery = {
-        userId: req.user._id,
-        paymentStatus: { $in: ['paid', 'refunded', 'partial'] }
-      };
-
-      const bookings = await Booking.find(bookingQuery)
-        .populate('propertyId', 'name')
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean();
-
-      // Map bookings to transaction-like objects
-      const bookingTransactions = bookings.map(b => ({
-        _id: b._id,
-        type: b.paymentStatus === 'refunded' ? 'credit' : 'debit',
-        amount: b.totalAmount,
-        description: `Booking: ${b.propertyId?.name || 'Hotel Stay'}`,
-        status: b.bookingStatus,
-        createdAt: b.createdAt,
-        isBooking: true
-      }));
-
-      mergedList = [...mergedList, ...bookingTransactions];
-    }
-
-    // 3. Sort & Paginate Merged List
-    mergedList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    const paginatedList = mergedList.slice(skip, skip + Number(limit));
-    const total = mergedList.length;
+    const total = await Transaction.countDocuments(query);
 
     res.json({
       success: true,
-      transactions: paginatedList,
+      transactions,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -190,7 +110,6 @@ export const getTransactions = async (req, res) => {
 export const requestWithdrawal = async (req, res) => {
   try {
     const { amount } = req.body;
-    const role = getWalletRole(req.user.role);
 
     // Validation
     if (!amount || amount < PaymentConfig.minWithdrawalAmount) {
@@ -205,8 +124,8 @@ export const requestWithdrawal = async (req, res) => {
       });
     }
 
-    // Get specific wallet
-    const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    // Get wallet
+    const wallet = await Wallet.findOne({ partnerId: req.user._id });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found' });
     }
@@ -278,8 +197,6 @@ export const getWithdrawals = async (req, res) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
 
-    // Withdrawals are tied to partnerId directly in Withdrawal schema usually
-    // But logically only partners withdraw.
     const query = { partnerId: req.user._id };
     if (status) query.status = status;
 
@@ -315,19 +232,17 @@ export const getWithdrawals = async (req, res) => {
 export const updateBankDetails = async (req, res) => {
   try {
     const { accountNumber, ifscCode, accountHolderName, bankName } = req.body;
-    const role = getWalletRole(req.user.role);
 
     // Validation
     if (!accountNumber || !ifscCode || !accountHolderName || !bankName) {
       return res.status(400).json({ message: 'All bank details are required' });
     }
 
-    let wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    let wallet = await Wallet.findOne({ partnerId: req.user._id });
 
     if (!wallet) {
       wallet = await Wallet.create({
         partnerId: req.user._id,
-        role,
         balance: 0
       });
     }
@@ -361,10 +276,8 @@ export const updateBankDetails = async (req, res) => {
  */
 export const getWalletStats = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role);
-    const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    const wallet = await Wallet.findOne({ partnerId: req.user._id });
 
-    // Handle No Wallet Case
     if (!wallet) {
       return res.json({
         success: true,
@@ -379,25 +292,7 @@ export const getWalletStats = async (req, res) => {
       });
     }
 
-    // USER Role: Return simple balance & transaction count
-    if (req.user.role === 'user') {
-      const walletTxCount = await Transaction.countDocuments({ walletId: wallet._id }); // Use walletId
-      const bookingCount = await Booking.countDocuments({ userId: req.user._id });
-
-      return res.json({
-        success: true,
-        stats: {
-          currentBalance: wallet.balance,
-          transactionCount: walletTxCount + bookingCount,
-          totalEarnings: 0,
-          totalWithdrawals: 0,
-          pendingClearance: 0,
-          thisMonthEarnings: 0
-        }
-      });
-    }
-
-    // PARTNER Role: Return detailed earnings stats
+    // Get current month earnings
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -405,9 +300,9 @@ export const getWalletStats = async (req, res) => {
     const monthlyEarnings = await Transaction.aggregate([
       {
         $match: {
-          walletId: wallet._id, // Filter by specific wallet ID
+          partnerId: req.user._id,
           type: 'credit',
-          category: { $in: ['booking_payment', 'adjustment'] },
+          category: { $in: ['booking_payment', 'adjustment'] }, // Exclude topup from earnings stats?
           createdAt: { $gte: startOfMonth }
         }
       },
@@ -419,7 +314,7 @@ export const getWalletStats = async (req, res) => {
       }
     ]);
 
-    const transactionCount = await Transaction.countDocuments({ walletId: wallet._id });
+    const transactionCount = await Transaction.countDocuments({ partnerId: req.user._id });
 
     res.json({
       success: true,
@@ -457,8 +352,7 @@ export const createAddMoneyOrder = async (req, res) => {
       currency: PaymentConfig.currency,
       notes: {
         userId: req.user._id.toString(),
-        type: 'wallet_topup',
-        role: req.user.role // Add role to notes for potential debugging or hooks
+        type: 'wallet_topup'
       }
     };
 
@@ -488,7 +382,6 @@ export const createAddMoneyOrder = async (req, res) => {
 export const verifyAddMoneyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
-    const role = getWalletRole(req.user.role);
 
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
@@ -500,12 +393,10 @@ export const verifyAddMoneyPayment = async (req, res) => {
       return res.status(400).json({ message: 'Invalid payment signature' });
     }
 
-    // Find correct wallet based on ROLE
-    let wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    let wallet = await Wallet.findOne({ partnerId: req.user._id });
     if (!wallet) {
       wallet = await Wallet.create({
         partnerId: req.user._id,
-        role,
         balance: 0
       });
     }

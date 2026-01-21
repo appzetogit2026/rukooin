@@ -3,7 +3,6 @@ import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
-import notificationService from '../services/notificationService.js';
 
 export const createProperty = async (req, res) => {
   try {
@@ -60,19 +59,6 @@ export const createProperty = async (req, res) => {
       doc.isLive = false;
       await doc.save();
     }
-
-    // --- NOTIFICATION HOOK: NEW PROPERTY ---
-    await notificationService.sendToAdmin({
-      title: 'New Property List Request',
-      body: `New Property: ${propertyName}. Verify Docs.`
-    }, {
-      sendEmail: true,
-      emailHtml: `
-        <h3>New Property Listed</h3>
-        <p>A new property <strong>${propertyName}</strong> (${propertyType}) has been listed.</p>
-        <p>Please review and verify the documents.</p>
-      `
-    });
     res.status(201).json({ success: true, property: doc });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -333,10 +319,7 @@ export const getPublicProperties = async (req, res) => {
       sort
     } = req.query;
 
-    console.log("🔍 Search Params:", { search, type, lat, lng, radius, sort });
-
     const pipeline = [];
-    const searchRadius = parseFloat(radius) > 0 ? parseFloat(radius) : 50;
 
     // 1. Geospatial Search (Must be first if used)
     if (lat && lng) {
@@ -344,7 +327,7 @@ export const getPublicProperties = async (req, res) => {
         $geoNear: {
           near: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
           distanceField: "distance",
-          maxDistance: searchRadius * 1000, // convert km to meters
+          maxDistance: parseFloat(radius) * 1000, // convert km to meters
           spherical: true,
           query: { status: 'approved', isLive: true }
         }
@@ -383,6 +366,7 @@ export const getPublicProperties = async (req, res) => {
     }
 
     // 3. Lookup Room Types (For Price & Guest Capacity)
+    // Use dynamic collection name for robustness
     const roomTypeCollection = RoomType.collection.name;
 
     pipeline.push({
@@ -399,6 +383,8 @@ export const getPublicProperties = async (req, res) => {
 
     if (guests) {
       const guestCount = parseInt(guests);
+      // Room must accommodate guests (base adults + children? simplified to maxAdults for now)
+      // Usually users search by "2 adults", so check maxAdults
       roomFilter = {
         $and: [
           { $eq: ['$$rt.isActive', true] },
@@ -426,7 +412,7 @@ export const getPublicProperties = async (req, res) => {
           $cond: {
             if: { $gt: [{ $size: "$roomTypes" }, 0] },
             then: { $min: "$roomTypes.pricePerNight" },
-            else: null
+            else: null // Will filter out properties with no matching rooms later if strictly needed
           }
         },
         hasMatchingRooms: { $gt: [{ $size: "$roomTypes" }, 0] }
@@ -435,6 +421,7 @@ export const getPublicProperties = async (req, res) => {
 
     // 6. Filter by Price Range
     const priceMatch = {};
+    // Only show properties that actually have available room types matching criteria
     priceMatch.hasMatchingRooms = true;
 
     if (minPrice) {

@@ -1,71 +1,58 @@
 import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: [true, 'User ID is required'],
-      refPath: 'userModel',
-      index: true
+    {
+        recipient: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: false // If null, it could be a broadcast
+        },
+        recipientRole: {
+            type: String,
+            enum: ['user', 'partner', 'all'],
+            default: 'all'
+        },
+        title: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        body: {
+            type: String,
+            required: true
+        },
+        image: {
+            type: String
+        },
+        type: {
+            type: String,
+            enum: ['broadcast', 'booking', 'system', 'promotion', 'kyc'],
+            default: 'system'
+        },
+        status: {
+            type: String,
+            enum: ['sent', 'failed', 'scheduled'],
+            default: 'sent'
+        },
+        actionUrl: {
+            type: String
+        },
+        metadata: {
+            type: Object
+        },
+        readBy: [
+            {
+                user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                readAt: { type: Date, default: Date.now }
+            }
+        ],
+        createdBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User' // Admin who sent it
+        }
     },
-    userType: {
-      type: String,
-      enum: ['user', 'partner', 'admin'],
-      default: 'user',
-      required: true
-    },
-    userModel: {
-      type: String,
-      required: true,
-      enum: ['User', 'Admin'],
-      default: 'User'
-    },
-    title: {
-      type: String,
-      required: [true, 'Notification title is required'],
-      trim: true
-    },
-    body: {
-      type: String,
-      required: [true, 'Notification body is required'],
-      trim: true
-    },
-    data: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {}
-    },
-    isRead: {
-      type: Boolean,
-      default: false,
-      index: true
-    },
-    readAt: {
-      type: Date
-    },
-    type: {
-      type: String,
-      default: 'general'
-    },
-    fcmMessageId: {
-      type: String
-    }
-  },
-  {
-    timestamps: true
-  }
+    { timestamps: true }
 );
-
-// Index for efficient queries
-notificationSchema.index({ userId: 1, userType: 1, isRead: 1, createdAt: -1 });
-
-// Pre-save hook to set userModel based on userType
-notificationSchema.pre('save', async function () {
-  if (this.userType === 'admin') {
-    this.userModel = 'Admin';
-  } else {
-    this.userModel = 'User';
-  }
-});
 
 const Notification = mongoose.model('Notification', notificationSchema);
 export default Notification;

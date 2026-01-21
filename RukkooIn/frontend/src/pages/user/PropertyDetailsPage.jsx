@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, bookingService, legalService, reviewService, offerService } from '../../services/apiService';
+import { hotelService, bookingService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
-  Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
-  CheckCircle, Shield, Info, Clock, Wifi, Coffee, Car
+  Wifi, Coffee, Car, Shield, Info, CheckCircle, Clock,
+  Users, Calendar, Loader2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -18,81 +18,23 @@ const PropertyDetailsPage = () => {
   const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [taxRate, setTaxRate] = useState(0); // Fetched from backend
-
-  // Reviews State
-  const [reviews, setReviews] = useState([]);
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
-  const [submitReviewLoading, setSubmitReviewLoading] = useState(false);
-
-  // Offers State
-  const [offers, setOffers] = useState([]);
-  const [appliedOffer, setAppliedOffer] = useState(null);
-  const [showOffersModal, setShowOffersModal] = useState(false);
 
   useEffect(() => {
-    legalService.getFinancialSettings()
-      .then(res => {
-        if (res.success) setTaxRate(res.taxRate || 0);
-      })
-      .catch(err => console.error("Failed to fetch tax rate", err));
-  }, []);
-
-  const loadPropertyDetails = async () => {
-    try {
-      const response = await propertyService.getDetails(id);
-      if (response && response.property) {
-        const p = response.property;
-        const rts = response.roomTypes || [];
-        const adapted = {
-          ...p,
-          _id: p._id,
-          name: p.propertyName,
-          description: p.description,
-          address: p.address,
-          avgRating: p.avgRating || 0,
-          images: { cover: p.coverImage, gallery: p.propertyImages || [] },
-          propertyType: p.propertyType ? p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1) : '',
-          amenities: p.amenities || [],
-          inventory: rts.map(rt => ({
-            _id: rt._id,
-            type: rt.name,
-            price: rt.pricePerNight,
-            description: rt.description || '',
-            amenities: rt.amenities || [],
-            maxAdults: rt.maxAdults,
-            maxChildren: rt.maxChildren,
-            images: rt.images || [],
-            pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice }
-          })),
-          policies: {
-            checkInTime: p.checkInTime,
-            checkOutTime: p.checkOutTime,
-            cancellationPolicy: p.cancellationPolicy,
-            houseRules: p.houseRules,
-            petsAllowed: p.petsAllowed,
-            coupleFriendly: p.coupleFriendly
-          },
-          config: { pgType: p.pgType, resortType: p.resortType, foodType: p.foodType }
-        };
-        setProperty(adapted);
-        // Only set selected room on first load if not set
-        if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
-          setSelectedRoom(adapted.inventory[0]);
+    const fetchDetails = async () => {
+      try {
+        const data = await hotelService.getById(id);
+        setProperty(data);
+        if (data.inventory && data.inventory.length > 0) {
+          setSelectedRoom(data.inventory[0]);
         }
-      } else {
-        setProperty(response);
+      } catch (error) {
+        console.error("Error fetching property details:", error);
+        toast.error("Failed to load property details");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching property details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPropertyDetails();
+    };
+    fetchDetails();
   }, [id]);
 
   // Helper derived state for hooks (safe access)
@@ -107,55 +49,6 @@ const PropertyDetailsPage = () => {
   }, [guests.rooms, isBedBased]);
 
   useEffect(() => {
-    if (id) {
-      fetchReviews();
-      fetchOffers();
-    }
-  }, [id]);
-
-  const fetchOffers = async () => {
-    try {
-      const data = await offerService.getActive();
-      setOffers(data || []);
-    } catch (error) {
-      console.error("Failed to fetch offers");
-    }
-  };
-
-  const fetchReviews = async () => {
-    try {
-      const data = await reviewService.getPropertyReviews(id);
-      setReviews(data);
-    } catch (error) {
-      console.error("Failed to fetch reviews");
-    }
-  };
-
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!localStorage.getItem('token')) {
-      toast.error('Please login to submit a review');
-      return;
-    }
-    setSubmitReviewLoading(true);
-    try {
-      await reviewService.createReview({
-        propertyId: id,
-        ...reviewData
-      });
-      toast.success('Review submitted!');
-      setReviewData({ rating: 5, comment: '' });
-      setShowReviewForm(false);
-      fetchReviews();
-      loadPropertyDetails();
-    } catch (error) {
-      toast.error(error.message || 'Failed to submit review');
-    } finally {
-      setSubmitReviewLoading(false);
-    }
-  };
-
-  useEffect(() => {
     setCurrentImageIndex(0);
   }, [selectedRoom]);
 
@@ -163,7 +56,7 @@ const PropertyDetailsPage = () => {
   if (!property) return <div className="h-screen flex items-center justify-center">Property not found</div>;
 
   const {
-    _id, name, address, images, description, avgRating: rating,
+    _id, name, address, images, description, rating,
     inventory, amenities, policies, config
   } = property;
 
@@ -227,31 +120,28 @@ const PropertyDetailsPage = () => {
   };
 
   const getMaxAdults = () => {
-    // If a specific room/unit is selected (which contains the limits), use it
-    if (selectedRoom) {
-      // Multiply by number of units/rooms selected if applicable
-      // But for 'Entire Villa' (inventoryType='entire'), usually quantity is 1 which is guests.rooms
-      return (selectedRoom.maxAdults || 12) * (isWholeUnit ? 1 : guests.rooms);
-    }
-
     if (isWholeUnit) return property.structure?.maxGuests || property.maxGuests || 12;
     if (isBedBased) return guests.rooms; // 1 person per bed
 
-    if (propertyType === 'Resort') return guests.rooms * 4;
-    return guests.rooms * 3;
+    // If a room is selected, prioritize its specific limits
+    if (selectedRoom) {
+      if (selectedRoom.maxAdults) return selectedRoom.maxAdults * guests.rooms;
+      if (selectedRoom.capacity) return selectedRoom.capacity * guests.rooms;
+    }
+
+    if (propertyType === 'Resort') return guests.rooms * 4; // Resorts often allow more
+    return guests.rooms * 3; // Max 3 adults per room standard
   };
 
   const getMaxChildren = () => {
-    if (selectedRoom) {
-      if (selectedRoom.maxChildren !== undefined) {
-        return selectedRoom.maxChildren * (isWholeUnit ? 1 : guests.rooms);
-      }
-    }
-
     if (isBedBased) return 0;
     if (isWholeUnit) return 6;
 
-    return guests.rooms * 2;
+    if (selectedRoom && selectedRoom.maxChildren !== undefined) {
+      return selectedRoom.maxChildren * guests.rooms;
+    }
+
+    return guests.rooms * 2; // Max 2 children per room
   };
 
   const getUnitLabel = () => {
@@ -279,94 +169,10 @@ const PropertyDetailsPage = () => {
   const stayPricing = getNightBreakup(activeRoom);
   const bookingRoom = selectedRoom || activeRoom;
   const extraPricingLabels = getExtraPricingLabels(bookingRoom);
-  const getPriceBreakdown = () => {
-    if (!selectedRoom || !dates.checkIn || !dates.checkOut) return null;
-
-    const { nights, perNight } = stayPricing;
-    if (nights === 0) return null;
-
-    const units = isWholeUnit ? 1 : guests.rooms;
-
-    // Base Occupancy Logic
-    // If Villa/WholeUnit -> assuming base is 2 per unit for calculation if extraAdultPrice > 0, 
-    // BUT usually 'Entire Villa' standard price covers up to a certain amount.
-    // Given the user prompt implies dynamic calculation, we assume Standard Base = 2.
-    // Ideally this should come from backend (e.g. baseAdults). Defaults to 2.
-    // Dynamic Base Capacity from Room/Property
-    const baseAdultsPerUnit = selectedRoom.maxAdults || property.maxGuests || 2;
-    const baseChildrenPerUnit = selectedRoom.maxChildren !== undefined ? selectedRoom.maxChildren : 0;
-
-    // Calculate Extras
-    // Total Adults - (Base * Units)
-    const extraAdultsCount = Math.max(0, guests.adults - (baseAdultsPerUnit * units));
-    const extraChildrenCount = Math.max(0, guests.children - (baseChildrenPerUnit * units));
-
-    const pricePerNight = getRoomPrice(selectedRoom);
-    const extraAdultPrice = selectedRoom.pricing?.extraAdultPrice || 0;
-    const extraChildPrice = selectedRoom.pricing?.extraChildPrice || 0;
-
-    const totalBasePrice = pricePerNight * nights * units;
-    const totalExtraAdultCharge = extraAdultsCount * extraAdultPrice * nights;
-    const totalExtraChildCharge = extraChildrenCount * extraChildPrice * nights;
-
-    const grossAmount = totalBasePrice + totalExtraAdultCharge + totalExtraChildCharge;
-
-    // --- DISCOUNT CALCULATION ---
-    let discountAmount = 0;
-    if (appliedOffer) {
-      // Validate Min Booking Amount
-      if (grossAmount >= (appliedOffer.minBookingAmount || 0)) {
-        if (appliedOffer.discountType === 'percentage') {
-          discountAmount = (grossAmount * appliedOffer.discountValue) / 100;
-          if (appliedOffer.maxDiscount) {
-            discountAmount = Math.min(discountAmount, appliedOffer.maxDiscount);
-          }
-        } else {
-          discountAmount = appliedOffer.discountValue;
-        }
-        discountAmount = Math.floor(discountAmount);
-      } else {
-        // Auto-remove if condition met no longer? Or simply don't apply.
-        // Let's not apply but maybe don't remove so user sees why?
-        // Simpler: Just 0 discount.
-        discountAmount = 0;
-      }
-    }
-
-    // Ensure we don't discount below 0
-    discountAmount = Math.min(discountAmount, grossAmount);
-
-    const taxableAmount = grossAmount - discountAmount;
-    const taxAmount = Math.ceil(taxableAmount * (taxRate / 100));
-    const grandTotal = taxableAmount + taxAmount;
-
-    return {
-      nights,
-      units,
-      baseAdultsPerUnit,
-      extraAdultsCount,
-      extraChildrenCount,
-      pricePerNight,
-      extraAdultPrice,
-      extraChildPrice,
-      totalBasePrice,
-      totalExtraAdultCharge,
-      totalExtraChildCharge,
-      grossAmount,
-      discountAmount,
-      couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
-      taxableAmount,
-      taxAmount,
-      grandTotal
-    };
-  };
-
   const bookingBarPrice =
     stayPricing.nights > 0
       ? stayPricing.perNight
       : getRoomPrice(bookingRoom) || property.minPrice || null;
-
-  const priceBreakdown = getPriceBreakdown();
 
   const handlePrevImage = () => {
     if (galleryImages.length <= 1) return;
@@ -378,7 +184,7 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!dates.checkIn || !dates.checkOut) {
       toast.error("Please select check-in and check-out dates");
       return;
@@ -389,43 +195,31 @@ const PropertyDetailsPage = () => {
       return;
     }
 
-    if (!localStorage.getItem('token')) {
-      toast.error("Please login to book");
-      navigate('/login', { state: { from: `/hotel/${id}` } });
-      return;
-    }
-
-    navigate('/checkout', {
-      state: {
-        property,
-        selectedRoom,
-        dates,
+    setBookingLoading(true);
+    try {
+      const payload = {
+        hotelId: _id,
+        inventoryId: selectedRoom?._id, // undefined for whole unit
+        checkIn: dates.checkIn,
+        checkOut: dates.checkOut,
         guests: {
           ...guests,
-          rooms: guests.rooms
+          units: guests.rooms // Backend uses 'units' or 'rooms'
         },
-        priceBreakdown,
-        taxRate,
-        couponCode: priceBreakdown.couponCode
-      }
-    });
-  };
+        // totalAmount is calculated on backend usually, but we can pass estimate if needed
+      };
 
-  const handleApplyOffer = (offer) => {
-    // Basic pre-validation
-    const gross = priceBreakdown ? priceBreakdown.grossAmount : (bookingBarPrice || 0);
-    if (offer.minBookingAmount && gross < offer.minBookingAmount) {
-      toast.error(`Min booking amount of ₹${offer.minBookingAmount} required`);
-      return;
+      const response = await bookingService.create(payload);
+      toast.success("Booking initiated!");
+      navigate(`/booking/${response.bookingId || response.booking?.bookingId || response._id}`, {
+        state: { booking: response.booking || response }
+      });
+    } catch (error) {
+      console.error("Booking Error:", error);
+      toast.error(error.message || "Failed to initiate booking");
+    } finally {
+      setBookingLoading(false);
     }
-    setAppliedOffer(offer);
-    setShowOffersModal(false);
-    toast.success(`'${offer.code}' applied!`);
-  };
-
-  const handleRemoveOffer = () => {
-    setAppliedOffer(null);
-    toast.success('Coupon removed');
   };
 
   return (
@@ -487,17 +281,17 @@ const PropertyDetailsPage = () => {
                 <span className="bg-surface/10 text-surface text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                   {propertyType}
                 </span>
-                {rating !== undefined && rating !== null && (
+                {rating && (
                   <div className="flex items-center gap-1 bg-honey/10 text-honey-dark px-2 py-0.5 rounded text-[10px] font-bold">
                     <Star size={10} className="fill-honey text-honey" />
-                    {Number(rating) > 0 ? Number(rating).toFixed(1) : 'New'}
+                    {rating}
                   </div>
                 )}
               </div>
               <h1 className="text-xl md:text-3xl font-bold text-textDark mb-1 leading-tight">{name}</h1>
               <div className="flex items-start gap-1.5 text-gray-500 text-xs md:text-sm">
                 <MapPin size={14} className="mt-0.5 shrink-0" />
-                <span className="line-clamp-3 md:line-clamp-1">{address?.fullAddress}</span>
+                <span className="line-clamp-2 md:line-clamp-1">{address?.addressLine}, {address?.city}, {address?.state}</span>
               </div>
             </div>
             <div className="hidden md:block text-right">
@@ -523,8 +317,8 @@ const PropertyDetailsPage = () => {
 
           {/* Amenities */}
           {amenities && amenities.length > 0 && (
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-textDark mb-2">What this place offers</h2>
+            <div className="mb-8">
+              <h2 className="text-lg font-bold text-textDark mb-4">What this place offers</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {amenities.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
@@ -538,21 +332,6 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
-          {/* Room Amenities */}
-          {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
-            <div className="mb-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {selectedRoom.amenities.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <CheckCircle size={16} className="text-surface" />
-                    </div>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {/* Type Specific Info - Dynamic Rendering */}
           {propertyType === 'PG' && config && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">
@@ -581,7 +360,6 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
-          {/* Have to check these later */}
           {propertyType === 'Villa' && (property.structure || config) && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">
               <div className="p-4 bg-green-50 rounded-xl">
@@ -599,20 +377,6 @@ const PropertyDetailsPage = () => {
                   )}
                 </ul>
               </div>
-
-              {/* Price Details Card */}
-              {selectedRoom && (
-                <div className="p-4 bg-white rounded-xl border border-gray-200">
-                  <h3 className="text-gray-500 text-sm mb-1">Price per night</h3>
-                  <div className="text-2xl font-bold text-surface mb-2">
-                    ₹{(getRoomPrice(selectedRoom) || 0).toLocaleString()}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    <div>Extra adult: ₹{selectedRoom.pricing?.extraAdultPrice || selectedRoom.extraAdultPrice || 0} / night •</div>
-                    <div>Extra child: ₹{selectedRoom.pricing?.extraChildPrice || selectedRoom.extraChildPrice || 0} / night</div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -767,141 +531,32 @@ const PropertyDetailsPage = () => {
 
               <div className="col-span-1">
                 <label className="text-xs text-gray-500 block mb-1">Adults</label>
-                <input
-                  type="number"
-                  min="1"
+                <select
                   className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                   value={guests.adults}
-                  onChange={e => setGuests({ ...guests, adults: Math.max(1, parseInt(e.target.value) || 0) })}
+                  onChange={e => setGuests({ ...guests, adults: parseInt(e.target.value) })}
                   disabled={isBedBased}
-                />
+                >
+                  {Array.from({ length: getMaxAdults() }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
               </div>
 
               {!isBedBased && (
                 <div className="col-span-1">
                   <label className="text-xs text-gray-500 block mb-1">Children</label>
-                  <input
-                    type="number"
-                    min="0"
+                  <select
                     className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                     value={guests.children}
-                    onChange={e => setGuests({ ...guests, children: Math.max(0, parseInt(e.target.value) || 0) })}
-                  />
+                    onChange={e => setGuests({ ...guests, children: parseInt(e.target.value) })}
+                  >
+                    {Array.from({ length: getMaxChildren() + 1 }, (_, i) => i).map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
                 </div>
               )}
-            </div>
-
-
-            {/* --- OFFERS SECTION --- */}
-            {offers.length > 0 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                    <Gift size={16} className="text-surface" />
-                    Offers & Coupons
-                  </h4>
-                  <button
-                    onClick={() => setShowOffersModal(true)}
-                    className="text-xs font-bold text-surface hover:underline"
-                  >
-                    View All
-                  </button>
-                </div>
-
-                {/* Applied Offer State */}
-                {appliedOffer ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between relative overflow-hidden">
-                    <div className="flex items-center gap-3 relative z-10">
-                      <div className="p-1.5 bg-green-100 rounded-lg text-green-700">
-                        <Tag size={16} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-green-800 text-sm">{appliedOffer.code}</p>
-                        <p className="text-xs text-green-600">
-                          {appliedOffer.discountType === 'percentage'
-                            ? `${appliedOffer.discountValue}% Off applied`
-                            : `₹${appliedOffer.discountValue} Off applied`}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleRemoveOffer}
-                      className="p-1.5 hover:bg-white/50 rounded-full text-green-700 transition-colors z-10"
-                    >
-                      <X size={16} />
-                    </button>
-                    <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-green-100 rounded-full opacity-50" />
-                  </div>
-                ) : (
-                  /* Carousel of Top 3 Offers */
-                  <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar snap-x">
-                    {offers.slice(0, 3).map((offer) => (
-                      <div
-                        key={offer._id}
-                        onClick={() => handleApplyOffer(offer)}
-                        className="min-w-[200px] bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-surface transition-all snap-center relative overflow-hidden group"
-                      >
-                        <div className={`absolute top-0 right-0 px-2 py-0.5 text-[9px] font-bold text-white rounded-bl-lg ${offer.bg || 'bg-black'}`}>
-                          {offer.code}
-                        </div>
-                        <p className="font-bold text-xs text-gray-800 mt-2">{offer.title}</p>
-                        <p className="text-[10px] text-gray-500 line-clamp-1">{offer.subtitle}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-
-            {/* Price Breakdown Display */}
-            {priceBreakdown && (
-              <div className="mt-4 p-4 bg-white rounded-lg border border-dashed border-gray-300">
-                <h4 className="font-bold text-gray-800 text-sm mb-3">Price Breakdown</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Base Price ({priceBreakdown.nights} nights x {priceBreakdown.units} units)</span>
-                    <span className="font-medium">₹{priceBreakdown.totalBasePrice.toLocaleString()}</span>
-                  </div>
-
-                  {priceBreakdown.discountAmount > 0 && (
-                    <div className="flex justify-between text-green-600 font-medium">
-                      <span className="flex items-center gap-1"><Tag size={12} /> Coupon Discount ({appliedOffer?.code})</span>
-                      <span>- ₹{priceBreakdown.discountAmount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {priceBreakdown.totalExtraAdultCharge > 0 && (
-                    <div className="flex justify-between text-orange-700">
-                      <span>Extra Adults ({priceBreakdown.extraAdultsCount} x ₹{priceBreakdown.extraAdultPrice}/night)</span>
-                      <span>+ ₹{priceBreakdown.totalExtraAdultCharge.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {priceBreakdown.totalExtraChildCharge > 0 && (
-                    <div className="flex justify-between text-orange-700">
-                      <span>Extra Children ({priceBreakdown.extraChildrenCount} x ₹{priceBreakdown.extraChildPrice}/night)</span>
-                      <span>+ ₹{priceBreakdown.totalExtraChildCharge.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {priceBreakdown.taxAmount > 0 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>Taxes & Fees ({taxRate}%)</span>
-                      <span>+ ₹{priceBreakdown.taxAmount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between font-bold text-base text-surface">
-                    <span>Total Amount</span>
-                    <span>₹{priceBreakdown.grandTotal.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Note about limits */}
-            <div className="mt-3 bg-blue-50 text-blue-800 text-xs p-3 rounded-lg flex items-start gap-2">
-              <Info size={14} className="mt-0.5 shrink-0" />
-              <p>
-                Max allowed: <strong>{getMaxAdults()} Adults</strong> and <strong>{getMaxChildren()} Children</strong> for current selection.
-              </p>
             </div>
           </div>
 
@@ -994,132 +649,6 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
-          {/* Nearby Places */}
-          {property.nearbyPlaces && property.nearbyPlaces.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-textDark mb-4">Nearby Places</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {property.nearbyPlaces.map((place, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm text-surface">
-                        <MapPin size={16} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-textDark">{place.name}</p>
-                        <p className="text-xs text-gray-500 capitalize">{place.type}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold text-surface bg-surface/5 px-2 py-1 rounded-md">
-                      {place.distanceKm} km
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* User Reviews Section */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-textDark flex items-center gap-2">
-                Guest Reviews
-                <span className="text-sm font-normal text-gray-500">
-                  {reviews.length > 0 ? `(${reviews.length})` : ''}
-                  {rating ? ` • ${Number(rating).toFixed(1)}` : ' • New'}
-                  <Star size={12} className="inline fill-honey text-honey mb-0.5" />
-                </span>
-              </h2>
-              <button
-                onClick={() => setShowReviewForm(!showReviewForm)}
-                className="text-sm font-bold text-surface border border-surface px-4 py-2 rounded-lg hover:bg-surface hover:text-white transition-all flex items-center gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare size={16} /> <span>Write a Review</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Review Form */}
-            {showReviewForm && (
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 animate-fadeIn">
-                <h3 className="font-bold text-gray-800 mb-3">Rate your experience</h3>
-                <form onSubmit={handleReviewSubmit}>
-                  <div className="flex gap-2 mb-4">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setReviewData({ ...reviewData, rating: star })}
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          size={24}
-                          className={`${reviewData.rating >= star ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    value={reviewData.comment}
-                    onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
-                    placeholder="Share your experience..."
-                    rows={3}
-                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-surface outline-none mb-3"
-                    required
-                  />
-                  <div className="flex justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowReviewForm(false)}
-                      className="px-4 py-2 text-gray-500 font-medium hover:text-gray-700"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitReviewLoading}
-                      className="px-6 py-2 bg-black text-white rounded-lg font-bold disabled:opacity-50"
-                    >
-                      {submitReviewLoading ? 'Submitting...' : 'Submit Review'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* Reviews Display - Carousel if > 3 */}
-            {reviews.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-xl border border-dotted border-gray-300">
-                <p className="text-gray-500">No reviews yet. Be the first to share your experience!</p>
-              </div>
-            ) : (
-              // Simple Scrollable Row for simplicity and UX
-              <div className="flex overflow-x-auto pb-4 gap-4 snap-x hide-scrollbar">
-                {reviews.slice(0, 3).map((review) => (
-                  <div key={review._id} className="min-w-[280px] md:min-w-[320px] max-w-[320px] bg-white p-4 rounded-xl border border-gray-100 shadow-sm snap-center flex-shrink-0">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-surface/10 flex items-center justify-center text-surface font-bold text-lg">
-                        {review.userId?.name?.charAt(0) || 'U'}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-800 text-sm line-clamp-1">{review.userId?.name || 'User'}</p>
-                        <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                      </div>
-                      <div className="ml-auto flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold">
-                        {review.rating} <Star size={10} className="fill-yellow-500 text-yellow-500" />
-                      </div>
-                    </div>
-                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-4">
-                      "{review.comment}"
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-          </div>
-
         </div>
       </div>
 
@@ -1127,9 +656,9 @@ const PropertyDetailsPage = () => {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs text-gray-500">{priceBreakdown ? 'Total Amount' : 'Price per night'}</p>
+            <p className="text-xs text-gray-500">Price per night</p>
             <p className="font-bold text-lg text-surface">
-              ₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}
+              ₹{bookingBarPrice || 'N/A'}
             </p>
             {extraPricingLabels.length > 0 && (
               <p className="text-[11px] text-gray-500">
@@ -1146,64 +675,6 @@ const PropertyDetailsPage = () => {
           </button>
         </div>
       </div>
-
-      {/* ALL OFFERS MODAL */}
-      {showOffersModal && (
-        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 animate-fadeIn">
-          <div className="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col shadow-2xl animate-slideUp">
-
-            {/* Modal Header */}
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0 rounded-t-2xl">
-              <h3 className="font-bold text-lg text-gray-900">Available Offers</h3>
-              <button
-                onClick={() => setShowOffersModal(false)}
-                className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"
-              >
-                <X size={20} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* Modal Body - Scrollable */}
-            <div className="p-4 overflow-y-auto overflow-x-hidden space-y-4 bg-gray-50 flex-1">
-              {offers.map((offer) => (
-                <div
-                  key={offer._id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative flex flex-col"
-                >
-                  <div className={`h-24 ${offer.bg || 'bg-gray-800'} relative p-4 flex flex-col justify-center text-white`}>
-                    {offer.image && (
-                      <img src={offer.image} alt="offer" className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                    )}
-                    <div className="relative z-10">
-                      <h4 className="font-black text-xl">{offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}</h4>
-                      <p className="text-xs opacity-90 font-medium">{offer.title}</p>
-                    </div>
-                    <div className="absolute top-3 right-3 bg-white text-black text-xs font-bold px-2 py-1 rounded shadow-sm z-10">
-                      {offer.code}
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-gray-600 text-sm mb-3">{offer.description || offer.subtitle}</p>
-
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="text-[10px] text-gray-400 font-medium">
-                        {offer.minBookingAmount > 0 ? `Min. Spend: ₹${offer.minBookingAmount}` : 'No Min Spend'}
-                      </div>
-                      <button
-                        onClick={() => handleApplyOffer(offer)}
-                        className="bg-surface text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md shadow-surface/20 active:scale-95 transition-all"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

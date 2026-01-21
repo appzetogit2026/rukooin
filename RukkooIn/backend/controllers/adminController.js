@@ -8,8 +8,17 @@ import Booking from '../models/Booking.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
+import Withdrawal from '../models/Withdrawal.js';
+import Banner from '../models/Banner.js';
+import Faq from '../models/Faq.js';
 import Notification from '../models/Notification.js';
-import notificationService from '../services/notificationService.js';
+import Admin from '../models/Admin.js';
+import AuditLog from '../models/AuditLog.js';
+import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
+import { logAuditAction } from '../utils/auditLogger.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -19,13 +28,61 @@ export const getDashboardStats = async (req, res) => {
     const pendingHotels = await Property.countDocuments({ status: 'pending' });
     const totalBookings = await Booking.countDocuments();
     const confirmedBookings = await Booking.countDocuments({ bookingStatus: 'confirmed' });
+
+    // Revenue Aggregation
     const revenueData = await Booking.aggregate([
       { $match: { bookingStatus: { $in: ['confirmed', 'checked_out'] }, paymentStatus: 'paid' } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
     const totalRevenue = revenueData.length ? revenueData[0].total : 0;
-    const recentBookings = await Booking.find().sort({ createdAt: -1 }).limit(5);
-    const recentPropertyRequests = await Property.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+
+    // Daily Revenue & Bookings (Last 30 Days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dailyTrends = await Booking.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+          bookingStatus: { $ne: 'cancelled' }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          revenue: { $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, "$totalAmount", 0] } },
+          bookings: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } }
+    ]);
+
+    // Property Type Distribution
+    const propertyDistribution = await Property.aggregate([
+      { $group: { _id: "$propertyType", count: { $sum: 1 } } }
+    ]);
+
+    // KYC Stats
+    const pendingUserKYC = await User.countDocuments({
+      role: 'user',
+      isVerified: false,
+      aadhaarNumber: { $exists: true, $ne: "" }
+    });
+    const pendingPartnerKYC = await User.countDocuments({
+      role: 'partner',
+      partnerApprovalStatus: 'pending'
+    });
+
+    const recentBookings = await Booking.find()
+      .populate('userId', 'name')
+      .populate('propertyId', 'propertyName')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    const recentPropertyRequests = await Property.find({ status: 'pending' })
+      .populate('partnerId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .limit(5);
 
     res.status(200).json({
       success: true,
@@ -36,8 +93,12 @@ export const getDashboardStats = async (req, res) => {
         pendingHotels,
         totalBookings,
         confirmedBookings,
-        totalRevenue
+        totalRevenue,
+        pendingUserKYC,
+        pendingPartnerKYC
       },
+      dailyTrends,
+      propertyDistribution,
       recentBookings,
       recentPropertyRequests
     });
@@ -81,6 +142,42 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error fetching users' });
   }
 };
+
+export const getPendingVerifications = async (req, res) => {
+  try {
+    const pendingPartners = await User.find({
+      role: 'partner',
+      partnerApprovalStatus: 'pending',
+      $or: [
+        { aadhaarNumber: { $exists: true, $ne: "" } },
+        { panNumber: { $exists: true, $ne: "" } }
+      ]
+    }).select('name email phone partnerApprovalStatus aadhaarNumber panNumber');
+
+    const pendingProperties = await Property.find({
+      status: 'pending'
+    }).populate('partnerId', 'name email').select('propertyName propertyType address status');
+
+    const pendingPropertyDocs = await PropertyDocument.find({
+      verificationStatus: 'pending'
+    }).populate({
+      path: 'propertyId',
+      select: 'propertyName propertyType status',
+      populate: { path: 'partnerId', select: 'name' }
+    });
+
+    res.status(200).json({
+      success: true,
+      partners: pendingPartners,
+      properties: pendingProperties,
+      documents: pendingPropertyDocs
+    });
+  } catch (error) {
+    console.error('Pending Verifications Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching pending verifications' });
+  }
+};
+
 
 export const getAllHotels = async (req, res) => {
   try {
@@ -127,13 +224,50 @@ export const getAllBookings = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { status } = req.query;
-    const query = {};
+    const { status, search } = req.query;
+
+    let query = {};
     if (status) query.bookingStatus = status;
+
+    if (search) {
+      // Find users or properties matching search to get IDs
+      const users = await User.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      const userIds = users.map(u => u._id);
+
+      const properties = await Property.find({
+        propertyName: { $regex: search, $options: 'i' }
+      }).select('_id');
+      const propertyIds = properties.map(p => p._id);
+
+      query.$or = [
+        { userId: { $in: userIds } },
+        { propertyId: { $in: propertyIds } }
+      ];
+
+      // Also search by booking ID if it matches search (regex for partial match if it looks like an ID)
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        query.$or.push({ _id: search });
+      }
+    }
+
     const total = await Booking.countDocuments(query);
-    const bookings = await Booking.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const bookings = await Booking.find(query)
+      .populate('userId', 'name email phone')
+      .populate('propertyId', 'propertyName coverImage address')
+      .populate('roomTypeId', 'title')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
     res.status(200).json({ success: true, bookings, total, page, limit });
-  } catch (e) {
+  } catch (error) {
+    console.error('GetAllBookings Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching bookings' });
   }
 };
@@ -151,7 +285,7 @@ export const getPropertyRequests = async (req, res) => {
 
 export const updateHotelStatus = async (req, res) => {
   try {
-    const { propertyId, hotelId, status, isLive } = req.body;
+    const { propertyId, hotelId, status, isLive, isFeatured } = req.body;
 
     const id = propertyId || hotelId;
     if (!id) {
@@ -173,11 +307,55 @@ export const updateHotelStatus = async (req, res) => {
       update.isLive = isLive;
     }
 
+    if (typeof isFeatured === 'boolean') {
+      update.isFeatured = isFeatured;
+    }
+
     const hotel = await Property.findByIdAndUpdate(id, update, { new: true });
     if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    // Log property status change
+    if (status) {
+      const actionMap = {
+        'approved': 'PROPERTY_APPROVED',
+        'rejected': 'PROPERTY_REJECTED',
+        'suspended': 'PROPERTY_REJECTED'
+      };
+
+      if (actionMap[status]) {
+        await logAuditAction({
+          adminId: req.user.id,
+          action: actionMap[status],
+          description: `Property "${hotel.name}" ${status} by admin`,
+          targetType: 'Property',
+          targetId: hotel._id,
+          req,
+          metadata: { previousStatus: hotel.status, newStatus: status }
+        });
+      }
+    }
+
     res.status(200).json({ success: true, hotel });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
+  }
+};
+
+export const updateProperty = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const property = await Property.findByIdAndUpdate(id, updateData, { new: true });
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    res.status(200).json({
+      success: true,
+      message: 'Property updated successfully',
+      property
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating property details' });
   }
 };
 
@@ -194,45 +372,12 @@ export const verifyPropertyDocuments = async (req, res) => {
       docs.verifiedAt = new Date();
       property.status = 'approved';
       property.isLive = true;
-
-      // --- NOTIFICATION HOOK: PROPERTY APPROVED ---
-      if (property.partnerId) {
-        await notificationService.sendToUser(property.partnerId, {
-          title: 'Property Approved! ✅',
-          body: `Good news! Your property "${property.propertyName}" has been verified and is now live.`
-        }, {
-          sendEmail: true,
-          emailHtml: `
-            <h3>Property Approved</h3>
-            <p>Congratulations! Your property <strong>${property.propertyName}</strong> has been verified by our admin team.</p>
-            <p>It is now live and visible to guests on Rukkoo.</p>
-          `
-        }, 'partner');
-      }
-
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
       docs.adminRemark = adminRemark;
       docs.verifiedAt = new Date();
       property.status = 'rejected';
       property.isLive = false;
-
-      // --- NOTIFICATION HOOK: PROPERTY REJECTED ---
-      if (property.partnerId) {
-        await notificationService.sendToUser(property.partnerId, {
-          title: 'Property Verification Failed ❌',
-          body: `Verification for "${property.propertyName}" was rejected. Remark: ${adminRemark}`
-        }, {
-          sendEmail: true,
-          emailHtml: `
-            <h3>Verification Rejected</h3>
-            <p>We regret to inform you that verification for <strong>${property.propertyName}</strong> was unsuccessful.</p>
-            <p><strong>Admin Remark:</strong> ${adminRemark}</p>
-            <p>Please check the partner dashboard to update your documents.</p>
-          `
-        }, 'partner');
-      }
-
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
     }
@@ -249,13 +394,33 @@ export const getReviewModeration = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { status } = req.query;
-    const query = {};
-    if (status) query.status = status;
+    const { status, search } = req.query;
+
+    let query = {};
+    if (status && status !== 'All') query.status = status.toLowerCase();
+
+    if (search) {
+      // Find properties by name to filter reviews
+      const properties = await Property.find({ propertyName: { $regex: search, $options: 'i' } }).select('_id');
+      const users = await User.find({ name: { $regex: search, $options: 'i' } }).select('_id');
+
+      query.$or = [
+        { propertyId: { $in: properties.map(p => p._id) } },
+        { userId: { $in: users.map(u => u._id) } },
+        { comment: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     const total = await Review.countDocuments(query);
-    const reviews = await Review.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const reviews = await Review.find(query)
+      .populate('userId', 'name email phone')
+      .populate('propertyId', 'propertyName address')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
     res.status(200).json({ success: true, reviews, total, page, limit });
-  } catch (e) {
+  } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching reviews' });
   }
 };
@@ -304,10 +469,19 @@ export const updateReviewStatus = async (req, res) => {
 
 export const updateUserStatus = async (req, res) => {
   try {
-    const { userId, isBlocked } = req.body;
-    const user = await User.findByIdAndUpdate(userId, { isBlocked }, { new: true });
+    const { userId, isBlocked, isSuspicious } = req.body;
+    const update = {};
+    if (typeof isBlocked === 'boolean') update.isBlocked = isBlocked;
+    if (typeof isSuspicious === 'boolean') update.isSuspicious = isSuspicious;
+
+    const user = await User.findByIdAndUpdate(userId, update, { new: true });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    res.status(200).json({ success: true, message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully`, user });
+
+    res.status(200).json({
+      success: true,
+      message: 'User status updated successfully',
+      user
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating user status' });
   }
@@ -373,9 +547,81 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    res.status(200).json({ success: true, user, bookings: [] });
+    const bookings = await Booking.find({ userId: id })
+      .populate('propertyId', 'propertyName address coverImage')
+      .sort({ createdAt: -1 });
+
+    // Fetch Wallet (Partners definitely have them, Users might if they have refunds/topups)
+    const wallet = await Wallet.findOne({ partnerId: id });
+
+    // Fetch Transactions
+    const transactions = await Transaction.find({
+      $or: [
+        { partnerId: id },
+        { walletId: wallet?._id }
+      ].filter(q => q.partnerId || q.walletId)
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      user,
+      bookings,
+      wallet: wallet || { balance: 0, totalEarnings: 0, totalWithdrawals: 0 },
+      transactions
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching user details' });
+  }
+};
+
+export const getPartnerDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
+
+    // Fetch Properties owned by this partner
+    const properties = await Property.find({ partnerId: id });
+
+    // Fetch Wallet & Transactions (Partners always have/need them)
+    let wallet = await Wallet.findOne({ partnerId: id });
+    if (!wallet && user.role === 'partner') {
+      // Create wallet if missing for partner (safety catch)
+      wallet = await Wallet.create({ partnerId: id });
+    }
+
+    const transactions = await Transaction.find({ partnerId: id }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      partner: user,
+      properties: properties || [],
+      wallet: wallet || { balance: 0, totalEarnings: 0, totalWithdrawals: 0 },
+      transactions
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching partner details' });
+  }
+};
+
+
+export const updatePartnerSettings = async (req, res) => {
+  try {
+    const { userId, commissionPercentage, payoutOnHold } = req.body;
+    const update = {};
+    if (typeof commissionPercentage === 'number') update.commissionPercentage = commissionPercentage;
+    if (typeof payoutOnHold === 'boolean') update.payoutOnHold = payoutOnHold;
+
+    const user = await User.findByIdAndUpdate(userId, update, { new: true });
+    if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
+
+    res.status(200).json({
+      success: true,
+      message: 'Partner settings updated successfully',
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating partner settings' });
   }
 };
 
@@ -405,17 +651,25 @@ export const getHotelDetails = async (req, res) => {
 export const getBookingDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id)
+      .populate('userId', 'name email phone aadhaarNumber panNumber')
+      .populate({
+        path: 'propertyId',
+        select: 'propertyName coverImage address partnerId',
+        populate: { path: 'partnerId', select: 'name email phone' }
+      })
+      .populate('roomTypeId', 'title basePrice');
+
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     res.status(200).json({ success: true, booking });
-  } catch (e) {
+  } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching booking details' });
   }
 };
 
 export const updatePartnerApprovalStatus = async (req, res) => {
   try {
-    const { userId, status, reason } = req.body;
+    const { userId, status } = req.body;
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid partner approval status' });
     }
@@ -429,40 +683,8 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       if (!user.partnerSince) {
         user.partnerSince = new Date();
       }
-
-      // --- NOTIFICATION HOOK: PARTNER ACCOUNT APPROVED ---
-      await notificationService.sendToUser(user._id, {
-        title: 'Partner Account Approved! 🎉',
-        body: 'Welcome! Your partner account is approved. You can now login and add properties.'
-      }, {
-        sendEmail: true,
-        emailHtml: `
-          <h3>Welcome to Rukkoo Partner!</h3>
-          <p>Hi ${user.name}, your partner account has been approved.</p>
-          <p>You can now log in to the Partner Dashboard and start listing your properties.</p>
-        `
-      }, 'partner');
-
     } else {
       user.isPartner = false;
-
-      // --- NOTIFICATION HOOK: PARTNER ACCOUNT REJECTED ---
-      if (status === 'rejected') {
-        const rejectReason = reason || 'Criteria not met';
-        await notificationService.sendToUser(user._id, {
-          title: 'Partner Application Rejected',
-          body: `Your partner application was rejected. Reason: ${rejectReason}`
-        }, {
-          sendEmail: true,
-          emailHtml: `
-            <h3>Application Update</h3>
-            <p>Hi ${user.name},</p>
-            <p>Your application for a partner account was not approved at this time.</p>
-            <p><strong>Reason:</strong> ${rejectReason}</p>
-            <p>Please contact our support team for more details.</p>
-          `
-        }, 'partner');
-      }
     }
     await user.save();
     res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
@@ -532,20 +754,25 @@ export const getContactMessages = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { audience, status } = req.query;
+    const { audience, status, search } = req.query;
 
     const query = {};
+    if (audience) query.audience = audience;
+    if (status && status !== 'all') query.status = status;
 
-    if (audience) {
-      query.audience = audience;
-    }
-
-    if (status) {
-      query.status = status;
+    if (search) {
+      query.$or = [
+        { ticketId: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { subject: { $regex: search, $options: 'i' } }
+      ];
     }
 
     const total = await ContactMessage.countDocuments(query);
     const messages = await ContactMessage.find(query)
+      .populate('internalNotes.adminId', 'name')
+      .populate('replies.adminId', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -561,7 +788,7 @@ export const updateContactStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!['new', 'in_progress', 'resolved'].includes(status)) {
+    if (!['new', 'in_progress', 'resolved', 'closed'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 
@@ -581,6 +808,48 @@ export const updateContactStatus = async (req, res) => {
   }
 };
 
+export const addInternalNote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const adminId = req.user._id;
+
+    const ticket = await ContactMessage.findByIdAndUpdate(
+      id,
+      { $push: { internalNotes: { note, adminId } } },
+      { new: true }
+    ).populate('internalNotes.adminId', 'name');
+
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    res.status(200).json({ success: true, ticket });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error adding note' });
+  }
+};
+
+export const replyToTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const adminId = req.user._id;
+
+    // In a real app, send email here
+    const ticket = await ContactMessage.findByIdAndUpdate(
+      id,
+      {
+        $push: { replies: { message, adminId } },
+        status: 'in_progress'
+      },
+      { new: true }
+    ).populate('replies.adminId', 'name');
+
+    if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    res.status(200).json({ success: true, ticket });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error replying to ticket' });
+  }
+};
+
 export const getPlatformSettings = async (req, res) => {
   try {
     const settings = await PlatformSettings.getSettings();
@@ -592,33 +861,48 @@ export const getPlatformSettings = async (req, res) => {
 
 export const updatePlatformSettings = async (req, res) => {
   try {
-    const { platformOpen, maintenanceMode, bookingDisabledMessage, maintenanceTitle, maintenanceMessage } = req.body;
+    const {
+      platformOpen, maintenanceMode, bookingDisabledMessage,
+      maintenanceTitle, maintenanceMessage, defaultCommission,
+      taxRate, autoPayoutEnabled, defaultCheckInTime,
+      defaultCheckOutTime, pgMinStay, supportEmail, supportPhone
+    } = req.body;
     const settings = await PlatformSettings.getSettings();
 
-    if (typeof platformOpen === 'boolean') {
-      settings.platformOpen = platformOpen;
-    }
-    if (typeof maintenanceMode === 'boolean') {
-      settings.maintenanceMode = maintenanceMode;
-    }
-    if (typeof bookingDisabledMessage === 'string') {
-      settings.bookingDisabledMessage = bookingDisabledMessage;
-    }
-    if (typeof maintenanceTitle === 'string') {
-      settings.maintenanceTitle = maintenanceTitle;
-    }
-    if (typeof maintenanceMessage === 'string') {
-      settings.maintenanceMessage = maintenanceMessage;
-    }
+    if (typeof platformOpen === 'boolean') settings.platformOpen = platformOpen;
+    if (typeof maintenanceMode === 'boolean') settings.maintenanceMode = maintenanceMode;
+    if (typeof bookingDisabledMessage === 'string') settings.bookingDisabledMessage = bookingDisabledMessage;
+    if (typeof maintenanceTitle === 'string') settings.maintenanceTitle = maintenanceTitle;
+    if (typeof maintenanceMessage === 'string') settings.maintenanceMessage = maintenanceMessage;
 
-    if (req.body.defaultCommission !== undefined) {
-      settings.defaultCommission = Number(req.body.defaultCommission);
-    }
-    if (req.body.taxRate !== undefined) {
-      settings.taxRate = Number(req.body.taxRate);
-    }
+    if (typeof defaultCommission === 'number') settings.defaultCommission = defaultCommission;
+    if (typeof taxRate === 'number') settings.taxRate = taxRate;
+    if (typeof autoPayoutEnabled === 'boolean') settings.autoPayoutEnabled = autoPayoutEnabled;
+
+    if (typeof defaultCheckInTime === 'string') settings.defaultCheckInTime = defaultCheckInTime;
+    if (typeof defaultCheckOutTime === 'string') settings.defaultCheckOutTime = defaultCheckOutTime;
+    if (typeof pgMinStay === 'number') settings.pgMinStay = pgMinStay;
+    if (typeof supportEmail === 'string') settings.supportEmail = supportEmail;
+    if (typeof supportPhone === 'string') settings.supportPhone = supportPhone;
 
     await settings.save();
+
+    // Log settings update
+    await logAuditAction({
+      adminId: req.user.id,
+      action: 'SETTINGS_UPDATED',
+      description: 'Platform settings updated',
+      targetType: 'Settings',
+      targetId: settings._id,
+      req,
+      metadata: {
+        platformOpen,
+        maintenanceMode,
+        defaultCommission,
+        taxRate,
+        autoPayoutEnabled
+      }
+    });
 
     res.status(200).json({ success: true, settings });
   } catch (error) {
@@ -626,255 +910,571 @@ export const updatePlatformSettings = async (req, res) => {
   }
 };
 
-export const updateFcmToken = async (req, res) => {
+export const getFinanceData = async (req, res) => {
   try {
-    const { fcmToken, platform } = req.body;
+    const totalTransactions = await Transaction.countDocuments();
+    const recentTransactions = await Transaction.find()
+      .populate('partnerId', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(10);
 
-    if (!fcmToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide FCM token'
-      });
-    }
+    const pendingWithdrawals = await Withdrawal.find({ status: 'pending' })
+      .populate('partnerId', 'name email phone')
+      .sort({ createdAt: -1 });
 
-    const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const processedWithdrawals = await Withdrawal.find({ status: 'completed' })
+      .populate('partnerId', 'name email')
+      .limit(10)
+      .sort({ updatedAt: -1 });
 
-    // Import Admin model dynamically to avoid circular deps if any, or just use if imported.
-    const Admin = (await import('../models/Admin.js')).default;
-
-    const admin = await Admin.findById(req.user._id || req.user.id);
-
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-
-    // Initialize fcmTokens object if it doesn't exist
-    if (!admin.fcmTokens) {
-      admin.fcmTokens = { app: null, web: null };
-    }
-
-    // Update the specific platform token
-    admin.fcmTokens[targetPlatform] = fcmToken;
-
-    await admin.save();
-
-    res.json({
-      success: true,
-      message: `FCM token updated successfully for ${targetPlatform} platform`,
-      data: {
-        platform: targetPlatform,
-        tokenUpdated: true
+    // Aggregations
+    const stats = await Transaction.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: "$amount" }
+        }
       }
-    });
+    ]);
 
+    const revenueStats = {
+      totalRevenue: stats.find(s => s._id === 'booking_payment')?.total || 0,
+      totalCommissions: stats.find(s => s._id === 'commission_deduction')?.total || 0,
+      totalPayouts: stats.find(s => s._id === 'withdrawal')?.total || 0,
+      pendingPayouts: pendingWithdrawals.reduce((acc, w) => acc + w.amount, 0)
+    };
+
+    res.status(200).json({
+      success: true,
+      stats: revenueStats,
+      recentTransactions,
+      pendingWithdrawals,
+      processedWithdrawals
+    });
   } catch (error) {
-    console.error('Update Admin FCM Token Error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Finance Data Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching finance data' });
   }
 };
 
-// ==========================================
-// NOTIFICATION CONTROLLERS
-// ==========================================
+export const getTransactions = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const { type, category, status, search } = req.query;
 
-export const getAdminNotifications = async (req, res) => {
+    const query = {};
+    if (type) query.type = type;
+    if (category) query.category = category;
+    if (status) query.status = status;
+
+    if (search) {
+      const users = await User.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      query.partnerId = { $in: users.map(u => u._id) };
+    }
+
+    const total = await Transaction.countDocuments(query);
+    const transactions = await Transaction.find(query)
+      .populate('partnerId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, transactions, total, page, limit });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching transactions' });
+  }
+};
+
+export const processWithdrawal = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { withdrawalId, action, remarks, utrNumber } = req.body;
+    const withdrawal = await Withdrawal.findById(withdrawalId);
+
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+    }
+
+    if (withdrawal.status !== 'pending' && withdrawal.status !== 'processing') {
+      return res.status(400).json({ success: false, message: 'Withdrawal already processed' });
+    }
+
+    if (action === 'approve') {
+      withdrawal.status = 'completed';
+      withdrawal.processingDetails = {
+        ...withdrawal.processingDetails,
+        processedAt: new Date(),
+        completedAt: new Date(),
+        utrNumber,
+        remarks
+      };
+
+      // Update transaction status linked to this withdrawal
+      if (withdrawal.transactionId) {
+        await Transaction.findByIdAndUpdate(withdrawal.transactionId, { status: 'completed' }, { session });
+      }
+    } else if (action === 'reject') {
+      withdrawal.status = 'cancelled';
+      withdrawal.processingDetails = {
+        ...withdrawal.processingDetails,
+        processedAt: new Date(),
+        remarks
+      };
+
+      // Refund the wallet
+      const wallet = await Wallet.findById(withdrawal.walletId);
+      wallet.balance += withdrawal.amount;
+      wallet.totalWithdrawals -= withdrawal.amount;
+      await wallet.save({ session });
+
+      // Link transaction should be cancelled
+      if (withdrawal.transactionId) {
+        await Transaction.findByIdAndUpdate(withdrawal.transactionId, { status: 'cancelled' }, { session });
+      }
+    }
+
+    await withdrawal.save({ session });
+    await session.commitTransaction();
+    session.endSession();
+
+    // Log payout action
+    await logAuditAction({
+      adminId: req.user.id,
+      action: 'PAYOUT_RELEASED',
+      description: `Withdrawal ${action === 'approve' ? 'approved' : 'rejected'} for ₹${withdrawal.amount} (${withdrawal.partnerId})`,
+      targetType: 'Transaction',
+      targetId: withdrawal._id,
+      req,
+      metadata: {
+        action,
+        amount: withdrawal.amount,
+        partnerId: withdrawal.partnerId,
+        utrNumber,
+        remarks
+      }
+    });
+
+    res.status(200).json({ success: true, message: `Withdrawal ${action} successfully` });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Process Withdrawal Error:', error);
+    res.status(500).json({ success: false, message: 'Server error processing withdrawal' });
+  }
+};
+
+// --- Banner Management ---
+export const getBanners = async (req, res) => {
+  try {
+    const banners = await Banner.find().sort({ order: 1 });
+    res.status(200).json({ success: true, banners });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching banners' });
+  }
+};
+
+export const createBanner = async (req, res) => {
+  try {
+    const banner = await Banner.create(req.body);
+    res.status(201).json({ success: true, banner });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error creating banner' });
+  }
+};
+
+export const updateBanner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const banner = await Banner.findByIdAndUpdate(id, req.body, { new: true });
+    if (!banner) return res.status(404).json({ success: false, message: 'Banner not found' });
+    res.status(200).json({ success: true, banner });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating banner' });
+  }
+};
+
+export const deleteBanner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Banner.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'Banner deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error deleting banner' });
+  }
+};
+
+// --- FAQ Management ---
+export const getFaqs = async (req, res) => {
+  try {
+    const { audience } = req.query;
+    const query = audience ? { audience } : {};
+    const faqs = await Faq.find(query).sort({ category: 1, order: 1 });
+    res.status(200).json({ success: true, faqs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching FAQs' });
+  }
+};
+
+export const createFaq = async (req, res) => {
+  try {
+    const faq = await Faq.create(req.body);
+    res.status(201).json({ success: true, faq });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error creating FAQ' });
+  }
+};
+
+export const updateFaq = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const faq = await Faq.findByIdAndUpdate(id, req.body, { new: true });
+    if (!faq) return res.status(404).json({ success: false, message: 'FAQ not found' });
+    res.status(200).json({ success: true, faq });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating FAQ' });
+  }
+};
+
+export const deleteFaq = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Faq.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'FAQ deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error deleting FAQ' });
+  }
+};
+
+// --- Notification Management ---
+export const getNotifications = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const notifications = await Notification.find()
+      .populate('createdBy', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Notification.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      notifications,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching notifications' });
+  }
+};
+
+export const sendBroadcastNotification = async (req, res) => {
+  try {
+    const { title, body, audience, type, actionUrl, image } = req.body;
+    const adminId = req.user._id;
+
+    // Create record in DB
+    const notification = await Notification.create({
+      title,
+      body,
+      recipientRole: audience,
+      type,
+      actionUrl,
+      image,
+      createdBy: adminId,
+      status: 'sent'
+    });
+
+    // In a real app, integrate with Firebase Admin SDK here:
+    // const fcmTokens = await User.find({ role: audience === 'all' ? { $exists: true } : audience, fcmToken: { $ne: null } }).distinct('fcmToken');
+    // if (fcmTokens.length > 0) { await admin.messaging().sendToDevice(fcmTokens, { notification: { title, body } }); }
+
+    // Log broadcast notification
+    await logAuditAction({
+      adminId: req.user.id,
+      action: 'NOTIFICATION_SENT',
+      description: `Broadcast notification sent to ${audience}: "${title}"`,
+      targetType: 'Notification',
+      targetId: notification._id,
+      req,
+      metadata: { audience, type, title }
+    });
+
+    res.status(201).json({ success: true, message: 'Broadcast notification sent successfully', notification });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error sending notification' });
+  }
+};
+
+export const deleteNotificationRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Notification.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'Notification record deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error deleting record' });
+  }
+};
+
+// --- Advanced Analytics & Reports ---
+
+export const getAdvancedAnalytics = async (req, res) => {
+  try {
+    const last12Months = new Date();
+    last12Months.setMonth(last12Months.getMonth() - 11);
+    last12Months.setDate(1);
+    last12Months.setHours(0, 0, 0, 0);
+
+    // 1. Monthly Revenue & Booking Growth
+    const monthlyStats = await Booking.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last12Months },
+          status: { $nin: ['failed'] }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: "$createdAt" },
+            year: { $year: "$createdAt" }
+          },
+          revenue: { $sum: "$totalPrice" },
+          bookings: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    // 2. Booking Status Distribution
+    const statusStats = await Booking.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // 3. City-wise Booking Distribution
+    const cityStats = await Booking.aggregate([
+      {
+        $lookup: {
+          from: "properties",
+          localField: "hotelId",
+          foreignField: "_id",
+          as: "property"
+        }
+      },
+      { $unwind: "$property" },
+      {
+        $group: {
+          _id: "$property.city",
+          totalBookings: { $sum: 1 },
+          revenue: { $sum: "$totalPrice" }
+        }
+      },
+      { $sort: { totalBookings: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // 4. User vs Partner Growth
+    const userGrowth = await User.aggregate([
+      { $match: { createdAt: { $gte: last12Months } } },
+      {
+        $group: {
+          _id: {
+            month: { $month: "$createdAt" },
+            year: { $year: "$createdAt" },
+            role: "$role"
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      monthly: monthlyStats,
+      distribution: statusStats,
+      cities: cityStats,
+      growth: userGrowth
+    });
+  } catch (error) {
+    console.error('Analytics Error:', error);
+    res.status(500).json({ success: false, message: 'Server error generating analytics' });
+  }
+};
+
+export const exportBookingsCSV = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate('userId', 'name email phone')
+      .populate('hotelId', 'name city')
+      .sort({ createdAt: -1 });
+
+    let csv = 'BookingID,Date,Customer,Email,Phone,Property,City,Amount,Status\n';
+
+    bookings.forEach(b => {
+      const date = new Date(b.createdAt).toLocaleDateString();
+      const row = [
+        b.bookingId,
+        date,
+        b.userId?.name || 'N/A',
+        b.userId?.email || 'N/A',
+        b.userId?.phone || 'N/A',
+        b.hotelId?.name || 'N/A',
+        b.hotelId?.city || 'N/A',
+        b.totalPrice,
+        b.status
+      ].map(val => `"${val}"`).join(',');
+      csv += row + '\n';
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=rukkoin-bookings-report.csv');
+    res.status(200).send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error exporting CSV' });
+  }
+};
+
+// --- Staff Management (Superadmin only) ---
+
+export const getAllStaff = async (req, res) => {
+  try {
+    const staff = await Admin.find().select('-password').sort({ createdAt: -1 });
+    res.status(200).json({ success: true, staff });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching staff' });
+  }
+};
+
+export const createStaff = async (req, res) => {
+  try {
+    const { name, email, password, role, phone } = req.body;
+
+    const existing = await Admin.findOne({ email });
+    if (existing) return res.status(400).json({ success: false, message: 'Account already exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newStaff = await Admin.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      phone
+    });
+
+    // Log staff creation
+    await logAuditAction({
+      adminId: req.user.id,
+      action: 'STAFF_CREATED',
+      description: `New staff account created: ${name} (${role})`,
+      targetType: 'Admin',
+      targetId: newStaff._id,
+      req,
+      metadata: { staffEmail: email, staffRole: role }
+    });
+
+    res.status(201).json({ success: true, message: 'Staff account created', staff: newStaff });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error creating staff account' });
+  }
+};
+
+export const updateStaffStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive, role } = req.body;
+
+    const staff = await Admin.findByIdAndUpdate(id, { isActive, role }, { new: true });
+    if (!staff) return res.status(404).json({ success: false, message: 'Staff not found' });
+
+    res.status(200).json({ success: true, message: 'Staff updated', staff });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating staff' });
+  }
+};
+
+export const deleteStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const staff = await Admin.findById(id);
+    if (staff.role === 'superadmin') {
+      return res.status(403).json({ success: false, message: 'Superadmin cannot be deleted' });
+    }
+
+    const staffName = staff.name;
+    const staffRole = staff.role;
+
+    await Admin.findByIdAndDelete(id);
+
+    // Log staff deletion
+    await logAuditAction({
+      adminId: req.user.id,
+      action: 'STAFF_DELETED',
+      description: `Staff account deleted: ${staffName} (${staffRole})`,
+      targetType: 'Admin',
+      targetId: id,
+      req,
+      metadata: { deletedStaffName: staffName, deletedStaffRole: staffRole }
+    });
+
+    res.status(200).json({ success: true, message: 'Staff account deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error deleting staff' });
+  }
+};
+
+
+
+
+
+
+// --- Security & Audit ---
+export const getAuditLogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const filter = {
-      userId: req.user._id,
-      userType: 'admin'
-    };
+    const query = {};
+    if (req.query.action) query.action = req.query.action;
+    if (req.query.targetType) query.targetType = req.query.targetType;
+    if (req.query.adminId) query.admin = req.query.adminId;
 
-    const notifications = await Notification.find(filter)
+    const logs = await AuditLog.find(query)
+      .populate('admin', 'name email role')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({ ...filter, isRead: false });
+    const total = await AuditLog.countDocuments(query);
 
     res.status(200).json({
       success: true,
-      notifications,
-      meta: {
+      logs,
+      pagination: {
         total,
         page,
-        limit,
-        unreadCount
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
-    console.error('Get Admin Notifications Error:', error);
-    res.status(500).json({ message: 'Server error fetching notifications' });
-  }
-};
-
-export const createBroadcastNotification = async (req, res) => {
-  try {
-    const { title, body, targetAudience, type = 'general' } = req.body; // targetAudience: 'users', 'partners', 'all'
-
-    if (!title || !body || !targetAudience) {
-      return res.status(400).json({ message: 'Title, Body and Target Audience are required' });
-    }
-
-    let query = {};
-    if (targetAudience === 'users') {
-      query = { role: 'user' };
-    } else if (targetAudience === 'partners') {
-      query = { role: 'partner' };
-    } else if (targetAudience === 'all') {
-      query = { role: { $in: ['user', 'partner'] } };
-    } else {
-      return res.status(400).json({ message: 'Invalid Target Audience' });
-    }
-
-    // Find recipients
-    // Optimize: If 'all', we might have too many users.
-    // Ideally we use a background job. For now, assuming manageable scale (<10k users).
-    const recipients = await User.find(query).select('_id role');
-
-    if (recipients.length === 0) {
-      return res.status(404).json({ message: 'No recipients found for this audience' });
-    }
-
-    // Bulk Insert Notifications
-    // Note: This can be heavy.
-    const notifications = recipients.map(user => ({
-      userId: user._id,
-      userType: user.role, // 'user' or 'partner'
-      userModel: 'User',
-      title,
-      body,
-      type: 'broadcast',
-      isRead: false
-    }));
-
-    if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
-    }
-
-    // Log for Admin (Sent Tab)
-    await Notification.create({
-      userId: req.user._id,
-      userType: 'admin',
-      userModel: 'Admin',
-      title: `Broadcast Sent: ${title}`,
-      body: `Sent to ${targetAudience} (${recipients.length} recipients). Content: ${body}`,
-      type: 'broadcast_log',
-      isRead: true,
-      data: { originalTitle: title, originalBody: body, targetAudience, recipientCount: recipients.length }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: `Notification queued for ${recipients.length} recipients.`
-    });
-
-  } catch (error) {
-    console.error('Create Broadcast Error:', error);
-    res.status(500).json({ message: 'Server error sending broadcast' });
-  }
-};
-
-export const markAllAdminNotificationsRead = async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { userId: req.user._id, userType: 'admin', isRead: false },
-      { $set: { isRead: true, readAt: new Date() } }
-    );
-    res.status(200).json({ success: true, message: 'All notifications marked as read' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-export const deleteAdminNotifications = async (req, res) => {
-  try {
-    const { ids } = req.body;
-
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: 'No IDs provided' });
-    }
-
-    await Notification.deleteMany({
-      _id: { $in: ids },
-      userId: req.user._id,
-      userType: 'admin'
-    });
-
-    res.status(200).json({ success: true, message: 'Notifications deleted' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-import Wallet from '../models/Wallet.js';
-
-export const getFinanceStats = async (req, res) => {
-  try {
-    // 1. Get Admin Wallet Balance
-    let adminWallet = await Wallet.findOne({ role: 'admin' });
-
-    // If no admin wallet exists, try to find one associated with the current admin user or create a dummy one
-    // Ideally, there should be one system wallet.
-    const adminBalance = adminWallet ? adminWallet.balance : 0;
-
-    // 2. Aggregate Booking Financials
-    // Match only valid bookings (paid and confirmed/checked_in/checked_out)
-    const matchStage = {
-      bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-      paymentStatus: 'paid'
-    };
-
-    const financialsOr = await Booking.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: null,
-          totalGross: { $sum: '$totalAmount' },
-          totalCommission: { $sum: '$adminCommission' },
-          totalTax: { $sum: '$taxes' },
-          totalPayout: { $sum: '$partnerPayout' }
-        }
-      }
-    ]);
-
-    const financials = financialsOr[0] || {
-      totalGross: 0,
-      totalCommission: 0,
-      totalTax: 0,
-      totalPayout: 0
-    };
-
-    // 3. Fetch Transaction List (Bookings Breakdown)
-    const transactions = await Booking.find(matchStage)
-      .select('bookingId createdAt totalAmount adminCommission taxes partnerPayout bookingStatus paymentStatus userId propertyId')
-      .populate('userId', 'name email')
-      .populate({
-        path: 'propertyId',
-        select: 'propertyName partnerId',
-        populate: { path: 'partnerId', select: 'name email' } // Get Partner Info
-      })
-      .sort({ createdAt: -1 })
-      .limit(50); // Limit to last 50 for now
-
-    res.status(200).json({
-      success: true,
-      stats: {
-        adminBalance,
-        totalRevenue: financials.totalGross, // Total Booking Value
-        totalEarnings: financials.totalCommission, // Actual Platform Income
-        totalTax: financials.totalTax,
-        totalPayouts: financials.totalPayout
-      },
-      transactions
-    });
-
-  } catch (error) {
-    console.error('Get Finance Stats Error:', error);
-    res.status(500).json({ success: false, message: 'Server error fetching finance stats' });
+    res.status(500).json({ success: false, message: 'Server error fetching audit logs' });
   }
 };

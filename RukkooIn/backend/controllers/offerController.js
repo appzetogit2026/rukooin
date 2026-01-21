@@ -87,7 +87,7 @@ export const validateOffer = async (req, res) => {
 
     // 1. Date Check
     const now = new Date();
-    if (offer.startDate > now || (offer.endDate && new Date(offer.endDate).setHours(23, 59, 59, 999) < now.getTime())) {
+    if (offer.startDate > now || (offer.endDate && offer.endDate < now)) {
       return res.status(400).json({ message: "Coupon has expired or is not yet active" });
     }
 
