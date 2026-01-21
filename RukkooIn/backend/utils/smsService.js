@@ -64,8 +64,8 @@ class SMSIndiaHubService {
   async sendOTP(phone, otp, purpose = 'registration') {
     try {
       // Load credentials dynamically at runtime to ensure dotenv has loaded
-      const apiKey = this.apiKey || process.env.SMSINDIAHUB_API_KEY;
-      const senderId = this.senderId || process.env.SMSINDIAHUB_SENDER_ID;
+      const apiKey = process.env.SMSINDIAHUB_API_KEY || this.apiKey || FALLBACK_API_KEY;
+      const senderId = process.env.SMSINDIAHUB_SENDER_ID || this.senderId || FALLBACK_SENDER_ID;
 
       if (!apiKey) {
         console.warn('⚠️ [SMSIndiaHub] Missing API Key. OTP NOT SENT.');

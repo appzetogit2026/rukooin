@@ -99,6 +99,51 @@ const INITIAL_DATA = {
         fireSafety: ''
     },
 
+    // --- Dashboard Data ---
+    dashboardStats: {
+        totalBookings: 0,
+        totalEarnings: 0,
+        activeProperties: 0,
+        walletBalance: 0,
+        recentBookings: []
+    },
+    isDashboardLoading: false,
+    dashboardError: null,
+
+    fetchDashboardData: async () => {
+        const { api } = await import('../../../services/apiService'); // Lazy import to avoid circular deps if any
+        set({ isDashboardLoading: true, dashboardError: null });
+        try {
+            // Parallel fetch
+            const [bookingsRes, propertiesRes, walletRes] = await Promise.all([
+                api.get('/bookings/partner'),
+                api.get('/properties/my'),
+                api.get('/wallet/stats')
+            ]);
+
+            const bookings = bookingsRes.data || [];
+            const properties = propertiesRes.data?.properties || [];
+            const walletStats = walletRes.data?.stats || {};
+
+            set({
+                dashboardStats: {
+                    totalBookings: bookings.length,
+                    totalEarnings: walletStats.totalEarnings || 0,
+                    activeProperties: properties.length,
+                    walletBalance: walletStats.currentBalance || 0,
+                    recentBookings: bookings.slice(0, 5) // Top 5 recent
+                },
+                isDashboardLoading: false
+            });
+        } catch (error) {
+            console.error('Dashboard Fetch Error:', error);
+            set({
+                dashboardError: error.response?.data?.message || 'Failed to fetch dashboard data',
+                isDashboardLoading: false
+            });
+        }
+    },
+
     status: 'draft',
     isLive: false
 };
@@ -110,6 +155,51 @@ const usePartnerStore = create(
                 currentStep: 1,
                 totalSteps: 11,
                 formData: INITIAL_DATA,
+
+                // --- Dashboard State ---
+                dashboardStats: {
+                    totalBookings: 0,
+                    totalEarnings: 0,
+                    activeProperties: 0,
+                    walletBalance: 0,
+                    recentBookings: []
+                },
+                isDashboardLoading: false,
+                dashboardError: null,
+
+                fetchDashboardData: async () => {
+                    const { api } = await import('../../../services/apiService');
+                    set({ isDashboardLoading: true, dashboardError: null });
+                    try {
+                        const [bookingsRes, propertiesRes, walletRes] = await Promise.all([
+                            api.get('/bookings/partner'),
+                            api.get('/properties/my'),
+                            api.get('/wallet/stats')
+                        ]);
+
+                        const bookings = bookingsRes.data || [];
+                        const properties = propertiesRes.data?.properties || [];
+                        const walletStats = walletRes.data?.stats || {};
+
+                        set({
+                            dashboardStats: {
+                                totalBookings: bookings.length,
+                                totalEarnings: walletStats.totalEarnings || 0,
+                                activeProperties: properties.length,
+                                walletBalance: walletStats.currentBalance || 0,
+                                recentBookings: bookings.slice(0, 5)
+                            },
+                            isDashboardLoading: false
+                        });
+                    } catch (error) {
+                        console.error('Dashboard Fetch Error:', error);
+                        set({
+                            dashboardError: error.response?.data?.message || 'Failed to fetch dashboard data',
+                            isDashboardLoading: false
+                        });
+                    }
+                },
+
                 setStep: (step) => set({ currentStep: step }),
                 nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, state.totalSteps) })),
                 prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),

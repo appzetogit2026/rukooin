@@ -370,7 +370,10 @@ export const getPartnerBookings = async (req, res) => {
   try {
     const myProps = await Property.find({ partnerId: req.user._id }).select('_id');
     const ids = myProps.map(p => p._id);
-    const list = await Booking.find({ propertyId: { $in: ids } }).sort({ createdAt: -1 });
+    const list = await Booking.find({ propertyId: { $in: ids } })
+      .populate('userId', 'name email')
+      .populate('propertyId', 'name')
+      .sort({ createdAt: -1 });
     res.json(list);
   } catch (e) {
     res.status(500).json({ message: e.message });
