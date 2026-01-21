@@ -4,6 +4,7 @@ import Otp from '../models/Otp.js';
 import smsService from '../utils/smsService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import Wallet from '../models/Wallet.js';
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -192,6 +193,15 @@ export const verifyOtp = async (req, res) => {
 
     const token = generateToken(user._id, user.role);
 
+    // Fetch Wallet Balance if Partner
+    let walletBalance = 0;
+    // Fetch Wallet Balance
+    let walletBalance = 0;
+    if (['user', 'partner'].includes(user.role)) {
+      const wallet = await Wallet.findOne({ partnerId: user._id, role: user.role });
+      walletBalance = wallet ? wallet.balance : 0;
+    }
+
     res.status(200).json({
       message: isRegistration ? 'Registration successful' : 'Login successful',
       token,
@@ -201,8 +211,9 @@ export const verifyOtp = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isPartner: user.isPartner || false, // Should be false for pure user
-        partnerApprovalStatus: user.partnerApprovalStatus
+        isPartner: user.isPartner || false,
+        partnerApprovalStatus: user.partnerApprovalStatus,
+        walletBalance // Include wallet balance
       }
     });
 
@@ -380,6 +391,10 @@ export const verifyPartnerOtp = async (req, res) => {
 
     const token = generateToken(newUser._id, newUser.role);
 
+    // Initialize Wallet (Optional, or just return 0)
+    // Controller creates on get, but let's return 0 here
+    const walletBalance = 0;
+
     res.status(200).json({
       success: true,
       message: 'Partner registration completed successfully.',
@@ -391,7 +406,8 @@ export const verifyPartnerOtp = async (req, res) => {
         phone: newUser.phone,
         role: newUser.role,
         isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
+        partnerApprovalStatus: newUser.partnerApprovalStatus,
+        walletBalance: 0
       }
     });
 
@@ -483,6 +499,15 @@ export const getMe = async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // If user is a partner, attach wallet balance
+    // Fetch wallet balance for both users and partners
+    let walletBalance = 0;
+    if (['user', 'partner'].includes(user.role)) {
+      // Use imported Wallet model
+      const wallet = await Wallet.findOne({ partnerId: user._id, role: user.role });
+      walletBalance = wallet ? wallet.balance : 0;
+    }
+
     res.status(200).json({
       success: true,
       user: {
@@ -492,7 +517,8 @@ export const getMe = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner || false,
-        address: user.address
+        address: user.address,
+        walletBalance // Added wallet balance
       }
     });
   } catch (error) {
