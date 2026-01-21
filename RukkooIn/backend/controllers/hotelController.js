@@ -38,6 +38,18 @@ export const getAddressFromCoordinates = async (req, res) => {
     }
     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
     const { data } = await axios.get(url);
+
+    if (data.status !== 'OK') {
+      console.error('Google Maps Geocoding API Error:', data.status, data.error_message);
+      if (data.status === 'ZERO_RESULTS') {
+        return res.status(404).json({ message: 'Address not found' });
+      }
+      return res.status(500).json({
+        message: `Google Maps API Error: ${data.status}`,
+        details: data.error_message
+      });
+    }
+
     const first = Array.isArray(data.results) ? data.results[0] : null;
     if (!first) return res.status(404).json({ message: 'Address not found' });
     const { country, state, city, area, pincode } = mapAddressComponents(first.address_components || []);
