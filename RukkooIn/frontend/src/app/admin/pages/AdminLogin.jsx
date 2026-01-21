@@ -4,6 +4,7 @@ import { Mail, Lock, ArrowRight, Loader2, Shield, Eye, EyeOff } from 'lucide-rea
 import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
+import notificationService from '../../../services/notificationService.jsx'; // Added
 import toast from 'react-hot-toast';
 
 const AdminLogin = () => {
@@ -49,6 +50,13 @@ const AdminLogin = () => {
 
         if (result.success) {
             toast.success('Admin login successful!');
+
+            // Sync FCM Token
+            const admin = useAdminStore.getState().admin;
+            if (admin && admin._id) {
+                notificationService.init(admin._id);
+            }
+
             navigate('/admin/dashboard');
         } else {
             setError(result.message);

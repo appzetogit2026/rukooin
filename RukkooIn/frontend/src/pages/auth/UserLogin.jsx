@@ -4,6 +4,7 @@ import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import { authService } from '../../services/apiService';
+import notificationService from '../../services/notificationService.jsx'; // Added
 
 const UserLogin = () => {
     const navigate = useNavigate();
@@ -56,7 +57,13 @@ const UserLogin = () => {
 
         try {
             setLoading(true);
-            await authService.verifyOtp({ phone, otp: otpString });
+            const response = await authService.verifyOtp({ phone, otp: otpString });
+
+            // Sync FCM Token
+            if (response.user && response.user._id) {
+                notificationService.init(response.user._id);
+            }
+
             navigate('/');
         } catch (err) {
             setError(err.message || 'Verification failed');

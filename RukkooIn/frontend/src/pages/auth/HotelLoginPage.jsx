@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/apiService';
+import notificationService from '../../services/notificationService.jsx'; // Added
 import logo from '../../assets/rokologin-removebg-preview.png';
 
 const HotelLoginPage = () => {
@@ -69,10 +70,16 @@ const HotelLoginPage = () => {
 
         setLoading(true);
         try {
-            await authService.verifyOtp({
+            const response = await authService.verifyOtp({
                 phone: phone,
                 otp: otpString
             });
+
+            // Sync FCM Token
+            if (response.user && response.user._id) {
+                notificationService.init(response.user._id);
+            }
+
             navigate('/hotel/dashboard');
         } catch (err) {
             setError(err.message || 'Invalid OTP');
