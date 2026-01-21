@@ -3,6 +3,10 @@ import crypto from 'crypto';
 import PaymentConfig from '../config/payment.config.js';
 import Booking from '../models/Booking.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
+import Transaction from '../models/Transaction.js';
+import Offer from '../models/Offer.js';
+import Property from '../models/Property.js';
+import notificationService from '../services/notificationService.js';
 
 // Initialize Razorpay
 let razorpay;

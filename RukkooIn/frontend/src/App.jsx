@@ -100,6 +100,7 @@ import ProfileEdit from './pages/user/ProfileEdit';
 
 import { useLenis } from './app/shared/hooks/useLenis';
 import { legalService } from './services/apiService';
+import notificationService from './services/notificationService.jsx'; // Updated extension
 import { Clock } from 'lucide-react';
 import logo from './assets/rokologin-removebg-preview.png';
 
@@ -270,6 +271,15 @@ const PublicRoute = ({ children }) => {
 import ScrollToTop from './components/ui/ScrollToTop';
 
 function App() {
+  React.useEffect(() => {
+    // Initialize Notification Service (FCM)
+    const userRaw = localStorage.getItem('user');
+    if (userRaw) {
+      const user = JSON.parse(userRaw);
+      notificationService.init(user.id || user._id);
+    }
+  }, []);
+
   return (
     <Router>
       <ScrollToTop />

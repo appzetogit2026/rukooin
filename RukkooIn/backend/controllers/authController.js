@@ -1,9 +1,11 @@
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import Otp from '../models/Otp.js';
-import smsService from '../../../backend/utils/smsService.js';
+import smsService from '../utils/smsService.js';
+import notificationService from '../services/notificationService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose'; // Added
 import { logAuditAction } from '../utils/auditLogger.js';
 
 // Generate JWT Token
@@ -171,6 +173,33 @@ export const verifyOtp = async (req, res) => {
     }
 
     await user.save();
+
+    console.log('✅ OTP Verified. Token generated.');
+    console.log('🚀 Is Registration:', isRegistration);
+
+    // --- NOTIFICATION HOOK: NEW REGISTRATION ---
+    if (isRegistration) {
+      // Send Welcome Email & Push
+      notificationService.sendToUser(user._id, {
+        title: 'Welcome to Rukkoo!',
+        body: 'Welcome aboard! Find your perfect stay today.'
+      }, {
+        sendEmail: true,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; color: #333;">
+            <h1 style="color: #004F4D;">Welcome to Rukkoo! 🏨</h1>
+            <p>Hi ${user.name || 'User'},</p>
+            <p>Thank you for joining Rukkoo. We are excited to help you find your perfect stay.</p>
+            <p><strong>Your Profile ID:</strong> ${user._id}</p>
+            <p>Start exploring now!</p>
+            <br/>
+            <p>Best Regards,<br/>Team Rukkoo</p>
+          </div>
+        `,
+        type: 'welcome'
+      }).catch(err => console.error('Welcome Notification Failed:', err));
+    }
+    // -------------------------------------------
 
     const token = generateToken(user._id, user.role);
 
@@ -347,6 +376,49 @@ export const verifyPartnerOtp = async (req, res) => {
     user.partnerApprovalStatus = 'pending';
 
     await user.save();
+
+    // --- NOTIFICATION HOOK: PARTNER REGISTRATION ---
+    try {
+      // 1. Notify Partner (Email)
+      if (user.email) {
+        notificationService.sendToUser(user._id, {
+          title: 'Partner Registration Received 📋',
+          body: 'Your partner registration has been received and is pending admin approval.'
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Registration Received</h3>
+            <p>Hi ${user.name},</p>
+            <p>Your request to become a Rukkoo Partner has been received.</p>
+            <p>Our team will review your details and documents shortly.</p>
+            <p>Status: <strong>Pending Approval</strong></p>
+          `,
+          type: 'partner_register_pending'
+        });
+      }
+
+      // 2. Notify Admin (Push)
+      // Assuming a generic Admin channel or finding all admins
+      // Since we don't have a broadcast-to-role easily, we fetch admins (usually one or few)
+      const AdminModel = mongoose.model('Admin'); // Assuming registered
+      if (!AdminModel) await import('../models/Admin.js'); // fallback
+
+      const admins = await AdminModel.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
+
+      for (const admin of admins) {
+        notificationService.sendToUser(admin._id, {
+          title: 'New Partner Registration 👤',
+          body: `New Partner ${user.name} has registered. Please review application.`
+        }, {
+          type: 'admin_action_required',
+          data: { userId: user._id, screen: 'partner_requests' }
+        }, 'admin'); // Use 'admin' type
+      }
+
+    } catch (notifErr) {
+      console.error('Partner Notif Error:', notifErr.message);
+    }
+    // -----------------------------------------------
 
     res.status(200).json({
       success: true,
@@ -610,3 +682,55 @@ export const updateAdminProfile = async (req, res) => {
   }
 };
 
+
+/**
+ * @desc    Update FCM Token for Push Notifications
+ * @route   PUT /api/auth/update-fcm
+ * @access  Private
+ */
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform = 'web' } = req.body; // platform: 'web' | 'app'
+
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'FCM Token is required' });
+    }
+
+    // Try finding in User first
+    let user = await User.findById(req.user.id);
+
+    // If not user, try Admin
+    if (!user) {
+      const Admin = (await import('../models/Admin.js')).default;
+      user = await Admin.findById(req.user.id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Initialize fcmTokens object if it doesn't exist
+    if (!user.fcmTokens) {
+      user.fcmTokens = { web: null, app: null };
+    }
+
+    // Update token based on platform
+    if (platform === 'web') {
+      user.fcmTokens.web = fcmToken;
+    } else {
+      user.fcmTokens.app = fcmToken;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'FCM Token updated successfully',
+      platform
+    });
+
+  } catch (error) {
+    console.error('Update FCM Token Error:', error);
+    res.status(500).json({ message: 'Server error updating FCM token' });
+  }
+};

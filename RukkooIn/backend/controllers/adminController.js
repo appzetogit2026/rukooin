@@ -14,6 +14,7 @@ import Withdrawal from '../models/Withdrawal.js';
 import Banner from '../models/Banner.js';
 import Faq from '../models/Faq.js';
 import Notification from '../models/Notification.js';
+import notificationService from '../services/notificationService.js';
 import Admin from '../models/Admin.js';
 import AuditLog from '../models/AuditLog.js';
 import bcrypt from 'bcryptjs';
@@ -383,6 +384,31 @@ export const verifyPropertyDocuments = async (req, res) => {
     }
     await docs.save();
     await property.save();
+
+    // --- NOTIFICATION HOOK: PROPERTY VERIFIED ---
+    try {
+      if (action === 'approve') {
+        const liveMsg = `Your property ${property.propertyName} is LIVE now! 🏨`;
+        // Push + Email
+        await notificationService.sendToUser(property.partnerId, {
+          title: 'Property Live! 🟢',
+          body: liveMsg
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Property Approved</h3>
+            <p>Great news! Your property <strong>${property.propertyName}</strong> has been verified and is now <strong>LIVE</strong> on Rukkoo.</p>
+            <p>Users can now start booking stays at your property.</p>
+          `,
+          type: 'property_live',
+          data: { propertyId: property._id }
+        }, 'partner');
+      }
+    } catch (notifErr) {
+      console.error('Property Verify Notif Error:', notifErr.message);
+    }
+    // ------------------------------------------
+
     res.status(200).json({ success: true, property, documents: docs });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error verifying documents' });
@@ -687,6 +713,51 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       user.isPartner = false;
     }
     await user.save();
+
+    // --- NOTIFICATION HOOK: PARTNER APPROVAL UPDATE ---
+    try {
+      if (status === 'approved') {
+        const approvedMsg = 'Congrats! Your Partner Account is Approved. Login now to list properties.';
+        // Email + Push
+        await notificationService.sendToUser(user._id, {
+          title: 'Partner Account Approved ✅',
+          body: approvedMsg
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Application Approved! 🎉</h3>
+            <p>Hi ${user.name},</p>
+            <p>Your application to become a Rukkoo Partner has been <strong>APPROVED</strong>!</p>
+            <p>You can now login to your partner dashboard and start listing your properties.</p>
+            <p><a href="${process.env.FRONTEND_URL}/partner/login">Login to Partner Dashboard</a></p>
+          `,
+          type: 'partner_approved'
+        });
+      }
+
+      if (status === 'rejected') {
+        const rejectedMsg = 'Your Partner Application has been updated. Please check your email for details.';
+        // Email only (Push optional if they can't login, but usually email is better for rejection)
+        await notificationService.sendToUser(user._id, {
+          title: 'Partner Account Update',
+          body: rejectedMsg
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Application Status Update</h3>
+            <p>Hi ${user.name},</p>
+            <p>We have reviewed your partner application.</p>
+            <p><strong>Status:</strong> Rejected/Changes Requested</p>
+            <p>Please contact support for more details.</p>
+          `,
+          type: 'partner_rejected'
+        });
+      }
+    } catch (notifErr) {
+      console.error('Partner Approval Notif Error:', notifErr.message);
+    }
+    // --------------------------------------------------
+
     res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating partner approval status' });
