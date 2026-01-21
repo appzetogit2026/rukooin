@@ -5,6 +5,7 @@ import smsService from '../utils/smsService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import Wallet from '../models/Wallet.js';
+import notificationService from '../services/notificationService.js';
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -190,6 +191,26 @@ export const verifyOtp = async (req, res) => {
     }
 
     await user.save();
+
+    // --- NOTIFICATION HOOK: NEW USER ---
+    if (isRegistration && user.role === 'user') {
+      await notificationService.sendToUser(user._id, {
+        title: 'Welcome to Rukkoo!',
+        body: 'Welcome aboard! Find your perfect stay today.'
+      }, {
+        sendEmail: true,
+        emailHtml: `
+          <h3>Welcome to Rukkoo, ${user.name}!</h3>
+          <p>We are excited to have you on board. Discover amazing stays and easy bookings.</p>
+          <p>Your profile details:</p>
+          <ul>
+            <li>Name: ${user.name}</li>
+            <li>Phone: ${user.phone}</li>
+            ${user.email ? `<li>Email: ${user.email}</li>` : ''}
+          </ul>
+        `
+      });
+    }
 
     const token = generateToken(user._id, user.role);
     // Fetch Wallet Balance
@@ -385,6 +406,31 @@ export const verifyPartnerOtp = async (req, res) => {
 
     // 3. Cleanup OTP
     await Otp.deleteOne({ phone });
+
+    // --- NOTIFICATION HOOK: NEW PARTNER ---
+    // 1. Notify Partner
+    await notificationService.sendToUser(newUser._id, {
+      title: 'Registration Received!',
+      body: 'Your partner application is under review by the admin.'
+    }, {
+      sendEmail: true,
+      emailHtml: `
+        <h3>Application Received</h3>
+        <p>Hi ${newUser.name}, thanks for registering as a partner with Rukkoo.</p>
+        <p>Your documents have been received and are pending verification.</p>
+        <p>You will be notified once your account is approved.</p>
+      `
+    });
+
+    // 2. Notify Admin
+    try {
+      await notificationService.sendToAdmin({
+        title: 'New Partner Registration 🚨',
+        body: `New Partner: ${newUser.name} has registered and submitted documents. Please review.`
+      });
+    } catch (adminErr) {
+      console.error('Failed to notify admin about new partner:', adminErr);
+    }
 
     const token = generateToken(newUser._id, newUser.role);
 

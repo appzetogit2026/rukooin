@@ -3,6 +3,7 @@ import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
+import notificationService from '../services/notificationService.js';
 
 export const createProperty = async (req, res) => {
   try {
@@ -59,6 +60,19 @@ export const createProperty = async (req, res) => {
       doc.isLive = false;
       await doc.save();
     }
+
+    // --- NOTIFICATION HOOK: NEW PROPERTY ---
+    await notificationService.sendToAdmin({
+      title: 'New Property List Request',
+      body: `New Property: ${propertyName}. Verify Docs.`
+    }, {
+      sendEmail: true,
+      emailHtml: `
+        <h3>New Property Listed</h3>
+        <p>A new property <strong>${propertyName}</strong> (${propertyType}) has been listed.</p>
+        <p>Please review and verify the documents.</p>
+      `
+    });
     res.status(201).json({ success: true, property: doc });
   } catch (e) {
     res.status(500).json({ message: e.message });

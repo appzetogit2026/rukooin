@@ -9,6 +9,7 @@ import Transaction from '../models/Transaction.js';
 import Razorpay from 'razorpay';
 import PaymentConfig from '../config/payment.config.js';
 import mongoose from 'mongoose'; // Added mongoose import
+import notificationService from '../services/notificationService.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -286,6 +287,12 @@ export const createBooking = async (req, res) => {
           status: 'completed',
           metadata: { bookingId: booking._id.toString() }
         });
+
+        // --- NOTIFICATION HOOK: WALLET CREDIT ---
+        await notificationService.sendToUser(property.partnerId, {
+          title: 'Wallet Credited 💰',
+          body: `Wallet Credited: ₹${partnerPayout} for Booking #${bookingId}`
+        }, {}, 'partner');
       }
 
       // 4. Credit Admin Wallet
@@ -314,6 +321,31 @@ export const createBooking = async (req, res) => {
             metadata: { bookingId: booking._id.toString() }
           });
         }
+      }
+
+      // 3. Notification Hook (User & Partner)
+      // Notify User
+      await notificationService.sendToUser(req.user._id, {
+        title: 'Booking Confirmed! 🎉',
+        body: `Your booking at ${property.propertyName} (ID: ${bookingId}) is confirmed.`
+      }, {
+        sendEmail: true,
+        emailHtml: `
+          <h2>Booking Confirmed!</h2>
+          <p>Hi ${req.user.name}, your booking details:</p>
+          <p><strong>Hotel:</strong> ${property.propertyName}</p>
+          <p><strong>Dates:</strong> ${new Date(checkInDate).toLocaleDateString()} - ${new Date(checkOutDate).toLocaleDateString()}</p>
+          <p><strong>Booking ID:</strong> ${bookingId}</p>
+          <p>Have a great stay!</p>
+        `
+      });
+
+      // Notify Partner
+      if (property.partnerId) {
+        await notificationService.sendToUser(property.partnerId, {
+          title: 'New Booking Alert! 💰',
+          body: `New booking received for ${property.propertyName}. ${nights} Night(s). Check app for details.`
+        }, {}, 'partner');
       }
 
       const populatedBooking = await Booking.findById(booking._id)
@@ -436,6 +468,28 @@ export const createBooking = async (req, res) => {
       await Offer.findByIdAndUpdate(appliedOffer._id, { $inc: { usageCount: 1 } });
     }
 
+    // --- NOTIFICATION HOOK (PAY AT HOTEL) ---
+    await notificationService.sendToUser(req.user._id, {
+      title: 'Booking Confirmed! (Pay at Hotel)',
+      body: `Your Pay-at-Hotel booking at ${property.propertyName} (#${bookingId}) is confirmed.`
+    }, {
+      sendEmail: true,
+      emailHtml: `
+        <h2>Booking Confirmed!</h2>
+        <p>Hi ${req.user.name},</p>
+        <p>Your booking at <strong>${property.propertyName}</strong> is confirmed.</p>
+        <p>Please pay the remaining amount of <strong>₹${finalPayable}</strong> at the hotel.</p>
+        <p><strong>Booking ID:</strong> ${bookingId}</p>
+      `
+    });
+
+    if (property.partnerId) {
+      await notificationService.sendToUser(property.partnerId, {
+        title: 'New Booking Alert! (Pay at Hotel)',
+        body: `New booking for ${property.propertyName}. Collect ₹${finalPayable} from guest.`
+      }, {}, 'partner');
+    }
+
     const populatedBooking = await Booking.findById(booking._id)
       .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
       .populate('roomTypeId', 'name type inventoryType')
@@ -525,7 +579,7 @@ export const cancelBooking = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id).populate('propertyId');
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     // Ownership Check
@@ -682,6 +736,28 @@ export const cancelBooking = async (req, res) => {
       referenceId: booking._id
     });
 
+    // --- NOTIFICATION HOOK: CANCEL ---
+    // Notify User
+    await notificationService.sendToUser(booking.userId, {
+      title: 'Booking Cancelled',
+      body: `Booking #${booking.bookingId} has been cancelled successfully.`
+    }, {
+      sendEmail: true,
+      emailHtml: `
+        <h3>Booking Cancelled</h3>
+        <p>Your booking #${booking.bookingId} at ${booking.propertyId?.propertyName} has been cancelled.</p>
+        ${booking.paymentStatus === 'refunded' ? `<p>Refund of ₹${booking.totalAmount} has been credited to your wallet.</p>` : ''}
+      `
+    });
+
+    // Notify Partner
+    if (booking.propertyId && booking.propertyId.partnerId) {
+      await notificationService.sendToUser(booking.propertyId.partnerId, {
+        title: 'Booking Cancelled ❌',
+        body: `Booking #${booking.bookingId} was cancelled by the guest. Inventory released.`
+      }, {}, 'partner');
+    }
+
     res.json({ success: true, message: 'Booking cancelled successfully', booking });
 
   } catch (e) {
@@ -769,6 +845,15 @@ export const markBookingAsPaid = async (req, res) => {
         metadata: { bookingId: booking._id.toString() }
       });
     }
+
+    // --- NOTIFICATION HOOK: MARK PAID ---
+    await notificationService.sendToUser(booking.userId, {
+      title: 'Payment Received',
+      body: `Payment of ₹${booking.totalAmount} for Booking #${booking.bookingId} confirmed by hotel.`
+    }, {
+      sendEmail: true,
+      emailHtml: `<p>Thank you! Your payment for booking #${booking.bookingId} has been marked as received by the hotel.</p>`
+    });
 
     res.json({ success: true, message: 'Marked as Paid', booking });
   } catch (e) {

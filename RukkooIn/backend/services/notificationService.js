@@ -1,3 +1,4 @@
+import { sendEmail } from '../utils/emailService.js';
 import { getFirebaseAdmin } from '../config/firebase.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
@@ -23,7 +24,7 @@ class NotificationService {
   /**
    * Send notification to a single FCM token
    * @param {string} fcmToken - FCM token of the device
-   * @param {Object} notification - Notification payload
+   * @param {Object} notification - Notification payload (title, body)
    * @param {Object} data - Additional data payload
    * @returns {Promise<Object>} - Result of sending notification
    */
@@ -102,10 +103,39 @@ class NotificationService {
   }
 
   /**
-   * Send notification to a user or admin by ID
-   * @param {string} userId - User or Admin ID
-   * @param {Object} notification - Notification payload
+   * Send notification to All Admins
+   * @param {Object} notification - Notification payload (title, body)
    * @param {Object} data - Additional data payload
+   * @returns {Promise<Array>} - Results of sending to each admin
+   */
+  async sendToAdmin(notification, data = {}) {
+    try {
+      const Admin = (await import('../models/Admin.js')).default;
+      // Fetch all active admins
+      const admins = await Admin.find({ isActive: true });
+
+      const results = [];
+      for (const admin of admins) {
+        // Reuse sendToUser with userType='admin'
+        try {
+          const res = await this.sendToUser(admin._id, notification, data, 'admin');
+          results.push(res);
+        } catch (err) {
+          console.error(`Failed to notify admin ${admin._id}:`, err);
+        }
+      }
+      return results;
+    } catch (error) {
+      console.error('[ERROR] Error sending notification to admins:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send notification to a user or admin by ID (with optional Email)
+   * @param {string} userId - User or Admin ID
+   * @param {Object} notification - Notification payload (title, body)
+   * @param {Object} data - Additional data payload (can include sendEmail: true)
    * @param {string} userType - 'user', 'admin' (default: 'user')
    * @returns {Promise<Object>} - Result of sending notification
    */
@@ -114,7 +144,6 @@ class NotificationService {
       let user;
 
       if (userType === 'admin') {
-        // Dynamic import to avoid circular dependency issues if any, or just standard import
         const Admin = (await import('../models/Admin.js')).default;
         user = await Admin.findById(userId);
       } else {
@@ -127,6 +156,18 @@ class NotificationService {
           error: `${userType} not found`,
         };
       }
+
+      // --- EMAIL NOTIFICATION LOGIC ---
+      if (data && data.sendEmail && user.email) {
+        const emailSubject = notification.title || 'Rukkoo Notification';
+        // Use provided HTML or fallback to Body
+        const emailHtml = data.emailHtml || `<p>${notification.body}</p>`;
+
+        // Non-blocking email send (fire and forget pattern for speed)
+        sendEmail(user.email, emailSubject, notification.body, emailHtml)
+          .catch(err => console.error("Background Email Failed:", err.message));
+      }
+      // --------------------------------
 
       // Get all FCM tokens (app + web)
       const fcmTokens = this.getUserFcmTokens(user);
@@ -148,6 +189,7 @@ class NotificationService {
         return {
           success: false,
           error: 'User does not have FCM token',
+          emailSent: !!(data && data.sendEmail && user.email)
         };
       }
 
@@ -186,7 +228,8 @@ class NotificationService {
 
       return {
         success: successCount > 0,
-        successCount
+        successCount,
+        emailSent: !!(data && data.sendEmail && user.email)
       };
     } catch (error) {
       console.error('[ERROR] Error sending notification to user:', error);

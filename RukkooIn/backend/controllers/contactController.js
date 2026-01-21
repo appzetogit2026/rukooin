@@ -1,4 +1,5 @@
 import ContactMessage from '../models/ContactMessage.js';
+import notificationService from '../services/notificationService.js';
 
 export const createContactMessage = async (req, res) => {
   try {
@@ -20,6 +21,22 @@ export const createContactMessage = async (req, res) => {
       phone,
       subject,
       message
+    });
+
+    // --- NOTIFICATION HOOK: NEW SUPPORT QUERY ---
+    await notificationService.sendToAdmin({
+      title: 'New Support Query',
+      body: `New Support Message from ${name}.`
+    }, {
+      sendEmail: true,
+      emailHtml: `
+        <h3>New Support Message</h3>
+        <p><strong>From:</strong> ${name}</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message}</p>
+        <p><strong>Audit:</strong> ${audience}</p>
+      `
     });
 
     res.status(201).json({ success: true, message: 'Message submitted successfully', contact: doc });

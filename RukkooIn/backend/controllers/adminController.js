@@ -9,6 +9,7 @@ import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Notification from '../models/Notification.js';
+import notificationService from '../services/notificationService.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -193,12 +194,45 @@ export const verifyPropertyDocuments = async (req, res) => {
       docs.verifiedAt = new Date();
       property.status = 'approved';
       property.isLive = true;
+
+      // --- NOTIFICATION HOOK: PROPERTY APPROVED ---
+      if (property.partnerId) {
+        await notificationService.sendToUser(property.partnerId, {
+          title: 'Property Approved! ✅',
+          body: `Good news! Your property "${property.propertyName}" has been verified and is now live.`
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Property Approved</h3>
+            <p>Congratulations! Your property <strong>${property.propertyName}</strong> has been verified by our admin team.</p>
+            <p>It is now live and visible to guests on Rukkoo.</p>
+          `
+        }, 'partner');
+      }
+
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
       docs.adminRemark = adminRemark;
       docs.verifiedAt = new Date();
       property.status = 'rejected';
       property.isLive = false;
+
+      // --- NOTIFICATION HOOK: PROPERTY REJECTED ---
+      if (property.partnerId) {
+        await notificationService.sendToUser(property.partnerId, {
+          title: 'Property Verification Failed ❌',
+          body: `Verification for "${property.propertyName}" was rejected. Remark: ${adminRemark}`
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Verification Rejected</h3>
+            <p>We regret to inform you that verification for <strong>${property.propertyName}</strong> was unsuccessful.</p>
+            <p><strong>Admin Remark:</strong> ${adminRemark}</p>
+            <p>Please check the partner dashboard to update your documents.</p>
+          `
+        }, 'partner');
+      }
+
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
     }
@@ -381,7 +415,7 @@ export const getBookingDetails = async (req, res) => {
 
 export const updatePartnerApprovalStatus = async (req, res) => {
   try {
-    const { userId, status } = req.body;
+    const { userId, status, reason } = req.body;
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid partner approval status' });
     }
@@ -395,8 +429,40 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       if (!user.partnerSince) {
         user.partnerSince = new Date();
       }
+
+      // --- NOTIFICATION HOOK: PARTNER ACCOUNT APPROVED ---
+      await notificationService.sendToUser(user._id, {
+        title: 'Partner Account Approved! 🎉',
+        body: 'Welcome! Your partner account is approved. You can now login and add properties.'
+      }, {
+        sendEmail: true,
+        emailHtml: `
+          <h3>Welcome to Rukkoo Partner!</h3>
+          <p>Hi ${user.name}, your partner account has been approved.</p>
+          <p>You can now log in to the Partner Dashboard and start listing your properties.</p>
+        `
+      }, 'partner');
+
     } else {
       user.isPartner = false;
+
+      // --- NOTIFICATION HOOK: PARTNER ACCOUNT REJECTED ---
+      if (status === 'rejected') {
+        const rejectReason = reason || 'Criteria not met';
+        await notificationService.sendToUser(user._id, {
+          title: 'Partner Application Rejected',
+          body: `Your partner application was rejected. Reason: ${rejectReason}`
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Application Update</h3>
+            <p>Hi ${user.name},</p>
+            <p>Your application for a partner account was not approved at this time.</p>
+            <p><strong>Reason:</strong> ${rejectReason}</p>
+            <p>Please contact our support team for more details.</p>
+          `
+        }, 'partner');
+      }
     }
     await user.save();
     res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
@@ -573,22 +639,11 @@ export const updateFcmToken = async (req, res) => {
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
 
-    // We are in admin controller, assuming req.user is set by admin auth middleware
-    // However, Admin model import might be needed if not present, but usually req.user is the document or plain object.
-    // If req.user is populated from token, check if it's admin.
-
-    // Checking where Admin is imported? Line 1: User.. 
-    // Wait, Admin model is NOT imported in adminController based on view_file output. 
-    // It seems admin controller uses User model a lot but where does it get Admin?
-    // Oh, adminController functions usually don't manipulate Admin self profile except maybe unrelated?
-    // I need to import Admin model if I want to update Admin's token.
-
-    // The previous view_file of adminController didn't show Admin import. I should add it.
-
-    // But first, let's write the function logic assuming I will fix imports.
+    // Import Admin model dynamically to avoid circular deps if any, or just use if imported.
     const Admin = (await import('../models/Admin.js')).default;
 
-    const admin = await Admin.findById(req.user._id);
+    const admin = await Admin.findById(req.user._id || req.user.id);
+
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
