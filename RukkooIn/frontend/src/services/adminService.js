@@ -87,8 +87,8 @@ const adminService = {
     return response.data;
   },
 
-  deleteUser: async (userId) => {
-    const response = await axiosInstance.delete('/admin/delete-user', { data: { userId } });
+  deleteUser: async (userId, role = 'user') => {
+    const response = await axiosInstance.delete('/admin/delete-user', { data: { userId, role } });
     return response.data;
   },
 
@@ -177,20 +177,20 @@ const adminService = {
     return response.data;
   },
 
-  getReviews: async (params) => {
-    const response = await axiosInstance.get('/admin/reviews', { params });
-    return response.data;
-  },
+  // getReviews: async (params) => {
+  //   const response = await axiosInstance.get('/admin/reviews', { params });
+  //   return response.data;
+  // },
 
-  updateReviewStatus: async (reviewId, status) => {
-    const response = await axiosInstance.put('/admin/update-review-status', { reviewId, status });
-    return response.data;
-  },
+  // updateReviewStatus: async (reviewId, status) => {
+  //   const response = await axiosInstance.put('/admin/update-review-status', { reviewId, status });
+  //   return response.data;
+  // },
 
-  deleteReview: async (reviewId) => {
-    const response = await axiosInstance.delete('/admin/delete-review', { data: { reviewId } });
-    return response.data;
-  },
+  // deleteReview: async (reviewId) => {
+  //   const response = await axiosInstance.delete('/admin/delete-review', { data: { reviewId } });
+  //   return response.data;
+  // },
 
   // Banner Management
   getBanners: async () => {

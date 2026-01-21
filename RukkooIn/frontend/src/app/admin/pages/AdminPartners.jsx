@@ -161,7 +161,7 @@ const AdminPartners = () => {
                 confirmText: 'Delete Partner',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteUser(user._id);
+                        const res = await adminService.deleteUser(user._id, 'partner');
                         if (res.success) {
                             toast.success('Partner deleted successfully');
                             fetchUsers(currentPage, filters);

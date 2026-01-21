@@ -99,6 +99,16 @@ export const authService = {
 
 
 
+  // Get Current User/Partner Profile
+  getMe: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Update Profile
   updateProfile: async (data) => {
     try {
@@ -366,9 +376,13 @@ export const hotelService = {
       throw error.response?.data || error.message;
     }
   },
-  searchLocation: async (query) => {
+  searchLocation: async (query, lat, lng) => {
     try {
-      const response = await api.get(`/hotels/location/search?query=${encodeURIComponent(query)}`);
+      let url = `/hotels/location/search?query=${encodeURIComponent(query)}`;
+      if (lat && lng) {
+        url += `&lat=${lat}&lng=${lng}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

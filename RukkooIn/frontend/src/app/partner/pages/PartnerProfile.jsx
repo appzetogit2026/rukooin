@@ -49,7 +49,8 @@ const PartnerProfile = () => {
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const data = await userService.getProfile();
+                const response = await authService.getMe();
+                const data = response.user;
                 const addr = data.address || {};
                 const addrStr = [addr.street, addr.city, addr.state].filter(Boolean).join(', ');
                 setProfile({

@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
@@ -24,7 +25,7 @@ import { logAuditAction } from '../utils/auditLogger.js';
 export const getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: 'user' });
-    const totalPartners = await User.countDocuments({ role: 'partner' });
+    const totalPartners = await Partner.countDocuments();
     const totalHotels = await Property.countDocuments();
     const pendingHotels = await Property.countDocuments({ status: 'pending' });
     const totalBookings = await Booking.countDocuments();
@@ -69,8 +70,7 @@ export const getDashboardStats = async (req, res) => {
       isVerified: false,
       aadhaarNumber: { $exists: true, $ne: "" }
     });
-    const pendingPartnerKYC = await User.countDocuments({
-      role: 'partner',
+    const pendingPartnerKYC = await Partner.countDocuments({
       partnerApprovalStatus: 'pending'
     });
 
@@ -116,7 +116,18 @@ export const getAllUsers = async (req, res) => {
     const skip = (page - 1) * limit;
     const { search, role, status } = req.query;
 
+    let Model = User;
     let query = {};
+
+    if (role === 'partner') {
+      Model = Partner;
+      if (req.query.approvalStatus) {
+        query.partnerApprovalStatus = req.query.approvalStatus;
+      }
+    } else {
+      query.role = 'user';
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -124,16 +135,17 @@ export const getAllUsers = async (req, res) => {
         { phone: { $regex: search, $options: 'i' } }
       ];
     }
-    if (role) query.role = role;
+
     if (status) {
       query.isBlocked = status === 'blocked';
     }
-    if (req.query.approvalStatus) {
-      query.partnerApprovalStatus = req.query.approvalStatus;
-    }
 
-    const total = await User.countDocuments(query);
-    const users = await User.find(query)
+    // Default User query needs role='user' if we are querying User model
+    // But my previous code sets query.role='user' explicitly in else block
+    // So this is fine.
+
+    const total = await Model.countDocuments(query);
+    const users = await Model.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -146,8 +158,7 @@ export const getAllUsers = async (req, res) => {
 
 export const getPendingVerifications = async (req, res) => {
   try {
-    const pendingPartners = await User.find({
-      role: 'partner',
+    const pendingPartners = await Partner.find({
       partnerApprovalStatus: 'pending',
       $or: [
         { aadhaarNumber: { $exists: true, $ne: "" } },
@@ -515,10 +526,16 @@ export const updateUserStatus = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
   try {
-    const { userId } = req.body;
-    const user = await User.findByIdAndDelete(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    res.status(200).json({ success: true, message: 'User deleted successfully' });
+    const { userId, role } = req.body;
+    let deleted;
+    if (role === 'partner') {
+      deleted = await Partner.findByIdAndDelete(userId);
+    } else {
+      deleted = await User.findByIdAndDelete(userId);
+    }
+
+    if (!deleted) return res.status(404).json({ success: false, message: 'User/Partner not found' });
+    res.status(200).json({ success: true, message: 'Deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error deleting user' });
   }
@@ -603,7 +620,7 @@ export const getUserDetails = async (req, res) => {
 export const getPartnerDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select('-password');
+    const user = await Partner.findById(id).select('-password');
     if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
 
     // Fetch Properties owned by this partner
@@ -611,7 +628,7 @@ export const getPartnerDetails = async (req, res) => {
 
     // Fetch Wallet & Transactions (Partners always have/need them)
     let wallet = await Wallet.findOne({ partnerId: id });
-    if (!wallet && user.role === 'partner') {
+    if (!wallet) {
       // Create wallet if missing for partner (safety catch)
       wallet = await Wallet.create({ partnerId: id });
     }
@@ -638,7 +655,7 @@ export const updatePartnerSettings = async (req, res) => {
     if (typeof commissionPercentage === 'number') update.commissionPercentage = commissionPercentage;
     if (typeof payoutOnHold === 'boolean') update.payoutOnHold = payoutOnHold;
 
-    const user = await User.findByIdAndUpdate(userId, update, { new: true });
+    const user = await Partner.findByIdAndUpdate(userId, update, { new: true });
     if (!user) return res.status(404).json({ success: false, message: 'Partner not found' });
 
     res.status(200).json({
@@ -699,18 +716,15 @@ export const updatePartnerApprovalStatus = async (req, res) => {
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid partner approval status' });
     }
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'partner') {
+    const user = await Partner.findById(userId);
+    if (!user) {
       return res.status(404).json({ success: false, message: 'Partner not found' });
     }
     user.partnerApprovalStatus = status;
     if (status === 'approved') {
-      user.isPartner = true;
       if (!user.partnerSince) {
         user.partnerSince = new Date();
       }
-    } else {
-      user.isPartner = false;
     }
     await user.save();
 

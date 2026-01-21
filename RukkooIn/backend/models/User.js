@@ -19,27 +19,21 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
-  password: {
-    type: String,
-    required: true
-  },
+  // Removed password field as we are using OTP based auth primarily, 
+  // but if needed for future email/pass, we can keep it. 
+  // Based on current authController, it seems password is NOT used (OTP only).
+  // The previous User model had 'password' required, but authController didn't seem to use it for login?
+  // Let's check authController again. It generates OTP. 
+  // Wait, the previous model had `password: { type: String, required: true }`.
+  // If the user was signing up with OTP, how was password set?
+  // Let's check `authController.js` register logic.
+  
   role: {
     type: String,
-    enum: ['user', 'partner'],
-    default: 'user'
+    default: 'user',
+    immutable: true
   },
-  isPartner: {
-    type: Boolean,
-    default: false
-  },
-  partnerApprovalStatus: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  partnerSince: {
-    type: Date
-  },
+  
   fcmToken: {
     type: String,
     default: null
@@ -63,21 +57,12 @@ const userSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
-  aadhaarNumber: { type: String, trim: true },
-  aadhaarFront: { type: String }, // URL
-  aadhaarBack: { type: String }, // URL
-  panNumber: { type: String, trim: true },
-  panCardImage: { type: String }, // URL
   termsAccepted: { type: Boolean, default: false },
 
-  // Status tracking
-  registrationStep: {
-    type: Number,
-    default: 1 // 1: Basic, 2: Details, 3: Completed
-  },
+  // Auth
   otp: {
     type: String,
-    select: false // Do not return OTP in queries by default
+    select: false 
   },
   otpExpires: {
     type: Date,
@@ -90,20 +75,6 @@ const userSchema = new mongoose.Schema({
   isSuspicious: {
     type: Boolean,
     default: false
-  },
-  commissionPercentage: {
-    type: Number,
-    default: 15, // Default platform commission
-    min: 0,
-    max: 100
-  },
-  payoutOnHold: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
   }
 }, { timestamps: true });
 

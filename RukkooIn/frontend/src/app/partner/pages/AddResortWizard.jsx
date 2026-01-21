@@ -189,7 +189,15 @@ const AddResortWizard = () => {
     try {
       setError('');
       if (!nearbySearchQuery.trim()) return;
-      const res = await hotelService.searchLocation(nearbySearchQuery.trim());
+
+      const lat = Number(propertyForm.location.coordinates[1]);
+      const lng = Number(propertyForm.location.coordinates[0]);
+
+      const res = await hotelService.searchLocation(
+        nearbySearchQuery.trim(),
+        !isNaN(lat) ? lat : undefined,
+        !isNaN(lng) ? lng : undefined
+      );
       setNearbyResults(Array.isArray(res?.results) ? res.results : []);
     } catch {
       setError('Failed to search places');

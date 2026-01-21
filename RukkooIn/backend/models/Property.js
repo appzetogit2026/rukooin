@@ -40,7 +40,7 @@ const propertySchema = new mongoose.Schema({
   // OWNER
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "Partner",
     required: true
   },
 

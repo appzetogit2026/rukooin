@@ -59,7 +59,7 @@ export const getAddressFromCoordinates = async (req, res) => {
 
 export const searchLocation = async (req, res) => {
   try {
-    const { query } = req.query;
+    const { query, lat, lng } = req.query;
     if (!query || !String(query).trim()) {
       return res.status(400).json({ message: 'query is required' });
     }
@@ -67,9 +67,14 @@ export const searchLocation = async (req, res) => {
     if (!key) {
       return res.status(500).json({ message: 'Maps API key not configured' });
     }
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+    let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
       query
     )}&key=${key}`;
+
+    if (lat && lng) {
+      url += `&location=${lat},${lng}&radius=50000`; // 50km bias
+    }
+
     const { data } = await axios.get(url);
     const results = (data.results || []).map((r) => {
       const types = Array.isArray(r.types) ? r.types : [];

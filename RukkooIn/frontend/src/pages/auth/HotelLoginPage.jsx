@@ -35,7 +35,7 @@ const HotelLoginPage = () => {
 
         setLoading(true);
         try {
-            await authService.sendOtp(phone, 'login');
+            await authService.sendOtp(phone, 'login', 'partner');
             setStep(2);
         } catch (err) {
             setError(err.message || 'Failed to send OTP');
@@ -72,7 +72,8 @@ const HotelLoginPage = () => {
         try {
             const response = await authService.verifyOtp({
                 phone: phone,
-                otp: otpString
+                otp: otpString,
+                role: 'partner'
             });
 
             // Sync FCM Token
