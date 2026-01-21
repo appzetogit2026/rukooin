@@ -25,8 +25,13 @@ class NotificationService {
 
   async saveTokenToBackend(token) {
     try {
-      const authToken = localStorage.getItem('token');
-      if (!authToken) return;
+      // Check for user token OR admin token
+      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
+
+      if (!authToken) {
+        console.warn('No auth token found for FCM sync');
+        return;
+      }
 
       await axios.put(`${API_URL}/auth/update-fcm`, {
         fcmToken: token,
