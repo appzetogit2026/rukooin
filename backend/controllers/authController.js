@@ -192,9 +192,6 @@ export const verifyOtp = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id, user.role);
-
-    // Fetch Wallet Balance if Partner
-    let walletBalance = 0;
     // Fetch Wallet Balance
     let walletBalance = 0;
     if (['user', 'partner'].includes(user.role)) {
