@@ -690,9 +690,14 @@ export const updateAdminProfile = async (req, res) => {
  */
 export const updateFcmToken = async (req, res) => {
   try {
+    console.log('[DEBUG] updateFcmToken called');
+    console.log('[DEBUG] Req Body:', req.body);
+    console.log('[DEBUG] Req User:', req.user);
+
     const { fcmToken, platform = 'web' } = req.body; // platform: 'web' | 'app'
 
     if (!fcmToken) {
+      console.warn('[DEBUG] Missing FCM Token');
       return res.status(400).json({ message: 'FCM Token is required' });
     }
 
@@ -701,13 +706,17 @@ export const updateFcmToken = async (req, res) => {
 
     // If not user, try Admin
     if (!user) {
+      console.log('[DEBUG] User is null, trying Admin lookup');
       const Admin = (await import('../models/Admin.js')).default;
       user = await Admin.findById(req.user.id);
     }
 
     if (!user) {
+      console.error('[DEBUG] User/Admin not found for ID:', req.user.id);
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log(`[DEBUG] Found User/Admin: ${user._id} (${user.role})`);
 
     // Initialize fcmTokens object if it doesn't exist
     if (!user.fcmTokens) {

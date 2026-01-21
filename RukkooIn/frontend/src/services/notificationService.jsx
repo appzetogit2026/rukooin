@@ -5,15 +5,21 @@ import toast from 'react-hot-toast';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 class NotificationService {
-  async init(userId) {
-    if (!userId) return;
+  async init(userId, role = 'user') {
+    console.log('[NotificationService] Init called for userId:', userId, 'role:', role);
+    if (!userId) {
+      console.warn('[NotificationService] Init aborted: No userId');
+      return;
+    }
 
     // 1. Request Permission & Get Token
+    console.log('[NotificationService] Requesting FCM token...');
     const token = await requestForToken();
+    console.log('[NotificationService] FCM Token retrieved:', token ? 'YES' : 'NO');
 
     if (token) {
       // 2. Send Token to Backend
-      await this.saveTokenToBackend(token);
+      await this.saveTokenToBackend(token, role);
     }
 
     // 3. Listen for Foreground Messages
@@ -23,25 +29,33 @@ class NotificationService {
     });
   }
 
-  async saveTokenToBackend(token) {
+  async saveTokenToBackend(token, role) {
     try {
-      // Check for user token OR admin token
-      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('[NotificationService] Attempting to save token to backend for role:', role);
+
+      let authToken;
+      if (role === 'admin') {
+        authToken = localStorage.getItem('adminToken');
+      } else {
+        // Default to 'token' for user and partner
+        authToken = localStorage.getItem('token');
+      }
 
       if (!authToken) {
-        console.warn('No auth token found for FCM sync');
+        console.warn(`[NotificationService] No auth token found for role ${role}`);
         return;
       }
 
+      console.log('[NotificationService] Sending Update Request to:', `${API_URL}/auth/update-fcm`);
       await axios.put(`${API_URL}/auth/update-fcm`, {
         fcmToken: token,
         platform: 'web'
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      console.log('FCM Token synced with backend');
+      console.log('[NotificationService] FCM Token synced with backend SUCCESSFULLY');
     } catch (error) {
-      console.error('Failed to sync FCM token:', error);
+      console.error('[NotificationService] Failed to sync FCM token:', error.response?.data || error.message);
     }
   }
 

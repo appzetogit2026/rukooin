@@ -52,9 +52,11 @@ const AdminLogin = () => {
             toast.success('Admin login successful!');
 
             // Sync FCM Token
-            const admin = useAdminStore.getState().admin;
-            if (admin && admin._id) {
-                notificationService.init(admin._id);
+            // Use the user object directly from the login response to ensure it's available immediatey
+            const adminUser = result.user;
+            if (adminUser && adminUser._id) {
+                console.log('Triggering FCM Init from Login for:', adminUser._id);
+                notificationService.init(adminUser._id, 'admin');
             }
 
             navigate('/admin/dashboard');

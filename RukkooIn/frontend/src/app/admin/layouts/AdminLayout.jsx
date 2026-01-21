@@ -8,6 +8,7 @@ import {
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
+import notificationService from '../../../services/notificationService.jsx';
 
 const AdminLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -15,6 +16,14 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const logout = useAdminStore(state => state.logout);
     const admin = useAdminStore(state => state.admin);
+
+    // Init FCM for Admin
+    React.useEffect(() => {
+        if (admin && admin._id) {
+            console.log('AdminLayout triggering FCM Init (Backup/Refresh) for:', admin._id);
+            notificationService.init(admin._id, 'admin');
+        }
+    }, [admin]);
 
     const handleLogout = () => {
         logout();

@@ -273,6 +273,11 @@ import ScrollToTop from './components/ui/ScrollToTop';
 function App() {
   React.useEffect(() => {
     // Initialize Notification Service (FCM)
+    // SKIP IF ADMIN: Admin layout handles its own initialization with 'admin' role
+    if (window.location.pathname.startsWith('/admin')) {
+      return;
+    }
+
     const userRaw = localStorage.getItem('user');
     if (userRaw) {
       const user = JSON.parse(userRaw);
