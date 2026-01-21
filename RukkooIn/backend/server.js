@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 const server = createServer(app); // Create HTTP server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000
 
 // Initialize Socket.io
 const io = new Server(server, {
@@ -114,6 +114,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/hotels', hotelRoutes);
+
 
 // Basic Route
 app.get('/', (req, res) => {
