@@ -11,7 +11,6 @@ import {
     Tooltip, ResponsiveContainer, BarChart, Bar,
     PieChart, Pie, Cell, Legend
 } from 'recharts';
-import AddHotelModal from '../components/AddHotelModal';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
@@ -50,7 +49,6 @@ const StatCard = ({ title, value, change, isPositive, icon: Icon, color, loading
 
 const AdminDashboard = () => {
     const [isExporting, setIsExporting] = useState(false);
-    const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState(null);
     const [dailyTrends, setDailyTrends] = useState([]);
@@ -99,8 +97,6 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-8 pb-12">
-            <AddHotelModal isOpen={isAddHotelOpen} onClose={() => setIsAddHotelOpen(false)} />
-
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -114,13 +110,6 @@ const AdminDashboard = () => {
                         className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
                     >
                         {isExporting ? <Loader2 size={16} className="animate-spin" /> : 'Export Data'}
-                    </button>
-                    <button
-                        onClick={() => setIsAddHotelOpen(true)}
-                        className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-lg flex items-center gap-2"
-                    >
-                        <Building2 size={16} />
-                        Add Listing
                     </button>
                 </div>
             </div>
@@ -180,13 +169,17 @@ const AdminDashboard = () => {
                     <div className="h-[300px] w-full">
                         {loading ? (
                             <div className="h-full w-full bg-gray-50 animate-pulse rounded-xl"></div>
-                        ) : (
+                        ) : dailyTrends.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={dailyTrends}>
                                     <defs>
                                         <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
                                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -195,23 +188,74 @@ const AdminDashboard = () => {
                                         axisLine={false}
                                         tickLine={false}
                                         tick={{ fontSize: 10, fill: '#64748b' }}
-                                        tickFormatter={(str) => str.split('-').slice(1).join('/')}
+                                        tickFormatter={(str) => {
+                                            const date = new Date(str);
+                                            return `${date.getDate()}/${date.getMonth() + 1}`;
+                                        }}
                                     />
-                                    <YAxis hide />
+                                    <YAxis
+                                        yAxisId="left"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 10, fill: '#64748b' }}
+                                        tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                                    />
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 10, fill: '#64748b' }}
+                                    />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                        labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                                        contentStyle={{
+                                            borderRadius: '12px',
+                                            border: 'none',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                            padding: '12px'
+                                        }}
+                                        labelFormatter={(label) => {
+                                            const date = new Date(label);
+                                            return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                                        }}
+                                        formatter={(value, name) => {
+                                            if (name === 'revenue') return [`₹${value.toLocaleString()}`, 'Revenue'];
+                                            if (name === 'bookings') return [value, 'Bookings'];
+                                            return [value, name];
+                                        }}
+                                    />
+                                    <Legend
+                                        verticalAlign="top"
+                                        height={36}
+                                        formatter={(value) => value === 'revenue' ? 'Revenue (₹)' : 'Bookings'}
                                     />
                                     <Area
+                                        yAxisId="left"
                                         type="monotone"
                                         dataKey="revenue"
                                         stroke="#3b82f6"
                                         strokeWidth={2}
                                         fillOpacity={1}
                                         fill="url(#colorRev)"
+                                        name="revenue"
+                                    />
+                                    <Area
+                                        yAxisId="right"
+                                        type="monotone"
+                                        dataKey="bookings"
+                                        stroke="#10b981"
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorBookings)"
+                                        name="bookings"
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                <BarChart3 size={48} className="mb-2 opacity-20" />
+                                <p className="text-xs">No trend data available</p>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -233,16 +277,33 @@ const AdminDashboard = () => {
                                     <Pie
                                         data={propertyDist}
                                         innerRadius={60}
-                                        outerRadius={80}
+                                        outerRadius={90}
                                         paddingAngle={5}
                                         dataKey="value"
+                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                        labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
                                     >
                                         {propertyDist.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip />
-                                    <Legend verticalAlign="bottom" height={36} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            borderRadius: '12px',
+                                            border: 'none',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                            padding: '12px'
+                                        }}
+                                        formatter={(value, name) => [
+                                            `${value} ${value === 1 ? 'property' : 'properties'}`,
+                                            name.charAt(0).toUpperCase() + name.slice(1)
+                                        ]}
+                                    />
+                                    <Legend
+                                        verticalAlign="bottom"
+                                        height={36}
+                                        formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
@@ -285,8 +346,8 @@ const AdminDashboard = () => {
                                     <div className="text-right">
                                         <p className="text-sm font-bold text-gray-900">₹{booking.totalAmount?.toLocaleString()}</p>
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                                booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                    booking.bookingStatus === 'checked_out' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                            booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                booking.bookingStatus === 'checked_out' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
                                             }`}>
                                             {booking.bookingStatus}
                                         </span>
