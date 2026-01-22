@@ -16,18 +16,22 @@ class SMSIndiaHubService {
   }
 
   async sendOTP(phone, otp, purpose = 'registration') {
+    const message = `Welcome to the Rukkoo.in powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+    return this.sendSMS(phone, message);
+  }
+
+  async sendSMS(phone, message) {
     try {
       // Load credentials dynamically at runtime to ensure dotenv has loaded
       const apiKey = this.apiKey || process.env.SMSINDIAHUB_API_KEY;
       const senderId = this.senderId || process.env.SMSINDIAHUB_SENDER_ID;
 
       if (!apiKey) {
-        console.warn('⚠️ [SMSIndiaHub] Missing API Key. OTP NOT SENT.');
+        console.warn('⚠️ [SMSIndiaHub] Missing API Key. SMS NOT SENT.');
         return { success: false, error: 'Missing API Key' };
       }
 
       const normalizedPhone = this.normalizePhoneNumber(phone);
-      const message = `Welcome to the Rukkoo.in powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
 
       const params = new URLSearchParams({
         APIKey: apiKey,
@@ -40,7 +44,7 @@ class SMSIndiaHubService {
       });
 
       const apiUrl = `${this.baseUrl}?${params.toString()}`;
-      console.log(`📨 Sending OTP to ${normalizedPhone} via SMSIndiaHub...`);
+      console.log(`📨 Sending SMS to ${normalizedPhone}...`);
 
       const response = await axios.get(apiUrl, {
         headers: { 'User-Agent': 'Rukkooin/1.0' },

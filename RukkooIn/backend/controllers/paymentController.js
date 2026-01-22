@@ -7,6 +7,10 @@ import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
 import Offer from '../models/Offer.js';
 import Property from '../models/Property.js';
+import mongoose from 'mongoose';
+import emailService from '../services/emailService.js';
+import notificationService from '../services/notificationService.js';
+import smsService from '../utils/smsService.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -307,9 +311,48 @@ export const verifyPayment = async (req, res) => {
 
     // Return full populated booking for confirmation page
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
+      .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime partnerId')
       .populate('roomTypeId', 'name type inventoryType')
       .populate('userId', 'name email phone');
+
+    // TRIGGER NOTIFICATIONS (ONLINE PAYMENT SUCCESS)
+    try {
+      const user = populatedBooking.userId;
+      const property = populatedBooking.propertyId;
+
+      // 1. User Email
+      if (user && user.email) {
+        emailService.sendBookingConfirmationEmail(user, populatedBooking).catch(err => console.error('Email trigger failed:', err));
+      }
+
+      // 2. User Push
+      if (user) {
+        notificationService.sendToUser(user._id, {
+          title: 'Booking Confirmed!',
+          body: `You are going to ${property.name || 'Hotel'}.`
+        }, { type: 'booking', bookingId: populatedBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
+      }
+
+      // 3. Partner Notifications
+      if (property && property.partnerId) {
+        // Push
+        notificationService.sendToUser(property.partnerId, {
+          title: 'New Booking Alert!',
+          body: `1 Night, ${populatedBooking.guests.adults} Guests. Check App.`
+        }, { type: 'new_booking', bookingId: populatedBooking._id }, 'partner').catch(err => console.error('Partner Push failed:', err));
+
+        // SMS
+        // Fetch partner user to get phone
+        const PartnerModel = mongoose.model('Partner');
+        const partnerUser = await PartnerModel.findById(property.partnerId);
+        if (partnerUser && partnerUser.phone) {
+          smsService.sendSMS(partnerUser.phone, `New Booking Alert! Booking #${populatedBooking.bookingId} at ${property.name}. Check App for details.`)
+            .catch(err => console.error('Partner SMS failed:', err));
+        }
+      }
+    } catch (notifErr) {
+      console.error('Notification Trigger Custom Error:', notifErr);
+    }
 
     res.json({
       success: true,

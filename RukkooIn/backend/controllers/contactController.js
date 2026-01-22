@@ -1,4 +1,6 @@
 import ContactMessage from '../models/ContactMessage.js';
+import emailService from '../services/emailService.js';
+import mongoose from 'mongoose';
 
 export const createContactMessage = async (req, res) => {
   try {
@@ -21,6 +23,17 @@ export const createContactMessage = async (req, res) => {
       subject,
       message
     });
+
+    // NOTIFICATION: Notify Admin
+    try {
+      const AdminModel = mongoose.model('Admin');
+      const admin = await AdminModel.findOne({ role: { $in: ['admin', 'superadmin'] } });
+      if (admin && admin.email) {
+        emailService.sendAdminSupportQueryEmail(admin.email, doc).catch(e => console.error(e));
+      }
+    } catch (err) {
+      console.warn('Could not notify admin about support query:', err.message);
+    }
 
     res.status(201).json({ success: true, message: 'Message submitted successfully', contact: doc });
   } catch (error) {

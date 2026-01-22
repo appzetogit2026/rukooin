@@ -3,6 +3,8 @@ import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
+import emailService from '../services/emailService.js';
+import User from '../models/User.js'; // Needed to find Admins? Or Admin model
 
 export const createProperty = async (req, res) => {
   try {
@@ -59,6 +61,24 @@ export const createProperty = async (req, res) => {
       doc.isLive = false;
       await doc.save();
     }
+
+    // NOTIFICATION: Notify Admin about new property
+    // We need to fetch an Admin email. Ideally from DB or Config.
+    // Assuming simple search for an Admin user.
+    try {
+      // Need to dynamically import Admin if not present or query User with role=admin
+      const AdminModel = mongoose.model('Admin'); // Usually registered. If not, use 'User' with role
+      // Or cleaner: just query User if Admin shares collection, but typically separate. 
+      // Based on authController, Admin is separate.
+      const admin = await AdminModel.findOne({ role: { $in: ['admin', 'superadmin'] } });
+      if (admin && admin.email) {
+        emailService.sendAdminNewPropertyEmail(admin.email, doc).catch(e => console.error(e));
+      }
+    } catch (err) {
+      // Fallback if Admin model not registered here or other issue
+      console.warn('Could not notify admin about property:', err.message);
+    }
+
     res.status(201).json({ success: true, property: doc });
   } catch (e) {
     res.status(500).json({ message: e.message });

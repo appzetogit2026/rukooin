@@ -55,7 +55,7 @@ const walletSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Pre-save hook to set modelType based on role
-walletSchema.pre('save', function (next) {
+walletSchema.pre('save', async function () {
   if (this.role === 'partner') {
     this.modelType = 'Partner';
   } else if (this.role === 'admin') {
@@ -63,7 +63,6 @@ walletSchema.pre('save', function (next) {
   } else {
     this.modelType = 'User';
   }
-  next();
 });
 
 // Methods

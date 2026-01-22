@@ -10,6 +10,10 @@ import PropertyDocument from '../models/PropertyDocument.js';
 import Review from '../models/Review.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Notification from '../models/Notification.js';
+import emailService from '../services/emailService.js';
+import notificationService from '../services/notificationService.js';
+
+
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -225,18 +229,33 @@ export const verifyPropertyDocuments = async (req, res) => {
     if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
     const docs = await PropertyDocument.findOne({ propertyId });
     if (!docs) return res.status(404).json({ success: false, message: 'Documents not found' });
+
     if (action === 'approve') {
       docs.verificationStatus = 'verified';
       docs.adminRemark = undefined;
       docs.verifiedAt = new Date();
       property.status = 'approved';
       property.isLive = true;
+
+      // NOTIFICATION: Property Live
+      notificationService.sendToUser(property.partnerId, {
+        title: 'Property Live!',
+        body: `Your property ${property.propertyName} is verification approved and LIVE now!`
+      }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
+
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
       docs.adminRemark = adminRemark;
       docs.verifiedAt = new Date();
       property.status = 'rejected';
       property.isLive = false;
+
+      // Notify Rejection?
+      notificationService.sendToUser(property.partnerId, {
+        title: 'Property Documents Rejected',
+        body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
+      }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
+
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
     }
@@ -474,12 +493,29 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       if (!partner.partnerSince) {
         partner.partnerSince = new Date();
       }
+
+      // NOTIFICATION: Approved
+      if (partner.email) emailService.sendPartnerApprovedEmail(partner).catch(e => console.error(e));
+      notificationService.sendToUser(partner._id, {
+        title: 'You are approved!',
+        body: 'Start listing your properties.'
+      }, { type: 'partner_approved' }, 'partner').catch(e => console.error(e));
+
+    } else if (status === 'rejected') { // Explicit 'rejected' check or else clause
+      partner.isPartner = false;
+
+      // NOTIFICATION: Rejected
+      const reason = req.body.reason || 'Criteria not met';
+      if (partner.email) emailService.sendPartnerRejectedEmail(partner, reason).catch(e => console.error(e));
+      // Optionally push? Users can't login if rejected usually, or limited access.
     } else {
       partner.isPartner = false;
     }
+
     await partner.save();
     res.status(200).json({ success: true, message: `Partner status updated to ${status}`, partner });
   } catch (error) {
+    console.error('Update Partner Status Error:', error);
     res.status(500).json({ success: false, message: 'Server error updating partner approval status' });
   }
 };

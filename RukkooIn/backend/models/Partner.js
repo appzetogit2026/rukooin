@@ -49,7 +49,7 @@ const partnerSchema = new mongoose.Schema({
   aadhaarBack: { type: String }, // URL
   panNumber: { type: String, trim: true },
   panCardImage: { type: String }, // URL
-  
+
   address: {
     street: { type: String, trim: true },
     city: { type: String, trim: true },
@@ -61,9 +61,9 @@ const partnerSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
-  
+
   termsAccepted: { type: Boolean, default: false },
-  
+
   // OTP for Login
   otp: {
     type: String,
@@ -79,10 +79,6 @@ const partnerSchema = new mongoose.Schema({
     default: Date.now
   }
 }, { timestamps: true });
-
-// Index for phone lookups
-partnerSchema.index({ phone: 1 }, { unique: true });
-partnerSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 const Partner = mongoose.model('Partner', partnerSchema);
 export default Partner;

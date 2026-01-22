@@ -53,6 +53,7 @@ const AdminUserDetail = React.lazy(() => import('./app/admin/pages/AdminUserDeta
 const AdminBookings = React.lazy(() => import('./app/admin/pages/AdminBookings'));
 const AdminBookingDetail = React.lazy(() => import('./app/admin/pages/AdminBookingDetail'));
 const AdminPartners = React.lazy(() => import('./app/admin/pages/AdminPartners'));
+const AdminPartnerDetail = React.lazy(() => import('./app/admin/pages/AdminPartnerDetail'));
 const AdminReviews = React.lazy(() => import('./app/admin/pages/AdminReviews'));
 const AdminFinance = React.lazy(() => import('./pages/admin/FinanceAndPayoutsPage'));
 const AdminSettings = React.lazy(() => import('./app/admin/pages/AdminSettings'));

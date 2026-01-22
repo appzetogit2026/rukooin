@@ -179,33 +179,7 @@ export const bookingService = {
     }
   },
 
-  // Notification Methods for Partners
-  getNotifications: async (page = 1, limit = 20) => {
-    try {
-      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
 
-  markAllNotificationsRead: async () => {
-    try {
-      const response = await api.put('/hotel/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  deleteNotifications: async (ids) => {
-    try {
-      const response = await api.delete('/hotel/notifications', { data: { ids } });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  }
 };
 
 // Property Services (New)
@@ -385,6 +359,32 @@ export const hotelService = {
   deleteHotel: async (id) => {
     try {
       const response = await api.delete(`/hotels/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Notification Methods for Partners
+  getNotifications: async (page = 1, limit = 20) => {
+    try {
+      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  markAllNotificationsRead: async () => {
+    try {
+      const response = await api.put('/hotel/notifications/read-all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteNotifications: async (ids) => {
+    try {
+      const response = await api.delete('/hotel/notifications', { data: { ids } });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
