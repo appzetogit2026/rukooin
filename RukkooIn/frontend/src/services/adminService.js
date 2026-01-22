@@ -11,6 +11,11 @@ const adminService = {
     return response.data;
   },
 
+  getPartners: async (params) => {
+    const response = await axiosInstance.get('/admin/partners', { params });
+    return response.data;
+  },
+
   getHotels: async (params) => {
     const response = await axiosInstance.get('/admin/hotels', { params });
     return response.data;
@@ -50,6 +55,11 @@ const adminService = {
     const response = await axiosInstance.put('/admin/update-user-status', { userId, isBlocked });
     return response.data;
   },
+
+  updatePartnerStatus: async (userId, isBlocked) => {
+    const response = await axiosInstance.put('/admin/update-partner-status', { userId, isBlocked });
+    return response.data;
+  },
   updatePartnerApproval: async (userId, status) => {
     const response = await axiosInstance.put('/admin/update-partner-approval', { userId, status });
     return response.data;
@@ -57,6 +67,11 @@ const adminService = {
 
   deleteUser: async (userId) => {
     const response = await axiosInstance.delete('/admin/delete-user', { data: { userId } });
+    return response.data;
+  },
+
+  deletePartner: async (userId) => {
+    const response = await axiosInstance.delete('/admin/delete-partner', { data: { userId } });
     return response.data;
   },
 
@@ -77,6 +92,11 @@ const adminService = {
 
   getUserDetails: async (userId) => {
     const response = await axiosInstance.get(`/admin/user-details/${userId}`);
+    return response.data;
+  },
+
+  getPartnerDetails: async (partnerId) => {
+    const response = await axiosInstance.get(`/admin/partner-details/${partnerId}`);
     return response.data;
   },
 

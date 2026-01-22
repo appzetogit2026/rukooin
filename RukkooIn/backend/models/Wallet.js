@@ -3,9 +3,14 @@ import mongoose from 'mongoose';
 const walletSchema = new mongoose.Schema({
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-    // unique: true - Removed to allow multiple wallets (user/partner) for same ID
+    required: true,
+    refPath: 'modelType'
+  },
+  modelType: {
+    type: String,
+    required: true,
+    enum: ['User', 'Partner', 'Admin'],
+    default: 'User'
   },
   role: {
     type: String,
@@ -49,6 +54,18 @@ const walletSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Pre-save hook to set modelType based on role
+walletSchema.pre('save', function (next) {
+  if (this.role === 'partner') {
+    this.modelType = 'Partner';
+  } else if (this.role === 'admin') {
+    this.modelType = 'Admin';
+  } else {
+    this.modelType = 'User';
+  }
+  next();
+});
+
 // Methods
 walletSchema.methods.credit = async function (amount, description, reference, type = 'booking_payment') {
   this.balance += amount;
@@ -63,6 +80,7 @@ walletSchema.methods.credit = async function (amount, description, reference, ty
   await Transaction.create({
     walletId: this._id,
     partnerId: this.partnerId,
+    modelType: this.modelType,
     type: 'credit',
     category: type,
     amount,
@@ -90,6 +108,7 @@ walletSchema.methods.debit = async function (amount, description, reference, typ
   await Transaction.create({
     walletId: this._id,
     partnerId: this.partnerId,
+    modelType: this.modelType,
     type: 'debit',
     category: type,
     amount,

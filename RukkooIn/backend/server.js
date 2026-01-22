@@ -62,6 +62,24 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    // Check if origin is localhost or local network IP
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'https://rukkoo.in',
+      'https://www.rukkoo.in',
+      'https://rukkoo-project.vercel.app'
+    ];
+    const isLocalNetwork = origin.startsWith('http://192.168.') || origin.startsWith('http://10.');
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],

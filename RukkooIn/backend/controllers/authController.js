@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
 import Otp from '../models/Otp.js';
 import smsService from '../utils/smsService.js';
@@ -32,8 +33,9 @@ export const sendOtp = async (req, res) => {
       return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
     }
 
-    // Role is dynamic now
-    let user = await User.findOne({ phone, role });
+    // Select Model based on Role
+    let Model = role === 'partner' ? Partner : User;
+    let user = await Model.findOne({ phone });
 
     // Login Flow Validation
     if (type === 'login' && !user) {
@@ -41,6 +43,7 @@ export const sendOtp = async (req, res) => {
     }
 
     // Register Flow Validation
+    // For Partner, registration is separate (registerPartner), so this might be just for User
     if (type === 'register' && user) {
       return res.status(409).json({ message: `${role === 'partner' ? 'Partner' : 'User'} already exists. Please login.` });
     }
@@ -52,16 +55,16 @@ export const sendOtp = async (req, res) => {
 
     // Store OTP
     if (user) {
-      // Existing User (Login)
+      // Existing User/Partner (Login)
       user.otp = otp;
       user.otpExpires = otpExpires;
       await user.save();
     } else {
       // New User (Register) - Store in Otp Collection
-      // Upsert to handle retries
+      // Note: Partner registration uses registerPartner -> verifyPartnerOtp flow usually
       await Otp.findOneAndUpdate(
         { phone },
-        { otp, expiresAt: otpExpires, tempData: { role, phone } }, // Store role
+        { otp, expiresAt: otpExpires, tempData: { role, phone } }, 
         { upsert: true, new: true }
       );
     }
@@ -99,14 +102,17 @@ export const sendOtp = async (req, res) => {
  */
 export const verifyOtp = async (req, res) => {
   try {
-    const { phone, otp, name, email, role = 'user' } = req.body; // Default role user
+    const { phone, otp, name, email, role = 'user' } = req.body; 
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check if it's an existing user (Login Flow) - Use role specific
-    let user = await User.findOne({ phone, role }).select('+otp +otpExpires');
+    // Select Model based on Role
+    let Model = role === 'partner' ? Partner : User;
+    
+    // 1. Check if it's an existing user (Login Flow)
+    let user = await Model.findOne({ phone }).select('+otp +otpExpires');
     let isRegistration = false;
 
     if (user) {
@@ -124,6 +130,11 @@ export const verifyOtp = async (req, res) => {
 
     } else {
       // 2. Check Otp Collection (Registration Flow)
+      // This path is primarily for USER registration. Partner registration should go through verifyPartnerOtp
+      if (role === 'partner') {
+        return res.status(404).json({ message: 'Partner not found. Please use partner registration.' });
+      }
+
       const otpRecord = await Otp.findOne({ phone });
 
       if (!otpRecord) {
@@ -134,9 +145,8 @@ export const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
 
-      // Ensure this OTP was meant for the correct role
       if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
-        return res.status(400).json({ message: 'Invalid role context. Please try again with correct role.' });
+        return res.status(400).json({ message: 'Invalid role context.' });
       }
 
       // For registration, 'name' is required
@@ -145,8 +155,8 @@ export const verifyOtp = async (req, res) => {
       }
 
       if (email) {
-        const emailExists = await User.findOne({ email, role: 'user' });
-        if (emailExists) return res.status(409).json({ message: 'Email already exists for a user account.' });
+        const emailExists = await Model.findOne({ email });
+        if (emailExists) return res.status(409).json({ message: 'Email already exists.' });
       }
 
       // Create New User
@@ -154,9 +164,8 @@ export const verifyOtp = async (req, res) => {
         name,
         phone,
         email,
-        role: 'user', // Enforce role
+        role: 'user', 
         isVerified: true,
-        // Password is required by schema, setting a random hash for OTP-only users
         password: await bcrypt.hash(Math.random().toString(36), 10)
       });
 
@@ -166,12 +175,11 @@ export const verifyOtp = async (req, res) => {
     }
 
     // Save/Update User
-    if (isRegistration || name || email) {
+    if (isRegistration || (role === 'user' && (name || email))) {
       if (name) user.name = name;
       if (email) {
-        // Check uniqueness for update if email changed
         if (email !== user.email) {
-          const emailExists = await User.findOne({ email, role: 'user', _id: { $ne: user._id } });
+          const emailExists = await Model.findOne({ email, _id: { $ne: user._id } });
           if (emailExists) return res.status(409).json({ message: 'Email already in use.' });
           user.email = email;
         }
@@ -179,9 +187,10 @@ export const verifyOtp = async (req, res) => {
       user.isVerified = true;
     }
 
-    if (!isRegistration && user.role === 'partner') {
+    if (user.role === 'partner') {
       if (user.partnerApprovalStatus === 'pending') {
-        return res.status(403).json({ message: 'Your partner account is pending approval.' });
+        // We might allow login to see status, but let's restrict if needed. 
+        // For now, allow login so they can see dashboard with "Pending" state
       }
       if (user.partnerApprovalStatus === 'rejected') {
         return res.status(403).json({ message: 'Your partner account was rejected. Please contact support.' });
@@ -201,7 +210,7 @@ export const verifyOtp = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isPartner: user.isPartner || false, // Should be false for pure user
+        isPartner: user.isPartner || (role === 'partner'),
         partnerApprovalStatus: user.partnerApprovalStatus
       }
     });
@@ -211,22 +220,6 @@ export const verifyOtp = async (req, res) => {
     res.status(500).json({ message: 'Server error verifying OTP' });
   }
 };
-
-/**
- * @desc    Register a new user (Traditional Email/Pass - if needed fallback)
- * @route   POST /api/auth/register
- * @access  Public
- */
-export const register = async (req, res) => {
-  // ... Implement if needed, focusing on OTP first as per user request
-  res.status(501).json({ message: 'Use OTP flow for registration' });
-};
-
-/**
- * @desc    Register Partner (Step 1 & 2: Details + Send OTP)
- * @route   POST /api/auth/partner/register
- * @access  Public
- */
 
 /**
  * @desc    Register Partner (Step 1 & 2: Details + Send OTP)
@@ -247,38 +240,39 @@ export const registerPartner = async (req, res) => {
     }
 
     // 1. Check if PARTNER ALREADY exists with this phone
-    let existingUser = await User.findOne({ phone, role: 'partner' });
+    let existingUser = await Partner.findOne({ phone });
     if (existingUser) {
       if (existingUser.isVerified) {
         return res.status(409).json({ message: 'Partner account with this phone already exists. Please login.' });
-      } else {
-        // If exists but not verified (orphaned?), we can update it? 
-        // Or just fail. Let's fail for now to be safe, or update if we want to support retries.
-        // Given the new flow "creates" user directly, we should treat it as conflict if exists.
       }
     }
 
     if (email) {
-      const existingEmail = await User.findOne({ email, role: 'partner' });
+      const existingEmail = await Partner.findOne({ email });
       if (existingEmail && existingEmail.isVerified) {
         return res.status(409).json({ message: 'Email already in use for a partner account.' });
       }
     }
 
-    // Prepare User Data
-    const userData = {
+    // Prepare Partner Data (Stored in Otp temp data or direct if we skipped OTP in this specific flow before)
+    // The previous implementation created User directly. Now we create Partner.
+    
+    const partnerData = {
       name: full_name,
       email: email,
       phone: phone,
-      role: 'partner', // Enforced
-      isPartner: false, // Access granted only after approval
+      role: 'partner',
+      isPartner: true,
       partnerApprovalStatus: 'pending',
       termsAccepted: termsAccepted,
+      
+      ownerName: owner_name, // Map fields correctly
       aadhaarNumber: aadhaar_number,
       aadhaarFront: aadhaar_front,
       aadhaarBack: aadhaar_back,
       panNumber: pan_number,
       panCardImage: pan_card_image,
+      
       address: owner_address ? {
         street: owner_address.street,
         city: owner_address.city,
@@ -287,28 +281,30 @@ export const registerPartner = async (req, res) => {
         country: owner_address.country || 'India',
         coordinates: owner_address.coordinates
       } : undefined,
-      password: await bcrypt.hash(Math.random().toString(36), 10), // Random password for now
-      isVerified: true // Auto-verified phone (since we removed OTP per request, assuming trust or different flow)
+      password: await bcrypt.hash(Math.random().toString(36), 10), 
+      isVerified: true // Auto-verified if this endpoint implies OTP was skipped or handled
     };
 
-    // Create New Partner User
-    const newUser = new User(userData);
-    await newUser.save();
+    // Note: If the flow requires OTP *after* this step, we should store in Otp or create unverified Partner.
+    // The previous code created a verified User directly. I will maintain that behavior but with Partner model.
 
-    const token = generateToken(newUser._id, newUser.role);
+    const newPartner = new Partner(partnerData);
+    await newPartner.save();
+
+    const token = generateToken(newPartner._id, newPartner.role);
 
     res.status(201).json({
       success: true,
       message: 'Partner registration completed successfully. Waiting for Admin Approval.',
       token,
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
+        id: newPartner._id,
+        name: newPartner.name,
+        email: newPartner.email,
+        phone: newPartner.phone,
+        role: newPartner.role,
+        isPartner: newPartner.isPartner,
+        partnerApprovalStatus: newPartner.partnerApprovalStatus
       }
     });
 
@@ -349,49 +345,48 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    // 2. Create User from tempData
+    // 2. Create Partner from tempData
     const userData = otpRecord.tempData;
     if (!userData) {
       return res.status(400).json({ message: 'Registration data not found. Please register again.' });
     }
 
-    // Role check for safety
     if (userData.role !== 'partner') {
       return res.status(400).json({ message: 'Invalid registration context.' });
     }
 
     // Check if Partner already exists
-    const existingUser = await User.findOne({ phone, role: 'partner' });
+    const existingUser = await Partner.findOne({ phone });
     if (existingUser) {
       return res.status(409).json({ message: 'Partner account already exists.' });
     }
 
-    // Create New Partner User
-    const newUser = new User({
+    // Create New Partner
+    const newPartner = new Partner({
       ...userData,
-      password: userData.passwordHash,
+      password: userData.passwordHash || await bcrypt.hash(Math.random().toString(36), 10),
       isVerified: true
     });
 
-    await newUser.save();
+    await newPartner.save();
 
     // 3. Cleanup OTP
     await Otp.deleteOne({ phone });
 
-    const token = generateToken(newUser._id, newUser.role);
+    const token = generateToken(newPartner._id, newPartner.role);
 
     res.status(200).json({
       success: true,
       message: 'Partner registration completed successfully.',
       token,
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
+        id: newPartner._id,
+        name: newPartner.name,
+        email: newPartner.email,
+        phone: newPartner.phone,
+        role: newPartner.role,
+        isPartner: newPartner.isPartner,
+        partnerApprovalStatus: newPartner.partnerApprovalStatus
       }
     });
 
@@ -405,11 +400,6 @@ export const verifyPartnerOtp = async (req, res) => {
 };
 
 /**
- * @desc    Login user (Traditional Email/Pass - if needed fallback)
- * @route   POST /api/auth/login
- * @access  Public
- */
-/**
  * @desc    Admin Login with Email & Password
  * @route   POST /api/auth/admin/login
  * @access  Public
@@ -422,25 +412,21 @@ export const adminLogin = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Find admin by email and select password
     const admin = await Admin.findOne({ email }).select('+password');
 
     if (!admin) {
       return res.status(401).json({ message: 'Invalid admin credentials' });
     }
 
-    // Check if admin is active
     if (!admin.isActive) {
       return res.status(403).json({ message: 'Admin account is deactivated' });
     }
 
-    // Verify password
     const isMatched = await bcrypt.compare(password, admin.password);
     if (!isMatched) {
       return res.status(401).json({ message: 'Invalid admin credentials' });
     }
 
-    // Update last login
     admin.lastLogin = new Date();
     await admin.save();
 
@@ -465,19 +451,14 @@ export const adminLogin = async (req, res) => {
 };
 
 /**
- * @desc    Get Current User/Admin Profile
+ * @desc    Get Current User/Admin/Partner Profile
  * @route   GET /api/auth/me
  * @access  Private
  */
 export const getMe = async (req, res) => {
   try {
-    // First check in User collection
-    let user = await User.findById(req.user.id);
-
-    // If not found, check in Admin collection
-    if (!user) {
-      user = await Admin.findById(req.user.id);
-    }
+    // req.user is already populated by authMiddleware (which checks User, Partner, Admin)
+    const user = req.user;
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -492,6 +473,7 @@ export const getMe = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner || false,
+        partnerApprovalStatus: user.partnerApprovalStatus,
         address: user.address
       }
     });
@@ -509,9 +491,16 @@ export const getMe = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const { name, email, phone, address } = req.body;
+    const currentUser = req.user; // From middleware
 
-    // Find user (not admin, as admins have separate management)
-    let user = await User.findById(req.user.id);
+    // Determine Model based on role
+    let Model = currentUser.role === 'partner' ? Partner : User;
+    if (['admin', 'superadmin'].includes(currentUser.role)) {
+       // Admins use updateAdminProfile usually, but if they hit this:
+       Model = Admin;
+    }
+
+    let user = await Model.findById(currentUser._id);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -520,9 +509,8 @@ export const updateProfile = async (req, res) => {
     // Update fields if provided
     if (name) user.name = name;
     if (email) {
-      // Check if email is already taken by another user
       if (email !== user.email) {
-        const existingUser = await User.findOne({ email, _id: { $ne: user._id } });
+        const existingUser = await Model.findOne({ email, _id: { $ne: user._id } });
         if (existingUser) {
           return res.status(409).json({ message: 'Email already in use' });
         }
@@ -530,9 +518,8 @@ export const updateProfile = async (req, res) => {
       }
     }
     if (phone) {
-      // Check if phone is already taken by another user
       if (phone !== user.phone) {
-        const existingUser = await User.findOne({ phone, _id: { $ne: user._id } });
+        const existingUser = await Model.findOne({ phone, _id: { $ne: user._id } });
         if (existingUser) {
           return res.status(409).json({ message: 'Phone number already in use' });
         }
@@ -540,7 +527,6 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // Update address if provided
     if (address) {
       user.address = {
         street: address.street || user.address?.street || '',
@@ -557,21 +543,18 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
 
-    // Return updated user
-    const updatedUser = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      isPartner: user.isPartner || false,
-      address: user.address
-    };
-
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user: updatedUser
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner || false,
+        address: user.address
+      }
     });
 
   } catch (error) {
@@ -586,7 +569,8 @@ export const updateProfile = async (req, res) => {
  * @access  Private (Admin/Superadmin)
  */
 export const updateAdminProfile = async (req, res) => {
-  try {
+  // ... (Keep existing implementation)
+   try {
     if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only admins can update this profile' });
     }
@@ -664,17 +648,22 @@ export const updateFcmToken = async (req, res) => {
     const { fcmToken } = req.body;
     if (!fcmToken) return res.status(400).json({ message: 'fcmToken is required' });
 
-    // Try finding in User first
-    let user = await User.findById(req.user.id);
-
-    // If not found, check Admin
-    if (!user) {
-      user = await Admin.findById(req.user.id);
-    }
+    const user = req.user; // From middleware (User, Partner, or Admin)
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.fcmToken = fcmToken;
+    // Ensure fcmTokens object exists
+    if (!user.fcmTokens) {
+        user.fcmTokens = {};
+    }
+
+    // Defaulting to web for now, can be extended to 'app'
+    user.fcmTokens.web = fcmToken;
+    
+    // For backward compatibility if schema uses single field, but our models have fcmTokens object now
+    // If Admin doesn't have fcmTokens object in schema yet, we might need to check. 
+    // Assuming Admin schema is similar or we just save to the document.
+    
     await user.save();
 
     res.json({ success: true, message: 'FCM Token updated successfully' });

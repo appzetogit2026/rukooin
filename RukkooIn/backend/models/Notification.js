@@ -62,6 +62,8 @@ notificationSchema.index({ userId: 1, userType: 1, isRead: 1, createdAt: -1 });
 notificationSchema.pre('save', async function () {
   if (this.userType === 'admin') {
     this.userModel = 'Admin';
+  } else if (this.userType === 'partner') {
+    this.userModel = 'Partner';
   } else {
     this.userModel = 'User';
   }

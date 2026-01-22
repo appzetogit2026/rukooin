@@ -8,8 +8,14 @@ const transactionSchema = new mongoose.Schema({
   },
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    required: true,
+    refPath: 'modelType'
+  },
+  modelType: {
+    type: String,
+    required: true,
+    enum: ['User', 'Partner', 'Admin'],
+    default: 'User'
   },
   type: {
     type: String,

@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
 
 export const protect = async (req, res, next) => {
@@ -17,17 +18,22 @@ export const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('🛡️ Auth Middleware - Decoded Payload:', decoded);
 
-    // Check in User collection
+    // 1. Check User Collection
     let user = await User.findById(decoded.id);
 
-    // If not found in User, check in Admin collection
+    // 2. Check Partner Collection
     if (!user) {
-      console.log('🛡️ Auth Middleware - User not found, checking Admin collection for ID:', decoded.id);
+      user = await Partner.findById(decoded.id);
+    }
+
+    // 3. Check Admin Collection
+    if (!user) {
+      console.log('🛡️ Auth Middleware - User/Partner not found, checking Admin collection for ID:', decoded.id);
       user = await Admin.findById(decoded.id);
     }
 
     if (!user) {
-      console.warn('🛡️ Auth Middleware - No User/Admin found for ID:', decoded.id);
+      console.warn('🛡️ Auth Middleware - No User/Partner/Admin found for ID:', decoded.id);
       return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
     }
 

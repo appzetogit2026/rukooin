@@ -1,51 +1,82 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
+import bcrypt from 'bcryptjs';
 
-/**
- * @desc    Get current user profile
- * @route   GET /api/users/profile
- * @access  Private
- */
+// @desc    Get user profile
+// @route   GET /api/users/profile
+// @access  Private
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+
+    if (user) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner,
+      });
+    } else {
+      // Check if it's a partner
+      const partner = await Partner.findById(req.user._id);
+      if (partner) {
+        res.json({
+          _id: partner._id,
+          name: partner.name,
+          email: partner.email,
+          phone: partner.phone,
+          role: partner.role,
+          isPartner: partner.isPartner,
+          partnerApprovalStatus: partner.partnerApprovalStatus
+        });
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
     }
-    res.json(user);
   } catch (error) {
-    console.error('Get Profile Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-/**
- * @desc    Update user profile
- * @route   PUT /api/users/profile
- * @access  Private
- */
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
 export const updateUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    let user = await User.findById(req.user._id);
+    let isPartner = false;
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      user = await Partner.findById(req.user._id);
+      isPartner = true;
     }
 
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
+    if (user) {
+      user.name = req.body.name || user.name;
+      if (req.body.email) user.email = req.body.email;
+      if (req.body.phone) user.phone = req.body.phone;
 
-    const updatedUser = await user.save();
+      if (req.body.password) {
+        user.password = await bcrypt.hash(req.body.password, 10);
+      }
 
-    res.json({
-      id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-      role: updatedUser.role,
-    });
+      const updatedUser = await user.save();
 
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        isPartner: isPartner ? updatedUser.isPartner : user.isPartner,
+        token: req.headers.authorization.split(' ')[1] // Keep existing token
+      });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
   } catch (error) {
-    console.error('Update Profile Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -123,37 +154,40 @@ export const toggleSavedHotel = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update FCM Token
- * @route   PUT /api/users/fcm-token
- * @access  Private
- */
+// @desc    Update FCM Token
+// @route   POST /api/users/fcm-token
+// @access  Private
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken, platform } = req.body;
 
     if (!fcmToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide FCM token'
-      });
+      return res.status(400).json({ success: false, message: 'Please provide FCM token' });
     }
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
 
-    const user = await User.findById(req.user._id);
+    // Try to find user first
+    let user = await User.findById(req.user._id);
+
+    // If not found, check Partner model
+    if (!user) {
+      user = await Partner.findById(req.user._id);
+    }
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Initialize fcmTokens object if it doesn't exist
     if (!user.fcmTokens) {
-      user.fcmTokens = { app: null, web: null };
+      user.fcmTokens = {
+        app: null,
+        web: null
+      };
     }
 
-    // Update the specific platform token
+    // Update the token for the specific platform
     user.fcmTokens[targetPlatform] = fcmToken;
-
     await user.save();
 
     res.json({

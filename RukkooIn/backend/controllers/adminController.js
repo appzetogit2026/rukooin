@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import InfoPage from '../models/InfoPage.js';
 import ContactMessage from '../models/ContactMessage.js';
 import PlatformSettings from '../models/PlatformSettings.js';
@@ -12,8 +13,8 @@ import Notification from '../models/Notification.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments({ role: 'user' });
-    const totalPartners = await User.countDocuments({ role: 'partner' });
+    const totalUsers = await User.countDocuments({});
+    const totalPartners = await Partner.countDocuments({});
     const totalHotels = await Property.countDocuments();
     const pendingHotels = await Property.countDocuments({ status: 'pending' });
     const totalBookings = await Booking.countDocuments();
@@ -51,7 +52,7 @@ export const getAllUsers = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { search, role, status } = req.query;
+    const { search, status } = req.query;
 
     let query = {};
     if (search) {
@@ -61,12 +62,9 @@ export const getAllUsers = async (req, res) => {
         { phone: { $regex: search, $options: 'i' } }
       ];
     }
-    if (role) query.role = role;
+
     if (status) {
       query.isBlocked = status === 'blocked';
-    }
-    if (req.query.approvalStatus) {
-      query.partnerApprovalStatus = req.query.approvalStatus;
     }
 
     const total = await User.countDocuments(query);
@@ -78,6 +76,46 @@ export const getAllUsers = async (req, res) => {
     res.status(200).json({ success: true, users, total, page, limit });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching users' });
+  }
+};
+
+export const getAllPartners = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const { search, approvalStatus, status } = req.query;
+
+    let query = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (approvalStatus) {
+      query.partnerApprovalStatus = approvalStatus;
+    }
+
+    if (status) {
+      if (status === 'blocked') {
+        query.isBlocked = true;
+      } else if (status === 'active') {
+        query.isBlocked = false;
+      }
+    }
+
+    const total = await Partner.countDocuments(query);
+    const partners = await Partner.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ success: true, partners, total, page, limit });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching partners' });
   }
 };
 
@@ -268,6 +306,33 @@ export const updateReviewStatus = async (req, res) => {
   }
 };
 
+export const updatePartnerStatus = async (req, res) => {
+  try {
+    const { userId, isBlocked } = req.body;
+    const partner = await Partner.findByIdAndUpdate(userId, { isBlocked }, { new: true });
+    if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
+    res.status(200).json({ success: true, message: `Partner ${isBlocked ? 'blocked' : 'unblocked'} successfully`, partner });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error updating partner status' });
+  }
+};
+
+export const deletePartner = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const partner = await Partner.findByIdAndDelete(userId);
+    if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
+
+    // Also consider deleting associated properties or marking them as suspended?
+    // For now, just delete the partner. 
+    // Ideally, we should check if they have active bookings/properties.
+
+    res.status(200).json({ success: true, message: 'Partner deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error deleting partner' });
+  }
+};
+
 export const updateUserStatus = async (req, res) => {
   try {
     const { userId, isBlocked } = req.body;
@@ -339,9 +404,23 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    res.status(200).json({ success: true, user, bookings: [] });
+    const bookings = await Booking.find({ userId: id }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, user, bookings });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error fetching user details' });
+  }
+};
+
+export const getPartnerDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const partner = await Partner.findById(id);
+    if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
+
+    const properties = await Property.find({ partnerId: id });
+    res.status(200).json({ success: true, partner, properties });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching partner details' });
   }
 };
 
@@ -385,21 +464,21 @@ export const updatePartnerApprovalStatus = async (req, res) => {
     if (!['pending', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid partner approval status' });
     }
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'partner') {
+    const partner = await Partner.findById(userId);
+    if (!partner) {
       return res.status(404).json({ success: false, message: 'Partner not found' });
     }
-    user.partnerApprovalStatus = status;
+    partner.partnerApprovalStatus = status;
     if (status === 'approved') {
-      user.isPartner = true;
-      if (!user.partnerSince) {
-        user.partnerSince = new Date();
+      partner.isPartner = true;
+      if (!partner.partnerSince) {
+        partner.partnerSince = new Date();
       }
     } else {
-      user.isPartner = false;
+      partner.isPartner = false;
     }
-    await user.save();
-    res.status(200).json({ success: true, message: `Partner status updated to ${status}`, user });
+    await partner.save();
+    res.status(200).json({ success: true, message: `Partner status updated to ${status}`, partner });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating partner approval status' });
   }

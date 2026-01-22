@@ -57,12 +57,12 @@ const AdminPartners = () => {
                 page,
                 limit,
                 search: currentFilters.search,
-                role: 'partner', // Enforce partner role
-                status: currentFilters.status
+                status: currentFilters.status,
+                approvalStatus: currentFilters.approvalStatus
             };
-            const data = await adminService.getUsers(params);
+            const data = await adminService.getPartners(params);
             if (data.success) {
-                setUsers(data.users);
+                setUsers(data.partners);
                 setTotalUsers(data.total);
                 setTotalPages(Math.ceil(data.total / limit));
             }
@@ -91,7 +91,7 @@ const AdminPartners = () => {
 
     const handleUpdateStatus = async (userId, isBlocked) => {
         try {
-            const res = await adminService.updateUserStatus(userId, isBlocked);
+            const res = await adminService.updatePartnerStatus(userId, isBlocked);
             if (res.success) {
                 toast.success(`Partner ${isBlocked ? 'blocked' : 'unblocked'} successfully`);
                 fetchUsers(currentPage, filters);
@@ -160,7 +160,7 @@ const AdminPartners = () => {
                 confirmText: 'Delete Partner',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteUser(user._id);
+                        const res = await adminService.deletePartner(user._id);
                         if (res.success) {
                             toast.success('Partner deleted successfully');
                             fetchUsers(currentPage, filters);
@@ -289,7 +289,7 @@ const AdminPartners = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative font-bold"
                                             >
                                                 <td className="p-4">
-                                                    <Link to={`/admin/users/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                                    <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                                         <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm font-bold uppercase text-xs">
                                                             {user.name?.charAt(0) || 'P'}
                                                         </div>
