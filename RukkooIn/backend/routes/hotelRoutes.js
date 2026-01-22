@@ -7,9 +7,11 @@ import {
   searchLocation,
   calculateDistance
 } from '../controllers/hotelController.js';
+import { getPropertyDetails } from '../controllers/propertyController.js';
 
 const router = express.Router();
 
+router.get('/:id', getPropertyDetails);
 router.post('/upload', protect, authorizedRoles('partner', 'admin'), _uploadMiddleware, uploadImages);
 router.post('/location/address', protect, authorizedRoles('partner', 'admin'), getAddressFromCoordinates);
 router.get('/location/search', protect, authorizedRoles('partner', 'admin'), searchLocation);

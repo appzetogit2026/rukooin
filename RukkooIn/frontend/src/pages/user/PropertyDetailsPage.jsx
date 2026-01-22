@@ -22,10 +22,42 @@ const PropertyDetailsPage = () => {
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const data = await hotelService.getById(id);
-        setProperty(data);
-        if (data.inventory && data.inventory.length > 0) {
-          setSelectedRoom(data.inventory[0]);
+        const response = await hotelService.getById(id);
+        
+        // Handle backend response structure { property, roomTypes, documents }
+        let normalizedData = response;
+        
+        if (response.property) {
+          const { property: backendProp, roomTypes = [] } = response;
+          normalizedData = {
+            ...backendProp,
+            name: backendProp.propertyName,
+            images: {
+              cover: backendProp.coverImage,
+              gallery: backendProp.propertyImages || []
+            },
+            rating: backendProp.avgRating,
+            inventory: roomTypes.map(rt => ({
+              ...rt,
+              id: rt._id,
+              pricing: {
+                basePrice: rt.pricePerNight,
+                extraGuestPrice: rt.extraAdultPrice
+              }
+            })),
+            amenities: backendProp.amenities || [],
+            policies: {
+              checkInTime: backendProp.checkInTime,
+              checkOutTime: backendProp.checkOutTime,
+              cancellationPolicy: backendProp.cancellationPolicy,
+              houseRules: backendProp.houseRules
+            }
+          };
+        }
+
+        setProperty(normalizedData);
+        if (normalizedData.inventory && normalizedData.inventory.length > 0) {
+          setSelectedRoom(normalizedData.inventory[0]);
         }
       } catch (error) {
         console.error("Error fetching property details:", error);

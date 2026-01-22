@@ -44,8 +44,8 @@ const PropertyCard = ({ property, data, className = "" }) => {
       {/* Image Container */}
       <div className="relative h-32 w-full bg-gray-50 p-2 flex items-center justify-center">
         <img
-          src={images?.cover || "https://via.placeholder.com/400x300?text=No+Image"}
-          alt={name}
+          src={displayImage}
+          alt={displayName}
           className="w-full h-full object-contain rounded-lg"
         />
 
