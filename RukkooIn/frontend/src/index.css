@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #ACDCD9;
+  /* Much lighter teal for contrast */
+
+  --color-surface: #004F4D;
+  /* Deep Teal Text/Elements */
+  --color-accent: #14B8A6;
+  --color-textLight: #E6F7F6;
+  --color-textDark: #003836;
+  /* New Dark Text variable */
+
+  --color-honey: #FFC107;
+  --color-cardWhite: #FFFFFF;
+
+  --font-sans: "Poppins", sans-serif;
+
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+
+  /* Hotel Partner Theme - Updated to match User Module */
+  --color-partner-bg: #FFFFFF;
+  --color-partner-text-primary: #004F4D;
+  /* var(--color-surface) */
+  --color-partner-text-secondary: #003836;
+  /* var(--color-textDark) */
+  --color-partner-btn: #004F4D;
+  /* var(--color-surface) */
+  --color-partner-card: #F5F5F5;
+  --color-partner-border: #ACDCD9;
+  /* var(--color-background) */
+}
+
+@layer base {
+  body {
+    /* 
+       Reverted Background:
+       Clean Light Gray/White as per "Light Theme" preference.
+       The previous teal gradient was rejected.
+    */
+    @apply bg-slate-50 text-textDark font-sans min-h-screen;
+  }
+}
+
+/* COMPATIBILITY: Force dark background for Hotel Module to match white text */
+/* Hotel Partner Module Reset */
+body:has(#hotel-root) {
+  background-color: var(--color-partner-bg);
+  color: var(--color-partner-text-primary);
+}
+
+.text-muted {
+  @apply text-slate-400;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
