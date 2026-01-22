@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { authService, userService } from '../../services/apiService';
-import { requestNotificationPermission } from '../../utils/firebase';
+import { authService } from '../../services/apiService';
+import notificationService from '../../services/notificationService.jsx'; // Added
 import logo from '../../assets/rokologin-removebg-preview.png';
 
 const HotelLoginPage = () => {
@@ -70,20 +70,15 @@ const HotelLoginPage = () => {
 
         setLoading(true);
         try {
-            await authService.verifyOtp({
+            const response = await authService.verifyOtp({
                 phone: phone,
                 otp: otpString,
                 role: 'partner'
             });
 
-            // Update FCM Token for Partner
-            try {
-                const token = await requestNotificationPermission();
-                if (token) {
-                    await userService.updateFcmToken(token, 'web');
-                }
-            } catch (fcmError) {
-                console.warn('FCM update failed', fcmError);
+            // Sync FCM Token
+            if (response.user && response.user._id) {
+                notificationService.init(response.user._id);
             }
 
             navigate('/hotel/dashboard');

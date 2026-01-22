@@ -10,7 +10,6 @@ import { authService } from '../../services/apiService';
 import StepUserRegistration from '../../app/partner/steps/StepUserRegistration';
 import StepOwnerDetails from '../../app/partner/steps/StepOwnerDetails';
 
-
 const steps = [
     { id: 1, title: 'Registration', desc: 'Create your partner account' },
     { id: 2, title: 'Owner Details', desc: 'Identity and Address' },
@@ -59,16 +58,17 @@ const HotelSignup = () => {
                 return setError('Complete address details are required');
             }
 
-            // SUBMIT TO BACKEND (Register Direct)
+            // SUBMIT TO BACKEND (Register)
             setLoading(true);
             try {
                 // Ensure role is partner
                 const payload = { ...formData, role: 'partner' };
-                await authService.registerPartner(payload);
+                const response = await authService.registerPartner(payload);
 
-                // Success
-                alert("Registration successful! Your account is pending admin approval.");
+                console.log("Registration Success:", response);
+                alert("Registration successful. Your account is pending admin approval.");
                 navigate('/hotel/login');
+
             } catch (err) {
                 console.error("Registration Error:", err);
                 setError(err.message || "Registration failed. Please check your details.");
@@ -153,7 +153,7 @@ const HotelSignup = () => {
                                 <>Processing...</>
                             ) : (
                                 <>
-                                    {currentStep === steps.length ? 'Verify & Login' : 'Next Step'}
+                                    {currentStep === steps.length ? 'Submit Registration' : 'Next Step'}
                                     <ArrowRight size={16} />
                                 </>
                             )}

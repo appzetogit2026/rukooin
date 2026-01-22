@@ -1,281 +1,326 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Send, Trash2, CheckCircle,
-  Circle, Users, Building2, Globe, Search
+    Bell, Send, Trash2, Users, Hotel, Globe,
+    Smartphone, Search, Clock, Info, CheckCircle,
+    AlertCircle, Image as ImageIcon, ExternalLink,
+    Filter, ChevronLeft, ChevronRight, Loader2, Megaphone
 } from 'lucide-react';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
 const AdminNotifications = () => {
-  const [activeTab, setActiveTab] = useState('received'); // 'received' | 'sent'
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [showCompose, setShowCompose] = useState(false);
 
-  // Broadcast Form State
-  const [broadcastTitle, setBroadcastTitle] = useState('');
-  const [broadcastBody, setBroadcastBody] = useState('');
-  const [targetAudience, setTargetAudience] = useState('users'); // 'users', 'partners', 'all'
-  const [sending, setSending] = useState(false);
+    const [formData, setFormData] = useState({
+        title: '',
+        body: '',
+        audience: 'all',
+        type: 'broadcast',
+        actionUrl: '',
+        image: ''
+    });
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [activeTab]);
-
-  const fetchNotifications = async () => {
-    setLoading(true);
-    try {
-      // Re-using getNotifications. For 'received', we use default.
-      // For 'sent', strictly speaking we need to filter by type='broadcast_log'.
-      // Currently backend returns all admin notifications.
-      // Ideally we filter client side or add type param to backend.
-      // Let's fetch all and filter client side for now as volume is low.
-      const data = await adminService.getNotifications(1, 100);
-      if (data.success) {
-        if (activeTab === 'received') {
-          // Show everything EXCEPT broadcast logs
-          const received = data.notifications.filter(n => n.type !== 'broadcast_log');
-          setNotifications(received);
-        } else {
-          // Show ONLY broadcast logs
-          const sent = data.notifications.filter(n => n.type === 'broadcast_log');
-          setNotifications(sent);
+    const fetchNotifications = useCallback(async (p = 1) => {
+        try {
+            setLoading(true);
+            const res = await adminService.getNotifications({ page: p, limit: 10 });
+            if (res.success) {
+                setNotifications(res.notifications);
+                setTotal(res.total);
+                setPage(res.page);
+                setTotalPages(res.totalPages);
+            }
+        } catch {
+            toast.error('Failed to load notification history');
+        } finally {
+            setLoading(false);
         }
-      }
-    } catch (error) {
-      toast.error('Failed to load notifications');
-    } finally {
-      setLoading(false);
-    }
-  };
+    }, []);
 
-  const handleSendBroadcast = async (e) => {
-    e.preventDefault();
-    if (!broadcastTitle || !broadcastBody) return;
+    useEffect(() => {
+        fetchNotifications(1);
+    }, [fetchNotifications]);
 
-    setSending(true);
-    try {
-      await adminService.sendNotification({
-        title: broadcastTitle,
-        body: broadcastBody,
-        targetAudience
-      });
-      toast.success('Broadcast sent successfully');
-      setBroadcastTitle('');
-      setBroadcastBody('');
-      // Refresh list if on Sent tab
-      if (activeTab === 'sent') fetchNotifications();
-    } catch (error) {
-      toast.error(error.message || 'Failed to send broadcast');
-    } finally {
-      setSending(false);
-    }
-  };
+    const handleSendBroadcast = async (e) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const res = await adminService.sendBroadcast(formData);
+            if (res.success) {
+                toast.success('Broadcast sent successfully');
+                setShowCompose(false);
+                setFormData({
+                    title: '', body: '', audience: 'all',
+                    type: 'broadcast', actionUrl: '', image: ''
+                });
+                fetchNotifications(1);
+            }
+        } catch {
+            toast.error('Failed to send broadcast');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-  const toggleSelect = (id) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(i => i !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
+    const handleDeleteRecord = async (id) => {
+        if (!window.confirm('Remove this record from history?')) return;
+        try {
+            const res = await adminService.deleteNotificationRecord(id);
+            if (res.success) {
+                toast.success('Record removed');
+                fetchNotifications(page);
+            }
+        } catch {
+            toast.error('Failed to delete record');
+        }
+    };
 
-  const selectAll = () => {
-    if (selectedIds.length === notifications.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(notifications.map(n => n._id));
-    }
-  };
+    const getAudienceIcon = (aud) => {
+        if (aud === 'user') return <Users size={14} className="text-blue-500" />;
+        if (aud === 'partner') return <Hotel size={14} className="text-orange-500" />;
+        return <Globe size={14} className="text-emerald-500" />;
+    };
 
-  const handleDelete = async () => {
-    if (!confirm(`Delete ${selectedIds.length} notifications?`)) return;
-
-    try {
-      await adminService.deleteNotifications(selectedIds);
-      toast.success('Deleted successfully');
-      setNotifications(notifications.filter(n => !selectedIds.includes(n._id)));
-      setSelectedIds([]);
-    } catch (error) {
-      toast.error('Failed to delete');
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-500 text-sm">Manage system alerts and broadcasts</p>
-        </div>
-
-        <div className="flex bg-white rounded-lg p-1 border shadow-sm self-start">
-          <button
-            onClick={() => setActiveTab('received')}
-            className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'received' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-black'}`}
-          >
-            Received
-          </button>
-          <button
-            onClick={() => setActiveTab('sent')}
-            className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'sent' ? 'bg-black text-white shadow-md' : 'text-gray-500 hover:text-black'}`}
-          >
-            Sent (Broadcasts)
-          </button>
-        </div>
-      </div>
-
-      {/* Broadcast Creation Form (Only visible in Sent tab) */}
-      <AnimatePresence>
-        {activeTab === 'sent' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 overflow-hidden"
-          >
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Send size={20} className="text-blue-500" />
-              Send New Broadcast
-            </h2>
-            <form onSubmit={handleSendBroadcast} className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-gray-500">Target Audience</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTargetAudience('users')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${targetAudience === 'users' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
-                    >
-                      <Users size={20} />
-                      <span className="text-xs font-bold">Users</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTargetAudience('partners')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${targetAudience === 'partners' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-gray-300'}`}
-                    >
-                      <Building2 size={20} />
-                      <span className="text-xs font-bold">Partners</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTargetAudience('all')}
-                      className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${targetAudience === 'all' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:border-gray-300'}`}
-                    >
-                      <Globe size={20} />
-                      <span className="text-xs font-bold">Everyone</span>
-                    </button>
-                  </div>
+    return (
+        <div className="max-w-7xl mx-auto space-y-6 pb-24 uppercase tracking-tighter">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter flex items-center gap-3">
+                        <Bell size={32} /> Blast Center
+                    </h2>
+                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">
+                        Send push notifications & broadcasts to users and partners.
+                    </p>
                 </div>
-                <div className="md:col-span-2 space-y-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Title</label>
-                    <input
-                      type="text"
-                      value={broadcastTitle}
-                      onChange={(e) => setBroadcastTitle(e.target.value)}
-                      placeholder="Notification Title"
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Message Body</label>
-                    <textarea
-                      value={broadcastBody}
-                      onChange={(e) => setBroadcastBody(e.target.value)}
-                      placeholder="Type your message here..."
-                      rows={3}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none transition-all resize-none"
-                      required
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={sending}
-                      className="px-6 py-2.5 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <Send size={18} />
-                      {sending ? 'Sending...' : 'Send Broadcast'}
-                    </button>
-                  </div>
+
+                <button
+                    onClick={() => setShowCompose(true)}
+                    className="px-8 py-3 bg-black text-white text-[11px] font-black uppercase rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                >
+                    <Send size={18} /> New Broadcast
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Stats Cards */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                        { label: 'Total Blasts', value: total, icon: Megaphone, color: 'blue' },
+                        { label: 'Platform Reach', value: '1.2k+', icon: Globe, color: 'emerald' },
+                        { label: 'Active Devices', value: 'FCM Ready', icon: Smartphone, color: 'indigo' },
+                        { label: 'Success Rate', value: '98%', icon: CheckCircle, color: 'green' }
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                            <div className={`w-10 h-10 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 flex items-center justify-center mb-4`}>
+                                <stat.icon size={20} />
+                            </div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                            <p className="text-2xl font-black text-gray-900 mt-1">{stat.value}</p>
+                        </div>
+                    ))}
                 </div>
-              </div>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Notifications List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
-          <div className="flex items-center gap-3">
-            <button onClick={selectAll} className="text-gray-400 hover:text-black transition-colors">
-              {selectedIds.length > 0 && selectedIds.length === notifications.length ? <CheckCircle size={20} className="text-black" /> : <Circle size={20} />}
-            </button>
-            <span className="text-sm font-bold text-gray-600">
-              {selectedIds.length > 0 ? `${selectedIds.length} Selected` : `${notifications.length} Messages`}
-            </span>
-          </div>
-          {selectedIds.length > 0 && (
-            <button
-              onClick={handleDelete}
-              className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
-            >
-              <Trash2 size={20} />
-            </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="p-12 text-center text-gray-400">Loading...</div>
-        ) : notifications.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 italic">No notifications found</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {notifications.map((notif) => (
-              <div
-                key={notif._id}
-                className={`p-4 flex gap-4 hover:bg-gray-50 transition-colors group cursor-pointer ${selectedIds.includes(notif._id) ? 'bg-blue-50/30' : ''}`}
-                onClick={() => toggleSelect(notif._id)}
-              >
-                <div onClick={(e) => { e.stopPropagation(); toggleSelect(notif._id); }}>
-                  {selectedIds.includes(notif._id) ?
-                    <CheckCircle size={20} className="text-black mt-1" /> :
-                    <Circle size={20} className="text-gray-300 group-hover:text-gray-500 mt-1" />
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className={`font-bold text-gray-900 truncate ${!notif.isRead && activeTab === 'received' ? 'text-black' : 'text-gray-700'}`}>
-                      {notif.title}
-                      {!notif.isRead && activeTab === 'received' && <span className="ml-2 inline-block w-2 h-2 bg-red-500 rounded-full"></span>}
-                    </h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                      {new Date(notif.createdAt).toLocaleDateString()} {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm leading-relaxed">{notif.body}</p>
-
-                  {/* Additional Data Display for Broadcast Logs */}
-                  {activeTab === 'sent' && notif.data && (
-                    <div className="mt-2 text-xs text-gray-400 bg-gray-50 p-2 rounded inline-block">
-                      Target: <span className="font-bold uppercase text-gray-600">{notif.data.targetAudience}</span> •
-                      Recipients: <span className="font-bold text-gray-600">{notif.data.recipientCount}</span>
+                {/* Notification List */}
+                <div className="lg:col-span-3 bg-white border border-gray-200 rounded-[2.5rem] shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                    <div className="px-8 py-6 border-b border-gray-50 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h3 className="text-sm font-black uppercase tracking-widest">Broadcast History</h3>
+                        <div className="relative">
+                            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                            <input placeholder="Search logs..." className="pl-12 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase outline-none focus:border-black transition-all w-64" />
+                        </div>
                     </div>
-                  )}
+
+                    <div className="flex-1 overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50/30 text-[9px] font-black uppercase text-gray-400 border-b border-gray-100">
+                                <tr>
+                                    <th className="px-8 py-4">Title & Message</th>
+                                    <th className="px-8 py-4">Target Audience</th>
+                                    <th className="px-8 py-4">Type</th>
+                                    <th className="px-8 py-4">Timestamp</th>
+                                    <th className="px-8 py-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {loading ? (
+                                    [1, 2, 3].map(i => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td colSpan="5" className="px-8 py-8"><div className="h-12 bg-gray-50 rounded-2xl"></div></td>
+                                        </tr>
+                                    ))
+                                ) : notifications.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="py-20 text-center">
+                                            <Bell size={48} className="mx-auto text-gray-100 mb-4" />
+                                            <p className="text-[10px] font-black text-gray-300 uppercase">No notifications records found.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    notifications.map(n => (
+                                        <tr key={n._id} className="group hover:bg-gray-50/30 transition-colors">
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center gap-4">
+                                                    {n.image && <img src={n.image} className="w-10 h-10 rounded-xl object-cover" alt="" />}
+                                                    <div>
+                                                        <p className="text-xs font-black text-gray-900 uppercase">{n.title}</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase line-clamp-1 max-w-sm">{n.body}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="p-1.5 bg-gray-50 rounded-lg">{getAudienceIcon(n.recipientRole)}</span>
+                                                    <span className="text-[10px] font-black uppercase text-gray-600">{n.recipientRole}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase border ${n.type === 'broadcast' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>
+                                                    {n.type}
+                                                </span>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-gray-600 uppercase">{new Date(n.createdAt).toLocaleDateString()}</span>
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase">{new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <button onClick={() => handleDeleteRecord(n._id)} className="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="px-8 py-6 border-t border-gray-50 bg-gray-50/20 flex items-center justify-between">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Showing log page {page} of {totalPages}</p>
+                        <div className="flex gap-2">
+                            <button disabled={page === 1} onClick={() => fetchNotifications(page - 1)} className="p-2 bg-white border border-gray-200 rounded-xl disabled:opacity-40"><ChevronLeft size={16} /></button>
+                            <button disabled={page === totalPages} onClick={() => fetchNotifications(page + 1)} className="p-2 bg-white border border-gray-200 rounded-xl disabled:opacity-40"><ChevronRight size={16} /></button>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+            </div>
+
+            {/* Compose Modal */}
+            <AnimatePresence>
+                {showCompose && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => setShowCompose(false)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-white rounded-[3rem] shadow-2xl max-w-xl w-full relative z-10 overflow-hidden"
+                        >
+                            <div className="px-10 py-8 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 uppercase">Compose Broadcast</h3>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Target all devices via FCM</p>
+                                </div>
+                                <button onClick={() => setShowCompose(false)} className="p-2 hover:bg-white rounded-xl transition-all"><Trash2 size={20} className="text-gray-300" /></button>
+                            </div>
+
+                            <form onSubmit={handleSendBroadcast} className="p-10 space-y-6">
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Target Audience</label>
+                                            <select
+                                                value={formData.audience}
+                                                onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all"
+                                            >
+                                                <option value="all">Global (All Users)</option>
+                                                <option value="user">Customers Only</option>
+                                                <option value="partner">Partners Only</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Context Type</label>
+                                            <select
+                                                value={formData.type}
+                                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all"
+                                            >
+                                                <option value="broadcast">Announcement</option>
+                                                <option value="promotion">Marketing Deal</option>
+                                                <option value="system">System Alert</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Notification Title</label>
+                                        <input
+                                            required placeholder="e.g. Major Update Available"
+                                            value={formData.title}
+                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Push Body Content</label>
+                                        <textarea
+                                            required rows="3" placeholder="Write your message here..."
+                                            value={formData.body}
+                                            onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                                            className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all resize-none"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Image URL (Optional)</label>
+                                            <input
+                                                placeholder="https://..."
+                                                value={formData.image}
+                                                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Deep Link / Action URL</label>
+                                            <input
+                                                placeholder="/offers/rukkoin-special"
+                                                value={formData.actionUrl}
+                                                onChange={(e) => setFormData({ ...formData, actionUrl: e.target.value })}
+                                                className="w-full bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white rounded-2xl px-5 py-3 text-[11px] font-black uppercase outline-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-full bg-black text-white py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    {submitting ? <Loader2 className="animate-spin" size={20} /> : <><Bell size={18} /> Send Push Notification</>}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 };
 
 export default AdminNotifications;

@@ -174,7 +174,15 @@ const AddHotelWizard = () => {
     try {
       setError('');
       if (!nearbySearchQuery.trim()) return;
-      const res = await hotelService.searchLocation(nearbySearchQuery.trim());
+
+      const lat = Number(propertyForm.location.coordinates[1]);
+      const lng = Number(propertyForm.location.coordinates[0]);
+
+      const res = await hotelService.searchLocation(
+        nearbySearchQuery.trim(),
+        !isNaN(lat) ? lat : undefined,
+        !isNaN(lng) ? lng : undefined
+      );
       setNearbyResults(Array.isArray(res?.results) ? res.results : []);
     } catch (e) {
       setError('Failed to search places');
@@ -341,14 +349,27 @@ const AddHotelWizard = () => {
 
   const uploadImages = async (files, onDone) => {
     try {
+      // Client-side validation: Max 50MB per file
+      const MAX_SIZE = 50 * 1024 * 1024;
+      const oversized = Array.from(files).find(f => f.size > MAX_SIZE);
+      if (oversized) {
+        setError(`File ${oversized.name} is too large. Max size is 50MB.`);
+        return;
+      }
+
       setUploading(true);
       const fd = new FormData();
       Array.from(files).forEach(f => fd.append('images', f));
       const res = await hotelService.uploadImages(fd);
       const urls = Array.isArray(res?.urls) ? res.urls : [];
       onDone(urls);
-    } catch {
-      setError('Upload failed');
+    } catch (err) {
+      console.error(err);
+      if (err.response?.status === 413) {
+        setError('Files too large for server limits. Please use smaller images.');
+      } else {
+        setError('Upload failed');
+      }
     } finally {
       setUploading(false);
     }

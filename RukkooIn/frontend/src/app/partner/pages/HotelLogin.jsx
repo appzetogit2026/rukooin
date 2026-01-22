@@ -29,8 +29,8 @@ const HotelLogin = () => {
 
         setLoading(true);
         try {
-            // Use authService
-            await authService.sendOtp(contact, 'login');
+            // Use authService with partner role
+            await authService.sendOtp(contact, 'login', 'partner');
             setStep(2);
         } catch (err) {
             setError(err.message || 'Failed to send OTP');
@@ -63,7 +63,8 @@ const HotelLogin = () => {
             await authService.verifyOtp({
                 phone: method === 'phone' ? contact : undefined, // Currently backend focuses on phone for OTP, email flow might need distinct check if supported
                 email: method === 'email' ? contact : undefined,
-                otp: otpString
+                otp: otpString,
+                role: 'partner'
             });
             navigate('/hotel/dashboard');
         } catch (err) {

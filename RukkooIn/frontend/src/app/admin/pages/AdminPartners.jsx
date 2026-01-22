@@ -58,7 +58,8 @@ const AdminPartners = () => {
                 limit,
                 search: currentFilters.search,
                 role: 'partner', // Enforce partner role
-                status: currentFilters.status
+                status: currentFilters.status,
+                approvalStatus: currentFilters.approvalStatus
             };
             const data = await adminService.getUsers(params);
             if (data.success) {
@@ -160,7 +161,7 @@ const AdminPartners = () => {
                 confirmText: 'Delete Partner',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteUser(user._id);
+                        const res = await adminService.deleteUser(user._id, 'partner');
                         if (res.success) {
                             toast.success('Partner deleted successfully');
                             fetchUsers(currentPage, filters);
@@ -228,29 +229,49 @@ const AdminPartners = () => {
                 </div>
             </div>
 
-            {/* Filter Bar */}
-            <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
-                <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search via name, email or phone..."
-                        value={filters.search}
-                        onChange={(e) => handleFilterChange('search', e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
-                    />
+            {/* Filter & Tabs Bar */}
+            <div className="space-y-4">
+                <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar">
+                    {[
+                        { id: 'all', label: 'All Partners', filter: { status: '', approvalStatus: '' } },
+                        { id: 'pending', label: 'Pending Approval', filter: { status: '', approvalStatus: 'pending' } },
+                        { id: 'approved', label: 'Approved', filter: { status: '', approvalStatus: 'approved' } },
+                        { id: 'rejected', label: 'Rejected', filter: { status: '', approvalStatus: 'rejected' } },
+                        { id: 'blocked', label: 'Blocked / Suspended', filter: { status: 'blocked', approvalStatus: '' } },
+                    ].map((tab) => {
+                        const isActive =
+                            filters.status === tab.filter.status &&
+                            filters.approvalStatus === tab.filter.approvalStatus;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setFilters(prev => ({ ...prev, ...tab.filter }));
+                                    setCurrentPage(1);
+                                }}
+                                className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase transition-all relative whitespace-nowrap tracking-widest ${isActive ? 'text-black' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                {tab.label}
+                                {isActive && (
+                                    <motion.div layoutId="partnerListTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
-                <div className="flex gap-2 w-full md:w-auto">
-                    {/* Role select removed as this is strictly for Partners */}
-                    <select
-                        value={filters.status}
-                        onChange={(e) => handleFilterChange('status', e.target.value)}
-                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
-                    >
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="blocked">Blocked</option>
-                    </select>
+
+                <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
+                    <div className="relative flex-1">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search via name, email or phone..."
+                            value={filters.search}
+                            onChange={(e) => handleFilterChange('search', e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -289,7 +310,7 @@ const AdminPartners = () => {
                                                 className="hover:bg-gray-50/50 transition-colors group relative font-bold"
                                             >
                                                 <td className="p-4">
-                                                    <Link to={`/admin/users/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                                    <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                                         <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm font-bold uppercase text-xs">
                                                             {user.name?.charAt(0) || 'P'}
                                                         </div>
@@ -337,7 +358,7 @@ const AdminPartners = () => {
 
                                                     {activeDropdown === user._id && (
                                                         <div className="absolute right-8 top-8 w-40 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 text-left">
-                                                            <Link to={`/admin/users/${user._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
+                                                            <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
                                                             {user.partnerApprovalStatus !== 'approved' && (

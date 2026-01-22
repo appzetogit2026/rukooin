@@ -1,0 +1,783 @@
+🏨 Rokkooin – Hotel Partner Registration Module
+
+(Highly Modular | White–Black Theme | GSAP + Framer Motion + Lenis)
+
+1️⃣ Core Product Philosophy (Before Code)
+Purpose
+
+Rokkooin is not just a booking platform, it is a revenue partner for hotels.
+So this module must:
+
+Build trust
+
+Reduce friction
+
+Guide hotel owners step-by-step
+
+Feel premium, not complicated
+
+UX Rule
+
+“Never show everything at once. Reveal only what is needed, when it’s needed.”
+
+2️⃣ Design System & Theme Rules
+🎨 Color System
+Element	Color
+Background	#FFFFFF (Pure White)
+Primary Text	#0F0F0F
+Secondary Text	#6B6B6B
+Buttons (Primary)	#000000
+Buttons (Hover)	#1A1A1A
+Cards	#F5F5F5 / #EFEFEF
+Borders	#E5E5E5
+Accent (Optional)	Olive / Sand / Warm Beige
+
+Accent colors are optional, never dominant.
+
+3️⃣ Tech Stack (Strictly Defined)
+Frontend
+
+Vite + React
+
+Tailwind CSS
+
+GSAP → micro-interactions, slides, reveal
+
+Framer Motion → page transitions, steps
+
+Lenis → smooth scrolling (entire app)
+
+React Hook Form + Zod → validation
+
+Context / Zustand → multi-step state
+
+Backend (Reference)
+
+Node.js + Express
+
+MongoDB
+
+OTP Service
+
+Cloudinary / S3 (Images)
+
+4️⃣ High-Level Architecture (Modular)
+src/
+ ├─ app/
+ │   ├─ partner/               # Hotel registration flow
+ │   │   ├─ pages/
+ │   │   │   ├─ PartnerHome.jsx
+ │   │   │   ├─ JoinRokkooin.jsx
+ │   │   │   ├─ Auth.jsx
+ │   │   │   └─ Dashboard.jsx
+ │   │   ├─ steps/              # Registration steps
+ │   │   ├─ components/
+ │   │   └─ store/
+ │   ├─ shared/
+ │   │   ├─ ui/
+ │   │   ├─ animations/
+ │   │   └─ hooks/
+ ├─ assets/
+ └─ styles/
+
+
+Every step is independent, reusable, and lazy-loaded.
+
+5️⃣ PART 1 – Partner Homepage (Conversion Page)
+🎯 Goal
+
+Convince hotel owners WHY they should join Rokkooin.
+
+Sections (Scroll-Based Storytelling)
+1️⃣ Hero Section
+
+Headline:
+“Grow Your Hotel Revenue with Rokkooin”
+
+Subtext:
+“List your property. Reach verified guests. Earn more.”
+
+CTA Button:
+[ Join Rokkooin ]
+
+Animation:
+
+Text fade-up (GSAP)
+
+Button micro-scale hover
+
+Smooth scroll hint
+
+2️⃣ How Rokkooin Works
+
+4 Cards (Horizontal on desktop, vertical on mobile):
+
+Register your property
+
+Verify & list
+
+Receive bookings
+
+Get paid
+
+Animations:
+
+Cards slide-in on scroll (GSAP)
+
+Icons scale on hover
+
+3️⃣ Benefits of Joining Rokkooin
+
+Grid Cards:
+
+Higher visibility
+
+Smart pricing
+
+Verified guests
+
+Marketing support
+
+Dedicated dashboard
+
+4️⃣ What You Can Explore
+
+Analytics
+
+Booking insights
+
+Property performance
+
+Reviews & ratings
+
+5️⃣ Hotel Owners Reviews
+
+Horizontal carousel
+
+Real-looking testimonials
+
+Subtle auto-scroll
+
+6️⃣ Why Join Rokkooin?
+
+Comparison style:
+
+Other platforms ❌
+
+Rokkooin ✅
+
+7️⃣ How to List Your Hotel
+
+Visual step diagram + CTA again
+
+6️⃣ PART 2 – Join Rokkooin (Multi-Step Flow)
+
+This is NOT multiple pages
+This is a guided step wizard
+
+🧭 Step Architecture
+
+Progress bar (top)
+
+Step indicator (1–8)
+
+State saved after every step
+
+STEP 1: Property Ownership
+
+Questions:
+
+What kind of property do you own?
+
+Hotel
+
+Resort
+
+Homestay
+
+Lodge
+
+Animation:
+
+Card selection scale
+
+Next button unlocks after selection
+
+STEP 2: Property Type
+
+Entire property / Individual rooms
+
+Business / Leisure
+
+STEP 3: Are You at Property Location?
+
+Options:
+
+Yes (use GPS)
+
+No (manual input)
+
+If Yes:
+
+Auto-fetch location
+If No:
+
+Search + pin on map
+
+STEP 4: Bottom Slide – Property Name
+
+👉 Bottom Sheet Slide-Up (GSAP)
+
+Input:
+
+Property Name
+
+UX:
+
+Keyboard-first
+
+Auto focus
+
+Close on swipe down
+
+STEP 5: Property Location Details
+
+Form:
+
+Address line
+
+City
+
+State
+
+Pincode
+
+Landmark
+
+Validation:
+
+Live validation
+
+Error only after blur
+
+STEP 6: Property Details
+
+Form fields:
+
+Total floors
+
+Total rooms
+
+Contact number
+
+Email (optional)
+
+STEP 7: Facilities Selection
+Must-Have Facilities (Mandatory)
+
+Wi-Fi
+
+Clean Washrooms
+
+Power Backup
+
+Reception
+
+Optional Facilities
+
+Parking
+
+Restaurant
+
+AC
+
+Lift
+
+CCTV
+
+Room Service
+
+UI:
+
+Toggle chips
+
+Selected → black background
+
+STEP 8: Property Images Upload
+
+Required:
+
+1 Facade
+
+1 Reception
+
+2 Room images
+
+2 Washroom images
+
+Rules:
+
+Show upload guide
+
+Image preview
+
+Drag & drop
+
+Validation before next
+
+STEP 9: KYC Verification
+
+Inputs:
+
+Mobile Number
+
+Government ID Type
+
+Front Image
+
+Back Image
+
+Guidance:
+
+Image examples
+
+Clear instruction text
+
+STEP 10: OTP Verification
+
+6 digit OTP
+
+Auto focus
+
+Auto submit
+
+STEP 11: Terms & Conditions
+
+Scroll to accept
+
+Checkbox unlocks submit
+
+Final submit animation
+
+7️⃣ Authentication Flow
+
+After submit:
+➡ Redirect to Login Page
+
+Login:
+
+Mobile number
+
+OTP
+
+Auto login
+
+8️⃣ Partner Dashboard (Post Login)
+Core Sections
+
+Dashboard Overview
+
+My Properties
+
+Bookings
+
+Earnings
+
+Reviews
+
+Profile & KYC
+
+Support
+
+Dashboard Design
+
+White base
+
+Grey cards
+
+Black highlights
+
+Smooth transitions
+
+9️⃣ Animations Strategy (Important)
+GSAP
+
+Scroll-based reveals
+
+Bottom sheets
+
+Step transitions
+
+Framer Motion
+
+Page transitions
+
+Step change
+
+Button micro-interactions
+
+Lenis
+
+Applied globally
+
+Smooth scroll everywhere
+
+🔟 Performance & UX Rules
+
+Lazy load steps
+
+Save progress locally
+
+Never lose user data
+
+Mobile-first
+
+One action per screen
+
+1️⃣1️⃣ Future Ready
+
+Multi-property support
+
+Team access
+
+Revenue insights
+
+Ads management
+
+✅ Final Verdict
+
+This plan ensures:
+
+High conversion
+
+Low drop-off
+
+Scalable architecture
+
+Premium feel
+
+Investor-grade product
+
+If you want next:
+
+🔹 Exact wireframe structure
+
+🔹 Tailwind component structure
+
+🔹 Exact GSAP timelines
+
+🔹 Backend API contracts
+
+🔹 Vibe-coding prompts
+
+Just tell me what to build next 💪
+
+frontend only plan do iska ab and with Exact GSAP timelines, vide coidng prompts
+
+Perfect.
+Below is a PURE FRONTEND-ONLY, senior-level plan for Rokkooin – Hotel Partner Module, with:
+
+✅ Exact GSAP timelines (what animates, when, how)
+✅ Framer Motion usage split
+✅ Lenis integration
+✅ Fully modular React structure
+✅ Vibe-Coding prompts (copy–paste ready for AI editors)
+
+No backend, no API — frontend architecture only.
+
+🏨 Rokkooin – Hotel Partner Module
+Frontend-Only Master Plan (Senior Architect Level)
+1️⃣ Frontend Philosophy (VERY IMPORTANT)
+
+We are building a guided journey, not forms.
+
+Rules:
+
+One decision per screen
+
+Zero cognitive overload
+
+Motion explains hierarchy
+
+Animations feel inevitable, not flashy
+
+2️⃣ Tech Stack (Frontend Only)
+
+Vite + React
+
+Tailwind CSS
+
+GSAP → timelines, scroll reveal, bottom sheets
+
+Framer Motion → page + step transitions
+
+Lenis → smooth scroll
+
+Zustand / Context → step state (frontend only)
+
+React Hook Form → local form handling
+
+3️⃣ Global Setup (Once)
+Lenis Setup (Root Level)
+useEffect(() => {
+  const lenis = new Lenis({ smooth: true, lerp: 0.08 });
+  function raf(time) {
+    lenis.raf(time);
+    requestAnimationFrame(raf);
+  }
+  requestAnimationFrame(raf);
+}, []);
+
+4️⃣ Folder Structure (Frontend Modular)
+src/
+ ├─ pages/
+ │   ├─ PartnerHome.jsx
+ │   ├─ JoinRokkooin.jsx
+ │   ├─ Login.jsx
+ │   └─ Dashboard.jsx
+ │
+ ├─ partner/
+ │   ├─ steps/
+ │   │   ├─ StepPropertyType.jsx
+ │   │   ├─ StepLocationCheck.jsx
+ │   │   ├─ StepPropertyName.jsx
+ │   │   ├─ StepAddress.jsx
+ │   │   ├─ StepPropertyDetails.jsx
+ │   │   ├─ StepFacilities.jsx
+ │   │   ├─ StepImages.jsx
+ │   │   ├─ StepKYC.jsx
+ │   │   ├─ StepOTP.jsx
+ │   │   └─ StepTerms.jsx
+ │   │
+ │   ├─ components/
+ │   │   ├─ ProgressBar.jsx
+ │   │   ├─ BottomSheet.jsx
+ │   │   ├─ StepWrapper.jsx
+ │   │   ├─ FacilityChip.jsx
+ │   │   └─ UploadBox.jsx
+ │
+ ├─ animations/
+ │   ├─ heroAnimations.js
+ │   ├─ stepAnimations.js
+ │   ├─ bottomSheet.js
+ │   └─ scrollReveal.js
+
+5️⃣ PART 1 – Partner Home Page (Exact GSAP Timelines)
+🎯 Goal
+
+Convert → Join Rokkooin
+
+Hero Section GSAP Timeline
+const tl = gsap.timeline({ delay: 0.3 });
+
+tl.from(".hero-title", {
+  y: 80,
+  opacity: 0,
+  duration: 0.8,
+  ease: "power4.out",
+})
+.from(".hero-subtitle", {
+  y: 40,
+  opacity: 0,
+  duration: 0.6,
+}, "-=0.4")
+.from(".hero-btn", {
+  scale: 0.8,
+  opacity: 0,
+  duration: 0.4,
+}, "-=0.3");
+
+Scroll Reveal Sections (Reusable)
+gsap.from(".reveal", {
+  scrollTrigger: {
+    trigger: ".reveal",
+    start: "top 85%",
+  },
+  y: 60,
+  opacity: 0,
+  duration: 0.6,
+  stagger: 0.15,
+});
+
+
+Apply .reveal class to:
+
+How it works cards
+
+Benefits
+
+Reviews
+
+Why Rokkooin
+
+6️⃣ PART 2 – Join Rokkooin (Wizard UX)
+Wrapper Rules
+
+Framer Motion → step change
+
+GSAP → internal animations
+
+Step Wrapper (Framer Motion)
+<motion.div
+  key={step}
+  initial={{ opacity: 0, x: 60 }}
+  animate={{ opacity: 1, x: 0 }}
+  exit={{ opacity: 0, x: -60 }}
+  transition={{ duration: 0.4 }}
+>
+  {children}
+</motion.div>
+
+7️⃣ Exact Step-Wise Animation Plan
+STEP 1 – Property Type
+
+Animation:
+
+gsap.from(".property-card", {
+  y: 40,
+  opacity: 0,
+  stagger: 0.15,
+  duration: 0.4,
+});
+
+
+Interaction:
+
+Selected → scale 1.05
+
+Others → opacity 0.5
+
+STEP 3 – Bottom Sheet (Property Name)
+
+GSAP Bottom Sheet Timeline:
+
+gsap.fromTo(".bottom-sheet",
+  { y: "100%" },
+  {
+    y: 0,
+    duration: 0.6,
+    ease: "power4.out"
+  }
+);
+
+
+Close:
+
+gsap.to(".bottom-sheet", {
+  y: "100%",
+  duration: 0.4,
+});
+
+STEP 6 – Property Details Form
+
+Inputs animation:
+
+gsap.from(".form-field", {
+  y: 30,
+  opacity: 0,
+  stagger: 0.1,
+});
+
+STEP 7 – Facilities Chips
+gsap.from(".facility-chip", {
+  scale: 0.8,
+  opacity: 0,
+  stagger: 0.05,
+});
+
+
+Selected:
+
+background: black
+
+text: white
+
+STEP 8 – Image Upload
+gsap.from(".upload-box", {
+  y: 40,
+  opacity: 0,
+  stagger: 0.15,
+});
+
+
+On image upload:
+
+gsap.from(".image-preview", {
+  scale: 0.9,
+  opacity: 0,
+});
+
+STEP 10 – OTP Input
+gsap.from(".otp-input", {
+  y: 20,
+  opacity: 0,
+  stagger: 0.1,
+});
+
+
+Auto focus movement:
+
+JS only (no animation)
+
+8️⃣ Dashboard (Frontend Only)
+
+Dashboard entrance animation:
+
+gsap.from(".dashboard-card", {
+  y: 50,
+  opacity: 0,
+  stagger: 0.12,
+});
+
+
+Hover:
+
+Card lifts translateY(-4px)
+
+Shadow increases
+
+9️⃣ VIBE CODING PROMPTS (🔥 IMPORTANT)
+Prompt 1 – Partner Home Page
+Design a premium hotel partner landing page for Rokkooin using React and Tailwind.
+Theme: white background, black buttons, grey cards.
+Use GSAP for hero entrance animations and scroll-based reveal animations.
+Sections:
+- Hero with CTA “Join Rokkooin”
+- How it works (4 steps)
+- Benefits
+- Hotel owner reviews
+- Why join Rokkooin
+Animations must feel smooth, minimal, and premium.
+
+Prompt 2 – Multi-Step Wizard
+Create a modular multi-step hotel registration wizard in React.
+Each step should be a separate component.
+Use Framer Motion for step transitions and GSAP for internal animations.
+Steps should feel guided, with one decision per screen.
+Use progress bar at the top.
+
+Prompt 3 – Bottom Sheet Component
+Build a reusable bottom sheet component using GSAP.
+It should slide up from bottom, support swipe-down close,
+and be used for property name input.
+Animation must use GSAP timeline with ease power4.out.
+
+Prompt 4 – Facilities Selector
+Create a facility selection UI using chip-based toggles.
+Mandatory and optional sections.
+Selected chips turn black with white text.
+Animate chips using GSAP stagger entrance.
+
+Prompt 5 – Image Upload UI
+Design a hotel image upload UI with drag and drop support.
+Show upload guidelines, previews, and validation messages.
+Animate upload boxes on mount using GSAP.
+
+🔟 Final Frontend Verdict
+
+This plan gives you:
+✅ Clean modular frontend
+✅ Motion-first UX
+✅ Vibe-coding ready prompts
+✅ Production-grade structure
+✅ Zero rework later

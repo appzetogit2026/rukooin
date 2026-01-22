@@ -1,13 +1,9 @@
 import Review from '../models/Review.js';
-import Property from '../models/Property.js';
-import mongoose from 'mongoose';
 
 export const getPropertyReviews = async (req, res) => {
   try {
     const { propertyId } = req.params;
-    const reviews = await Review.find({ propertyId, status: 'approved' })
-      .populate('userId', 'name') // Assuming User model has 'name' field
-      .sort({ createdAt: -1 });
+    const reviews = await Review.find({ propertyId, status: 'approved' }).sort({ createdAt: -1 });
     res.json(reviews);
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -17,8 +13,6 @@ export const getPropertyReviews = async (req, res) => {
 export const createReview = async (req, res) => {
   try {
     const { propertyId, bookingId, rating, comment } = req.body;
-
-    // Create the review
     const review = await Review.create({
       userId: req.user._id,
       propertyId,
@@ -27,153 +21,7 @@ export const createReview = async (req, res) => {
       comment,
       status: 'approved'
     });
-
-    // Calculate new stats
-    const stats = await Review.aggregate([
-      {
-        $match: { propertyId: new mongoose.Types.ObjectId(propertyId), status: 'approved' }
-      },
-      {
-        $group: {
-          _id: '$propertyId',
-          avgRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Update Property
-    if (stats.length > 0) {
-      await Property.findByIdAndUpdate(propertyId, {
-        avgRating: Math.round(stats[0].avgRating * 10) / 10, // Round to 1 decimal
-        totalReviews: stats[0].totalReviews
-      });
-    } else {
-      // Fallback for first review (should be covered by aggregation but safe to have)
-      await Property.findByIdAndUpdate(propertyId, {
-        avgRating: rating,
-        totalReviews: 1
-      });
-    }
-
     res.status(201).json(review);
-  } catch (e) {
-    console.error("Review Submission Error:", e);
-    res.status(500).json({ message: e.message });
-  }
-};
-
-export const getPartnerReviewStats = async (req, res) => {
-  try {
-    // 1. Get all properties for this partner
-    const properties = await Property.find({ partnerId: req.user._id }).select('_id');
-    const propertyIds = properties.map(p => p._id);
-
-    // 2. Count reviews that have no reply
-    const pendingReviewsCount = await Review.countDocuments({
-      propertyId: { $in: propertyIds },
-      reply: { $exists: false }
-    });
-
-    // 3. Get Average Rating (Overall)
-    const stats = await Review.aggregate([
-      { $match: { propertyId: { $in: propertyIds } } },
-      { $group: { _id: null, avgRating: { $avg: "$rating" } } }
-    ]);
-
-    res.json({
-      success: true,
-      pendingReviews: pendingReviewsCount,
-      avgRating: stats.length > 0 ? stats[0].avgRating.toFixed(1) : 0
-    });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-export const getPartnerReviews = async (req, res) => {
-  try {
-    const { status } = req.query; // optional filter: 'pending', 'replied'
-
-    // Get all partner properties
-    const properties = await Property.find({ partnerId: req.user._id }).select('_id propertyName');
-    const propertyIds = properties.map(p => p._id);
-
-    const query = { propertyId: { $in: propertyIds } };
-
-    if (status === 'pending') {
-      query.reply = { $exists: false };
-    } else if (status === 'replied') {
-      query.reply = { $exists: true };
-    }
-
-    const reviews = await Review.find(query)
-      .populate('userId', 'name')
-      .populate('propertyId', 'propertyName')
-      .sort({ createdAt: -1 });
-
-    res.json(reviews);
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-export const replyToReview = async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    const { reply } = req.body;
-
-    if (!reply) return res.status(400).json({ message: 'Reply content is required' });
-
-    const review = await Review.findById(reviewId).populate('propertyId');
-    if (!review) return res.status(404).json({ message: 'Review not found' });
-
-    // Verify ownership
-    if (String(review.propertyId.partnerId) !== String(req.user._id)) {
-      return res.status(403).json({ message: 'Not authorized to reply to this review' });
-    }
-
-    review.reply = reply;
-    review.replyAt = new Date();
-    await review.save();
-
-    res.json({ success: true, review });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-export const toggleHelpful = async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    const userId = req.user._id;
-
-    const review = await Review.findById(reviewId);
-    if (!review) return res.status(404).json({ message: 'Review not found' });
-
-    // Ensure array exists
-    if (!review.helpfulVotes) review.helpfulVotes = [];
-
-    const index = review.helpfulVotes.indexOf(userId);
-    let isHelpful = false;
-
-    if (index === -1) {
-      // Add vote
-      review.helpfulVotes.push(userId);
-      isHelpful = true;
-    } else {
-      // Remove vote
-      review.helpfulVotes.splice(index, 1);
-      isHelpful = false;
-    }
-
-    await review.save();
-
-    res.json({
-      success: true,
-      helpfulCount: review.helpfulVotes.length,
-      isHelpful
-    });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }

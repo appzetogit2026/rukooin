@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
 
 export const protect = async (req, res, next) => {
@@ -15,23 +16,34 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🛡️ Auth Middleware - Decoded Payload:', decoded);
+    // console.log('🛡️ Auth Middleware - Decoded Payload:', decoded);
 
-    // Check in User collection
-    let user = await User.findById(decoded.id);
+    let user;
 
-    // If not found in User, check in Admin collection
-    if (!user) {
-      console.log('🛡️ Auth Middleware - User not found, checking Admin collection for ID:', decoded.id);
+    // Check based on role if available in token, otherwise try all
+    if (decoded.role === 'partner') {
+      user = await Partner.findById(decoded.id);
+    } else if (decoded.role === 'admin' || decoded.role === 'superadmin') {
       user = await Admin.findById(decoded.id);
+    } else {
+      // Default to User
+      user = await User.findById(decoded.id);
+    }
+
+    // Fallback: If not found by role (e.g. role changed or token old format), try others
+    if (!user) {
+      // console.log('🛡️ Auth Middleware - Not found by role, trying others...');
+      if (decoded.role !== 'partner') user = await Partner.findById(decoded.id);
+      if (!user && decoded.role !== 'admin') user = await Admin.findById(decoded.id);
+      if (!user && decoded.role !== 'user') user = await User.findById(decoded.id);
     }
 
     if (!user) {
-      console.warn('🛡️ Auth Middleware - No User/Admin found for ID:', decoded.id);
+      // console.warn('🛡️ Auth Middleware - No User/Partner/Admin found for ID:', decoded.id);
       return res.status(401).json({ message: 'The user belonging to this token no longer exists.' });
     }
 
-    console.log(`🛡️ Auth Middleware - Authorized: ${user.name} (${user.role})`);
+    // console.log(`🛡️ Auth Middleware - Authorized: ${user.name || 'User'} (${user.role})`);
     req.user = user;
     next();
   } catch (error) {

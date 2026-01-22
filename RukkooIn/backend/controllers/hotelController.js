@@ -38,6 +38,18 @@ export const getAddressFromCoordinates = async (req, res) => {
     }
     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
     const { data } = await axios.get(url);
+
+    if (data.status !== 'OK') {
+      console.error('Google Maps Geocoding API Error:', data.status, data.error_message);
+      if (data.status === 'ZERO_RESULTS') {
+        return res.status(404).json({ message: 'Address not found' });
+      }
+      return res.status(500).json({
+        message: `Google Maps API Error: ${data.status}`,
+        details: data.error_message
+      });
+    }
+
     const first = Array.isArray(data.results) ? data.results[0] : null;
     if (!first) return res.status(404).json({ message: 'Address not found' });
     const { country, state, city, area, pincode } = mapAddressComponents(first.address_components || []);
@@ -59,7 +71,7 @@ export const getAddressFromCoordinates = async (req, res) => {
 
 export const searchLocation = async (req, res) => {
   try {
-    const { query } = req.query;
+    const { query, lat, lng } = req.query;
     if (!query || !String(query).trim()) {
       return res.status(400).json({ message: 'query is required' });
     }
@@ -67,9 +79,14 @@ export const searchLocation = async (req, res) => {
     if (!key) {
       return res.status(500).json({ message: 'Maps API key not configured' });
     }
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+    let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
       query
     )}&key=${key}`;
+
+    if (lat && lng) {
+      url += `&location=${lat},${lng}&radius=50000`; // 50km bias
+    }
+
     const { data } = await axios.get(url);
     const results = (data.results || []).map((r) => {
       const types = Array.isArray(r.types) ? r.types : [];

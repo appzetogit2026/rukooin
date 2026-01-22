@@ -55,13 +55,13 @@ const PartnerHome = () => {
                         <br className="hidden md:block" /> Seamless onboarding in under 10 minutes.
                     </p>
 
-                    {/* <Link to="/hotel/join">
+                    <Link to="/hotel/join">
                         <button className="hero-btn group relative px-8 py-3.5 md:px-10 md:py-4 bg-partner-btn text-white text-base md:text-lg font-bold rounded-full overflow-hidden shadow-xl hover:shadow-2xl transition-all active:scale-95">
                             <span className="relative z-10 flex items-center gap-2 md:gap-3">
                                 Start Your Journey <ArrowRight size={18} className="md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
                             </span>
                         </button>
-                    </Link> */}
+                    </Link>
                 </div>
 
                 {/* Abstract Background Elements WITH HD IMAGE */}

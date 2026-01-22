@@ -1,4 +1,5 @@
 import ContactMessage from '../models/ContactMessage.js';
+import notificationService from '../services/notificationService.js'; // Added
 
 export const createContactMessage = async (req, res) => {
   try {
@@ -21,6 +22,33 @@ export const createContactMessage = async (req, res) => {
       subject,
       message
     });
+
+    // --- NOTIFICATION HOOK: NEW SUPPORT QUERY ---
+    try {
+      const AdminModel = (await import('../models/Admin.js')).default;
+      const admins = await AdminModel.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
+
+      for (const admin of admins) {
+        notificationService.sendToUser(admin._id, {
+          title: 'New Support Message 📬',
+          body: `From: ${name} (${audience}). Subject: ${subject}`
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>New Support Query (${audience})</h3>
+            <p><strong>From:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
+            <p><strong>Subject:</strong> ${subject}</p>
+            <p><strong>Message:</strong></p>
+            <blockquote style="background: #f9f9f9; border-left: 4px solid #ccc; padding: 10px;">${message}</blockquote>
+          `,
+          type: 'support_query',
+          data: { contactId: doc._id }
+        }, 'admin');
+      }
+    } catch (notifErr) { console.error('Support Notif Error:', notifErr.message); }
+    // ------------------------------------------
 
     res.status(201).json({ success: true, message: 'Message submitted successfully', contact: doc });
   } catch (error) {

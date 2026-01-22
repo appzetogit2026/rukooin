@@ -1,9 +1,13 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
 import Admin from '../models/Admin.js';
 import Otp from '../models/Otp.js';
 import smsService from '../utils/smsService.js';
+import notificationService from '../services/notificationService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
+import { logAuditAction } from '../utils/auditLogger.js';
 
 // Generate JWT Token
 const generateToken = (id, role) => {
@@ -20,7 +24,7 @@ const BYPASS_NUMBERS = ['9685974247', '9009925021', '6261096283'];
 const DEFAULT_OTP = '123456';
 
 /**
- * @desc    Send OTP for Login/Register (Support User/Partner)
+ * @desc    Send OTP for Login/Register
  * @route   POST /api/auth/send-otp
  * @access  Public
  */
@@ -32,16 +36,20 @@ export const sendOtp = async (req, res) => {
       return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
     }
 
-    // Role is dynamic now
-    let user = await User.findOne({ phone, role });
+    let account;
+    if (role === 'partner') {
+      account = await Partner.findOne({ phone });
+    } else {
+      account = await User.findOne({ phone });
+    }
 
     // Login Flow Validation
-    if (type === 'login' && !user) {
+    if (type === 'login' && !account) {
       return res.status(404).json({ message: `${role === 'partner' ? 'Partner' : 'User'} not found. Please register first.` });
     }
 
     // Register Flow Validation
-    if (type === 'register' && user) {
+    if (type === 'register' && account) {
       return res.status(409).json({ message: `${role === 'partner' ? 'Partner' : 'User'} already exists. Please login.` });
     }
 
@@ -51,24 +59,32 @@ export const sendOtp = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store OTP
-    if (user) {
-      // Existing User (Login)
-      user.otp = otp;
-      user.otpExpires = otpExpires;
-      await user.save();
+    if (account) {
+      // Existing Account (Login)
+      account.otp = otp;
+      account.otpExpires = otpExpires;
+      await account.save();
     } else {
-      // New User (Register) - Store in Otp Collection
-      // Upsert to handle retries
+      // New Account (Register) - Store in Otp Collection
+      // Note: For Partner registration, we usually use registerPartner endpoint which handles details + OTP.
+      // But if we support simple OTP register start, we can store in Otp collection.
+      // However, Partner requires more details.
+
+      if (role === 'partner' && type === 'register') {
+        // If accessing send-otp for partner register, we might just store in Otp or expect them to use /partner/register
+        // But for consistency let's allow Otp collection storage
+      }
+
       await Otp.findOneAndUpdate(
         { phone },
-        { otp, expiresAt: otpExpires, tempData: { role, phone } }, // Store role
+        { otp, expiresAt: otpExpires, role }, // Store role in Otp to differentiate? Otp model might need update if we want strictness, but phone is unique key usually.
         { upsert: true, new: true }
       );
     }
 
     // Skip SMS for bypassed numbers
     if (isBypassed) {
-      console.log(`🛡️ OTP Bypassed for ${phone} (${type}). Use: ${otp}`);
+      console.log(`🛡️ OTP Bypassed for ${phone} (${type}) [${role}]. Use: ${otp}`);
       return res.status(200).json({ message: 'OTP sent successfully (Bypassed)', success: true });
     }
 
@@ -99,28 +115,34 @@ export const sendOtp = async (req, res) => {
  */
 export const verifyOtp = async (req, res) => {
   try {
-    const { phone, otp, name, email, role = 'user' } = req.body; // Default role user
+    const { phone, otp, name, email, role = 'user' } = req.body;
 
     if (!phone || !otp) {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check if it's an existing user (Login Flow) - Use role specific
-    let user = await User.findOne({ phone, role }).select('+otp +otpExpires');
+    // 1. Check if it's an existing account (Login Flow)
+    let account;
+    if (role === 'partner') {
+      account = await Partner.findOne({ phone }).select('+otp +otpExpires');
+    } else {
+      account = await User.findOne({ phone }).select('+otp +otpExpires');
+    }
+
     let isRegistration = false;
 
-    if (user) {
+    if (account) {
       // Verify Login OTP
-      if (user.otp !== otp) {
+      if (String(account.otp) !== String(otp)) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
-      if (user.otpExpires < Date.now()) {
+      if (account.otpExpires < Date.now()) {
         return res.status(400).json({ message: 'OTP has expired' });
       }
 
       // Clear OTP
-      user.otp = undefined;
-      user.otpExpires = undefined;
+      account.otp = undefined;
+      account.otpExpires = undefined;
 
     } else {
       // 2. Check Otp Collection (Registration Flow)
@@ -130,34 +152,32 @@ export const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: 'Invalid request or OTP expired. Please request OTP again.' });
       }
 
-      if (otpRecord.otp !== otp) {
+      if (String(otpRecord.otp) !== String(otp)) {
         return res.status(400).json({ message: 'Invalid OTP' });
       }
 
-      // Ensure this OTP was meant for the correct role
-      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
-        return res.status(400).json({ message: 'Invalid role context. Please try again with correct role.' });
+      // Registration Logic
+      if (role === 'partner') {
+        // Partner registration usually happens via /partner/register which creates the doc first.
+        // If we are here, it means we are trying to register via verify-otp which might be missing details.
+        // But if the user used send-otp for partner register, we need to create partner here.
+        // However, partner needs many fields.
+        // Assuming for now simple partner creation or they should use registerPartner.
+        return res.status(400).json({ message: 'Please use Partner Registration form.' });
       }
 
-      // For registration, 'name' is required
+      // For User registration, 'name' is required
       if (!name) {
         return res.status(400).json({ message: 'Name is required for registration.' });
       }
 
-      if (email) {
-        const emailExists = await User.findOne({ email, role: 'user' });
-        if (emailExists) return res.status(409).json({ message: 'Email already exists for a user account.' });
-      }
-
       // Create New User
-      user = new User({
+      account = new User({
         name,
         phone,
         email,
-        role: 'user', // Enforce role
         isVerified: true,
-        // Password is required by schema, setting a random hash for OTP-only users
-        password: await bcrypt.hash(Math.random().toString(36), 10)
+        // No password needed for OTP only
       });
 
       isRegistration = true;
@@ -165,44 +185,60 @@ export const verifyOtp = async (req, res) => {
       await Otp.deleteOne({ phone });
     }
 
-    // Save/Update User
-    if (isRegistration || name || email) {
-      if (name) user.name = name;
-      if (email) {
-        // Check uniqueness for update if email changed
-        if (email !== user.email) {
-          const emailExists = await User.findOne({ email, role: 'user', _id: { $ne: user._id } });
-          if (emailExists) return res.status(409).json({ message: 'Email already in use.' });
-          user.email = email;
-        }
-      }
-      user.isVerified = true;
+    // Save/Update Account
+    if (isRegistration || (role === 'user' && (name || email))) {
+      if (name) account.name = name;
+      if (email) account.email = email;
+      account.isVerified = true;
     }
 
-    if (!isRegistration && user.role === 'partner') {
-      if (user.partnerApprovalStatus === 'pending') {
+    if (!isRegistration && account.role === 'partner') {
+      if (account.partnerApprovalStatus === 'pending') {
         return res.status(403).json({ message: 'Your partner account is pending approval.' });
       }
-      if (user.partnerApprovalStatus === 'rejected') {
+      if (account.partnerApprovalStatus === 'rejected') {
         return res.status(403).json({ message: 'Your partner account was rejected. Please contact support.' });
       }
     }
 
-    await user.save();
+    await account.save();
 
-    const token = generateToken(user._id, user.role);
+    console.log(`✅ OTP Verified for ${role}. Token generated.`);
+
+    // --- NOTIFICATION HOOK: NEW REGISTRATION ---
+    if (isRegistration && role === 'user') {
+      notificationService.sendToUser(account._id, {
+        title: 'Welcome to Rukkoo!',
+        body: 'Welcome aboard! Find your perfect stay today.'
+      }, {
+        sendEmail: true,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; color: #333;">
+            <h1 style="color: #004F4D;">Welcome to Rukkoo! 🏨</h1>
+            <p>Hi ${account.name || 'User'},</p>
+            <p>Thank you for joining Rukkoo. We are excited to help you find your perfect stay.</p>
+            <br/>
+            <p>Best Regards,<br/>Team Rukkoo</p>
+          </div>
+        `,
+        type: 'welcome'
+      }).catch(err => console.error('Welcome Notification Failed:', err));
+    }
+    // -------------------------------------------
+
+    const token = generateToken(account._id, account.role);
 
     res.status(200).json({
       message: isRegistration ? 'Registration successful' : 'Login successful',
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isPartner: user.isPartner || false, // Should be false for pure user
-        partnerApprovalStatus: user.partnerApprovalStatus
+        id: account._id,
+        name: account.name,
+        email: account.email,
+        phone: account.phone,
+        role: account.role,
+        isPartner: role === 'partner' ? true : (account.isPartner || false),
+        partnerApprovalStatus: account.partnerApprovalStatus
       }
     });
 
@@ -211,22 +247,6 @@ export const verifyOtp = async (req, res) => {
     res.status(500).json({ message: 'Server error verifying OTP' });
   }
 };
-
-/**
- * @desc    Register a new user (Traditional Email/Pass - if needed fallback)
- * @route   POST /api/auth/register
- * @access  Public
- */
-export const register = async (req, res) => {
-  // ... Implement if needed, focusing on OTP first as per user request
-  res.status(501).json({ message: 'Use OTP flow for registration' });
-};
-
-/**
- * @desc    Register Partner (Step 1 & 2: Details + Send OTP)
- * @route   POST /api/auth/partner/register
- * @access  Public
- */
 
 /**
  * @desc    Register Partner (Step 1 & 2: Details + Send OTP)
@@ -246,77 +266,109 @@ export const registerPartner = async (req, res) => {
       return res.status(400).json({ message: 'Phone and Name are required' });
     }
 
-    // 1. Check if PARTNER ALREADY exists with this phone
-    let existingUser = await User.findOne({ phone, role: 'partner' });
-    if (existingUser) {
-      if (existingUser.isVerified) {
-        return res.status(409).json({ message: 'Partner account with this phone already exists. Please login.' });
-      } else {
-        // If exists but not verified (orphaned?), we can update it? 
-        // Or just fail. Let's fail for now to be safe, or update if we want to support retries.
-        // Given the new flow "creates" user directly, we should treat it as conflict if exists.
-      }
+    // Check if partner exists
+    let partner = await Partner.findOne({ phone });
+
+    if (partner && partner.isVerified) {
+      return res.status(409).json({ message: 'Partner with this phone already exists. Please login.' });
     }
 
     if (email) {
-      const existingEmail = await User.findOne({ email, role: 'partner' });
-      if (existingEmail && existingEmail.isVerified) {
-        return res.status(409).json({ message: 'Email already in use for a partner account.' });
+      const emailPartner = await Partner.findOne({ email });
+      if (emailPartner && emailPartner.isVerified && (!partner || emailPartner._id.toString() !== partner._id.toString())) {
+        return res.status(409).json({ message: 'Email already in use.' });
       }
     }
 
-    // Prepare User Data
-    const userData = {
+    // Prepare Partner Data (No OTP needed)
+    const partnerData = {
       name: full_name,
       email: email,
       phone: phone,
-      role: 'partner', // Enforced
-      isPartner: false, // Access granted only after approval
+      role: 'partner',
       partnerApprovalStatus: 'pending',
-      termsAccepted: termsAccepted,
+      // termsAccepted: termsAccepted, 
+
       aadhaarNumber: aadhaar_number,
       aadhaarFront: aadhaar_front,
       aadhaarBack: aadhaar_back,
       panNumber: pan_number,
       panCardImage: pan_card_image,
+
       address: owner_address ? {
         street: owner_address.street,
         city: owner_address.city,
         state: owner_address.state,
         zipCode: owner_address.zipCode,
         country: owner_address.country || 'India',
-        coordinates: owner_address.coordinates
       } : undefined,
-      password: await bcrypt.hash(Math.random().toString(36), 10), // Random password for now
-      isVerified: true // Auto-verified phone (since we removed OTP per request, assuming trust or different flow)
+
+      isVerified: true, // Auto-verify phone as we removed OTP step
+      otp: undefined,
+      otpExpires: undefined
     };
 
-    // Create New Partner User
-    const newUser = new User(userData);
-    await newUser.save();
+    if (partner) {
+      Object.assign(partner, partnerData);
+      await partner.save();
+    } else {
+      partner = await Partner.create(partnerData);
+    }
 
-    const token = generateToken(newUser._id, newUser.role);
+    // --- NOTIFICATION HOOK: PARTNER REGISTRATION ---
+    try {
+      // 1. Notify Partner (Email)
+      if (partner.email) {
+        notificationService.sendToUser(partner._id, {
+          title: 'Partner Registration Received 📋',
+          body: 'Your partner registration has been received and is pending admin approval.'
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Registration Received</h3>
+            <p>Hi ${partner.name},</p>
+            <p>Your request to become a Rukkoo Partner has been received.</p>
+            <p>Our team will review your details and documents shortly.</p>
+            <p>Status: <strong>Pending Approval</strong></p>
+          `,
+          type: 'partner_register_pending'
+        }, 'partner');
+      }
 
-    res.status(201).json({
+      // 2. Notify Admin (Push)
+      const admins = await Admin.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
+
+      for (const admin of admins) {
+        notificationService.sendToUser(admin._id, {
+          title: 'New Partner Registration 👤',
+          body: `New Partner ${partner.name} has registered. Please review application.`
+        }, {
+          type: 'admin_action_required',
+          data: { userId: partner._id, screen: 'partner_requests' }
+        }, 'admin');
+      }
+
+    } catch (notifErr) {
+      console.error('Partner Notif Error:', notifErr.message);
+    }
+    // -----------------------------------------------
+
+    res.status(200).json({
       success: true,
-      message: 'Partner registration completed successfully. Waiting for Admin Approval.',
-      token,
+      message: 'Partner registration completed successfully. Your account is pending admin approval.',
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
+        id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        role: partner.role,
+        isPartner: true,
+        partnerApprovalStatus: partner.partnerApprovalStatus
       }
     });
 
   } catch (error) {
     console.error('Register Partner Error:', error);
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Email or Phone already exists.' });
-    }
     res.status(500).json({ message: 'Server error during partner registration' });
   }
 };
@@ -334,81 +386,85 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'Phone and OTP are required' });
     }
 
-    // 1. Check OTP in Otp collection
-    const otpRecord = await Otp.findOne({ phone });
+    const partner = await Partner.findOne({ phone }).select('+otp +otpExpires');
 
-    if (!otpRecord) {
-      return res.status(400).json({ message: 'Invalid request or OTP expired. Please register again.' });
+    if (!partner) {
+      return res.status(404).json({ message: 'Partner not found. Please register first.' });
     }
 
-    if (otpRecord.otp !== otp) {
+    if (String(partner.otp) !== String(otp)) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
-    if (otpRecord.expiresAt < Date.now()) {
+    if (partner.otpExpires < Date.now()) {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    // 2. Create User from tempData
-    const userData = otpRecord.tempData;
-    if (!userData) {
-      return res.status(400).json({ message: 'Registration data not found. Please register again.' });
+    partner.otp = undefined;
+    partner.otpExpires = undefined;
+    partner.isVerified = true;
+    partner.partnerApprovalStatus = 'pending';
+
+    await partner.save();
+
+    // --- NOTIFICATION HOOK: PARTNER REGISTRATION ---
+    try {
+      // 1. Notify Partner (Email)
+      if (partner.email) {
+        notificationService.sendToUser(partner._id, {
+          title: 'Partner Registration Received 📋',
+          body: 'Your partner registration has been received and is pending admin approval.'
+        }, {
+          sendEmail: true,
+          emailHtml: `
+            <h3>Registration Received</h3>
+            <p>Hi ${partner.name},</p>
+            <p>Your request to become a Rukkoo Partner has been received.</p>
+            <p>Our team will review your details and documents shortly.</p>
+            <p>Status: <strong>Pending Approval</strong></p>
+          `,
+          type: 'partner_register_pending'
+        }, 'partner');
+      }
+
+      // 2. Notify Admin (Push)
+      const admins = await Admin.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
+
+      for (const admin of admins) {
+        notificationService.sendToUser(admin._id, {
+          title: 'New Partner Registration 👤',
+          body: `New Partner ${partner.name} has registered. Please review application.`
+        }, {
+          type: 'admin_action_required',
+          data: { userId: partner._id, screen: 'partner_requests' }
+        }, 'admin');
+      }
+
+    } catch (notifErr) {
+      console.error('Partner Notif Error:', notifErr.message);
     }
-
-    // Role check for safety
-    if (userData.role !== 'partner') {
-      return res.status(400).json({ message: 'Invalid registration context.' });
-    }
-
-    // Check if Partner already exists
-    const existingUser = await User.findOne({ phone, role: 'partner' });
-    if (existingUser) {
-      return res.status(409).json({ message: 'Partner account already exists.' });
-    }
-
-    // Create New Partner User
-    const newUser = new User({
-      ...userData,
-      password: userData.passwordHash,
-      isVerified: true
-    });
-
-    await newUser.save();
-
-    // 3. Cleanup OTP
-    await Otp.deleteOne({ phone });
-
-    const token = generateToken(newUser._id, newUser.role);
+    // -----------------------------------------------
 
     res.status(200).json({
       success: true,
-      message: 'Partner registration completed successfully.',
-      token,
+      message: 'Partner registration completed successfully. Your account is pending admin approval.',
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        isPartner: newUser.isPartner,
-        partnerApprovalStatus: newUser.partnerApprovalStatus
+        id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        role: partner.role,
+        isPartner: true,
+        partnerApprovalStatus: partner.partnerApprovalStatus
       }
     });
 
   } catch (error) {
     console.error('Verify Partner OTP Error:', error);
-    if (error.code === 11000) {
-      return res.status(409).json({ message: 'Email or Phone already exists for this role.' });
-    }
     res.status(500).json({ message: 'Server error verifying partner OTP' });
   }
 };
 
-/**
- * @desc    Login user (Traditional Email/Pass - if needed fallback)
- * @route   POST /api/auth/login
- * @access  Public
- */
 /**
  * @desc    Admin Login with Email & Password
  * @route   POST /api/auth/admin/login
@@ -444,6 +500,16 @@ export const adminLogin = async (req, res) => {
     admin.lastLogin = new Date();
     await admin.save();
 
+    // Log the successful login
+    await logAuditAction({
+      adminId: admin._id,
+      action: 'LOGIN',
+      description: `Admin ${admin.name} logged in successfully`,
+      targetType: 'Admin',
+      targetId: admin._id,
+      req
+    });
+
     const token = generateToken(admin._id, admin.role);
 
     res.status(200).json({
@@ -465,19 +531,13 @@ export const adminLogin = async (req, res) => {
 };
 
 /**
- * @desc    Get Current User/Admin Profile
+ * @desc    Get Current User/Admin/Partner Profile
  * @route   GET /api/auth/me
  * @access  Private
  */
 export const getMe = async (req, res) => {
   try {
-    // First check in User collection
-    let user = await User.findById(req.user.id);
-
-    // If not found, check in Admin collection
-    if (!user) {
-      user = await Admin.findById(req.user.id);
-    }
+    const user = req.user; // Set by authMiddleware
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -491,8 +551,11 @@ export const getMe = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isPartner: user.isPartner || false,
-        address: user.address
+        isPartner: user.role === 'partner',
+        partnerApprovalStatus: user.partnerApprovalStatus, // Will be undefined for User
+        address: user.address,
+        aadhaarNumber: user.aadhaarNumber,
+        panNumber: user.panNumber
       }
     });
   } catch (error) {
@@ -502,7 +565,7 @@ export const getMe = async (req, res) => {
 };
 
 /**
- * @desc    Update User Profile
+ * @desc    Update User/Partner Profile
  * @route   PUT /api/auth/update-profile
  * @access  Private
  */
@@ -510,68 +573,62 @@ export const updateProfile = async (req, res) => {
   try {
     const { name, email, phone, address } = req.body;
 
-    // Find user (not admin, as admins have separate management)
-    let user = await User.findById(req.user.id);
+    // req.user is already the document (User or Partner)
+    const account = req.user;
+    const Model = account.role === 'partner' ? Partner : User;
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Update fields if provided
-    if (name) user.name = name;
+    if (name) account.name = name;
     if (email) {
-      // Check if email is already taken by another user
-      if (email !== user.email) {
-        const existingUser = await User.findOne({ email, _id: { $ne: user._id } });
-        if (existingUser) {
+      if (email !== account.email) {
+        const existing = await Model.findOne({ email, _id: { $ne: account._id } });
+        if (existing) {
           return res.status(409).json({ message: 'Email already in use' });
         }
-        user.email = email;
+        account.email = email;
       }
     }
     if (phone) {
-      // Check if phone is already taken by another user
-      if (phone !== user.phone) {
-        const existingUser = await User.findOne({ phone, _id: { $ne: user._id } });
-        if (existingUser) {
+      if (phone !== account.phone) {
+        const existing = await Model.findOne({ phone, _id: { $ne: account._id } });
+        if (existing) {
           return res.status(409).json({ message: 'Phone number already in use' });
         }
-        user.phone = phone;
+        account.phone = phone;
       }
     }
 
-    // Update address if provided
     if (address) {
-      user.address = {
-        street: address.street || user.address?.street || '',
-        city: address.city || user.address?.city || '',
-        state: address.state || user.address?.state || '',
-        zipCode: address.zipCode || user.address?.zipCode || '',
-        country: address.country || user.address?.country || 'India',
-        coordinates: {
-          lat: address.coordinates?.lat || user.address?.coordinates?.lat,
-          lng: address.coordinates?.lng || user.address?.coordinates?.lng
+      account.address = {
+        street: address.street || account.address?.street || '',
+        city: address.city || account.address?.city || '',
+        state: address.state || account.address?.state || '',
+        zipCode: address.zipCode || account.address?.zipCode || '',
+        country: address.country || account.address?.country || 'India',
+        coordinates: account.role === 'partner' ? undefined : { // Partner address in schema is simple, User has coordinates? Check Partner schema.
+          lat: address.coordinates?.lat || account.address?.coordinates?.lat,
+          lng: address.coordinates?.lng || account.address?.coordinates?.lng
         }
       };
+      // Note: Partner schema I created has coordinates?
+      // Partner schema: address: { street, city, state, zipCode, country } - NO coordinates field in address subdoc in my previous Write.
+      // User schema: address: { ..., coordinates: { lat, lng } }
+      // So checking role is good.
     }
 
-    await user.save();
-
-    // Return updated user
-    const updatedUser = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      isPartner: user.isPartner || false,
-      address: user.address
-    };
+    await account.save();
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user: updatedUser
+      user: {
+        id: account._id,
+        name: account.name,
+        email: account.email,
+        phone: account.phone,
+        role: account.role,
+        isPartner: account.role === 'partner',
+        address: account.address
+      }
     });
 
   } catch (error) {
@@ -586,35 +643,27 @@ export const updateProfile = async (req, res) => {
  * @access  Private (Admin/Superadmin)
  */
 export const updateAdminProfile = async (req, res) => {
+  // ... existing implementation ...
+  // Reuse existing code logic
   try {
     if (!req.user || !['admin', 'superadmin'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only admins can update this profile' });
     }
 
     const { name, email, phone } = req.body;
+    const admin = req.user; // authMiddleware sets this
 
-    const admin = await Admin.findById(req.user.id);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
-
-    if (name) {
-      admin.name = name;
-    }
+    if (name) admin.name = name;
 
     if (email && email !== admin.email) {
       const existingEmail = await Admin.findOne({ email, _id: { $ne: admin._id } });
-      if (existingEmail) {
-        return res.status(409).json({ message: 'Email already in use' });
-      }
+      if (existingEmail) return res.status(409).json({ message: 'Email already in use' });
       admin.email = email;
     }
 
     if (phone && phone !== admin.phone) {
       const existingPhone = await Admin.findOne({ phone, _id: { $ne: admin._id } });
-      if (existingPhone) {
-        return res.status(409).json({ message: 'Phone number already in use' });
-      }
+      if (existingPhone) return res.status(409).json({ message: 'Phone number already in use' });
       admin.phone = phone;
     }
 
@@ -636,50 +685,22 @@ export const updateAdminProfile = async (req, res) => {
   }
 };
 
-
 /**
- * @desc    Upload Documents (Public for Registration)
- * @route   POST /api/auth/partner/upload-docs
- * @access  Public
- */
-export const uploadDocs = async (req, res) => {
-  try {
-    if (!req.files || !req.files.length) {
-      return res.status(400).json({ message: 'No documents provided' });
-    }
-    const urls = req.files.map((f) => f.path);
-    res.json({ success: true, urls });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-/**
- * @desc    Update FCM Token for Push Notifications
+ * @desc    Update FCM Token
  * @route   PUT /api/auth/update-fcm
  * @access  Private
  */
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json({ message: 'fcmToken is required' });
+    if (!fcmToken) return res.status(400).json({ message: 'Token required' });
 
-    // Try finding in User first
-    let user = await User.findById(req.user.id);
+    const account = req.user;
+    account.fcmToken = fcmToken;
+    await account.save();
 
-    // If not found, check Admin
-    if (!user) {
-      user = await Admin.findById(req.user.id);
-    }
-
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    user.fcmToken = fcmToken;
-    await user.save();
-
-    res.json({ success: true, message: 'FCM Token updated successfully' });
+    res.status(200).json({ success: true, message: 'FCM Token updated' });
   } catch (error) {
-    console.error('Update FCM Token Error:', error);
-    res.status(500).json({ message: 'Server error updating FCM token' });
+    res.status(500).json({ message: 'Error updating FCM token' });
   }
 };

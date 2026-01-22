@@ -38,7 +38,7 @@ const useAdminStore = create((set, get) => ({
 
       localStorage.setItem('adminToken', token);
       set({ admin: user, token, isAuthenticated: true, loading: false });
-      return { success: true };
+      return { success: true, user }; // Return user for immediate use
     } catch (error) {
       console.error('Admin Login Error:', error);
       return {

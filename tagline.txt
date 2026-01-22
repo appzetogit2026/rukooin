@@ -1,0 +1,99 @@
+✅ PURE TAILWIND TAGLINE COMPONENT
+🔥 Tagline.jsx
+const Tagline = () => {
+  return (
+    <div className="relative flex justify-center items-center py-20 overflow-hidden">
+      
+      {/* 3D SHADOW TEXT */}
+      <h1
+        className="
+          absolute 
+          text-[3rem] sm:text-[4rem] md:text-[5rem] lg:text-[6rem]
+          font-extrabold
+          text-black
+          translate-x-3 translate-y-3
+          select-none
+          whitespace-nowrap
+        "
+      >
+        RUKO, BOOK KARO, RELAX KARO
+      </h1>
+
+      {/* MAIN TEXT */}
+      <h1
+        className="
+          relative
+          text-[3rem] sm:text-[4rem] md:text-[5rem] lg:text-[6rem]
+          font-extrabold
+          text-[#FFC107]
+          whitespace-nowrap
+          select-none
+          drop-shadow-[4px_4px_0px_#000]
+        "
+        style={{
+          WebkitTextStroke: "3px black",
+        }}
+      >
+        RUKO, BOOK KARO, RELAX KARO
+      </h1>
+
+      {/* RED SLASH ACCENT */}
+      <span
+        className="
+          absolute
+          w-6
+          h-32
+          bg-red-600
+          rotate-[-20deg]
+          rounded-md
+          left-1/4
+        "
+      />
+    </div>
+  );
+};
+
+export default Tagline;
+
+🎨 EXACT STYLE MATCH BREAKDOWN
+Feature	How it's done
+Yellow bold text	text-[#FFC107]
+Black outline	WebkitTextStroke
+3D depth	Duplicate text with offset
+Thick chunky look	font-extrabold
+Responsive scaling	Tailwind breakpoints
+Red accent slash	Rotated <span>
+⚠️ IMPORTANT (Font = 80% of the Look)
+
+Add this to your index.css:
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@800;900&display=swap');
+
+body {
+  font-family: 'Poppins', sans-serif;
+}
+
+
+If you want even more bold like Insta Stays, use:
+
+font-family: 'Anton', sans-serif;
+
+🎬 OPTIONAL GSAP ENTRY ANIMATION
+useEffect(() => {
+  gsap.from("h1", {
+    y: 50,
+    opacity: 0,
+    duration: 1,
+    ease: "power4.out",
+  });
+}, []);
+
+💎 PRO TIP FOR YOUR PROJECT
+
+This component is:
+
+💯 Reusable
+
+⚡ Animation-friendly
+
+📱 Fully responsive

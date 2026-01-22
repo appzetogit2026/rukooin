@@ -119,6 +119,50 @@ const AdminProperties = () => {
                     }
                 }
             });
+        } else if (action === 'toggleFeatured') {
+            const isFeatured = !property.isFeatured;
+            setModalConfig({
+                isOpen: true,
+                title: isFeatured ? 'Feature Property?' : 'Remove from Featured?',
+                message: isFeatured
+                    ? `This will highlight "${property.propertyName}" on the homepage and search results.`
+                    : `This will remove "${property.propertyName}" from the featured listings.`,
+                type: 'info',
+                confirmText: isFeatured ? 'Mark Featured' : 'Remove Featured',
+                onConfirm: async () => {
+                    try {
+                        const res = await adminService.updateHotelStatus(property._id, { isFeatured });
+                        if (res.success) {
+                            toast.success(`Property updated`);
+                            fetchProperties(currentPage, filters);
+                        }
+                    } catch {
+                        toast.error('Failed to update status');
+                    }
+                }
+            });
+        } else if (action === 'toggleLive') {
+            const isLive = !property.isLive;
+            setModalConfig({
+                isOpen: true,
+                title: isLive ? 'Make Property Live?' : 'Hide Property?',
+                message: isLive
+                    ? `This will make "${property.propertyName}" visible to all users.`
+                    : `This will hide "${property.propertyName}" from all search results.`,
+                type: isLive ? 'success' : 'warning',
+                confirmText: isLive ? 'Make Live' : 'Hide Listing',
+                onConfirm: async () => {
+                    try {
+                        const res = await adminService.updateHotelStatus(property._id, { isLive });
+                        if (res.success) {
+                            toast.success(`Property updated`);
+                            fetchProperties(currentPage, filters);
+                        }
+                    } catch {
+                        toast.error('Failed to update status');
+                    }
+                }
+            });
         } else if (action === 'delete') {
             setModalConfig({
                 isOpen: true,
@@ -242,6 +286,7 @@ const AdminProperties = () => {
                                 <th className="p-4">Property Name</th>
                                 <th className="p-4">Type</th>
                                 <th className="p-4">Owner</th>
+                                <th className="p-4">Featured</th>
                                 <th className="p-4">Status</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
@@ -287,7 +332,25 @@ const AdminProperties = () => {
                                                     <p className="text-[10px] text-gray-400 uppercase tracking-tighter">ID: {property._id.slice(-6)}</p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <PropertyStatusBadge status={property.status} />
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${property.isFeatured ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
+                                                            {property.isFeatured ? 'Featured' : 'Standard'}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleAction('toggleFeatured', property); }}
+                                                            className={`p-1 rounded-md transition-colors ${property.isFeatured ? 'text-purple-600 hover:bg-purple-50' : 'text-gray-300 hover:bg-gray-100'}`}
+                                                        >
+                                                            <Star size={14} fill={property.isFeatured ? "currentColor" : "none"} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <PropertyStatusBadge status={property.status} />
+                                                        <span className={`text-[8px] font-black uppercase ${property.isLive ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {property.isLive ? '● Live' : '○ Hidden'}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
@@ -312,6 +375,19 @@ const AdminProperties = () => {
                                                                     </button>
                                                                 </>
                                                             )}
+                                                            <button
+                                                                onClick={() => handleAction('toggleLive', property)}
+                                                                className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase ${property.isLive ? 'text-orange-600' : 'text-green-600'}`}
+                                                            >
+                                                                {property.isLive ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                                                                {property.isLive ? 'Hide Listing' : 'Make Live'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAction('toggleFeatured', property)}
+                                                                className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-purple-700"
+                                                            >
+                                                                <Star size={14} /> {property.isFeatured ? 'Remove Featured' : 'Mark Featured'}
+                                                            </button>
                                                             <div className="h-px bg-gray-100 my-1"></div>
                                                             <button onClick={() => handleAction('delete', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                 <Trash2 size={14} /> Delete Property

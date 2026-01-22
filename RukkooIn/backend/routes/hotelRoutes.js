@@ -7,21 +7,15 @@ import {
   searchLocation,
   calculateDistance
 } from '../controllers/hotelController.js';
+import { getPropertyDetails } from '../controllers/propertyController.js';
 
 const router = express.Router();
 
+router.get('/:id', getPropertyDetails);
 router.post('/upload', protect, authorizedRoles('partner', 'admin'), _uploadMiddleware, uploadImages);
 router.post('/location/address', protect, authorizedRoles('partner', 'admin'), getAddressFromCoordinates);
 router.get('/location/search', protect, authorizedRoles('partner', 'admin'), searchLocation);
 router.get('/location/distance', protect, authorizedRoles('partner', 'admin'), calculateDistance);
-
-// Notification Routes (Reusing userController logic as it handles 'partner' role check)
-import { getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead } from '../controllers/userController.js';
-
-router.get('/notifications', protect, authorizedRoles('partner', 'admin'), getNotifications);
-router.put('/notifications/read-all', protect, authorizedRoles('partner', 'admin'), markAllNotificationsRead);
-router.put('/notifications/:id/read', protect, authorizedRoles('partner', 'admin'), markNotificationRead);
-router.delete('/notifications', protect, authorizedRoles('partner', 'admin'), deleteNotifications);
 
 export default router;
 
