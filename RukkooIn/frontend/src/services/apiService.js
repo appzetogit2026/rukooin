@@ -30,7 +30,11 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or invalid token. Redirecting to login...");
-        window.location.href = '/login';
+        if (window.location.pathname.includes('/hotel/')) {
+          window.location.href = '/hotel/login';
+        } else {
+          window.location.href = '/';
+        }
       }
     }
     return Promise.reject(error);
