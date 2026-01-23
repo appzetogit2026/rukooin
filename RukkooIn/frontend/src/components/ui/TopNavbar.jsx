@@ -13,7 +13,7 @@ const TopNavbar = () => {
 
             {/* Logo */}
             <Link to="/">
-                <img src={logo} alt="Rukko" className="h-10 object-contain" />
+                <img src={logo} alt="Rukko" className="h-12 object-contain" />
             </Link>
 
             {/* Desktop Links */}

@@ -58,7 +58,7 @@ const HeroSection = () => {
                     <img
                         src={logo}
                         alt="Rukko Logo"
-                        className="h-8 object-contain drop-shadow-sm"
+                        className="h-[38px] object-contain drop-shadow-sm"
                     />
                 </div>
 

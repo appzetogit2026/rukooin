@@ -19,7 +19,7 @@ const PartnerHeader = ({ title, subtitle }) => {
                 </button>
 
                 <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-1">
-                    <img src={logo} alt="Rukko" className="h-7 object-contain drop-shadow-sm" />
+                    <img src={logo} alt="Rukko" className="h-[34px] object-contain drop-shadow-sm" />
                 </div>
 
                 <button
