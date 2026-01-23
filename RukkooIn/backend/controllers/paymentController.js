@@ -234,7 +234,7 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
-        const payout = fullBooking.partnerPayout || 0;
+        const payout = Number(notes.partnerPayout) || 0; // Use value from notes
         if (payout > 0) {
           partnerWallet.balance += payout;
           partnerWallet.totalEarnings += payout;
@@ -247,11 +247,11 @@ export const verifyPayment = async (req, res) => {
             category: 'booking_payment',
             amount: payout,
             balanceAfter: partnerWallet.balance,
-            description: `Payment for Booking #${fullBooking.bookingId}`,
-            reference: fullBooking.bookingId,
+            description: `Payment for Booking #${booking.bookingId}`,
+            reference: booking.bookingId,
             status: 'completed',
             metadata: {
-              bookingId: fullBooking._id.toString()
+              bookingId: booking._id.toString()
             }
           });
           console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
@@ -261,8 +261,9 @@ export const verifyPayment = async (req, res) => {
 
     // --- ADMIN WALLET CREDIT LOGIC ---
     try {
-      const commission = booking.adminCommission || 0;
-      const taxes = booking.taxes || 0;
+      // Use values from notes for accuracy in the new flow
+      const commission = Number(notes.adminCommission) || 0;
+      const taxes = Number(notes.taxes) || 0;
       const totalAdminCredit = commission + taxes;
 
       if (totalAdminCredit > 0) {

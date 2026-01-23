@@ -43,7 +43,7 @@ const MetricCard = ({ label, value, subLabel, loading }) => (
                 <div className="h-8 w-16 bg-gray-50 animate-pulse rounded-md"></div>
             ) : (
                 <h3 className="text-2xl font-bold text-gray-900 uppercase">
-                    {typeof value === 'number' && label.includes('REVENUE') ? `₹${value.toLocaleString()}` : value.toLocaleString()}
+                    {typeof value === 'number' && label.includes('REVENUE') ? `₹${(value ?? 0).toLocaleString()}` : (value ?? 0).toLocaleString()}
                 </h3>
             )}
             {subLabel && <span className="text-[10px] font-bold uppercase text-gray-400">{subLabel}</span>}

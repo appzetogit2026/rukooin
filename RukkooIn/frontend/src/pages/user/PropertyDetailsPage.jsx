@@ -336,8 +336,12 @@ const PropertyDetailsPage = () => {
     // Ensure we don't discount below 0
     discountAmount = Math.min(discountAmount, grossAmount);
 
+    const commissionableAmount = grossAmount; // Base + Extras
     const taxableAmount = grossAmount - discountAmount;
-    const taxAmount = Math.ceil(taxableAmount * (taxRate / 100));
+
+    // Tax Calculation (on Commissionable Amount) matching backend logic
+    const taxAmount = Math.round((commissionableAmount * taxRate) / 100);
+
     const grandTotal = taxableAmount + taxAmount;
 
     return {
@@ -355,6 +359,8 @@ const PropertyDetailsPage = () => {
       grossAmount,
       discountAmount,
       couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
+      couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
+      commissionableAmount,
       taxableAmount,
       taxAmount,
       grandTotal

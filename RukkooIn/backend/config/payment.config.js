@@ -15,7 +15,7 @@ export const PaymentConfig = {
   currency: 'INR',
 
   // GST (if applicable)
-  gstRate: 0, // 0% for now
+  gstRate: 12, // 12% GST
 
   // Refund policy
   refundProcessingDays: 7,

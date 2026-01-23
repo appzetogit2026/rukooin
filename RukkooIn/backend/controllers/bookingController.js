@@ -95,7 +95,7 @@ export const createBooking = async (req, res) => {
     }
 
     // Get price per night from room type
-    const pricePerNight = roomType.basePrice || roomType.price || 0;
+    const pricePerNight = roomType.pricePerNight || 0;
     const baseAmount = pricePerNight * totalNights;
 
     // Calculate extra charges if any
@@ -104,6 +104,29 @@ export const createBooking = async (req, res) => {
     const extraAdultPrice = (roomType.extraAdultPrice || 0) * extraAdults * totalNights;
     const extraChildPrice = (roomType.extraChildPrice || 0) * extraChildren * totalNights;
     const extraCharges = extraAdultPrice + extraChildPrice;
+
+    // --- FINANCIAL CALCULATIONS (Commission, Tax, Payout) ---
+    // Fetch Dynamic Settings
+    const settings = await PlatformSettings.getSettings();
+    const gstRate = settings.taxRate || 12;
+    const commissionRate = settings.defaultCommission || 10;
+
+    const commissionableAmount = baseAmount + extraCharges;
+
+    // 1. Calculate Tax (GST) based on Commissionable Amount (Base + Extra)
+    const taxes = Math.round((commissionableAmount * gstRate) / 100);
+
+    // 2. Calculate Commission on the Pre-Tax Amount
+    let adminCommission = Math.round((commissionableAmount * commissionRate) / 100);
+
+    // Apply Minimum Commission (Still hardcoded as a safety fallback or stored in config)
+    if (adminCommission < PaymentConfig.minCommission) {
+      adminCommission = PaymentConfig.minCommission;
+    }
+
+    // 3. Calculate Partner Payout
+    // Payout = Total Amount Collected - Taxes (Remitted to Admin) - Commission (Kept by Admin)
+    const partnerPayout = Math.floor(totalAmount - taxes - adminCommission);
 
     const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -127,6 +150,9 @@ export const createBooking = async (req, res) => {
       extraAdultPrice,
       extraChildPrice,
       extraCharges,
+      taxes,
+      adminCommission,
+      partnerPayout,
       couponCode: couponCode || undefined,
       totalAmount,
       paymentMethod, // 'wallet', 'razorpay', 'pay_at_hotel'
@@ -185,6 +211,28 @@ export const createBooking = async (req, res) => {
               amount: Math.round(amountToPay * 100), // amount in paisa
               currency: PaymentConfig.currency || "INR",
               receipt: bookingId,
+              notes: {
+                bookingId: booking._id.toString(),
+                userId: req.user._id.toString(),
+                propertyId: propertyId.toString(),
+                roomTypeId: roomTypeId.toString(),
+                checkInDate: checkInDate,
+                checkOutDate: checkOutDate,
+                bookingUnit: bookingUnit || 'room',
+                totalNights: totalNights.toString(),
+                guests: JSON.stringify(guests),
+                pricePerNight: pricePerNight.toString(),
+                baseAmount: baseAmount.toString(),
+                extraCharges: extraCharges.toString(),
+                taxes: taxes.toString(),
+                discount: (0).toString(), // Placeholder if discount logic expands
+                couponCode: couponCode || "",
+                adminCommission: adminCommission.toString(),
+                partnerPayout: partnerPayout.toString(),
+                totalAmount: totalAmount.toString(),
+                walletUsedAmount: (useWallet ? (walletDeduction || 0) : 0).toString(),
+                type: 'booking_init' // Flag to identify this as a booking initiation
+              }
             };
 
             razorpayOrder = await instance.orders.create(options);
