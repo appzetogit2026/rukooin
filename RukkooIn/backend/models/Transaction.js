@@ -24,7 +24,20 @@ const transactionSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['booking_payment', 'commission_deduction', 'withdrawal', 'refund', 'adjustment', 'topup'],
+    enum: [
+      'booking_payment',
+      'commission_deduction',
+      'withdrawal',
+      'refund',
+      'adjustment',
+      'topup',
+      'commission_tax',
+      'commission_refund',
+      'refund_deduction',
+      'no_show_penalty',
+      'no_show_credit',
+      'booking'
+    ],
     required: true
   },
   amount: {

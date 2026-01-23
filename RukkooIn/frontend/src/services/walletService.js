@@ -4,16 +4,19 @@ class WalletService {
   /**
    * Get wallet balance and details
    */
-  async getWallet() {
-    const response = await apiService.get('/wallet');
+  /**
+   * Get wallet balance and details
+   */
+  async getWallet(params = {}) {
+    const response = await apiService.get('/wallet', { params });
     return response.data;
   }
 
   /**
    * Get wallet statistics
    */
-  async getWalletStats() {
-    const response = await apiService.get('/wallet/stats');
+  async getWalletStats(params = {}) {
+    const response = await apiService.get('/wallet/stats', { params });
     return response.data;
   }
 
@@ -21,12 +24,13 @@ class WalletService {
    * Get transaction history
    */
   async getTransactions(params = {}) {
-    const { page = 1, limit = 20, type, category } = params;
+    const { page = 1, limit = 20, type, category, viewAs } = params;
     const queryParams = new URLSearchParams({
       page,
       limit,
       ...(type && { type }),
-      ...(category && { category })
+      ...(category && { category }),
+      ...(viewAs && { viewAs })
     });
 
     const response = await apiService.get(`/wallet/transactions?${queryParams}`);

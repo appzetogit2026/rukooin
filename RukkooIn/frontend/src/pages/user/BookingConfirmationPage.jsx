@@ -107,8 +107,8 @@ const BookingConfirmationPage = () => {
                             <div className="flex flex-col sm:flex-row gap-5">
                                 <div className="w-full sm:w-32 h-32 bg-gray-200 rounded-2xl overflow-hidden shrink-0">
                                     <img
-                                        src={!imgError && property.images?.[0]?.url ? property.images[0].url : (property.coverImage || "https://via.placeholder.com/150")}
-                                        alt={property.name}
+                                        src={!imgError ? (property.images?.[0]?.url || property.images?.[0] || property.coverImage || property.propertyId?.coverImage || "https://via.placeholder.com/150") : "https://via.placeholder.com/150"}
+                                        alt={property.name || "Property"}
                                         className="w-full h-full object-cover"
                                         onError={() => setImgError(true)}
                                     />
@@ -116,11 +116,11 @@ const BookingConfirmationPage = () => {
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{property.propertyType}</span>
-                                            <h2 className="text-xl font-bold text-gray-900 leading-tight mb-2">{property.name}</h2>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{property.propertyType || 'Hotel'}</span>
+                                            <h2 className="text-xl font-bold text-gray-900 leading-tight mb-2">{property.name || property.propertyName || 'Property Name'}</h2>
                                             <div className="flex items-start gap-1 text-gray-500 text-sm mb-4">
                                                 <MapPin size={16} className="mt-0.5 shrink-0" />
-                                                <p>{property.address?.city || property.address?.street}, {property.address?.state}</p>
+                                                <p>{property.address?.fullAddress || property.address?.street || property.address}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -170,7 +170,7 @@ const BookingConfirmationPage = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-400 font-bold mb-1">Room Type</p>
-                                    <p className="font-semibold text-gray-900">{room.name || room.type}</p>
+                                    <p className="font-semibold text-gray-900">{room.name || room.type || booking.roomType || 'Standard Room'}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-400 font-bold mb-1">Guests</p>

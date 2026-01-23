@@ -195,6 +195,19 @@ export const verifyPayment = async (req, res) => {
       }
     }
 
+    // --- PREPARE PAYMENT DATA FOR WALLET CREDIT ---
+    // Extract financial details safely from either 'notes' (New Flow) or 'booking' (Legacy Flow)
+    const paymentMeta = {};
+    if (typeof notes !== 'undefined') {
+      paymentMeta.partnerPayout = Number(notes.partnerPayout);
+      paymentMeta.adminCommission = Number(notes.adminCommission);
+      paymentMeta.taxes = Number(notes.taxes);
+    } else if (booking) {
+      paymentMeta.partnerPayout = booking.partnerPayout;
+      paymentMeta.adminCommission = booking.adminCommission;
+      paymentMeta.taxes = booking.taxes;
+    }
+
     // --- PARTNER WALLET CREDIT LOGIC (Common) ---
     try {
       const fullBooking = await Booking.findById(booking._id).populate('propertyId');
@@ -210,12 +223,7 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
-        let payout = Number(notes.partnerPayout);
-        // Fallback to booking if notes missing
-        if (isNaN(payout) && booking) {
-          payout = booking.partnerPayout || 0;
-        }
-        payout = payout || 0;
+        const payout = paymentMeta.partnerPayout || 0;
 
         if (payout > 0) {
           await partnerWallet.credit(payout, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
@@ -226,9 +234,8 @@ export const verifyPayment = async (req, res) => {
 
     // --- ADMIN WALLET CREDIT LOGIC ---
     try {
-      // Use values from notes for accuracy in the new flow
-      const commission = Number(notes.adminCommission) || 0;
-      const taxes = Number(notes.taxes) || 0;
+      const commission = paymentMeta.adminCommission || 0;
+      const taxes = paymentMeta.taxes || 0;
       const totalAdminCredit = commission + taxes;
 
       if (totalAdminCredit > 0) {
@@ -259,8 +266,8 @@ export const verifyPayment = async (req, res) => {
 
     // Return full populated booking for confirmation page
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime partnerId')
-      .populate('roomTypeId', 'name type inventoryType')
+      .populate('propertyId')
+      .populate('roomTypeId')
       .populate('userId', 'name email phone');
 
     // TRIGGER NOTIFICATIONS (ONLINE PAYMENT SUCCESS)

@@ -448,24 +448,35 @@ const PropertyDetailsPage = () => {
       toast.error("Please select check-in and check-out dates");
       return;
     }
-    if (!availability) {
-      // If availability is null (not run yet or failed), try running it or block
-      toast.error("Please wait while we verify availability");
-      checkAvailability(); // Retry check
+
+    if (!selectedRoom) {
+      toast.error("Please select a room/unit");
       return;
     }
+
+    // If check hasn't run or completed yet
+    if (!availability) {
+      toast.error("Please wait while we verify availability");
+      checkAvailability();
       return;
+    }
+
     if (availability.available !== true) {
       toast.error(availability.message || "Selected room is not available for these dates");
       return;
     }
-      toast.error("Please wait while we verify availability");
+
     if (!localStorage.getItem('token')) {
       toast.error("Please login to book");
       navigate('/login', { state: { from: `/hotel/${id}` } });
       return;
     }
-      toast.error(availability.message || "Selected room is not available for these dates");
+
+    if (!priceBreakdown) {
+      toast.error("Unable to calculate price. Please check dates.");
+      return;
+    }
+
     navigate('/checkout', {
       state: {
         property,
@@ -474,12 +485,6 @@ const PropertyDetailsPage = () => {
         guests: {
           ...guests,
           rooms: guests.rooms
-        },
-        priceBreakdown,
-        taxRate,
-        couponCode: priceBreakdown.couponCode
-      }
-    });
         },
         priceBreakdown,
         taxRate,

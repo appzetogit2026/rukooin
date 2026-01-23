@@ -27,7 +27,7 @@ const WalletPage = () => {
 
     const fetchWalletData = async () => {
         try {
-            const res = await api.get('/wallet/stats');
+            const res = await api.get('/wallet/stats', { params: { viewAs: 'user' } });
             if (res.data.success) {
                 setBalance(res.data.stats.currentBalance || res.data.wallet?.balance || 0);
             }
@@ -38,7 +38,7 @@ const WalletPage = () => {
 
     const fetchTransactions = async () => {
         try {
-            const res = await api.get('/wallet/transactions');
+            const res = await api.get('/wallet/transactions', { params: { viewAs: 'user' } });
             if (res.data.success) {
                 setTransactions(res.data.transactions);
             }

@@ -404,9 +404,14 @@ export const createBooking = async (req, res) => {
       triggerBookingNotifications(booking);
     }
 
+    // Populate booking details for frontend confirmation page
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('propertyId')
+      .populate('roomTypeId');
+
     res.status(201).json({
       success: true,
-      booking,
+      booking: populatedBooking,
       paymentRequired: !!razorpayOrder,
       order: razorpayOrder,
       key: PaymentConfig.razorpayKeyId
@@ -572,11 +577,18 @@ export const cancelBooking = async (req, res) => {
 
     // 1. Refund User (If paid)
     if (booking.paymentStatus === 'paid') {
-      const userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
-      // If user wallet doesn't exist, create it? Usually users have wallets.
-      if (userWallet) {
-        await userWallet.credit(booking.totalAmount, `Refund for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
+      let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
+
+      // Auto-create wallet if it doesn't exist
+      if (!userWallet) {
+        userWallet = await Wallet.create({
+          partnerId: booking.userId,
+          role: 'user',
+          balance: 0
+        });
       }
+
+      await userWallet.credit(booking.totalAmount, `Refund for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
     }
 
     // 2. Deduct Partner (If payout was credited)
@@ -587,22 +599,16 @@ export const cancelBooking = async (req, res) => {
       if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
         const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
         if (partnerWallet) {
-          partnerWallet.balance -= booking.partnerPayout;
-          partnerWallet.totalEarnings -= booking.partnerPayout; // Reverse earnings
-          await partnerWallet.save();
-
-          await Transaction.create({
-            walletId: partnerWallet._id,
-            partnerId: fullBooking.propertyId.partnerId,
-            modelType: partnerWallet.modelType,
-            type: 'debit',
-            category: 'refund_deduction',
-            amount: booking.partnerPayout,
-            description: `Reversal for Booking #${booking.bookingId}`,
-            reference: booking.bookingId,
-            status: 'completed',
-            metadata: { bookingId: booking._id.toString() }
-          });
+          try {
+            await partnerWallet.debit(
+              booking.partnerPayout,
+              `Reversal for Booking #${booking.bookingId}`,
+              booking.bookingId,
+              'refund_deduction'
+            );
+          } catch (err) {
+            console.error("Partner Refund Deduction Failed:", err.message);
+          }
         }
       }
     }
@@ -613,22 +619,16 @@ export const cancelBooking = async (req, res) => {
       if (adminDeduction > 0) {
         const adminWallet = await Wallet.findOne({ role: 'admin' });
         if (adminWallet) {
-          adminWallet.balance -= adminDeduction;
-          adminWallet.totalEarnings -= adminDeduction;
-          await adminWallet.save();
-
-          await Transaction.create({
-            walletId: adminWallet._id,
-            partnerId: adminWallet.partnerId, // System admin id
-            modelType: adminWallet.modelType,
-            type: 'debit',
-            category: 'refund_deduction',
-            amount: adminDeduction,
-            description: `Reversal for Booking #${booking.bookingId}`,
-            reference: booking.bookingId,
-            status: 'completed',
-            metadata: { bookingId: booking._id.toString() }
-          });
+          try {
+            await adminWallet.debit(
+              adminDeduction,
+              `Reversal for Booking #${booking.bookingId}`,
+              booking.bookingId,
+              'refund_deduction'
+            );
+          } catch (err) {
+            console.error("Admin Refund Deduction Failed:", err.message);
+          }
         }
       }
     }
@@ -739,18 +739,30 @@ export const markBookingNoShow = async (req, res) => {
       const deductionAmount = booking.partnerPayout || 0;
 
       if (deductionAmount > 0 && booking.propertyId.partnerId) {
-        const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
-        const adminWallet = await Wallet.findOne({ role: 'admin' });
+        let partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+
+        // Ensure Admin Wallet
+        let adminWallet = await Wallet.findOne({ role: 'admin' });
+        if (!adminWallet) {
+          const AdminUser = mongoose.model('User');
+          const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+          if (adminUser) {
+            adminWallet = await Wallet.create({
+              partnerId: adminUser._id,
+              role: 'admin',
+              balance: 0
+            });
+          }
+        }
 
         if (partnerWallet && adminWallet) {
-          // Debit Partner (Earning)
-          // Use 'refund_deduction' or similar. Since money goes to Admin, maybe 'penalty'? 
-          // Using 'no_show_penalty' for clarity.
           try {
+            // Debit Partner (Earning Reversal/Penalty)
             await partnerWallet.debit(deductionAmount, `No Show Penalty for Booking #${booking.bookingId}`, booking.bookingId, 'no_show_penalty');
 
-            // Credit Admin
+            // Credit Admin (Funds retained by platform)
             await adminWallet.credit(deductionAmount, `No Show Credit (from Partner) for Booking #${booking.bookingId}`, booking.bookingId, 'no_show_credit');
+
           } catch (err) {
             console.error("No Show Wallet Deduction Failed (Pay Now):", err.message);
           }

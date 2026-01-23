@@ -42,9 +42,11 @@ import Booking from '../models/Booking.js';
  * @route   GET /api/wallet
  * @access  Private (Partner/User)
  */
-// Helper to get wallet role based on user role
-const getWalletRole = (userRole) => {
-  return userRole === 'user' ? 'user' : 'partner'; // Default admin to partner or handle separately if needed
+// Helper to get wallet role based on user role and query preference
+const getWalletRole = (userRole, viewAs) => {
+  if (viewAs === 'user') return 'user';
+  if (viewAs === 'partner' && userRole === 'partner') return 'partner'; // Strict check
+  return userRole === 'partner' ? 'partner' : 'user'; // Default
 };
 
 /**
@@ -54,7 +56,7 @@ const getWalletRole = (userRole) => {
  */
 export const getWallet = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role);
+    const role = getWalletRole(req.user.role, req.query.viewAs);
     let wallet = await Wallet.findOne({ partnerId: req.user._id, role });
 
     // Create wallet if doesn't exist
@@ -67,7 +69,7 @@ export const getWallet = async (req, res) => {
     }
 
     // Role-based response
-    if (req.user.role === 'user') {
+    if (role === 'user') {
       return res.json({
         success: true,
         wallet: {
@@ -106,9 +108,9 @@ export const getWallet = async (req, res) => {
  */
 export const getTransactions = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type } = req.query;
+    const { page = 1, limit = 20, type, viewAs } = req.query;
     const skip = (page - 1) * limit;
-    const role = getWalletRole(req.user.role);
+    const role = getWalletRole(req.user.role, viewAs);
 
     // Find the specific wallet first to get its ID
     const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
@@ -133,7 +135,7 @@ export const getTransactions = async (req, res) => {
     let mergedList = [...walletTransactions];
 
     // 2. If User, Fetch Bookings as "Transactions"
-    if (req.user.role === 'user') {
+    if (role === 'user') {
       const bookingQuery = {
         userId: req.user._id,
         paymentStatus: { $in: ['paid', 'refunded', 'partial'] }
@@ -190,7 +192,7 @@ export const getTransactions = async (req, res) => {
 export const requestWithdrawal = async (req, res) => {
   try {
     const { amount } = req.body;
-    const role = getWalletRole(req.user.role);
+    const role = getWalletRole(req.user.role, 'partner'); // Withdrawals only for partners generally
 
     // Validation
     if (!amount || amount < PaymentConfig.minWithdrawalAmount) {
@@ -315,7 +317,7 @@ export const getWithdrawals = async (req, res) => {
 export const updateBankDetails = async (req, res) => {
   try {
     const { accountNumber, ifscCode, accountHolderName, bankName } = req.body;
-    const role = getWalletRole(req.user.role);
+    const role = getWalletRole(req.user.role, 'partner');
 
     // Validation
     if (!accountNumber || !ifscCode || !accountHolderName || !bankName) {
@@ -361,7 +363,7 @@ export const updateBankDetails = async (req, res) => {
  */
 export const getWalletStats = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role);
+    const role = getWalletRole(req.user.role, req.query.viewAs);
     const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
 
     // Handle No Wallet Case
@@ -380,7 +382,7 @@ export const getWalletStats = async (req, res) => {
     }
 
     // USER Role: Return simple balance & transaction count
-    if (req.user.role === 'user') {
+    if (role === 'user') {
       const walletTxCount = await Transaction.countDocuments({ walletId: wallet._id }); // Use walletId
       const bookingCount = await Booking.countDocuments({ userId: req.user._id });
 
