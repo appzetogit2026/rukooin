@@ -606,7 +606,7 @@ const PropertyDetailsPage = () => {
           {/* Amenities */}
           {amenities && amenities.length > 0 && (
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-textDark mb-2">What this place offers</h2>
+              <h2 className="text-lg font-bold text-textDark mb-2">Amenities</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {amenities.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">

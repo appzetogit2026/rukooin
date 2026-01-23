@@ -13,7 +13,6 @@ const SettingsPage = () => {
             items: [
                 { icon: Bell, label: "Push Notifications", type: "nav", path: "/notifications" },
                 { icon: Globe, label: "Language", type: "link", value: "English (US)" },
-                { icon: Moon, label: "Dark Mode", type: "toggle", value: false }, // Mocked
             ]
         },
         // ... (rest of sections unchanged)

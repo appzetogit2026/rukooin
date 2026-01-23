@@ -214,7 +214,7 @@ const UserLogin = () => {
                                                 maxLength={1}
                                                 value={digit}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}
-                                                className="w-10 h-12 text-center text-lg font-bold bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
+                                                className="w-10 h-12 text-center text-lg font-bold bg-white border-2 border-gray-400 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
                                             />
                                         ))}
                                     </div>

@@ -50,8 +50,8 @@ const PartnerHeader = ({ title, subtitle }) => {
                     <Menu size={18} className="text-[#003836]" />
                 </button>
 
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 mt-1">
-                    <img src={logo} alt="Rukko" className="h-[34px] object-contain drop-shadow-sm" />
+                <div className="flex-1 flex justify-center items-center mt-2">
+                    <img src={logo} alt="Rukko" className="h-[60px] object-contain drop-shadow-sm scale-110" />
                 </div>
 
                 <div className="flex items-center gap-2">

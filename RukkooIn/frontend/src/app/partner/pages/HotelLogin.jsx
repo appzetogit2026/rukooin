@@ -217,7 +217,7 @@ const HotelLogin = () => {
                                                 maxLength={1}
                                                 value={digit}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}
-                                                className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-[#004F4D] focus:ring-2 focus:ring-teal-200 outline-none transition-all"
+                                                className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-400 rounded-xl focus:border-[#004F4D] focus:ring-2 focus:ring-teal-200 outline-none transition-all"
                                             />
                                         ))}
                                     </div>

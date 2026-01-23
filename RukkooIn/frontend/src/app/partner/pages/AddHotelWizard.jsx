@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
-import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
 const REQUIRED_DOCS_HOTEL = [
@@ -1054,7 +1054,7 @@ const AddHotelWizard = () => {
                     </button>
                   </div>
 
-                  <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                  <div className="p-4 space-y-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-gray-500">Name</label>
                       <input
@@ -1162,15 +1162,15 @@ const AddHotelWizard = () => {
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-gray-500">Check-in Time</label>
                     <div className="relative">
-                      <input className="input w-full pl-9" placeholder="12:00 PM" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><span className="text-xs">🕒</span></div>
+                      <input className="input w-full !pl-12" placeholder="12:00 PM" value={propertyForm.checkInTime} onChange={e => updatePropertyForm('checkInTime', e.target.value)} />
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Clock size={18} /></div>
                     </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-gray-500">Check-out Time</label>
                     <div className="relative">
-                      <input className="input w-full pl-9" placeholder="11:00 AM" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><span className="text-xs">🕒</span></div>
+                      <input className="input w-full !pl-12" placeholder="11:00 AM" value={propertyForm.checkOutTime} onChange={e => updatePropertyForm('checkOutTime', e.target.value)} />
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Clock size={18} /></div>
                     </div>
                   </div>
                 </div>
@@ -1355,7 +1355,6 @@ const AddHotelWizard = () => {
       </footer>
 
       <style>{`
-        .input { @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-gray-400; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>

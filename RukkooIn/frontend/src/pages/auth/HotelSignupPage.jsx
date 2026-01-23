@@ -31,7 +31,7 @@ const OTPInput = () => {
                     type="text"
                     maxLength={6}
                     placeholder="123456"
-                    className="w-full h-14 text-center text-2xl font-bold tracking-widest border border-gray-200 rounded-xl focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all placeholder:text-gray-200"
+                    className="w-full h-14 text-center text-2xl font-bold tracking-widest border border-gray-400 rounded-xl focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all placeholder:text-gray-200"
                     value={formData.otpCode || ''}
                     onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '');

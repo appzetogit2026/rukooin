@@ -207,7 +207,7 @@ const HotelLoginPage = () => {
                                                     document.getElementById(`otp-${index - 1}`)?.focus();
                                                 }
                                             }}
-                                            className="w-10 h-12 bg-white border border-gray-200 rounded-xl text-center text-[#003836] text-xl font-bold focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all shadow-sm"
+                                            className="w-10 h-12 bg-white border-2 border-gray-400 rounded-xl text-center text-[#003836] text-xl font-bold focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all shadow-sm"
                                             autoFocus={index === 0}
                                         />
                                     ))}

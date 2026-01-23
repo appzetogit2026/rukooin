@@ -333,7 +333,7 @@ const BookingCheckoutPage = () => {
               ></div>
             </div>
             <div className="flex-1 opacity-100">
-              <p className="text-sm font-semibold text-gray-800">Pay using AppZeto Wallet</p>
+              <p className="text-sm font-semibold text-gray-800">Pay using Wallet</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {paymentMethod !== 'online'
                   ? "Select 'Pay Now' to use wallet balance."

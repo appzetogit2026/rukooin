@@ -367,6 +367,7 @@ function App() {
             <Route path="/hotel/register" element={<HotelSignup />} />
             <Route path="/hotel" element={<HotelLayout />}>
               <Route index element={<Navigate to="/hotel/login" replace />} />
+              <Route path="partner" element={<Navigate to="/hotel" replace />} />
               {/* Wizard Route */}
               <Route element={<PartnerProtectedRoute />}>
                 <Route path="join" element={<PartnerJoinPropertyType />} />
