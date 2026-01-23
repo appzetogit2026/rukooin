@@ -150,9 +150,6 @@ export const getDashboardStats = async (req, res) => {
     // 3. Lists
     const recentBookings = await Booking.find()
       .populate('userId', 'name email')
-      .populate('hotelId', 'propertyName address') // Assuming 'hotelId' or 'propertyId' - checking schema, it is 'propertyId' ref 'Property' but in code 'hotelId' might be used? 
-      // Schema says: propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property" }
-      // Wait, let's double check the populate. The schema in Booking.js has 'propertyId'. 
       .populate('propertyId', 'propertyName address')
       .sort({ createdAt: -1 })
       .limit(5);
@@ -303,13 +300,55 @@ export const getAllBookings = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const { status } = req.query;
+    const { status, search } = req.query;
+
     const query = {};
-    if (status) query.bookingStatus = status;
+
+    if (status) {
+      query.bookingStatus = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+
+      // 1. Find matching Users
+      const users = await User.find({
+        $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }]
+      }).select('_id');
+      const userIds = users.map(u => u._id);
+
+      // 2. Find matching Properties
+      const properties = await Property.find({ propertyName: searchRegex }).select('_id');
+      const propertyIds = properties.map(p => p._id);
+
+      // 3. Construct OR query
+      const searchConditions = [
+        { bookingId: searchRegex },
+        { userId: { $in: userIds } },
+        { propertyId: { $in: propertyIds } }
+      ];
+
+      // Merge with existing query
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchConditions }];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
+    }
+
     const total = await Booking.countDocuments(query);
-    const bookings = await Booking.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const bookings = await Booking.find(query)
+      .populate('userId', 'name email phone')
+      .populate('propertyId', 'propertyName address')
+      .populate('roomTypeId', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
     res.status(200).json({ success: true, bookings, total, page, limit });
   } catch (e) {
+    console.error('Get All Bookings Error:', e);
     res.status(500).json({ success: false, message: 'Server error fetching bookings' });
   }
 };
