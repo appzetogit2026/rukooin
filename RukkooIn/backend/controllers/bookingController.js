@@ -185,9 +185,13 @@ export const createBooking = async (req, res) => {
 
     const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    // Determine User Model based on role
+    const userModel = req.user.role === 'partner' ? 'Partner' : 'User';
+
     // Create Booking Object
     const booking = new Booking({
       bookingId,
+      userModel,
       userId: req.user._id,
       propertyId,
       propertyType: property.propertyType.toLowerCase(),
@@ -227,7 +231,7 @@ export const createBooking = async (req, res) => {
 
       await wallet.debit(deductionAmount, `Booking #${bookingId}`, bookingId, 'booking');
 
-      if (paymentMethod === 'wallet' || (paymentMethod === 'online' && (totalAmount - (walletDeduction || 0) <= 0))) {
+      if (paymentMethod === 'wallet' || (['online', 'razorpay'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
         booking.paymentStatus = 'paid';
 
         // --- DISTRIBUTE TO PARTNER & ADMIN (Immediate Settlement for Wallet Payment) ---
@@ -461,12 +465,15 @@ export const getPartnerBookings = async (req, res) => {
     if (status) {
       // Simple status filtering
       if (status === 'upcoming') {
-        query.bookingStatus = { $in: ['confirmed', 'pending'] };
+        query.bookingStatus = { $in: ['confirmed', 'pending', 'checked_in'] };
         // query.checkInDate = { $gte: new Date() }; // Optional
       } else if (status === 'completed') {
         query.bookingStatus = { $in: ['completed', 'checked_out'] };
       } else if (status === 'cancelled') {
         query.bookingStatus = { $in: ['cancelled', 'no_show'] };
+      } else {
+        // Direct status match (e.g. 'confirmed', 'paid')
+        query.bookingStatus = status;
       }
     }
 

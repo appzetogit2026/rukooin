@@ -9,9 +9,15 @@ const guestSchema = new mongoose.Schema({
 const bookingSchema = new mongoose.Schema({
 
   // USER
+  userModel: {
+    type: String,
+    required: true,
+    enum: ['User', 'Partner'],
+    default: 'User'
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    refPath: 'userModel',
     required: true
   },
 

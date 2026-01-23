@@ -45,46 +45,52 @@ export const getDashboardStats = async (req, res) => {
       Booking.countDocuments({}),
       Booking.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
       Booking.aggregate([
-         { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
-         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+        { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]),
       Booking.aggregate([ // Revenue before this month
-         { $match: { 
-             bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
-             paymentStatus: 'paid',
-             createdAt: { $lt: startOfThisMonth }
-         }},
-         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+        {
+          $match: {
+            bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+            paymentStatus: 'paid',
+            createdAt: { $lt: startOfThisMonth }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ])
     ]);
 
     const totalRevenue = currentRevenueData[0]?.total || 0;
     const prevRevenue = lastMonthRevenueData[0]?.total || 0;
-    
+
     // Calculate trends (Simple approx based on total vs total-this-month isn't perfect for "vs last month", 
     // but better: Calculate created in THIS month vs created in LAST month)
-    
+
     const usersNewThisMonth = await User.countDocuments({ createdAt: { $gte: startOfThisMonth } });
     const usersNewLastMonth = await User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
-    
+
     const bookingsThisMonth = await Booking.countDocuments({ createdAt: { $gte: startOfThisMonth } });
     const bookingsLastMonthCount = await Booking.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
 
     // Revenue This Month vs Last Month
     const revThisMonthAgg = await Booking.aggregate([
-      { $match: { 
-          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
+      {
+        $match: {
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
           paymentStatus: 'paid',
           createdAt: { $gte: startOfThisMonth }
-      }},
+        }
+      },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
     const revLastMonthAgg = await Booking.aggregate([
-      { $match: { 
-          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
+      {
+        $match: {
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
           paymentStatus: 'paid',
           createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
-      }},
+        }
+      },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
 
@@ -98,7 +104,7 @@ export const getDashboardStats = async (req, res) => {
     };
 
     // 2. Charts Data
-    
+
     // Revenue Chart (Last 6 Months)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -125,7 +131,7 @@ export const getDashboardStats = async (req, res) => {
     const bookingStatusStats = await Booking.aggregate([
       { $group: { _id: "$bookingStatus", count: { $sum: 1 } } }
     ]);
-    
+
     // Format for frontend
     const revenueChart = monthlyRevenue.map(item => {
       const [year, month] = item._id.split('-');
@@ -150,7 +156,7 @@ export const getDashboardStats = async (req, res) => {
       .populate('propertyId', 'propertyName address')
       .sort({ createdAt: -1 })
       .limit(5);
-      
+
     const recentPropertyRequests = await Property.find({ status: 'pending' })
       .populate('partnerId', 'name email')
       .sort({ createdAt: -1 })
@@ -1004,18 +1010,25 @@ import Wallet from '../models/Wallet.js';
 
 export const getFinanceStats = async (req, res) => {
   try {
-    // 1. Get Admin Wallet Balance
-    let adminWallet = await Wallet.findOne({ role: 'admin' });
-
-    // If no admin wallet exists, try to find one associated with the current admin user or create a dummy one
-    // Ideally, there should be one system wallet.
-    const adminBalance = adminWallet ? adminWallet.balance : 0;
+    // 1. Get Admin Wallet Balance (Sum of all admin wallets if multiple)
+    const adminWallets = await Wallet.find({ role: 'admin' });
+    const adminBalance = adminWallets.reduce((acc, curr) => acc + (curr.balance || 0), 0);
 
     // 2. Aggregate Booking Financials
-    // Match only valid bookings (paid and confirmed/checked_in/checked_out)
+    // Include:
+    // 1. Paid bookings (Online/Wallet) -> Commission & Tax settled.
+    // 2. Pay At Hotel bookings (Confirmed) -> Commission & Tax deducted from Partner Wallet upfront.
     const matchStage = {
-      bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-      paymentStatus: 'paid'
+      $or: [
+        {
+          paymentStatus: 'paid',
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }
+        },
+        {
+          paymentMethod: 'pay_at_hotel',
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }
+        }
+      ]
     };
 
     const financialsOr = await Booking.aggregate([
