@@ -68,7 +68,8 @@ walletSchema.pre('save', async function () {
 // Methods
 walletSchema.methods.credit = async function (amount, description, reference, type = 'booking_payment') {
   this.balance += amount;
-  if (type !== 'topup') {
+  // Only add to totalEarnings for actual earnings (bookings), not topups or refunds
+  if (type !== 'topup' && type !== 'refund' && type !== 'commission_refund') {
     this.totalEarnings += amount;
   }
   this.lastTransactionAt = new Date();
@@ -98,11 +99,19 @@ walletSchema.methods.debit = async function (amount, description, reference, typ
   }
 
   this.balance -= amount;
-  this.totalWithdrawals += amount;
+
+  if (type === 'withdrawal') {
+    this.totalWithdrawals += amount;
+  }
+
+  // If we are reversing a booking payment (refund_deduction), we should decrease totalEarnings
+  if (type === 'refund_deduction' || type === 'no_show_penalty') {
+    this.totalEarnings -= amount;
+  }
+
   this.lastTransactionAt = new Date();
   await this.save();
 
-  // Create transaction record
   const Transaction = mongoose.model('Transaction');
   await Transaction.create({
     walletId: this._id,

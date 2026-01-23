@@ -182,36 +182,12 @@ export const verifyPayment = async (req, res) => {
       if (walletUsedAmount > 0) {
         const userWallet = await Wallet.findOne({ partnerId: notes.userId, role: 'user' });
         if (userWallet) {
-          userWallet.balance -= walletUsedAmount;
-          await userWallet.save();
-
-          await Transaction.create({
-            walletId: userWallet._id,
-            partnerId: notes.userId,
-            type: 'debit',
-            category: 'booking_payment',
-            amount: walletUsedAmount,
-            balanceAfter: userWallet.balance,
-            description: `Partial Wallet Payment for Booking #${newBookingId}`,
-            reference: newBookingId,
-            status: 'completed',
-            metadata: { bookingId: booking._id.toString() }
-          });
+          await userWallet.debit(walletUsedAmount, `Partial Wallet Payment for Booking #${newBookingId}`, newBookingId, 'booking_payment');
         }
       }
 
-      // Create Ledger
-      await AvailabilityLedger.create({
-        propertyId: notes.propertyId,
-        roomTypeId: notes.roomTypeId,
-        inventoryType: notes.bookingUnit,
-        source: 'platform',
-        referenceId: booking._id,
-        startDate: new Date(notes.checkInDate),
-        endDate: new Date(notes.checkOutDate),
-        units: 1,
-        createdBy: 'system'
-      });
+      // Ledger created in bookingController
+      // await AvailabilityLedger.create({...});
 
       // Increment Offer Usage
       if (notes.couponCode) {
@@ -234,26 +210,15 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
-        const payout = Number(notes.partnerPayout) || 0; // Use value from notes
-        if (payout > 0) {
-          partnerWallet.balance += payout;
-          partnerWallet.totalEarnings += payout;
-          await partnerWallet.save();
+        let payout = Number(notes.partnerPayout);
+        // Fallback to booking if notes missing
+        if (isNaN(payout) && booking) {
+          payout = booking.partnerPayout || 0;
+        }
+        payout = payout || 0;
 
-          await Transaction.create({
-            walletId: partnerWallet._id,
-            partnerId: partnerId,
-            type: 'credit',
-            category: 'booking_payment',
-            amount: payout,
-            balanceAfter: partnerWallet.balance,
-            description: `Payment for Booking #${booking.bookingId}`,
-            reference: booking.bookingId,
-            status: 'completed',
-            metadata: {
-              bookingId: booking._id.toString()
-            }
-          });
+        if (payout > 0) {
+          await partnerWallet.credit(payout, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
           console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
         }
       }
@@ -284,25 +249,7 @@ export const verifyPayment = async (req, res) => {
           }
 
           // Credit the wallet (Commission + Tax)
-          adminWallet.balance += totalAdminCredit;
-          // Note: totalEarnings usually tracks revenue. We'll add both here as per request 
-          // (assuming Admin handles tax remittance).
-          adminWallet.totalEarnings += totalAdminCredit;
-          await adminWallet.save();
-
-          // Log Transaction
-          await Transaction.create({
-            walletId: adminWallet._id,
-            partnerId: adminUser._id,
-            type: 'credit',
-            category: 'commission_tax', // Updated category
-            amount: totalAdminCredit,
-            balanceAfter: adminWallet.balance,
-            description: `Commission (₹${commission}) & Tax (₹${taxes}) for Booking #${booking.bookingId}`,
-            reference: booking.bookingId,
-            status: 'completed',
-            metadata: { bookingId: booking._id.toString() }
-          });
+          await adminWallet.credit(totalAdminCredit, `Commission (₹${commission}) & Tax (₹${taxes}) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_tax');
           console.log(`[Payment] Credited ₹${totalAdminCredit} (Comm: ${commission}, Tax: ${taxes}) to Admin Wallet`);
         } else {
           console.warn("⚠️ No Admin user found. Cannot credit commission/tax.");

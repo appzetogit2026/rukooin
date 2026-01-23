@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, bookingService, legalService, reviewService, offerService } from '../../services/apiService';
+import { propertyService, legalService, reviewService, offerService, availabilityService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
@@ -19,6 +19,65 @@ const PropertyDetailsPage = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [taxRate, setTaxRate] = useState(0); // Fetched from backend
+  const [availability, setAvailability] = useState(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  // Check Availability Logic
+  const checkAvailability = async () => {
+    if (!dates.checkIn || !dates.checkOut || !selectedRoom) {
+      setAvailability(null);
+      return null;
+    }
+
+    setCheckingAvailability(true);
+    try {
+      const response = await availabilityService.check({
+        propertyId: id,
+        roomTypeId: selectedRoom._id,
+        checkIn: dates.checkIn,
+        checkOut: dates.checkOut,
+        rooms: guests.rooms
+      });
+
+      let result = null;
+
+      // Handle array response from backend
+      if (Array.isArray(response)) {
+        // Ensure ID comparison handles string/object ID types safely
+        const roomAvail = response.find(r => String(r.roomTypeId) === String(selectedRoom._id));
+        if (roomAvail) {
+          const requiredUnits = guests.rooms || 1;
+          if (roomAvail.availableUnits >= requiredUnits) {
+            result = { available: true, unitsLeft: roomAvail.availableUnits };
+          } else {
+            result = { available: false, message: `Only ${roomAvail.availableUnits} units available` };
+          }
+        } else {
+          result = { available: false, message: "Room not available for these dates" };
+        }
+      } else {
+        result = response;
+      }
+
+      setAvailability(result);
+      return result;
+    } catch (error) {
+      console.error("Availability check failed:", error);
+      const errorResult = { available: false, message: error.message || "Unable to verify availability" };
+      setAvailability(errorResult);
+      return errorResult;
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  // Removed useEffect for automatic availability check as per requirement
+  // to only check on "Book Now" click.
+  /*
+  useEffect(() => {
+    checkAvailability();
+  }, [dates.checkIn, dates.checkOut, selectedRoom?._id, guests.rooms]);
+  */
 
   // Reviews State
   const [reviews, setReviews] = useState([]);
@@ -64,7 +123,8 @@ const PropertyDetailsPage = () => {
             maxAdults: rt.maxAdults,
             maxChildren: rt.maxChildren,
             images: rt.images || [],
-            pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice }
+            pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice },
+            inventoryType: rt.inventoryType || (['Hostel', 'PG'].includes(p.propertyType) ? 'bed' : 'room')
           })),
           policies: {
             checkInTime: p.checkInTime,
@@ -359,7 +419,6 @@ const PropertyDetailsPage = () => {
       grossAmount,
       discountAmount,
       couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
-      couponCode: (appliedOffer && discountAmount > 0) ? appliedOffer.code : null,
       commissionableAmount,
       taxableAmount,
       taxAmount,
@@ -389,18 +448,24 @@ const PropertyDetailsPage = () => {
       toast.error("Please select check-in and check-out dates");
       return;
     }
-
-    if (!isWholeUnit && !selectedRoom) {
-      toast.error(`Please select a ${isBedBased ? 'bed/room' : 'room'} first`);
+    if (!availability) {
+      // If availability is null (not run yet or failed), try running it or block
+      toast.error("Please wait while we verify availability");
+      checkAvailability(); // Retry check
       return;
     }
-
+      return;
+    if (availability.available !== true) {
+      toast.error(availability.message || "Selected room is not available for these dates");
+      return;
+    }
+      toast.error("Please wait while we verify availability");
     if (!localStorage.getItem('token')) {
       toast.error("Please login to book");
       navigate('/login', { state: { from: `/hotel/${id}` } });
       return;
     }
-
+      toast.error(availability.message || "Selected room is not available for these dates");
     navigate('/checkout', {
       state: {
         property,
@@ -409,6 +474,12 @@ const PropertyDetailsPage = () => {
         guests: {
           ...guests,
           rooms: guests.rooms
+        },
+        priceBreakdown,
+        taxRate,
+        couponCode: priceBreakdown.couponCode
+      }
+    });
         },
         priceBreakdown,
         taxRate,
@@ -1137,6 +1208,23 @@ const PropertyDetailsPage = () => {
             <p className="font-bold text-lg text-surface">
               ₹{priceBreakdown?.grandTotal?.toLocaleString() || bookingBarPrice?.toLocaleString() || 'N/A'}
             </p>
+            {dates.checkIn && dates.checkOut && (
+              <div className="mt-1">
+                {checkingAvailability ? (
+                  <span className="text-[10px] text-blue-500 flex items-center gap-1">
+                    <Loader2 size={10} className="animate-spin" /> Checking...
+                  </span>
+                ) : availability?.available === false ? (
+                  <span className="text-[10px] text-red-500 font-bold flex items-center gap-1">
+                    <Info size={10} /> {availability.message || "Not Available"}
+                  </span>
+                ) : availability?.available === true ? (
+                  <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                    <CheckCircle size={10} /> Available
+                  </span>
+                ) : null}
+              </div>
+            )}
             {extraPricingLabels.length > 0 && (
               <p className="text-[11px] text-gray-500">
                 {extraPricingLabels.join(' • ')}

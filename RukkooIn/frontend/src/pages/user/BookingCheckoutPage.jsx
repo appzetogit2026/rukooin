@@ -89,10 +89,11 @@ const BookingCheckoutPage = () => {
       guests: {
         adults: guests.adults,
         children: guests.children,
+        rooms: guests.rooms || 1,
         extraAdults: priceBreakdown?.extraAdultsCount || 0,
         extraChildren: priceBreakdown?.extraChildrenCount || 0
       },
-      bookingUnit: selectedRoom.inventoryType || 'room',
+      bookingUnit: selectedRoom.inventoryType || (['Hostel', 'PG'].includes(property.propertyType) ? 'bed' : 'room'),
       couponCode: priceBreakdown?.couponCode || null,
       paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'pay_at_hotel',
       paymentStatus: 'pending',
