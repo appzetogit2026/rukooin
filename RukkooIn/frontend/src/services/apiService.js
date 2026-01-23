@@ -30,7 +30,11 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
         console.warn("Session expired or invalid token. Redirecting to login...");
-        window.location.href = '/login';
+        if (window.location.pathname.includes('/hotel/')) {
+          window.location.href = '/hotel/login';
+        } else {
+          window.location.href = '/';
+        }
       }
     }
     return Promise.reject(error);
@@ -98,16 +102,6 @@ export const authService = {
   },
 
 
-
-  // Get Current User/Partner Profile
-  getMe: async () => {
-    try {
-      const response = await api.get('/auth/me');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
 
   // Update Profile
   updateProfile: async (data) => {
@@ -189,33 +183,7 @@ export const bookingService = {
     }
   },
 
-  // Notification Methods for Partners
-  getNotifications: async (page = 1, limit = 20) => {
-    try {
-      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
 
-  markAllNotificationsRead: async () => {
-    try {
-      const response = await api.put('/hotel/notifications/read-all');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  },
-
-  deleteNotifications: async (ids) => {
-    try {
-      const response = await api.delete('/hotel/notifications', { data: { ids } });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || error.message;
-    }
-  }
 };
 
 // Property Services (New)
@@ -376,13 +344,9 @@ export const hotelService = {
       throw error.response?.data || error.message;
     }
   },
-  searchLocation: async (query, lat, lng) => {
+  searchLocation: async (query) => {
     try {
-      let url = `/hotels/location/search?query=${encodeURIComponent(query)}`;
-      if (lat && lng) {
-        url += `&lat=${lat}&lng=${lng}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get(`/hotels/location/search?query=${encodeURIComponent(query)}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -399,6 +363,32 @@ export const hotelService = {
   deleteHotel: async (id) => {
     try {
       const response = await api.delete(`/hotels/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Notification Methods for Partners
+  getNotifications: async (page = 1, limit = 20) => {
+    try {
+      const response = await api.get(`/hotels/notifications?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  markAllNotificationsRead: async () => {
+    try {
+      const response = await api.put('/hotels/notifications/read-all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteNotifications: async (ids) => {
+    try {
+      const response = await api.delete('/hotels/notifications', { data: { ids } });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

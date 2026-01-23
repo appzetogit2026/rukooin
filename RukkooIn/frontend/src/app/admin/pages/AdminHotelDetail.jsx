@@ -126,7 +126,7 @@ const OverviewTab = ({ hotel }) => (
 
 const GalleryTab = ({ hotel }) => (
     <div className="space-y-10">
-        {/* Section 1: Property Wide Images */}
+        {/* Section: Property Wide Images */}
         <div>
             <div className="flex items-center gap-2 mb-4">
                 <Building2 size={20} className="text-blue-600" />
@@ -142,50 +142,6 @@ const GalleryTab = ({ hotel }) => (
                 ) : (
                     <div className="col-span-full py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
                         <p className="text-gray-400 font-bold uppercase text-xs">No General Photos</p>
-                    </div>
-                )}
-            </div>
-        </div>
-
-        {/* Section 2: Room Specific Images grouped by Room */}
-        <div>
-            <div className="flex items-center gap-2 mb-4">
-                <Bed size={20} className="text-purple-600" />
-                <h3 className="text-lg font-bold text-gray-900 uppercase">Room Category Photos</h3>
-            </div>
-
-            <div className="space-y-6">
-                {hotel.rooms && hotel.rooms.length > 0 ? (
-                    hotel.rooms.map((room, idx) => (
-                        <div key={idx} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                            <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-2">
-                                <div>
-                                    <h4 className="font-bold text-gray-900 text-sm uppercase">{room.title}</h4>
-                                    <p className="text-xs text-gray-400">Price: ₹{room.price} | Qty: {room.qty}</p>
-                                </div>
-                                <span className="text-[10px] font-bold bg-gray-100 px-2 py-1 rounded text-gray-600 uppercase">
-                                    {room.images?.length || 0} Photos
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-                                {room.images && room.images.length > 0 ? (
-                                    room.images.map((img, i) => (
-                                        <div key={i} className="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 relative group">
-                                            <img src={img.url || img} alt={`Room ${i}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="col-span-full py-4 text-center">
-                                        <span className="text-[10px] text-gray-400 uppercase font-bold italic">No photos for this room</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <div className="py-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <p className="text-gray-400 font-bold uppercase text-xs">No Rooms Added</p>
                     </div>
                 )}
             </div>
@@ -356,49 +312,145 @@ const DocumentsTab = ({ hotel, documents, onVerify, verifying }) => {
     );
 };
 
-const RoomsTab = ({ rooms }) => (
-    <div className="space-y-6">
-        <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900 uppercase">Room Inventory</h3>
-        </div>
+const RoomsTab = ({ rooms }) => {
+    const [expandedRoomId, setExpandedRoomId] = useState(null);
 
-        <div className="grid grid-cols-1 gap-4">
-            {rooms && rooms.length > 0 ? (
-                rooms.map((room, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col md:flex-row items-center gap-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="w-full md:w-32 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-400 relative overflow-hidden">
-                            {room.images && room.images[0] ? (
-                                <img src={room.images[0].url || room.images[0]} alt={room.title} className="w-full h-full object-cover" />
-                            ) : (
-                                <Bed size={32} />
-                            )}
-                        </div>
-                        <div className="flex-1 w-full text-center md:text-left">
-                            <h4 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{room.title}</h4>
-                            <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-[10px] font-bold uppercase text-gray-400">
-                                <span className="flex items-center gap-1"><Users size={12} /> Max {room.occupancy} People</span>
-                                <span className="flex items-center gap-1"><Building2 size={12} /> {room.qty} Rooms Total</span>
-                                <span className="flex items-center gap-1 text-green-600"><ShieldCheck size={12} /> Verified Category</span>
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900 uppercase">Room Inventory</h3>
+            </div>
+
+            <div className="space-y-4">
+                {rooms && rooms.length > 0 ? (
+                    rooms.map((room, i) => {
+                        const isExpanded = expandedRoomId === room._id;
+                        return (
+                            <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                <div
+                                    className="p-5 flex flex-col md:flex-row items-center gap-6 cursor-pointer"
+                                    onClick={() => setExpandedRoomId(isExpanded ? null : room._id)}
+                                >
+                                    <div className="w-full md:w-32 h-24 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-400 relative overflow-hidden">
+                                        {room.images && room.images[0] ? (
+                                            <img src={room.images[0].url || room.images[0]} alt={room.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Bed size={32} />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 w-full text-center md:text-left">
+                                        <h4 className="font-bold text-gray-900 text-lg uppercase tracking-tight">{room.name}</h4>
+                                        <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-[10px] font-bold uppercase text-gray-400">
+                                            <span className="flex items-center gap-1"><Users size={12} /> Max {room.maxAdults} Adults, {room.maxChildren} Child</span>
+                                            <span className="flex items-center gap-1"><Building2 size={12} /> {room.totalInventory} Rooms Total</span>
+                                            <span className="flex items-center gap-1 text-green-600"><ShieldCheck size={12} /> {room.inventoryType}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-gray-100 pt-4 md:pt-0">
+                                        <div className="text-center">
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Status</p>
+                                            <span className={`inline-block px-3 py-1 text-[10px] font-bold rounded-full uppercase ${room.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {room.isActive ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Price / Night</p>
+                                            <p className="text-xl font-bold text-gray-900">₹{room.pricePerNight}</p>
+                                        </div>
+                                        <ChevronLeft
+                                            size={20}
+                                            className={`text-gray-400 transition-transform duration-300 ${isExpanded ? '-rotate-90' : 'rotate-0'}`}
+                                        />
+                                    </div>
+                                </div>
+
+                                <AnimatePresence>
+                                    {isExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="border-t border-gray-100 bg-gray-50"
+                                        >
+                                            <div className="p-6">
+                                                {/* Details Grid */}
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Pricing Details</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Base Price</span>
+                                                                <span className="font-bold text-gray-900">₹{room.pricePerNight}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Extra Adult</span>
+                                                                <span className="font-bold text-gray-900">₹{room.extraAdultPrice}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Extra Child</span>
+                                                                <span className="font-bold text-gray-900">₹{room.extraChildPrice}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Configuration</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Category</span>
+                                                                <span className="font-bold text-gray-900 uppercase">{room.roomCategory}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Inventory Type</span>
+                                                                <span className="font-bold text-gray-900 uppercase">{room.inventoryType}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-gray-500 font-medium">Total Inventory</span>
+                                                                <span className="font-bold text-gray-900">{room.totalInventory} Units</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Amenities</h5>
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap gap-2">
+                                                            {room.amenities.map((amenity, idx) => (
+                                                                <span key={idx} className="px-2 py-1 bg-gray-50 rounded border border-gray-100 text-[10px] font-bold text-gray-600 uppercase">
+                                                                    {amenity}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Room Images */}
+                                                <div>
+                                                    <h5 className="text-[10px] font-bold uppercase text-gray-500 mb-3 block">Room Photos</h5>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {room.images && room.images.map((img, idx) => (
+                                                            <div key={idx} className="aspect-video bg-gray-200 rounded-lg overflow-hidden border border-gray-200 group relative">
+                                                                <img
+                                                                    src={img.url || img}
+                                                                    alt={`${room.name} ${idx}`}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-gray-100 pt-4 md:pt-0">
-                            <div className="text-center">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Quantity</p>
-                                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-sm font-bold rounded-full">{room.qty}</span>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Price / Night</p>
-                                <p className="text-xl font-bold text-gray-900">₹{room.price}</p>
-                            </div>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <div className="py-10 text-center text-gray-400 font-bold uppercase text-xs">No room data available</div>
-            )}
+                        );
+                    })
+                ) : (
+                    <div className="py-10 text-center text-gray-400 font-bold uppercase text-xs">No room data available</div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const BookingsTab = ({ bookings }) => (
     <div className="space-y-4">
@@ -470,8 +522,6 @@ const AdminHotelDetail = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
     const [verifying, setVerifying] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({});
 
     const fetchHotelDetails = useCallback(async () => {
         try {
@@ -493,31 +543,6 @@ const AdminHotelDetail = () => {
     useEffect(() => {
         fetchHotelDetails();
     }, [fetchHotelDetails]);
-
-    const handleEditOpen = () => {
-        setEditData({
-            propertyName: hotel.propertyName,
-            description: hotel.description,
-            shortDescription: hotel.shortDescription,
-            checkInTime: hotel.checkInTime,
-            checkOutTime: hotel.checkOutTime,
-            familyFriendly: hotel.familyFriendly,
-        });
-        setIsEditing(true);
-    };
-
-    const handleEditSave = async () => {
-        try {
-            const res = await adminService.updatePropertyDetails(hotel._id, editData);
-            if (res.success) {
-                toast.success('Property updated successfully');
-                fetchHotelDetails();
-                setIsEditing(false);
-            }
-        } catch {
-            toast.error('Failed to update property');
-        }
-    };
 
     const handleVerifyDocuments = (action, remark) => {
         if (!hotel) return;
@@ -557,8 +582,8 @@ const AdminHotelDetail = () => {
             isOpen: true,
             title: isSuspended ? 'Activate Hotel?' : 'Suspend Hotel?',
             message: isSuspended
-                ? `Hotel "${hotel.name}" will be able to receive bookings again.`
-                : `Suspending "${hotel.name}" will prevent it from receiving new bookings.`,
+                ? `Hotel "${hotel.propertyName}" will be able to receive bookings again.`
+                : `Suspending "${hotel.propertyName}" will prevent it from receiving new bookings.`,
             type: isSuspended ? 'success' : 'danger',
             confirmText: isSuspended ? 'Activate' : 'Suspend',
             onConfirm: async () => {
@@ -607,7 +632,7 @@ const AdminHotelDetail = () => {
             />
 
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-gray-500 mb-2">
-                <Link to="/admin/properties" className="hover:text-black transition-colors">Properties</Link>
+                <Link to="/admin/hotels" className="hover:text-black transition-colors">Hotels</Link>
                 <span>/</span>
                 <span className="text-black font-bold">{hotel.propertyName}</span>
             </div>
@@ -615,8 +640,8 @@ const AdminHotelDetail = () => {
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex items-center gap-5">
                     <div className="w-20 h-20 rounded-xl bg-gray-100 shadow-inner flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
-                        {hotel.coverImage ? (
-                            <img src={hotel.coverImage} alt="Property" className="w-full h-full object-cover" />
+                        {hotel.coverImage || (hotel.propertyImages && hotel.propertyImages[0]) ? (
+                            <img src={hotel.coverImage || (hotel.propertyImages && hotel.propertyImages[0].url) || (hotel.propertyImages && hotel.propertyImages[0])} alt="Hotel" className="w-full h-full object-cover" />
                         ) : (
                             <Building2 size={32} className="text-gray-300" />
                         )}
@@ -638,7 +663,7 @@ const AdminHotelDetail = () => {
                         <p className="text-gray-500 text-[10px] font-bold uppercase mt-1 flex items-center">
                             <MapPin size={12} className="mr-1 text-gray-400" /> {hotel.address?.city}, {hotel.address?.state}
                             <span className="mx-2 text-gray-300">|</span>
-                            Owner: {hotel.partnerId?.name || hotel.ownerId?.name || 'N/A'}
+                            Owner: {hotel.partnerId?.name || 'N/A'}
                         </p>
                     </div>
                 </div>
@@ -653,111 +678,11 @@ const AdminHotelDetail = () => {
                     >
                         {hotel.status === 'suspended' ? 'Activate' : 'Suspend'}
                     </button>
-                    <button
-                        onClick={handleEditOpen}
-                        className="flex-1 md:flex-none px-4 py-2 bg-black hover:bg-gray-800 text-white font-bold uppercase rounded-lg text-[10px] transition-colors shadow-lg"
-                    >
+                    <button className="flex-1 md:flex-none px-4 py-2 bg-black hover:bg-gray-800 text-white font-bold uppercase rounded-lg text-[10px] transition-colors shadow-lg">
                         Edit Details
                     </button>
                 </div>
             </div>
-
-            {/* Edit Modal */}
-            <AnimatePresence>
-                {isEditing && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                            onClick={() => setIsEditing(false)}
-                        />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl relative z-10 overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                <h2 className="text-xl font-black uppercase tracking-tight">Override Property Data</h2>
-                                <button onClick={() => setIsEditing(false)} className="text-gray-400 hover:text-black transition-colors"><XCircle size={24} /></button>
-                            </div>
-                            <div className="p-8 max-h-[70vh] overflow-y-auto space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-gray-500">Property Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={editData.propertyName}
-                                        onChange={(e) => setEditData({ ...editData, propertyName: e.target.value })}
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:outline-none focus:border-black transition-all"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-gray-500">Check In Time</label>
-                                        <input
-                                            type="text"
-                                            value={editData.checkInTime}
-                                            onChange={(e) => setEditData({ ...editData, checkInTime: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold uppercase"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-gray-500">Check Out Time</label>
-                                        <input
-                                            type="text"
-                                            value={editData.checkOutTime}
-                                            onChange={(e) => setEditData({ ...editData, checkOutTime: e.target.value })}
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold uppercase"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-gray-500">Short Description</label>
-                                    <textarea
-                                        value={editData.shortDescription}
-                                        onChange={(e) => setEditData({ ...editData, shortDescription: e.target.value })}
-                                        className="w-full h-20 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:outline-none focus:border-black transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase text-gray-500">Full Description</label>
-                                    <textarea
-                                        value={editData.description}
-                                        onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                                        className="w-full h-40 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:outline-none focus:border-black transition-all"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                                    <button
-                                        onClick={() => setEditData({ ...editData, familyFriendly: !editData.familyFriendly })}
-                                        className={`w-12 h-6 rounded-full transition-colors relative ${editData.familyFriendly ? 'bg-black' : 'bg-gray-300'}`}
-                                    >
-                                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${editData.familyFriendly ? 'translate-x-6' : ''}`} />
-                                    </button>
-                                    <span className="text-[10px] font-black uppercase text-gray-600">Family Friendly Property</span>
-                                </div>
-                            </div>
-                            <div className="p-8 border-t border-gray-100 flex gap-3">
-                                <button
-                                    onClick={() => setIsEditing(false)}
-                                    className="flex-1 py-4 border border-gray-100 rounded-2xl text-[10px] font-black uppercase text-gray-400 hover:bg-gray-50 transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleEditSave}
-                                    className="flex-1 py-4 bg-black text-white rounded-2xl text-[10px] font-black uppercase hover:shadow-xl transition-all"
-                                >
-                                    Save Changes
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
 
             <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar">
                 {tabs.map((tab) => (

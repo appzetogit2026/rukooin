@@ -26,12 +26,23 @@ const adminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['superadmin', 'admin', 'support', 'finance', 'verification'],
+    enum: ['admin', 'superadmin'],
     default: 'admin'
   },
   permissions: {
     type: [String],
     default: ['read', 'write', 'update', 'delete']
+  },
+  // Platform-based FCM tokens (app and web)
+  fcmTokens: {
+    app: {
+      type: String,
+      default: null
+    },
+    web: {
+      type: String,
+      default: null
+    }
   },
   isActive: {
     type: Boolean,

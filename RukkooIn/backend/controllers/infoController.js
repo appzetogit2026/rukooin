@@ -41,3 +41,17 @@ export const getPublicPlatformStatus = async (req, res) => {
   }
 };
 
+export const getFinancialSettings = async (req, res) => {
+  try {
+    const settings = await PlatformSettings.getSettings();
+    // Only expose taxRate to public/users. defaultCommission is internal usually, 
+    // but specific requirement asks for transparency or at least backend uses it.
+    // Frontend only needs taxRate for breakdown.
+    res.status(200).json({
+      success: true,
+      taxRate: settings.taxRate || 0
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error fetching financial settings' });
+  }
+};

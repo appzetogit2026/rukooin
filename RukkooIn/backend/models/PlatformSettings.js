@@ -24,35 +24,11 @@ const platformSettingsSchema = new mongoose.Schema(
     },
     defaultCommission: {
       type: Number,
-      default: 15
+      default: 10 // Percentage
     },
     taxRate: {
       type: Number,
-      default: 18
-    },
-    autoPayoutEnabled: {
-      type: Boolean,
-      default: false
-    },
-    defaultCheckInTime: {
-      type: String,
-      default: '12:00 PM'
-    },
-    defaultCheckOutTime: {
-      type: String,
-      default: '11:00 AM'
-    },
-    pgMinStay: {
-      type: Number,
-      default: 30 // days
-    },
-    supportEmail: {
-      type: String,
-      default: 'support@rukkoo.in'
-    },
-    supportPhone: {
-      type: String,
-      default: '+91 9999999999'
+      default: 12 // Percentage (GST)
     }
   },
   { timestamps: true }

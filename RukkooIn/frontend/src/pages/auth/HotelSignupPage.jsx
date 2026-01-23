@@ -4,11 +4,50 @@ import { useNavigate } from 'react-router-dom';
 import StepWrapper from '../../app/partner/components/StepWrapper';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useLenis } from '../../app/shared/hooks/useLenis';
-import { authService } from '../../services/apiService';
+import { authService, userService } from '../../services/apiService';
+import { requestNotificationPermission } from '../../utils/firebase';
 
 // Updated Steps Components
 import StepUserRegistration from '../../app/partner/steps/StepUserRegistration';
 import StepOwnerDetails from '../../app/partner/steps/StepOwnerDetails';
+
+const OTPInput = () => {
+    const { formData, updateFormData } = usePartnerStore();
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-[#004F4D]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#004F4D]"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                </div>
+                <h3 className="text-xl font-bold text-[#003836]">Verify Phone Number</h3>
+                <p className="text-sm text-gray-500">
+                    We've sent a 6-digit code to <span className="font-bold text-[#003836]">{formData.phone}</span>
+                </p>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-400 ml-1">One Time Password (OTP)</label>
+                <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    className="w-full h-14 text-center text-2xl font-bold tracking-widest border border-gray-200 rounded-xl focus:border-[#004F4D] focus:ring-2 focus:ring-[#004F4D]/10 outline-none transition-all placeholder:text-gray-200"
+                    value={formData.otpCode || ''}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        updateFormData({ otpCode: val });
+                    }}
+                    autoFocus
+                />
+            </div>
+
+            <p className="text-center text-xs text-gray-400">
+                Didn't receive code? <button className="text-[#004F4D] font-bold hover:underline">Resend</button>
+            </p>
+        </div>
+    );
+};
+
 
 const steps = [
     { id: 1, title: 'Registration', desc: 'Create your partner account' },
@@ -44,7 +83,7 @@ const HotelSignup = () => {
             nextStep();
         }
 
-        // --- STEP 2: OWNER DETAILS SUBMISSION ---
+        // --- STEP 2: OWNER DETAILS SUBMISSION & REGISTRATION ---
         else if (currentStep === 2) {
             // Validation
             if (!formData.owner_name) return setError('Owner Name is required');
@@ -58,22 +97,37 @@ const HotelSignup = () => {
                 return setError('Complete address details are required');
             }
 
-            // SUBMIT TO BACKEND (Register)
+            // SUBMIT REGISTRATION TO BACKEND
             setLoading(true);
             try {
-                // Ensure role is partner
-                const payload = { ...formData, role: 'partner' };
+                // Prepare clean payload with only required fields
+                const payload = {
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    owner_name: formData.owner_name,
+                    aadhaar_number: formData.aadhaar_number,
+                    aadhaar_front: formData.aadhaar_front,
+                    aadhaar_back: formData.aadhaar_back,
+                    pan_number: formData.pan_number,
+                    pan_card_image: formData.pan_card_image,
+                    owner_address: formData.owner_address,
+                    termsAccepted: formData.termsAccepted,
+                    role: 'partner'
+                };
+
                 const response = await authService.registerPartner(payload);
+                setLoading(false);
 
-                console.log("Registration Success:", response);
-                alert("Registration successful. Your account is pending admin approval.");
+                // Show success message
+                alert(response.message || 'Registration successful! Your account is pending admin approval. You can login once approved.');
+
+                // Redirect to login
                 navigate('/hotel/login');
-
             } catch (err) {
+                setLoading(false);
                 console.error("Registration Error:", err);
                 setError(err.message || "Registration failed. Please check your details.");
-            } finally {
-                setLoading(false);
             }
         }
     };

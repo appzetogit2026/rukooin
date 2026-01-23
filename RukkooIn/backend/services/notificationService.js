@@ -1,6 +1,5 @@
 import { getFirebaseAdmin } from '../config/firebase.js';
 import User from '../models/User.js';
-import Partner from '../models/Partner.js';
 import Notification from '../models/Notification.js';
 
 class NotificationService {
@@ -118,8 +117,6 @@ class NotificationService {
         // Dynamic import to avoid circular dependency issues if any, or just standard import
         const Admin = (await import('../models/Admin.js')).default;
         user = await Admin.findById(userId);
-      } else if (userType === 'partner') {
-        user = await Partner.findById(userId);
       } else {
         user = await User.findById(userId);
       }

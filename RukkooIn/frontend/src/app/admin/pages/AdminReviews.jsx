@@ -55,8 +55,7 @@ const AdminReviews = () => {
 
     const [filters, setFilters] = useState({
         status: '',
-        rating: '',
-        search: ''
+        rating: ''
     });
 
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -69,8 +68,7 @@ const AdminReviews = () => {
                 page,
                 limit,
                 status: currentFilters.status,
-                rating: currentFilters.rating,
-                search: currentFilters.search
+                rating: currentFilters.rating
             };
             const data = await adminService.getReviews(params);
             if (data.success) {
@@ -156,16 +154,18 @@ const AdminReviews = () => {
             return;
         }
 
-        const headers = ['ID', 'User', 'Property', 'Rating', 'Comment', 'Status', 'Date'];
+        const headers = ['ID', 'User', 'Hotel', 'Rating', 'Comment', 'Status', 'Helpful', 'Reports', 'Date'];
         const csvContent = [
             headers.join(','),
             ...reviews.map(r => [
                 r._id,
                 `"${r.userId?.name || 'Guest'}"`,
-                `"${r.propertyId?.propertyName || 'Deleted Property'}"`,
+                `"${r.hotelId?.name || 'Deleted Hotel'}"`,
                 r.rating,
                 `"${(r.comment || '').replace(/"/g, '""')}"`,
                 r.status,
+                r.helpful || 0,
+                r.reportedCount || 0,
                 new Date(r.createdAt).toLocaleDateString()
             ].join(','))
         ].join('\n');
@@ -206,16 +206,6 @@ const AdminReviews = () => {
             </div>
 
             <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
-                <div className="relative flex-1 w-full">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by User, Property or Comment..."
-                        value={filters.search}
-                        onChange={(e) => handleFilterChange('search', e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase focus:bg-white focus:border-black outline-none transition-all"
-                    />
-                </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <select
                         value={filters.status}
@@ -225,6 +215,7 @@ const AdminReviews = () => {
                         <option value="">All Status</option>
                         <option value="approved">Approved</option>
                         <option value="pending">Pending</option>
+                        <option value="flagged">Flagged</option>
                         <option value="rejected">Rejected</option>
                     </select>
 
@@ -268,7 +259,7 @@ const AdminReviews = () => {
                                                         <StarRating rating={review.rating} />
                                                     </div>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                                                        Reviewed <Link to={`/admin/properties/${review.propertyId?._id}`} className="text-black font-bold hover:underline">{review.propertyId?.propertyName || 'Deleted Property'}</Link> • {new Date(review.createdAt).toLocaleDateString()}
+                                                        Reviewed <Link to={`/admin/hotels/${review.hotelId?._id}`} className="text-black font-bold hover:underline">{review.hotelId?.name || 'Deleted Hotel'}</Link> • {new Date(review.createdAt).toLocaleDateString()}
                                                     </p>
                                                 </div>
                                                 <StatusBadge status={review.status} />

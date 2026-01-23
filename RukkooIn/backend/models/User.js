@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    unique: true,
     sparse: true, // Allows null/undefined values to duplicate (i.e., multiple users without email)
     lowercase: true,
     trim: true
@@ -16,27 +15,39 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
-  // Removed password field as we are using OTP based auth primarily, 
-  // but if needed for future email/pass, we can keep it. 
-  // Based on current authController, it seems password is NOT used (OTP only).
-  // The previous User model had 'password' required, but authController didn't seem to use it for login?
-  // Let's check authController again. It generates OTP. 
-  // Wait, the previous model had `password: { type: String, required: true }`.
-  // If the user was signing up with OTP, how was password set?
-  // Let's check `authController.js` register logic.
-  
+  password: {
+    type: String,
+    required: true
+  },
   role: {
     type: String,
-    default: 'user',
-    immutable: true
+    enum: ['user', 'partner'],
+    default: 'user'
   },
-  
-  fcmToken: {
+  isPartner: {
+    type: Boolean,
+    default: false
+  },
+  partnerApprovalStatus: {
     type: String,
-    default: null
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  partnerSince: {
+    type: Date
+  },
+  // Platform-based FCM tokens (app and web)
+  fcmTokens: {
+    app: {
+      type: String,
+      default: null
+    },
+    web: {
+      type: String,
+      default: null
+    }
   },
   isVerified: {
     type: Boolean,
@@ -57,26 +68,35 @@ const userSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
+  aadhaarNumber: { type: String, trim: true },
+  aadhaarFront: { type: String }, // URL
+  aadhaarBack: { type: String }, // URL
+  panNumber: { type: String, trim: true },
+  panCardImage: { type: String }, // URL
   termsAccepted: { type: Boolean, default: false },
 
-  // Auth
+  // Status tracking
+  registrationStep: {
+    type: Number,
+    default: 1 // 1: Basic, 2: Details, 3: Completed
+  },
   otp: {
     type: String,
-    select: false 
+    select: false // Do not return OTP in queries by default
   },
   otpExpires: {
     type: Date,
     select: false
   },
-  isBlocked: {
-    type: Boolean,
-    default: false
-  },
-  isSuspicious: {
-    type: Boolean,
-    default: false
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 }, { timestamps: true });
+
+// Compound indexes to allow same phone/email for different roles
+userSchema.index({ phone: 1, role: 1 }, { unique: true });
+userSchema.index({ email: 1, role: 1 }, { unique: true, sparse: true });
 
 const User = mongoose.model('User', userSchema);
 export default User;

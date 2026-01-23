@@ -58,9 +58,9 @@ const PartnerWallet = () => {
             setLoading(true);
             setError(null);
             const [walletRes, statsRes, txnRes] = await Promise.all([
-                walletService.getWallet(),
-                walletService.getWalletStats(),
-                walletService.getTransactions({ limit: 10 })
+                walletService.getWallet({ viewAs: 'partner' }),
+                walletService.getWalletStats({ viewAs: 'partner' }),
+                walletService.getTransactions({ limit: 10, viewAs: 'partner' })
             ]);
 
             setWallet(walletRes.wallet);

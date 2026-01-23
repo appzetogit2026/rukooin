@@ -57,13 +57,12 @@ const AdminPartners = () => {
                 page,
                 limit,
                 search: currentFilters.search,
-                role: 'partner', // Enforce partner role
                 status: currentFilters.status,
                 approvalStatus: currentFilters.approvalStatus
             };
-            const data = await adminService.getUsers(params);
+            const data = await adminService.getPartners(params);
             if (data.success) {
-                setUsers(data.users);
+                setUsers(data.partners);
                 setTotalUsers(data.total);
                 setTotalPages(Math.ceil(data.total / limit));
             }
@@ -92,7 +91,7 @@ const AdminPartners = () => {
 
     const handleUpdateStatus = async (userId, isBlocked) => {
         try {
-            const res = await adminService.updateUserStatus(userId, isBlocked);
+            const res = await adminService.updatePartnerStatus(userId, isBlocked);
             if (res.success) {
                 toast.success(`Partner ${isBlocked ? 'blocked' : 'unblocked'} successfully`);
                 fetchUsers(currentPage, filters);
@@ -161,7 +160,7 @@ const AdminPartners = () => {
                 confirmText: 'Delete Partner',
                 onConfirm: async () => {
                     try {
-                        const res = await adminService.deleteUser(user._id, 'partner');
+                        const res = await adminService.deletePartner(user._id);
                         if (res.success) {
                             toast.success('Partner deleted successfully');
                             fetchUsers(currentPage, filters);
@@ -229,49 +228,29 @@ const AdminPartners = () => {
                 </div>
             </div>
 
-            {/* Filter & Tabs Bar */}
-            <div className="space-y-4">
-                <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar">
-                    {[
-                        { id: 'all', label: 'All Partners', filter: { status: '', approvalStatus: '' } },
-                        { id: 'pending', label: 'Pending Approval', filter: { status: '', approvalStatus: 'pending' } },
-                        { id: 'approved', label: 'Approved', filter: { status: '', approvalStatus: 'approved' } },
-                        { id: 'rejected', label: 'Rejected', filter: { status: '', approvalStatus: 'rejected' } },
-                        { id: 'blocked', label: 'Blocked / Suspended', filter: { status: 'blocked', approvalStatus: '' } },
-                    ].map((tab) => {
-                        const isActive =
-                            filters.status === tab.filter.status &&
-                            filters.approvalStatus === tab.filter.approvalStatus;
-
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => {
-                                    setFilters(prev => ({ ...prev, ...tab.filter }));
-                                    setCurrentPage(1);
-                                }}
-                                className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase transition-all relative whitespace-nowrap tracking-widest ${isActive ? 'text-black' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                {tab.label}
-                                {isActive && (
-                                    <motion.div layoutId="partnerListTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
-                                )}
-                            </button>
-                        );
-                    })}
+            {/* Filter Bar */}
+            <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="Search via name, email or phone..."
+                        value={filters.search}
+                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
+                    />
                 </div>
-
-                <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">
-                    <div className="relative flex-1">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search via name, email or phone..."
-                            value={filters.search}
-                            onChange={(e) => handleFilterChange('search', e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl text-xs font-bold uppercase focus:bg-white focus:border-black outline-none transition-all tracking-tight"
-                        />
-                    </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    {/* Role select removed as this is strictly for Partners */}
+                    <select
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange('status', e.target.value)}
+                        className="px-4 py-2 bg-gray-50 border border-transparent rounded-xl text-[10px] font-bold uppercase outline-none focus:bg-white focus:border-black transition-all"
+                    >
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="blocked">Blocked</option>
+                    </select>
                 </div>
             </div>
 

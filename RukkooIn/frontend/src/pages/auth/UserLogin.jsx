@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
-import { authService } from '../../services/apiService';
-import notificationService from '../../services/notificationService.jsx'; // Added
+import { authService, userService } from '../../services/apiService';
+import { requestNotificationPermission } from '../../utils/firebase';
 
 const UserLogin = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
     const [phone, setPhone] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Pre-fill phone if coming from signup
+    useEffect(() => {
+        if (location.state?.phone) {
+            setPhone(location.state.phone);
+        }
+    }, [location]);
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
@@ -28,7 +36,17 @@ const UserLogin = () => {
             await authService.sendOtp(phone, 'login');
             setStep(2);
         } catch (err) {
-            setError(err.message || 'Failed to send OTP');
+            // Check if account doesn't exist
+            if (err.response?.data?.requiresRegistration ||
+                err.response?.status === 404 ||
+                err.message?.includes('Account not found')) {
+                setError('Account not found. Redirecting to signup...');
+                setTimeout(() => {
+                    navigate('/signup', { state: { phone } });
+                }, 1500);
+            } else {
+                setError(err.message || 'Failed to send OTP');
+            }
             console.error(err);
         } finally {
             setLoading(false);
@@ -57,16 +75,31 @@ const UserLogin = () => {
 
         try {
             setLoading(true);
-            const response = await authService.verifyOtp({ phone, otp: otpString });
+            await authService.verifyOtp({ phone, otp: otpString });
 
-            // Sync FCM Token
-            if (response.user && response.user._id) {
-                notificationService.init(response.user._id);
+            // Update FCM Token
+            try {
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await userService.updateFcmToken(token, 'web');
+                }
+            } catch (fcmError) {
+                console.warn('FCM update failed', fcmError);
             }
 
             navigate('/');
         } catch (err) {
-            setError(err.message || 'Verification failed');
+            // Check if error is due to account not found
+            if (err.response?.data?.requiresRegistration ||
+                err.response?.status === 404 ||
+                err.message?.includes('Account not found')) {
+                setError('Account not found. Redirecting to signup...');
+                setTimeout(() => {
+                    navigate('/signup', { state: { phone } });
+                }, 1500);
+            } else {
+                setError(err.message || 'Verification failed');
+            }
             console.error(err);
         } finally {
             setLoading(false);

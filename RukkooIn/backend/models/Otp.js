@@ -14,6 +14,10 @@ const otpSchema = new mongoose.Schema({
     type: Date,
     required: true,
     default: () => Date.now() + 10 * 60 * 1000 // 10 minutes
+  },
+  tempData: {
+    type: Object, // Store temp registration data
+    default: null
   }
 }, { timestamps: true });
 

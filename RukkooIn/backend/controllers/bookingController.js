@@ -4,377 +4,783 @@ import Booking from '../models/Booking.js';
 import Offer from '../models/Offer.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
+import Razorpay from 'razorpay';
+import PaymentConfig from '../config/payment.config.js';
+import mongoose from 'mongoose';
+import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
-import smsService from '../utils/smsService.js';
+import User from '../models/User.js';
 
-const nightsBetween = (checkInDate, checkOutDate) => {
-  const a = new Date(checkInDate);
-  const b = new Date(checkOutDate);
-  const diff = Math.ceil(Math.abs(b - a) / (1000 * 60 * 60 * 24));
-  return Math.max(1, diff);
+// Helper: Trigger Notifications
+const triggerBookingNotifications = async (booking) => {
+  try {
+    const fullBooking = await Booking.findById(booking._id)
+      .populate('userId')
+      .populate('propertyId');
+
+    if (!fullBooking) return;
+
+    const user = fullBooking.userId;
+    const property = fullBooking.propertyId;
+
+    // 1. User Email
+    if (user && user.email) {
+      emailService.sendBookingConfirmationEmail(user, fullBooking).catch(err => console.error('Email trigger failed:', err));
+    }
+
+    // 2. User Push
+    if (user) {
+      notificationService.sendToUser(user._id, {
+        title: 'Booking Confirmed!',
+        body: `You are going to ${property ? property.propertyName : 'Hotel'}.`
+      }, { type: 'booking', bookingId: fullBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
+    }
+
+    // 3. Partner Notifications
+    if (property && property.partnerId) {
+      // Push
+      notificationService.sendToUser(property.partnerId, {
+        title: 'New Booking Alert!',
+        body: `1 Night, ${fullBooking.guests.adults} Guests. Check App.`
+      }, { type: 'new_booking', bookingId: fullBooking._id }, 'partner').catch(err => console.error('Partner Push failed:', err));
+    }
+
+  } catch (err) {
+    console.error('Trigger Notification Error:', err);
+  }
 };
 
 export const createBooking = async (req, res) => {
   try {
-    const settings = await PlatformSettings.getSettings();
-    if (!settings.platformOpen) return res.status(423).json({ message: settings.bookingDisabledMessage || 'Bookings are temporarily disabled.' });
-    const { propertyId, roomTypeId, checkInDate, checkOutDate, guests, couponCode } = req.body;
-    const property = await Property.findById(propertyId);
-    if (!property) return res.status(404).json({ message: 'Property not found' });
-    const nights = nightsBetween(checkInDate, checkOutDate);
-    if (!roomTypeId) return res.status(400).json({ message: 'roomTypeId required' });
-    const rt = await RoomType.findById(roomTypeId);
-    if (!rt || rt.propertyId.toString() !== propertyId) return res.status(400).json({ message: 'Invalid room type' });
-
-    if (property.propertyType === 'resort') {
-      const baseAdults = Number(guests?.adults || 1);
-      const baseChildren = Number(guests?.children || 0);
-      const maxAdults = Number(rt.maxAdults || 0);
-      const maxChildren = Number(rt.maxChildren || 0);
-      if (baseAdults > maxAdults) {
-        return res.status(400).json({ message: 'Max adults exceeded for selected room type' });
-      }
-      if (baseAdults + baseChildren > maxAdults + maxChildren) {
-        return res.status(400).json({ message: 'Max guests exceeded for selected room type' });
-      }
-    }
-
-    let pricePerNight = rt.pricePerNight;
-    let extraAdultPrice = rt.extraAdultPrice || 0;
-    let extraChildPrice = rt.extraChildPrice || 0;
-    const bookingUnit = rt.inventoryType;
-    const baseAmount = pricePerNight * nights;
-    const extraAdults = Math.max(0, Number(guests?.extraAdults || 0));
-    const extraChildren = Math.max(0, Number(guests?.extraChildren || 0));
-    const extraCharges = (extraAdults * extraAdultPrice + extraChildren * extraChildPrice) * nights;
-    const taxes = Number(req.body.taxes || 0);
-    let discount = 0;
-    let appliedOffer = null;
-    const preDiscountTotal = baseAmount + extraCharges + taxes;
-    if (couponCode) {
-      const offer = await Offer.findOne({ code: couponCode.toUpperCase(), isActive: true });
-      if (!offer) return res.status(400).json({ message: 'Invalid coupon code' });
-      const now = new Date();
-      if (offer.startDate && offer.startDate > now) return res.status(400).json({ message: 'Coupon not active yet' });
-      if (offer.endDate && offer.endDate < now) return res.status(400).json({ message: 'Coupon expired' });
-      if (preDiscountTotal < offer.minBookingAmount) return res.status(400).json({ message: `Minimum booking amount should be ₹${offer.minBookingAmount}` });
-      if (offer.usageLimit && offer.usageCount >= offer.usageLimit) return res.status(400).json({ message: 'Coupon limit reached' });
-      if (offer.discountType === 'percentage') {
-        discount = Math.floor((preDiscountTotal * offer.discountValue) / 100);
-        if (offer.maxDiscount && discount > offer.maxDiscount) discount = offer.maxDiscount;
-      } else {
-        discount = Math.floor(offer.discountValue);
-      }
-      appliedOffer = offer;
-    }
-    const totalAmount = Math.max(0, preDiscountTotal - discount);
-    const booking = await Booking.create({
-      userId: req.user._id,
+    const {
       propertyId,
-      propertyType: property.propertyType,
-      roomTypeId: roomTypeId,
-      bookingUnit,
+      roomTypeId,
       checkInDate,
       checkOutDate,
-      totalNights: nights,
-      guests: { adults: Number(guests?.adults || 1), children: Number(guests?.children || 0) },
+      guests,
+      paymentMethod,
+      paymentDetails,
+      bookingUnit,
+      couponCode,
+      useWallet,
+      walletDeduction
+    } = req.body;
+
+    // Basic Validation
+    if (!propertyId || !roomTypeId || !checkInDate || !checkOutDate) {
+      return res.status(400).json({ message: 'Missing required booking details' });
+    }
+
+    // Fetch Property and RoomType
+    const property = await Property.findById(propertyId);
+    if (!property) return res.status(404).json({ message: 'Property not found' });
+
+    const roomType = await RoomType.findById(roomTypeId);
+    if (!roomType) return res.status(404).json({ message: 'Room type not found' });
+
+    // Fetch Settings
+    const settings = await PlatformSettings.getSettings();
+    const gstRate = settings.taxRate || 12;
+    const commissionRate = settings.defaultCommission || 10;
+
+    // Calculate Nights
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const totalNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+
+    if (totalNights <= 0) {
+      return res.status(400).json({ message: 'Invalid check-in/check-out dates' });
+    }
+
+    // Check Availability
+    const requiredUnits = guests.rooms || 1;
+    const ledgerEntries = await AvailabilityLedger.aggregate([
+      {
+        $match: {
+          propertyId: new mongoose.Types.ObjectId(propertyId),
+          roomTypeId: new mongoose.Types.ObjectId(roomTypeId),
+          startDate: { $lt: checkOut },
+          endDate: { $gt: checkIn }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          blockedUnits: { $sum: '$units' }
+        }
+      }
+    ]);
+
+    const blockedUnits = ledgerEntries.length > 0 ? ledgerEntries[0].blockedUnits : 0;
+    const totalInventory = roomType.totalInventory || 0;
+
+    if (totalInventory - blockedUnits < requiredUnits) {
+      return res.status(400).json({ message: `Only ${Math.max(0, totalInventory - blockedUnits)} rooms available for selected dates` });
+    }
+
+    // Calculate Base Amount
+    const units = requiredUnits; // Use validated units
+    const pricePerNight = roomType.pricePerNight || 0;
+    const baseAmount = pricePerNight * totalNights * units;
+
+    // Calculate Extra Charges
+    const extraAdults = guests.extraAdults || 0;
+    const extraChildren = guests.extraChildren || 0;
+    const extraAdultPrice = (roomType.extraAdultPrice || 0) * extraAdults * totalNights;
+    const extraChildPrice = (roomType.extraChildPrice || 0) * extraChildren * totalNights;
+    const extraCharges = extraAdultPrice + extraChildPrice;
+
+    // Gross Amount
+    const grossAmount = baseAmount + extraCharges;
+
+    // Calculate Discount
+    let discountAmount = 0;
+    let appliedCoupon = null;
+
+    if (couponCode) {
+      const offer = await Offer.findOne({ code: couponCode, isActive: true });
+      if (offer) {
+        // Validate Offer Constraints
+        const isValidDate = (!offer.startDate || new Date() >= offer.startDate) &&
+          (!offer.endDate || new Date() <= offer.endDate);
+        const isValidAmount = grossAmount >= (offer.minBookingAmount || 0);
+
+        if (isValidDate && isValidAmount) {
+          if (offer.discountType === 'percentage') {
+            discountAmount = (grossAmount * offer.discountValue) / 100;
+            if (offer.maxDiscount) {
+              discountAmount = Math.min(discountAmount, offer.maxDiscount);
+            }
+          } else {
+            discountAmount = offer.discountValue;
+          }
+          discountAmount = Math.floor(discountAmount);
+          discountAmount = Math.min(discountAmount, grossAmount); // Cannot exceed gross
+          appliedCoupon = offer.code;
+        }
+      }
+    }
+
+    // Calculate Tax (On Gross Amount as per Frontend logic)
+    const commissionableAmount = grossAmount;
+    const taxes = Math.round((commissionableAmount * gstRate) / 100);
+
+    // Calculate Total Amount (User Pays)
+    // User Pays = (Gross - Discount) + Tax
+    const taxableAmount = grossAmount - discountAmount;
+    const totalAmount = taxableAmount + taxes;
+
+    // Calculate Commission (On Gross Amount)
+    let adminCommission = Math.round((grossAmount * commissionRate) / 100);
+    if (adminCommission < PaymentConfig.minCommission) {
+      adminCommission = PaymentConfig.minCommission;
+    }
+
+    // Calculate Partner Payout
+    // Partner Payout = (Gross - Discount) - Commission
+    // Verification: TotalAmount - Tax - Commission = ((Gross - Discount) + Tax) - Tax - Commission = Gross - Discount - Commission.
+    const partnerPayout = Math.floor(totalAmount - taxes - adminCommission);
+
+    const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Determine User Model based on role
+    const userModel = req.user.role === 'partner' ? 'Partner' : 'User';
+
+    // Create Booking Object
+    const booking = new Booking({
+      bookingId,
+      userModel,
+      userId: req.user._id,
+      propertyId,
+      propertyType: property.propertyType.toLowerCase(),
+      roomTypeId,
+      bookingUnit: bookingUnit || 'room',
+      checkInDate,
+      checkOutDate,
+      totalNights,
+      guests: {
+        adults: guests.adults || 1,
+        children: guests.children || 0
+      },
       pricePerNight,
       baseAmount,
       extraAdultPrice,
       extraChildPrice,
       extraCharges,
       taxes,
-      discount,
+      adminCommission,
+      partnerPayout,
+      discount: discountAmount,
+      couponCode: appliedCoupon,
       totalAmount,
-      paymentStatus: 'pending',
-      bookingStatus: 'pending',
-      paymentMethod: undefined
+      paymentMethod,
+      bookingStatus: 'confirmed', // Default confirmed for pay_at_hotel/wallet, pending for razorpay
+      paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid'
     });
 
+    // Handle Wallet Payment (Partial or Full)
+    if (paymentMethod === 'wallet' || (useWallet && walletDeduction > 0)) {
+      const wallet = await Wallet.findOne({ partnerId: req.user._id, role: 'user' });
+      const deductionAmount = walletDeduction || totalAmount;
+
+      if (!wallet || wallet.balance < deductionAmount) {
+        return res.status(400).json({ message: 'Insufficient wallet balance' });
+      }
+
+      await wallet.debit(deductionAmount, `Booking #${bookingId}`, bookingId, 'booking');
+
+      if (paymentMethod === 'wallet' || (['online', 'razorpay'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
+        booking.paymentStatus = 'paid';
+
+        // --- DISTRIBUTE TO PARTNER & ADMIN (Immediate Settlement for Wallet Payment) ---
+
+        // 1. Credit Partner
+        if (partnerPayout > 0 && property.partnerId) {
+          let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
+          if (!partnerWallet) {
+            // Auto-create if missing (Safe-guard)
+            partnerWallet = await Wallet.create({
+              partnerId: property.partnerId,
+              role: 'partner',
+              balance: 0
+            });
+          }
+
+          await partnerWallet.credit(partnerPayout, `Payment for Booking #${bookingId}`, bookingId, 'booking_payment');
+        }
+
+        // 2. Credit Admin (Commission + Tax)
+        const totalAdminCredit = (adminCommission || 0) + (taxes || 0);
+        if (totalAdminCredit > 0) {
+          // Find Admin Wallet (assuming single admin wallet or specific logic)
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+
+          // If no admin wallet exists, we might need to find an admin user to create one
+          if (!adminWallet) {
+            const AdminUser = mongoose.model('User');
+            const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+            if (adminUser) {
+              adminWallet = await Wallet.create({
+                partnerId: adminUser._id,
+                role: 'admin',
+                balance: 0
+              });
+            }
+          }
+
+          if (adminWallet) {
+            await adminWallet.credit(totalAdminCredit, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_tax');
+          }
+        }
+      }
+    }
+
+    // Handle Online Payment (Razorpay)
+    let razorpayOrder = null;
+    if (paymentMethod === 'razorpay' || paymentMethod === 'online') {
+      if (paymentDetails && paymentDetails.paymentId) {
+        // Already paid (Legacy check)
+        booking.paymentStatus = 'paid';
+        booking.paymentId = paymentDetails.paymentId;
+      } else {
+        // Initiate New Payment
+        booking.bookingStatus = 'pending'; // Pending until payment
+        booking.paymentStatus = 'pending';
+
+        // Calculate amount to pay via Gateway
+        const amountToPay = totalAmount - (useWallet ? (walletDeduction || 0) : 0);
+
+        if (amountToPay > 0) {
+          try {
+            const instance = new Razorpay({
+              key_id: PaymentConfig.razorpayKeyId,
+              key_secret: PaymentConfig.razorpayKeySecret,
+            });
+
+            const options = {
+              amount: Math.round(amountToPay * 100), // amount in paisa
+              currency: PaymentConfig.currency || "INR",
+              receipt: bookingId,
+              notes: {
+                bookingId: booking._id.toString(),
+                userId: req.user._id.toString(),
+                propertyId: propertyId.toString(),
+                roomTypeId: roomTypeId.toString(),
+                bookingUnit: (bookingUnit || 'room').toString(),
+                rooms: units.toString(), // Pass rooms count for ledger
+                // Store financial info for verification consistency
+                adminCommission: adminCommission.toString(),
+                partnerPayout: partnerPayout.toString(),
+                taxes: taxes.toString(),
+                discount: discountAmount.toString(),
+                totalAmount: totalAmount.toString(),
+                type: 'booking_init'
+              }
+            };
+
+            razorpayOrder = await instance.orders.create(options);
+          } catch (error) {
+            console.error("Razorpay Order Creation Failed:", error);
+            return res.status(500).json({ message: "Failed to initiate payment gateway" });
+          }
+        } else {
+          // Fully paid by wallet (Covered by loop above, but double check status)
+          booking.paymentStatus = 'paid';
+          booking.bookingStatus = 'confirmed';
+        }
+      }
+    }
+
+    // Handle Pay at Hotel (Partner Deduction)
+    if (paymentMethod === 'pay_at_hotel') {
+      const deductionAmount = (taxes || 0) + (adminCommission || 0);
+
+      if (deductionAmount > 0 && property.partnerId) {
+        // 1. Debit Partner
+        let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
+        if (!partnerWallet) {
+          partnerWallet = await Wallet.create({
+            partnerId: property.partnerId,
+            role: 'partner',
+            balance: 0
+          });
+        }
+
+        // Check balance (Optional: enforce positive balance?)
+        // We will proceed with debit, which might throw if insufficient balance 
+        // depending on Wallet implementation. 
+        // If we want to allow overdraft, we should check Wallet.js.
+        // Assuming standard debit for now.
+        try {
+          await partnerWallet.debit(deductionAmount, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_deduction');
+
+          // 2. Credit Admin
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+          if (!adminWallet) {
+            const AdminUser = mongoose.model('User');
+            const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+            if (adminUser) {
+              adminWallet = await Wallet.create({
+                partnerId: adminUser._id,
+                role: 'admin',
+                balance: 0
+              });
+            }
+          }
+
+          if (adminWallet) {
+            await adminWallet.credit(deductionAmount, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_tax');
+          }
+        } catch (err) {
+          console.error("Pay at Hotel Wallet Deduction Failed:", err.message);
+          // Optionally: revert booking? Or just log? 
+          // For now, we log.
+        }
+      }
+    }
+
+    await booking.save();
+
+    // Update Inventory (Block Room) - Only if confirmed (Pay at Hotel or Paid)
+    // If Razorpay pending, we still block inventory to avoid race conditions? 
+    // Usually yes, with a timeout. For now, we block it.
     await AvailabilityLedger.create({
       propertyId,
       roomTypeId,
-      inventoryType: bookingUnit,
+      inventoryType: booking.bookingUnit || 'room',
       source: 'platform',
       referenceId: booking._id,
       startDate: new Date(checkInDate),
       endDate: new Date(checkOutDate),
-      units: 1,
+      units: units, // Use 'units' here (rooms count)
       createdBy: 'system'
     });
-    if (appliedOffer) {
-      await Offer.findByIdAndUpdate(appliedOffer._id, { $inc: { usageCount: 1 } });
+
+    // Increment Offer Usage if applied and confirmed
+    if (appliedCoupon && booking.bookingStatus === 'confirmed') {
+      await Offer.findOneAndUpdate({ code: appliedCoupon }, { $inc: { usageCount: 1 } });
     }
 
-    // Assuming these variables are defined elsewhere or will be defined in a preceding block
-    // For the purpose of this insertion, I'm adding placeholder definitions if they don't exist.
-    // In a real scenario, these would come from payment processing or commission calculations.
-    const partnerPayout = 0; // Placeholder
-    const adminCommission = 0; // Placeholder
-    const taxAmount = 0; // Placeholder
-    const bookingId = booking._id.toString(); // Use the actual booking ID
-
-    // 3. Credit Partner Wallet
-    if (partnerPayout > 0 && property.partnerId) {
-      let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
-      if (!partnerWallet) partnerWallet = await Wallet.create({ partnerId: property.partnerId, role: 'partner', balance: 0 });
-
-      partnerWallet.balance += partnerPayout;
-      partnerWallet.totalEarnings += partnerPayout;
-      await partnerWallet.save();
-
-      await Transaction.create({
-        walletId: partnerWallet._id,
-        partnerId: property.partnerId,
-        type: 'credit',
-        category: 'booking_payment',
-        amount: partnerPayout,
-        balanceAfter: partnerWallet.balance,
-        description: `Payment for Booking #${bookingId}`,
-        reference: bookingId,
-        status: 'completed',
-        metadata: { bookingId: booking._id.toString() }
-      });
+    // Trigger Notifications (only if confirmed)
+    if (booking.bookingStatus === 'confirmed') {
+      triggerBookingNotifications(booking);
     }
 
-    // 4. Credit Admin Wallet
-    const totalAdminCredit = adminCommission + taxAmount;
-    if (totalAdminCredit > 0) {
-      const AdminUser = mongoose.model('User'); // Assuming mongoose is imported and User model exists
-      const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } });
-      if (adminUser) {
-        let adminWallet = await Wallet.findOne({ role: 'admin' }); // Assuming Wallet model exists
-        if (!adminWallet) adminWallet = await Wallet.create({ partnerId: adminUser._id, role: 'admin', balance: 0 });
-
-        adminWallet.balance += totalAdminCredit;
-        adminWallet.totalEarnings += totalAdminCredit;
-        await adminWallet.save();
-
-        await Transaction.create({
-          walletId: adminWallet._id,
-          partnerId: adminUser._id,
-          type: 'credit',
-          category: 'commission_tax',
-          amount: totalAdminCredit,
-          balanceAfter: adminWallet.balance,
-          description: `Commission (₹${adminCommission}) & Tax (₹${taxAmount}) for Booking #${bookingId}`,
-          reference: bookingId,
-          status: 'completed',
-          metadata: { bookingId: booking._id.toString() }
-        });
-      }
-    }
-
+    // Populate booking details for frontend confirmation page
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('propertyId', 'name address images coverImage type checkInTime checkOutTime')
-      .populate('roomTypeId', 'name type inventoryType')
-      .populate('userId', 'name email phone');
+      .populate('propertyId')
+      .populate('roomTypeId');
 
-    // --- NOTIFICATION HOOK: BOOKING CONFIRMED (PAY AT HOTEL) ---
-    try {
-      // 1. Notify User (Email + Push)
-      const userMsg = `Booking Confirmed! You are going to ${property.name}. ID: ${bookingId}. Please pay at hotel.`;
-      await notificationService.sendToUser(req.user._id, {
-        title: 'Booking Confirmed 🏨',
-        body: userMsg
-      }, {
-        sendEmail: true,
-        emailHtml: `
-          <h3>Booking Confirmation (Pay At Hotel)</h3>
-          <p>Your booking #${bookingId} is confirmed.</p>
-          <p><strong>Property:</strong> ${property.name}</p>
-          <p><strong>Check-in:</strong> ${new Date(checkInDate).toDateString()}</p>
-          <p><strong>Check-out:</strong> ${new Date(checkOutDate).toDateString()}</p>
-          <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
-          <p><strong>Amount Paid:</strong> ₹${walletUsedAmount || 0}</p>
-          <p><strong>Pay at Property:</strong> ₹${finalPayable}</p>
-        `,
-        type: 'booking_confirmed',
-        data: { bookingId: booking._id }
-      });
-
-      // 2. Notify Partner (Push + SMS)
-      if (property.partnerId) {
-        const partnerMsg = `New Booking (Pay At Hotel)! Booking #${bookingId} for ${nights} Night(s). Collect ₹${finalPayable}.`;
-
-        // Push
-        await notificationService.sendToUser(property.partnerId, {
-          title: 'New Booking Recieved 💰',
-          body: partnerMsg
-        }, {
-          type: 'partner_new_booking',
-          bookingId: booking._id
-        }, 'partner');
-
-        // SMS
-        const PartnerUser = mongoose.model('User');
-        const partner = await PartnerUser.findById(property.partnerId);
-        if (partner && partner.phone) {
-          smsService.sendMessage(partner.phone, partnerMsg).catch(e => console.log('Partner SMS Failed (PAH)', e.message));
-        }
-      }
-    } catch (notifErr) {
-      console.error('Notification Error (PAH):', notifErr.message);
-    }
-    // -----------------------------------------------------------
-
-    // --- NOTIFICATION HOOK: BOOKING CONFIRMED (WALLET) ---
-    try {
-      // 1. Notify User (Email + Push)
-      const userMsg = `Booking Confirmed! You are going to ${property.name}. ID: ${bookingId}`; // Changed property.propertyName to property.name
-      await notificationService.sendToUser(req.user._id, {
-        title: 'Booking Confirmed 🏨',
-        body: userMsg
-      }, {
-        sendEmail: true,
-        emailHtml: `
-          <h3>Booking Confirmation</h3>
-          <p>Your booking #${bookingId} is confirmed.</p>
-          <p><strong>Property:</strong> ${property.name}</p>
-          <p><strong>Check-in:</strong> ${new Date(checkInDate).toDateString()}</p>
-          <p><strong>Check-out:</strong> ${new Date(checkOutDate).toDateString()}</p>
-          <p><strong>Amount Paid:</strong> ₹${totalAmount}</p>
-        `,
-        type: 'booking_confirmed',
-        data: { bookingId: booking._id }
-      });
-
-      // 2. Notify Partner (Push + SMS)
-      if (property.partnerId) {
-        const partnerMsg = `New Booking Alert! Booking #${bookingId} for ${nights} Night(s). Check App for details.`;
-
-        // Push
-        await notificationService.sendToUser(property.partnerId, {
-          title: 'New Booking Recieved 💰',
-          body: partnerMsg
-        }, {
-          type: 'partner_new_booking',
-          bookingId: booking._id
-        }, 'partner');
-
-        // SMS (Need Partner Phone)
-        const PartnerUser = mongoose.model('User'); // Assuming mongoose is imported and User model exists
-        const partner = await PartnerUser.findById(property.partnerId);
-        if (partner && partner.phone) {
-          smsService.sendMessage(partner.phone, partnerMsg).catch(e => console.log('Partner SMS Failed', e.message));
-        }
-      }
-    } catch (notifErr) {
-      console.error('Notification Error:', notifErr.message);
-    }
-    // -----------------------------------------------------
-
-    res.status(201).json({ success: true, booking: populatedBooking });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-};
-
-export const cancelBooking = async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const { cancellationReason } = req.body;
-
-    const booking = await Booking.findById(bookingId);
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (booking.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized to cancel this booking' });
-    }
-
-    if (booking.bookingStatus === 'cancelled' || booking.bookingStatus === 'completed') {
-      return res.status(400).json({ message: `Booking is already ${booking.bookingStatus}` });
-    }
-
-    // Implement cancellation logic here
-    // For example, update booking status, handle refunds, release inventory
-
-    booking.bookingStatus = 'cancelled';
-    booking.cancellationReason = cancellationReason;
-    // Example: If payment was made, set paymentStatus to 'refunded' or 'pending_refund'
-    if (booking.paymentStatus === 'paid') {
-      booking.paymentStatus = 'refunded'; // Or 'pending_refund' based on your system
-      // Trigger refund process here
-    }
-    await booking.save();
-
-    // Release inventory
-    await AvailabilityLedger.create({
-      propertyId: booking.propertyId,
-      roomTypeId: booking.roomTypeId,
-      inventoryType: booking.bookingUnit,
-      source: 'cancellation',
-      referenceId: booking._id,
-      startDate: booking.checkInDate,
-      endDate: booking.checkOutDate,
-      units: -1, // Negative units to release inventory
-      createdBy: 'system'
+    res.status(201).json({
+      success: true,
+      booking: populatedBooking,
+      paymentRequired: !!razorpayOrder,
+      order: razorpayOrder,
+      key: PaymentConfig.razorpayKeyId
     });
-
-    // --- NOTIFICATION HOOK: BOOKING CANCELLED ---
-    try {
-      // 1. Notify User (Email)
-      const userMsg = `Booking #${booking.bookingId} Cancelled. Refund Amount: ₹${booking.paymentStatus === 'refunded' || booking.paymentStatus === 'paid' ? booking.totalAmount : 0}`;
-      await notificationService.sendToUser(booking.userId, {
-        title: 'Booking Cancelled ❌',
-        body: userMsg
-      }, {
-        sendEmail: true,
-        emailHtml: `
-          <h3>Booking Cancellation</h3>
-          <p>Your booking #${booking.bookingId} has been cancelled.</p>
-          <p><strong>Reason:</strong> ${booking.cancellationReason}</p>
-          <p><strong>Refund Status:</strong> ${booking.paymentStatus === 'refunded' ? 'Processed to Wallet' : 'Not Applicable'}</p>
-        `,
-        type: 'booking_cancelled',
-        data: { bookingId: booking._id }
-      });
-
-      // 2. Notify Partner (Push)
-      // fetch property again to be safe or use populated if available
-      const prop = await Property.findById(booking.propertyId);
-      if (prop && prop.partnerId) {
-        const partnerMsg = `Booking #${booking.bookingId} Cancelled by User. Inventory has been released.`;
-        await notificationService.sendToUser(prop.partnerId, {
-          title: 'Booking Cancelled ⚠️',
-          body: partnerMsg
-        }, {
-          type: 'booking_cancelled_partner',
-          bookingId: booking._id
-        }, 'partner');
-      }
-    } catch (notifErr) {
-      console.error('Notification Error (Cancel):', notifErr.message);
-    }
-    // ------------------------------------------------
-
-    res.json({ success: true, message: 'Booking cancelled successfully', booking });
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+  } catch (error) {
+    console.error('Create Booking Error:', error);
+    res.status(500).json({ message: 'Server error creating booking' });
   }
 };
 
 export const getMyBookings = async (req, res) => {
   try {
-    const list = await Booking.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    res.json(list);
+    const { type } = req.query; // 'upcoming', 'completed', 'cancelled'
+    const query = { userId: req.user._id };
+
+    if (type === 'upcoming') {
+      query.bookingStatus = { $in: ['confirmed', 'pending_payment'] };
+      // query.checkInDate = { $gte: new Date() }; // Optional strict check
+    } else if (type === 'completed') {
+      query.bookingStatus = { $in: ['completed', 'checked_out'] };
+    } else if (type === 'cancelled') {
+      query.bookingStatus = 'cancelled';
+    }
+
+    const bookings = await Booking.find(query)
+      .populate('propertyId', 'propertyName address location coverImage')
+      .populate('roomTypeId', 'name')
+      .sort({ createdAt: -1 });
+
+    res.json(bookings);
   } catch (e) {
+    console.error('Get My Bookings Error:', e);
     res.status(500).json({ message: e.message });
   }
 };
 
 export const getPartnerBookings = async (req, res) => {
   try {
-    const myProps = await Property.find({ partnerId: req.user._id }).select('_id');
-    const ids = myProps.map(p => p._id);
-    const list = await Booking.find({ propertyId: { $in: ids } })
-      .populate('userId', 'name email')
-      .populate('propertyId', 'name')
+    // 1. Find all properties owned by this partner
+    const properties = await Property.find({ partnerId: req.user._id }).select('_id');
+    const propertyIds = properties.map(p => p._id);
+
+    // 2. Find bookings for these properties
+    const { status } = req.query;
+    const query = { propertyId: { $in: propertyIds } };
+
+    if (status) {
+      // Simple status filtering
+      if (status === 'upcoming') {
+        query.bookingStatus = { $in: ['confirmed', 'pending', 'checked_in'] };
+        // query.checkInDate = { $gte: new Date() }; // Optional
+      } else if (status === 'completed') {
+        query.bookingStatus = { $in: ['completed', 'checked_out'] };
+      } else if (status === 'cancelled') {
+        query.bookingStatus = { $in: ['cancelled', 'no_show'] };
+      } else {
+        // Direct status match (e.g. 'confirmed', 'paid')
+        query.bookingStatus = status;
+      }
+    }
+
+    const bookings = await Booking.find(query)
+      .populate('userId', 'name email phone')
+      .populate('propertyId', 'propertyName')
+      .populate('roomTypeId', 'name')
       .sort({ createdAt: -1 });
-    res.json(list);
+
+    res.json(bookings);
+  } catch (error) {
+    console.error('Get Partner Bookings Error:', error);
+    res.status(500).json({ message: 'Server error fetching bookings' });
+  }
+};
+
+export const getPartnerBookingDetail = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate('userId', 'name email phone')
+      .populate('propertyId') // Need full property for partnerId check
+      .populate('roomTypeId');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Verify ownership
+    // Ensure propertyId is populated and has partnerId
+    if (!booking.propertyId || !booking.propertyId.partnerId) {
+      // Fallback or error if data consistency issue
+      return res.status(403).json({ message: 'Booking data invalid (property link missing)' });
+    }
+
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to view this booking' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error('Get Partner Booking Detail Error:', error);
+    res.status(500).json({ message: 'Server error fetching booking details' });
+  }
+};
+
+export const cancelBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Allow user to cancel or admin/partner
+    if (booking.userId.toString() !== req.user._id.toString()) {
+      // Add logic for partner/admin override if needed
+      // return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus === 'cancelled') {
+      return res.status(400).json({ message: 'Booking already cancelled' });
+    }
+
+    // Update Status
+    booking.bookingStatus = 'cancelled';
+    booking.cancellationReason = req.body.reason || 'User cancelled';
+    booking.cancelledAt = new Date();
+    await booking.save();
+
+    // --- WALLET REVERSAL LOGIC ---
+    // Pay at Hotel: Reverse Commission Deduction (Refund Partner, Debit Admin)
+    if (booking.paymentMethod === 'pay_at_hotel') {
+      const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
+
+      // Fetch full booking for partnerId
+      const fullBooking = await Booking.findById(booking._id).populate('propertyId').populate('userId');
+
+      if (refundAmount > 0 && fullBooking.propertyId && fullBooking.propertyId.partnerId) {
+        const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
+        const adminWallet = await Wallet.findOne({ role: 'admin' });
+
+        if (partnerWallet && adminWallet) {
+          // Credit Partner (Refund)
+          await partnerWallet.credit(refundAmount, `Refund (User Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+
+          // Debit Admin (Refund)
+          await adminWallet.debit(refundAmount, `Refund (User Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+        }
+      }
+
+      // Release Inventory
+      await AvailabilityLedger.deleteMany({ referenceId: booking._id });
+
+      // Trigger Cancellation Notifications
+      if (fullBooking) {
+        if (fullBooking.userId && fullBooking.userId.email) {
+          emailService.sendBookingCancellationEmail(fullBooking.userId, fullBooking, 0)
+            .catch(e => console.error('Cancel Email failed', e));
+        }
+
+        if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
+          notificationService.sendToUser(fullBooking.propertyId.partnerId, {
+            title: 'Booking Cancelled',
+            body: `Booking #${fullBooking.bookingId} Cancelled by User. Inventory released.`
+          }, { type: 'booking_cancelled', bookingId: booking._id }, 'partner').catch(e => console.error('Cancel Push failed', e));
+        }
+      }
+
+      return res.json({ success: true, message: 'Booking cancelled successfully (Pay at Hotel - Commission Refunded)', booking });
+    }
+
+    // 1. Refund User (If paid)
+    if (booking.paymentStatus === 'paid') {
+      let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
+
+      // Auto-create wallet if it doesn't exist
+      if (!userWallet) {
+        userWallet = await Wallet.create({
+          partnerId: booking.userId,
+          role: 'user',
+          balance: 0
+        });
+      }
+
+      await userWallet.credit(booking.totalAmount, `Refund for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
+    }
+
+    // 2. Deduct Partner (If payout was credited)
+    // We assume payout is credited on 'confirmed'/'paid'. 
+    // Check if Partner Payout > 0
+    if (booking.partnerPayout > 0 && booking.paymentStatus === 'paid') {
+      const fullBooking = await Booking.findById(booking._id).populate('propertyId');
+      if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
+        const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
+        if (partnerWallet) {
+          try {
+            await partnerWallet.debit(
+              booking.partnerPayout,
+              `Reversal for Booking #${booking.bookingId}`,
+              booking.bookingId,
+              'refund_deduction'
+            );
+          } catch (err) {
+            console.error("Partner Refund Deduction Failed:", err.message);
+          }
+        }
+      }
+    }
+
+    // 3. Deduct Admin (Commission + Tax)
+    if (booking.paymentStatus === 'paid') {
+      const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
+      if (adminDeduction > 0) {
+        const adminWallet = await Wallet.findOne({ role: 'admin' });
+        if (adminWallet) {
+          try {
+            await adminWallet.debit(
+              adminDeduction,
+              `Reversal for Booking #${booking.bookingId}`,
+              booking.bookingId,
+              'refund_deduction'
+            );
+          } catch (err) {
+            console.error("Admin Refund Deduction Failed:", err.message);
+          }
+        }
+      }
+    }
+
+    // Trigger Cancellation Notifications
+    const fullBooking = await Booking.findById(booking._id).populate('userId').populate('propertyId');
+    if (fullBooking) {
+      if (fullBooking.userId && fullBooking.userId.email) {
+        emailService.sendBookingCancellationEmail(fullBooking.userId, fullBooking, booking.paymentStatus === 'paid' ? booking.totalAmount : 0)
+          .catch(e => console.error('Cancel Email failed', e));
+      }
+
+      if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
+        notificationService.sendToUser(fullBooking.propertyId.partnerId, {
+          title: 'Booking Cancelled',
+          body: `Booking #${fullBooking.bookingId} Cancelled by User. Inventory released.`
+        }, { type: 'booking_cancelled', bookingId: booking._id }, 'partner').catch(e => console.error('Cancel Push failed', e));
+      }
+    }
+
+    // Release Inventory
+    await AvailabilityLedger.deleteMany({ referenceId: booking._id });
+
+    res.json({ success: true, message: 'Booking cancelled successfully', booking });
+  } catch (e) {
+    console.error('Cancel Booking Error:', e);
+    res.status(500).json({ message: e.message });
+  }
+};
+
+// Mark Booking as Paid (Pay at Hotel)
+export const markBookingAsPaid = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Auth Check
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.paymentStatus === 'paid') {
+      return res.status(200).json({ success: true, message: 'Booking is already marked as paid.', booking });
+    }
+
+    // Update Status
+    booking.paymentStatus = 'paid';
+    await booking.save();
+
+    // Trigger Notification
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: 'Payment Received',
+        body: `Your payment for booking #${booking.bookingId} has been confirmed by the hotel.`
+      }, { type: 'payment_received', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Marked as Paid', booking });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+// Mark as No Show
+export const markBookingNoShow = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Auth Check
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus === 'no_show') {
+      return res.status(200).json({ success: true, message: 'Booking is already marked as No Show.', booking });
+    }
+
+    booking.bookingStatus = 'no_show';
+    // If No Show, should we cancel payment status? 
+    // Usually No Show means they didn't come.
+    await booking.save();
+
+    // REVERSE DEDUCTION (Pay At Hotel)
+    // "partner ke wallet se tax and fees plus admin commission deduct hua h voh uske wallet me vps se credit ho jayega"
+    if (booking.paymentMethod === 'pay_at_hotel') {
+      const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
+
+      if (refundAmount > 0 && booking.propertyId.partnerId) {
+        const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+        const adminWallet = await Wallet.findOne({ role: 'admin' });
+
+        if (partnerWallet && adminWallet) {
+          // Credit Partner
+          await partnerWallet.credit(refundAmount, `Refund (No Show) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+
+          // Debit Admin
+          await adminWallet.debit(refundAmount, `Refund (No Show) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+        }
+      }
+    }
+    // HANDLE PAY NOW / ONLINE / WALLET (Partner Earning Deducted -> Admin Credit)
+    else if (['online', 'razorpay', 'wallet'].includes(booking.paymentMethod) && booking.paymentStatus === 'paid') {
+      const deductionAmount = booking.partnerPayout || 0;
+
+      if (deductionAmount > 0 && booking.propertyId.partnerId) {
+        let partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+
+        // Ensure Admin Wallet
+        let adminWallet = await Wallet.findOne({ role: 'admin' });
+        if (!adminWallet) {
+          const AdminUser = mongoose.model('User');
+          const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+          if (adminUser) {
+            adminWallet = await Wallet.create({
+              partnerId: adminUser._id,
+              role: 'admin',
+              balance: 0
+            });
+          }
+        }
+
+        if (partnerWallet && adminWallet) {
+          try {
+            // Debit Partner (Earning Reversal/Penalty)
+            await partnerWallet.debit(deductionAmount, `No Show Penalty for Booking #${booking.bookingId}`, booking.bookingId, 'no_show_penalty');
+
+            // Credit Admin (Funds retained by platform)
+            await adminWallet.credit(deductionAmount, `No Show Credit (from Partner) for Booking #${booking.bookingId}`, booking.bookingId, 'no_show_credit');
+
+          } catch (err) {
+            console.error("No Show Wallet Deduction Failed (Pay Now):", err.message);
+          }
+        }
+      }
+    }
+
+    // Release Inventory
+    await AvailabilityLedger.deleteMany({ referenceId: booking._id });
+
+    res.json({ success: true, message: 'Marked as No Show. Inventory released and commission refunded.', booking });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }

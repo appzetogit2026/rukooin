@@ -8,7 +8,6 @@ const partnerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    unique: true,
     sparse: true,
     lowercase: true,
     trim: true
@@ -16,62 +15,56 @@ const partnerSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
-    unique: true,
-    trim: true
+    trim: true,
+    unique: true
+  },
+  password: {
+    type: String,
+    required: true
   },
   role: {
     type: String,
     default: 'partner',
-    immutable: true
+    enum: ['partner']
+  },
+  isPartner: { type: Boolean, default: true },
+  isBlocked: { type: Boolean, default: false },
+  partnerApprovalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  partnerSince: {
+    type: Date,
+    default: Date.now
+  },
+  fcmTokens: {
+    app: { type: String, default: null },
+    web: { type: String, default: null }
   },
   isVerified: {
     type: Boolean,
     default: false
   },
-  
-  // Partner Specific Fields
-  partnerApprovalStatus: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  partnerSince: {
-    type: Date,
-    default: Date.now
-  },
-  
-  // Business/Legal Details
-  panNumber: { type: String, trim: true },
-  panCardImage: { type: String }, // URL
+  // Owner Details
+  ownerName: { type: String, trim: true },
   aadhaarNumber: { type: String, trim: true },
   aadhaarFront: { type: String }, // URL
   aadhaarBack: { type: String }, // URL
-  
+  panNumber: { type: String, trim: true },
+  panCardImage: { type: String }, // URL
+
   address: {
     street: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },
     zipCode: { type: String, trim: true },
-    country: { type: String, default: 'India', trim: true }
+    country: { type: String, default: 'India', trim: true },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number }
+    }
   },
 
-  commissionPercentage: {
-    type: Number,
-    default: 15,
-    min: 0,
-    max: 100
-  },
-  payoutOnHold: {
-    type: Boolean,
-    default: false
-  },
+  termsAccepted: { type: Boolean, default: false },
 
-  fcmToken: {
-    type: String,
-    default: null
-  },
-
-  // Auth
+  // OTP for Login
   otp: {
     type: String,
     select: false
@@ -80,17 +73,11 @@ const partnerSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
-  isBlocked: {
-    type: Boolean,
-    default: false
-  },
-  
-  // Registration Progress
-  registrationStep: {
-    type: Number,
-    default: 1 // 1: Basic, 2: Docs, 3: Completed
-  }
 
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 }, { timestamps: true });
 
 const Partner = mongoose.model('Partner', partnerSchema);

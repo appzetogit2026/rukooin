@@ -3,7 +3,8 @@ import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
-import notificationService from '../services/notificationService.js'; // Added
+import emailService from '../services/emailService.js';
+import User from '../models/User.js'; // Needed to find Admins? Or Admin model
 
 export const createProperty = async (req, res) => {
   try {
@@ -61,32 +62,22 @@ export const createProperty = async (req, res) => {
       await doc.save();
     }
 
-    // --- NOTIFICATION HOOK: NEW PROPERTY REQUEST ---
+    // NOTIFICATION: Notify Admin about new property
+    // We need to fetch an Admin email. Ideally from DB or Config.
+    // Assuming simple search for an Admin user.
     try {
-      // Notify Admin (Email)
-      const AdminModel = (await import('../models/Admin.js')).default;
-      const admins = await AdminModel.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
-
-      for (const admin of admins) {
-        notificationService.sendToUser(admin._id, {
-          title: 'New Property Listing Request 🏠',
-          body: `Property: ${doc.propertyName}. Type: ${doc.propertyType}`
-        }, {
-          sendEmail: true,
-          emailHtml: `
-            <h3>New Property Listing Request</h3>
-            <p><strong>Property Name:</strong> ${doc.propertyName}</p>
-            <p><strong>Type:</strong> ${doc.propertyType}</p>
-            <p><strong>Location:</strong> ${doc.address?.city || 'N/A'}, ${doc.address?.state || 'N/A'}</p>
-            <p><strong>Status:</strong> ${doc.status}</p>
-            <p>Please review documents and approve.</p>
-          `,
-          type: 'new_property_request',
-          data: { propertyId: doc._id, screen: 'pending_properties' }
-        }, 'admin');
+      // Need to dynamically import Admin if not present or query User with role=admin
+      const AdminModel = mongoose.model('Admin'); // Usually registered. If not, use 'User' with role
+      // Or cleaner: just query User if Admin shares collection, but typically separate. 
+      // Based on authController, Admin is separate.
+      const admin = await AdminModel.findOne({ role: { $in: ['admin', 'superadmin'] } });
+      if (admin && admin.email) {
+        emailService.sendAdminNewPropertyEmail(admin.email, doc).catch(e => console.error(e));
       }
-    } catch (notifErr) { console.error('New Property Notif Error:', notifErr.message); }
-    // ---------------------------------------------
+    } catch (err) {
+      // Fallback if Admin model not registered here or other issue
+      console.warn('Could not notify admin about property:', err.message);
+    }
 
     res.status(201).json({ success: true, property: doc });
   } catch (e) {

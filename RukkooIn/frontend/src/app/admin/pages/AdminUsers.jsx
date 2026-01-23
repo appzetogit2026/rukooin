@@ -265,12 +265,7 @@ const AdminUsers = () => {
                                                             {user.name?.charAt(0) || 'U'}
                                                         </div>
                                                         <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{user.name}</p>
-                                                                {user.isSuspicious && (
-                                                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" title="Suspicious Activity" />
-                                                                )}
-                                                            </div>
+                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{user.name}</p>
                                                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">ID: {user._id.slice(-6)}</p>
                                                         </div>
                                                     </Link>

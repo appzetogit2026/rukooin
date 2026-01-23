@@ -1,11 +1,111 @@
 import React, { useState } from 'react';
 import usePartnerStore from '../store/partnerStore';
-import { Upload, X } from 'lucide-react';
 import { authService } from '../../../services/apiService';
+import { Upload, X, Check, Loader2, Image as ImageIcon } from 'lucide-react';
+
+const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image" }) => {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file (JPG, PNG)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      setError('File size too large (max 5MB)');
+      return;
+    }
+
+    setError('');
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('files', file);
+
+      const res = await authService.uploadDocs(fd);
+      if (res.success && res.urls && res.urls.length > 0) {
+        onChange(res.urls[0]);
+      } else {
+        setError('Upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearImage = () => {
+    onChange('');
+    setError('');
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-bold text-gray-500 mb-2">{label}</label>
+
+      {value ? (
+        <div className="relative group">
+          <div className="h-32 w-full rounded-xl bg-gray-50 border border-gray-200 overflow-hidden relative">
+            <img src={value} alt={label} className="w-full h-full object-cover" />
+            <button
+              onClick={clearImage}
+              className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm hover:bg-red-50 text-gray-500 hover:text-red-500 transition-colors"
+              type="button"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="text-white text-[10px] truncate text-center font-medium">Uploaded Successfully</p>
+          </div>
+        </div>
+      ) : (
+        <div className="relative">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            disabled={uploading}
+          />
+          <div className={`
+             border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors
+             ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-[#004F4D] hover:bg-[#004F4D]/5 bg-gray-50'}
+          `}>
+            {uploading ? (
+              <Loader2 size={24} className="text-[#004F4D] animate-spin" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-gray-400">
+                <Upload size={16} />
+              </div>
+            )}
+            <div className="text-center">
+              <p className="text-xs font-bold text-gray-600">
+                {uploading ? 'Uploading...' : placeholder}
+              </p>
+              {error ? (
+                <p className="text-[10px] text-red-500 mt-1">{error}</p>
+              ) : (
+                <p className="text-[10px] text-gray-400 mt-1">Tap to select</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const StepOwnerDetails = () => {
   const { formData, updateFormData } = usePartnerStore();
-  const [uploading, setUploading] = useState({}); // { fieldName: boolean }
 
   const handleChange = (field, value) => {
     updateFormData({ [field]: value });
@@ -20,129 +120,86 @@ const StepOwnerDetails = () => {
     });
   };
 
-  const handleFileUpload = async (field, file) => {
-    if (!file) return;
-
-    setUploading(prev => ({ ...prev, [field]: true }));
-    const data = new FormData();
-    data.append('images', file); // 'images' matches _uploadMiddleware
-
-    try {
-      const response = await authService.uploadDocs(data);
-      if (response.success && response.urls.length > 0) {
-        handleChange(field, response.urls[0]);
-      }
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Upload failed: ' + (error.message || 'Unknown error'));
-    } finally {
-      setUploading(prev => ({ ...prev, [field]: false }));
-    }
-  };
-
-  const renderUploadField = (label, field, placeholder) => {
-    const value = formData[field];
-    const isUploading = uploading[field];
-
-    return (
-      <div>
-        <label className="block text-xs font-bold text-gray-500 mb-1">{label}</label>
-        {value ? (
-           <div className="relative w-full border border-green-200 bg-green-50 rounded-xl px-3 py-2 flex items-center justify-between">
-             <span className="text-xs text-green-700 truncate flex-1">{value.split('/').pop()}</span>
-             <button 
-               onClick={() => handleChange(field, '')}
-               className="ml-2 text-red-500 hover:text-red-700"
-             >
-               <X size={16} />
-             </button>
-             <a href={value} target="_blank" rel="noreferrer" className="ml-2 text-blue-500 text-xs underline">View</a>
-           </div>
-        ) : (
-          <div className="relative">
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              id={`file-${field}`}
-              onChange={(e) => handleFileUpload(field, e.target.files[0])}
-              disabled={isUploading}
-            />
-            <label 
-              htmlFor={`file-${field}`}
-              className={`w-full border-2 border-dashed ${isUploading ? 'border-gray-300 bg-gray-100' : 'border-gray-300 hover:border-[#004F4D] hover:bg-gray-50'} rounded-xl px-3 py-3 flex flex-col items-center justify-center cursor-pointer transition-colors`}
-            >
-              {isUploading ? (
-                <span className="text-xs text-gray-500 animate-pulse">Uploading...</span>
-              ) : (
-                <>
-                  <Upload size={16} className="text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-500">{placeholder}</span>
-                </>
-              )}
-            </label>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Owner Name */}
+    <div className="space-y-6">
+      {/* Name Section */}
       <div>
         <label className="block text-xs font-bold text-gray-500 mb-1">Owner Name</label>
         <input
           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
           placeholder="Registered owner full name"
-          value={formData.owner_name || ''}
+          value={formData.owner_name}
           onChange={e => handleChange('owner_name', e.target.value)}
         />
       </div>
 
       {/* Aadhaar Section */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="space-y-4 pt-2 border-t border-gray-100">
+        <h3 className="text-sm font-black text-[#003836]">Aadhaar Verification</h3>
+
         <div>
           <label className="block text-xs font-bold text-gray-500 mb-1">Aadhaar Number</label>
           <input
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
-            placeholder="12-digit Aadhaar number"
-            value={formData.aadhaar_number || ''}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D] tracking-widest font-mono"
+            placeholder="XXXX XXXX XXXX"
+            maxLength={12}
+            value={formData.aadhaar_number}
             onChange={e => handleChange('aadhaar_number', e.target.value.replace(/\D/g, '').slice(0, 12))}
           />
         </div>
+
         <div className="grid grid-cols-2 gap-3">
-          {renderUploadField('Aadhaar Front', 'aadhaar_front', 'Upload Front')}
-          {renderUploadField('Aadhaar Back', 'aadhaar_back', 'Upload Back')}
+          <ImageUploader
+            label="Front Image"
+            value={formData.aadhaar_front}
+            onChange={(url) => handleChange('aadhaar_front', url)}
+            placeholder="Front Side"
+          />
+          <ImageUploader
+            label="Back Image"
+            value={formData.aadhaar_back}
+            onChange={(url) => handleChange('aadhaar_back', url)}
+            placeholder="Back Side"
+          />
         </div>
       </div>
 
       {/* PAN Section */}
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1">PAN Number</label>
-          <input
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
-            placeholder="10-digit PAN number"
-            value={formData.pan_number || ''}
-            onChange={e => handleChange('pan_number', e.target.value.toUpperCase().slice(0, 10))}
+      <div className="space-y-4 pt-2 border-t border-gray-100">
+        <h3 className="text-sm font-black text-[#003836]">PAN Verification</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 mb-1">PAN Number</label>
+            <input
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#004F4D] font-mono"
+              placeholder="ABCDE1234F"
+              maxLength={10}
+              value={formData.pan_number}
+              onChange={e => handleChange('pan_number', e.target.value.toUpperCase().slice(0, 10))}
+            />
+          </div>
+          <ImageUploader
+            label="PAN Card Image"
+            value={formData.pan_card_image}
+            onChange={(url) => handleChange('pan_card_image', url)}
+            placeholder="Upload PAN"
           />
-        </div>
-        <div>
-           {renderUploadField('PAN Card Image', 'pan_card_image', 'Upload PAN Card')}
         </div>
       </div>
 
       {/* Address Section */}
-      <div className="space-y-2">
-        <label className="block text-xs font-bold text-gray-500 mb-1">Owner Address</label>
+      <div className="space-y-3 pt-2 border-t border-gray-100">
+        <h3 className="text-sm font-black text-[#003836]">Owner Address</h3>
+
         <input
           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
-          placeholder="Street address"
+          placeholder="Street address (House No, Building, Street)"
           value={formData.owner_address?.street || ''}
           onChange={e => handleAddressChange('street', e.target.value)}
         />
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
             placeholder="City"
@@ -156,17 +213,20 @@ const StepOwnerDetails = () => {
             onChange={e => handleAddressChange('state', e.target.value)}
           />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
             placeholder="Pincode"
+            maxLength={6}
             value={formData.owner_address?.zipCode || ''}
-            onChange={e => handleAddressChange('zipCode', e.target.value)}
+            onChange={e => handleAddressChange('zipCode', e.target.value.replace(/\D/g, '').slice(0, 6))}
           />
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#004F4D]"
             placeholder="Country"
-            value={formData.owner_address?.country || ''}
+            readOnly
+            value={formData.owner_address?.country || 'India'}
             onChange={e => handleAddressChange('country', e.target.value)}
           />
         </div>

@@ -8,8 +8,14 @@ const transactionSchema = new mongoose.Schema({
   },
   partnerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    required: true,
+    refPath: 'modelType'
+  },
+  modelType: {
+    type: String,
+    required: true,
+    enum: ['User', 'Partner', 'Admin'],
+    default: 'User'
   },
   type: {
     type: String,
@@ -18,7 +24,20 @@ const transactionSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['booking_payment', 'commission_deduction', 'withdrawal', 'refund', 'adjustment', 'topup'],
+    enum: [
+      'booking_payment',
+      'commission_deduction',
+      'withdrawal',
+      'refund',
+      'adjustment',
+      'topup',
+      'commission_tax',
+      'commission_refund',
+      'refund_deduction',
+      'no_show_penalty',
+      'no_show_credit',
+      'booking'
+    ],
     required: true
   },
   amount: {

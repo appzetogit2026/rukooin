@@ -29,7 +29,7 @@ const HotelLogin = () => {
 
         setLoading(true);
         try {
-            // Use authService with partner role
+            // Use authService
             await authService.sendOtp(contact, 'login', 'partner');
             setStep(2);
         } catch (err) {

@@ -1,353 +1,291 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-    TrendingUp, Users, ShoppingBag, DollarSign,
-    ArrowUpRight, ArrowDownRight, Building2,
-    Loader2, Clock, CheckCircle, AlertCircle,
-    BarChart3, PieChart as PieChartIcon
+    TrendingUp, Users, ShoppingBag, DollarSign, Building2,
+    ArrowUpRight, ArrowDownRight, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, BarChart, Bar,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
 } from 'recharts';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
+import AddHotelModal from '../components/AddHotelModal';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-
-// Stat Card Component
-const StatCard = ({ title, value, change, isPositive, icon: Icon, color, loading, subtitle }) => (
+const DashboardCard = ({ title, value, trend, icon: Icon, color, loading }) => (
     <motion.div
-        whileHover={{ y: -5 }}
-        className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-between"
     >
-        <div className={`absolute top-0 right-0 p-4 opacity-10 ${color}`}>
-            <Icon size={48} />
+        <div className={`absolute top-0 right-0 p-4 opacity-5 ${color}`}>
+            <Icon size={80} />
         </div>
 
         <div className="relative z-10">
-            <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            {loading ? (
-                <div className="h-8 w-24 bg-gray-100 animate-pulse rounded-md mb-2"></div>
-            ) : (
-                <h3 className="text-2xl font-bold text-gray-900 mb-1">{value}</h3>
-            )}
-
-            <div className="flex items-center gap-2">
-                {change && (
-                    <span className={`flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {isPositive ? <ArrowUpRight size={12} className="mr-1" /> : <ArrowDownRight size={12} className="mr-1" />}
-                        {change}
+            <div className="flex items-center justify-between mb-4">
+                <div className={`p-3 rounded-2xl ${color.replace('text-', 'bg-').replace('500', '100')} ${color}`}>
+                    <Icon size={24} />
+                </div>
+                {!loading && trend !== undefined && (
+                    <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-full ${trend >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {trend >= 0 ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
+                        {Math.abs(trend).toFixed(1)}%
                     </span>
                 )}
-                <span className="text-xs text-gray-400">{subtitle || 'overall'}</span>
+            </div>
+
+            <div>
+                <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+                {loading ? (
+                    <div className="h-8 w-24 bg-gray-100 animate-pulse rounded-md" />
+                ) : (
+                    <h3 className="text-3xl font-bold text-gray-900 tracking-tight">{value}</h3>
+                )}
             </div>
         </div>
     </motion.div>
 );
 
 const AdminDashboard = () => {
-    const [isExporting, setIsExporting] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState(null);
-    const [dailyTrends, setDailyTrends] = useState([]);
-    const [propertyDist, setPropertyDist] = useState([]);
+    const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+
+    // Data States
+    const [stats, setStats] = useState({
+        totalRevenue: 0,
+        totalBookings: 0,
+        totalUsers: 0,
+        pendingHotels: 0,
+        trends: { revenue: 0, bookings: 0, users: 0 }
+    });
+    const [charts, setCharts] = useState({ revenue: [], status: [] });
     const [recentBookings, setRecentBookings] = useState([]);
     const [recentRequests, setRecentRequests] = useState([]);
+
+    const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#6366F1'];
 
     useEffect(() => {
         fetchDashboardData();
     }, []);
 
     const fetchDashboardData = async () => {
-        const token = localStorage.getItem('adminToken');
-        if (!token) return;
-
         try {
             setLoading(true);
             const data = await adminService.getDashboardStats();
             if (data.success) {
                 setStats(data.stats);
-                setDailyTrends(data.dailyTrends || []);
-                setPropertyDist(data.propertyDistribution?.map(item => ({
-                    name: item._id.toUpperCase(),
-                    value: item.count
-                })) || []);
+                setCharts(data.charts || { revenue: [], status: [] });
                 setRecentBookings(data.recentBookings || []);
                 setRecentRequests(data.recentPropertyRequests || []);
             }
         } catch (error) {
-            if (error.response?.status !== 401) {
-                console.error('Error fetching dashboard data:', error);
-                toast.error('Failed to load dashboard stats');
-            }
+            console.error('Error fetching dashboard data:', error);
+            // toast.error('Failed to update dashboard');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDownloadReport = () => {
-        setIsExporting(true);
-        setTimeout(() => {
-            setIsExporting(false);
-            toast.success("Monthly Report generated successfully.");
-        }, 1500);
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0
+        }).format(amount);
     };
 
     return (
-        <div className="space-y-8 pb-12">
+        <div className="space-y-8 p-2 pb-10">
+            <AddHotelModal isOpen={isAddHotelOpen} onClose={() => setIsAddHotelOpen(false)} />
+
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Platform Overview</h2>
-                    <p className="text-gray-500 text-sm">Real-time performance metrics and management hub.</p>
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h1>
+                    <p className="text-gray-500 mt-1">Real-time insights into your property platform performance.</p>
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={handleDownloadReport}
-                        disabled={isExporting}
-                        className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                        onClick={() => toast.success('Report generation started...')}
+                        className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2"
                     >
-                        {isExporting ? <Loader2 size={16} className="animate-spin" /> : 'Export Data'}
+                        <Clock size={16} /> Download Report
+                    </button>
+                    <button
+                        onClick={() => setIsAddHotelOpen(true)}
+                        className="px-5 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl translate-y-0 hover:-translate-y-0.5 flex items-center gap-2"
+                    >
+                        <Building2 size={16} /> Add Property
                     </button>
                 </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Row 1: KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard
-                    title="Gross Revenue"
-                    value={`₹${stats?.totalRevenue?.toLocaleString() || 0}`}
-                    change="+12%"
-                    isPositive={true}
+                <DashboardCard
+                    title="Total Revenue"
+                    value={formatCurrency(stats.totalRevenue)}
+                    trend={stats.trends?.revenue}
                     icon={DollarSign}
                     color="text-emerald-500"
                     loading={loading}
                 />
-                <StatCard
-                    title="Active Bookings"
-                    value={stats?.totalBookings || 0}
-                    change="+5%"
-                    isPositive={true}
+                <DashboardCard
+                    title="Total Bookings"
+                    value={stats.totalBookings}
+                    trend={stats.trends?.bookings}
                     icon={ShoppingBag}
                     color="text-blue-500"
                     loading={loading}
                 />
-                <StatCard
-                    title="KYC Pending"
-                    value={(stats?.pendingUserKYC || 0) + (stats?.pendingPartnerKYC || 0)}
-                    subtitle="Verification needed"
-                    icon={AlertCircle}
-                    color="text-orange-500"
-                    loading={loading}
-                />
-                <StatCard
-                    title="Open Requests"
-                    value={stats?.pendingHotels || 0}
-                    subtitle="Property approvals"
-                    icon={CheckCircle}
+                <DashboardCard
+                    title="Active Users"
+                    value={stats.totalUsers}
+                    trend={stats.trends?.users}
+                    icon={Users}
                     color="text-purple-500"
                     loading={loading}
                 />
+                <DashboardCard
+                    title="Pending Reviews"
+                    value={stats.pendingHotels}
+                    // trend={0} // No trend for pending usually
+                    icon={Building2}
+                    color="text-orange-500"
+                    loading={loading}
+                />
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Revenue Trend Area Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <BarChart3 size={20} className="text-blue-500" />
-                            Revenue & Booking Trends
-                        </h3>
-                        <select className="text-xs bg-gray-50 border-none rounded-md px-2 py-1 outline-none">
-                            <option>Last 30 Days</option>
-                            <option>Last 7 Days</option>
-                        </select>
+            {/* Row 2: Analytics */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Revenue Analytics (Area Chart) */}
+                <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900">Revenue Analytics</h3>
+                            <p className="text-sm text-gray-500">Monthly revenue flow over the last 6 months</p>
+                        </div>
                     </div>
                     <div className="h-[300px] w-full">
                         {loading ? (
-                            <div className="h-full w-full bg-gray-50 animate-pulse rounded-xl"></div>
-                        ) : dailyTrends.length > 0 ? (
+                            <div className="h-full w-full bg-gray-50 animate-pulse rounded-xl" />
+                        ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={dailyTrends}>
+                                <AreaChart data={charts.revenue}>
                                     <defs>
-                                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                        </linearGradient>
-                                        <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
+                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis
-                                        dataKey="_id"
+                                        dataKey="name"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 10, fill: '#64748b' }}
-                                        tickFormatter={(str) => {
-                                            const date = new Date(str);
-                                            return `${date.getDate()}/${date.getMonth() + 1}`;
-                                        }}
+                                        tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                        dy={10}
                                     />
                                     <YAxis
-                                        yAxisId="left"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 10, fill: '#64748b' }}
-                                        tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
-                                    />
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fontSize: 10, fill: '#64748b' }}
+                                        tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                        tickFormatter={(value) => `₹${value / 1000}k`}
+                                        dx={-10}
                                     />
                                     <Tooltip
-                                        contentStyle={{
-                                            borderRadius: '12px',
-                                            border: 'none',
-                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                                            padding: '12px'
-                                        }}
-                                        labelFormatter={(label) => {
-                                            const date = new Date(label);
-                                            return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                                        }}
-                                        formatter={(value, name) => {
-                                            if (name === 'revenue') return [`₹${value.toLocaleString()}`, 'Revenue'];
-                                            if (name === 'bookings') return [value, 'Bookings'];
-                                            return [value, name];
-                                        }}
-                                    />
-                                    <Legend
-                                        verticalAlign="top"
-                                        height={36}
-                                        formatter={(value) => value === 'revenue' ? 'Revenue (₹)' : 'Bookings'}
+                                        formatter={(value) => formatCurrency(value)}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                     />
                                     <Area
-                                        yAxisId="left"
                                         type="monotone"
-                                        dataKey="revenue"
-                                        stroke="#3b82f6"
-                                        strokeWidth={2}
+                                        dataKey="value"
+                                        stroke="#10B981"
+                                        strokeWidth={3}
                                         fillOpacity={1}
-                                        fill="url(#colorRev)"
-                                        name="revenue"
-                                    />
-                                    <Area
-                                        yAxisId="right"
-                                        type="monotone"
-                                        dataKey="bookings"
-                                        stroke="#10b981"
-                                        strokeWidth={2}
-                                        fillOpacity={1}
-                                        fill="url(#colorBookings)"
-                                        name="bookings"
+                                        fill="url(#colorValue)"
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                                <BarChart3 size={48} className="mb-2 opacity-20" />
-                                <p className="text-xs">No trend data available</p>
-                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Property Distribution Pie Chart */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <PieChartIcon size={20} className="text-purple-500" />
-                        Inventory Mix
-                    </h3>
-                    <div className="h-[300px] w-full">
+                {/* Booking Status (Donut Chart) */}
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Booking Status</h3>
+                    <p className="text-sm text-gray-500 mb-6">Distribution of booking outcomes</p>
+
+                    <div className="flex-1 min-h-[250px] relative">
                         {loading ? (
-                            <div className="h-full w-full flex items-center justify-center">
-                                <div className="w-32 h-32 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>
-                            </div>
-                        ) : propertyDist.length > 0 ? (
+                            <div className="h-full w-full bg-gray-50 animate-pulse rounded-full" />
+                        ) : (
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
-                                        data={propertyDist}
+                                        data={charts.status}
+                                        cx="50%"
+                                        cy="50%"
                                         innerRadius={60}
-                                        outerRadius={90}
+                                        outerRadius={80}
                                         paddingAngle={5}
                                         dataKey="value"
-                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
                                     >
-                                        {propertyDist.map((entry, index) => (
+                                        {charts.status.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip
-                                        contentStyle={{
-                                            borderRadius: '12px',
-                                            border: 'none',
-                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                                            padding: '12px'
-                                        }}
-                                        formatter={(value, name) => [
-                                            `${value} ${value === 1 ? 'property' : 'properties'}`,
-                                            name.charAt(0).toUpperCase() + name.slice(1)
-                                        ]}
-                                    />
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        height={36}
-                                        formatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
-                                    />
+                                    <Tooltip />
+                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
                                 </PieChart>
                             </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                                <PieChartIcon size={48} className="mb-2 opacity-20" />
-                                <p className="text-xs">No inventory data</p>
+                        )}
+                        {/* Center Label */}
+                        {!loading && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
+                                <div className="text-center">
+                                    <span className="block text-3xl font-bold text-gray-900">{stats.totalBookings}</span>
+                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Bottom Section: Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Row 3: Operations (Recent Activity & Pending Actions) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Recent Bookings */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                             <Clock size={20} className="text-gray-400" />
-                            Recent Activity
+                            Recent Bookings
                         </h3>
-                        <button className="text-xs text-blue-600 font-medium font-bold">View All</button>
+                        <button className="text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
                     </div>
 
                     <div className="flex-1 space-y-4">
                         {loading ? (
-                            [1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
+                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
                         ) : recentBookings.length > 0 ? (
                             recentBookings.map((booking, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                            {booking.userId?.name?.charAt(0) || 'G'}
+                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm shadow-md group-hover:scale-105 transition-transform">
+                                            {booking.userId?.name?.charAt(0) || 'U'}
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-900">{booking.userId?.name || 'Guest User'}</p>
-                                            <p className="text-[11px] text-gray-500">{booking.propertyId?.propertyName || 'Property Name'}</p>
+                                            <p className="text-xs text-gray-500">{booking.propertyId?.propertyName || 'Unknown Hotel'}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-sm font-bold text-gray-900">₹{booking.totalAmount?.toLocaleString()}</p>
+                                        <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                            booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                booking.bookingStatus === 'checked_out' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                                booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                    booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
                                             }`}>
                                             {booking.bookingStatus}
                                         </span>
@@ -357,47 +295,48 @@ const AdminDashboard = () => {
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-gray-400">
                                 <ShoppingBag size={48} className="mb-2 opacity-20" />
-                                <p className="text-xs">No recent transactions</p>
+                                <p>No recent bookings found</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Property Requests */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
+                {/* Pending Actions / Requests */}
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col min-h-[400px]">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <Building2 size={20} className="text-gray-400" />
-                            Pending Approvals
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <AlertCircle size={20} className="text-orange-500" />
+                            Pending Actions
                         </h3>
-                        <button className="text-xs text-orange-600 font-medium font-bold">Review Queue</button>
+                        <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full">
+                            {recentRequests.length} Requires Action
+                        </span>
                     </div>
 
                     <div className="flex-1 space-y-4">
                         {loading ? (
-                            [1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
+                            [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
                         ) : recentRequests.length > 0 ? (
                             recentRequests.map((hotel, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-orange-50/30 rounded-xl hover:bg-orange-50 transition-colors cursor-pointer border border-transparent hover:border-orange-100">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm">
+                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                                             <Building2 size={20} />
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-900">{hotel.propertyName}</p>
-                                            <p className="text-[11px] text-gray-500 capitalize">{hotel.propertyType} • by {hotel.partnerId?.name || 'Owner'}</p>
+                                            <p className="text-xs text-gray-500">by {hotel.partnerId?.name || 'Partner'}</p>
                                         </div>
                                     </div>
-                                    <button className="text-[10px] font-bold text-orange-700 bg-white border border-orange-200 px-3 py-1.5 rounded-lg hover:bg-orange-600 hover:text-white transition-all shadow-sm">
-                                        REVIEW
+                                    <button className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                                        Review
                                     </button>
                                 </div>
                             ))
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                                <CheckCircle size={48} className="mb-2 opacity-20 text-emerald-500" />
-                                <p className="text-sm font-medium text-emerald-600">All caught up!</p>
-                                <p className="text-xs mt-1 text-gray-400 text-center">No pending property requests to review.</p>
+                                <CheckCircle size={48} className="mb-2 opacity-20 text-green-500" />
+                                <p>All caught up! No pending requests.</p>
                             </div>
                         )}
                     </div>

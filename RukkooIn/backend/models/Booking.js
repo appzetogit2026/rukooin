@@ -9,10 +9,22 @@ const guestSchema = new mongoose.Schema({
 const bookingSchema = new mongoose.Schema({
 
   // USER
+  userModel: {
+    type: String,
+    required: true,
+    enum: ['User', 'Partner'],
+    default: 'User'
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    refPath: 'userModel',
     required: true
+  },
+
+  bookingId: {
+    type: String,
+    required: true,
+    unique: true
   },
 
   // PROPERTY
@@ -59,6 +71,10 @@ const bookingSchema = new mongoose.Schema({
 
   taxes: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
+  couponCode: String,
+
+  adminCommission: { type: Number, default: 0 },
+  partnerPayout: { type: Number, default: 0 },
 
   totalAmount: { type: Number, required: true },
 
@@ -75,7 +91,7 @@ const bookingSchema = new mongoose.Schema({
   // BOOKING STATUS
   bookingStatus: {
     type: String,
-    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled"],
+    enum: ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"],
     default: "pending"
   },
 

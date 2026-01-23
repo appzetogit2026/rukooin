@@ -1,51 +1,82 @@
 import User from '../models/User.js';
+import Partner from '../models/Partner.js';
+import bcrypt from 'bcryptjs';
 
-/**
- * @desc    Get current user profile
- * @route   GET /api/users/profile
- * @access  Private
- */
+// @desc    Get user profile
+// @route   GET /api/users/profile
+// @access  Private
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+
+    if (user) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isPartner: user.isPartner,
+      });
+    } else {
+      // Check if it's a partner
+      const partner = await Partner.findById(req.user._id);
+      if (partner) {
+        res.json({
+          _id: partner._id,
+          name: partner.name,
+          email: partner.email,
+          phone: partner.phone,
+          role: partner.role,
+          isPartner: partner.isPartner,
+          partnerApprovalStatus: partner.partnerApprovalStatus
+        });
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
     }
-    res.json(user);
   } catch (error) {
-    console.error('Get Profile Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-/**
- * @desc    Update user profile
- * @route   PUT /api/users/profile
- * @access  Private
- */
+// @desc    Update user profile
+// @route   PUT /api/users/profile
+// @access  Private
 export const updateUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    let user = await User.findById(req.user._id);
+    let isPartner = false;
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      user = await Partner.findById(req.user._id);
+      isPartner = true;
     }
 
-    user.name = req.body.name || user.name;
-    user.email = req.body.email || user.email;
+    if (user) {
+      user.name = req.body.name || user.name;
+      if (req.body.email) user.email = req.body.email;
+      if (req.body.phone) user.phone = req.body.phone;
 
-    const updatedUser = await user.save();
+      if (req.body.password) {
+        user.password = await bcrypt.hash(req.body.password, 10);
+      }
 
-    res.json({
-      id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-      role: updatedUser.role,
-    });
+      const updatedUser = await user.save();
 
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        isPartner: isPartner ? updatedUser.isPartner : user.isPartner,
+        token: req.headers.authorization.split(' ')[1] // Keep existing token
+      });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
   } catch (error) {
-    console.error('Update Profile Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -119,6 +150,190 @@ export const toggleSavedHotel = async (req, res) => {
 
   } catch (error) {
     console.error('Toggle Saved Hotel Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update FCM Token
+// @route   POST /api/users/fcm-token
+// @access  Private
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({ success: false, message: 'Please provide FCM token' });
+    }
+
+    const targetPlatform = platform === 'app' ? 'app' : 'web';
+
+    // Try to find user first
+    let user = await User.findById(req.user._id);
+
+    // If not found, check Partner model
+    if (!user) {
+      user = await Partner.findById(req.user._id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.fcmTokens) {
+      user.fcmTokens = {
+        app: null,
+        web: null
+      };
+    }
+
+    // Update the token for the specific platform
+    user.fcmTokens[targetPlatform] = fcmToken;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `FCM token updated successfully for ${targetPlatform} platform`,
+      data: {
+        platform: targetPlatform,
+        tokenUpdated: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Update FCM Token Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Get user notifications
+ * @route   GET /api/users/notifications
+ * @access  Private
+ */
+export const getNotifications = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const Notification = (await import('../models/Notification.js')).default;
+
+    // Create filter for the current user
+    const filter = {
+      userId: req.user._id,
+      userType: req.user.role === 'partner' ? 'partner' : 'user'
+    };
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Notification.countDocuments(filter);
+    const unreadCount = await Notification.countDocuments({ ...filter, isRead: false });
+
+    res.json({
+      success: true,
+      notifications,
+      meta: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        unreadCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Get Notifications Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Initialize/Mark Notification as Read (optional, but requested implicitly functionality usually goes with this)
+ * @route   PUT /api/users/notifications/:id/read
+ * @access  Private
+ */
+export const markNotificationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Notification = (await import('../models/Notification.js')).default;
+
+    const notification = await Notification.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    notification.isRead = true;
+    notification.readAt = Date.now();
+    await notification.save();
+
+    res.json({ success: true, message: 'Marked as read' });
+  } catch (error) {
+    console.error('Mark Read Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Delete Notifications (Single or Bulk)
+ * @route   DELETE /api/users/notifications
+ * @access  Private
+ * @body    { ids: ["id1", "id2"] } or implicit query for single
+ */
+export const deleteNotifications = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    const Notification = (await import('../models/Notification.js')).default;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No notification IDs provided' });
+    }
+
+    const result = await Notification.deleteMany({
+      _id: { $in: ids },
+      userId: req.user._id
+    }); // end deleteMany
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} notifications`,
+      deletedCount: result.deletedCount
+    });
+
+  } catch (error) {
+    console.error('Delete Notifications Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Mark All Notifications as Read
+ * @route   PUT /api/users/notifications/read-all
+ * @access  Private
+ */
+export const markAllNotificationsRead = async (req, res) => {
+  try {
+    const Notification = (await import('../models/Notification.js')).default;
+
+    const result = await Notification.updateMany(
+      { userId: req.user._id, isRead: false },
+      { $set: { isRead: true, readAt: new Date() } }
+    );
+
+    res.json({
+      success: true,
+      message: 'All notifications marked as read',
+      updatedCount: result.modifiedCount
+    });
+
+  } catch (error) {
+    console.error('Mark All Read Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

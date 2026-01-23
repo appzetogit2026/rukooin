@@ -22,22 +22,15 @@ const BookingStatusBadge = ({ status }) => {
     const icons = {
         confirmed: <CheckCircle size={10} className="mr-1" />,
         pending: <Clock size={10} className="mr-1" />,
-        checked_in: <CheckCircle size={10} className="mr-1 text-green-500" />,
-        checked_out: <ArrowRight size={10} className="mr-1" />,
         cancelled: <XCircle size={10} className="mr-1" />,
         completed: <CheckCircle size={10} className="mr-1" />,
         refunded: <ArrowRight size={10} className="mr-1" />,
     };
 
-    const statusMap = {
-        checked_in: 'Checked In',
-        checked_out: 'Checked Out',
-    };
-
     return (
         <span className={`flex items-center w-fit px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${styles[status] || styles.pending}`}>
             {icons[status] || icons.pending}
-            {statusMap[status] || status}
+            {status}
         </span>
     );
 };
@@ -50,7 +43,7 @@ const MetricCard = ({ label, value, subLabel, loading }) => (
                 <div className="h-8 w-16 bg-gray-50 animate-pulse rounded-md"></div>
             ) : (
                 <h3 className="text-2xl font-bold text-gray-900 uppercase">
-                    {typeof value === 'number' && label.includes('REVENUE') ? `₹${value.toLocaleString()}` : value.toLocaleString()}
+                    {typeof value === 'number' && label.includes('REVENUE') ? `₹${(value ?? 0).toLocaleString()}` : (value ?? 0).toLocaleString()}
                 </h3>
             )}
             {subLabel && <span className="text-[10px] font-bold uppercase text-gray-400">{subLabel}</span>}
@@ -70,16 +63,6 @@ const AdminBookings = () => {
         search: '',
         status: ''
     });
-
-    const [activeTab, setActiveTab] = useState('all');
-
-    const B_TABS = [
-        { id: 'all', label: 'All Bookings', status: '' },
-        { id: 'scheduled', label: 'Scheduled', status: 'confirmed' },
-        { id: 'active', label: 'In Property', status: 'checked_in' },
-        { id: 'past', label: 'Completed', status: 'checked_out' },
-        { id: 'cancelled', label: 'Cancelled', status: 'cancelled' },
-    ];
 
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -146,17 +129,12 @@ const AdminBookings = () => {
         try {
             const res = await adminService.updateBookingStatus(bookingId, newStatus);
             if (res.success) {
-                toast.success(`Booking status updated`);
+                toast.success(`Booking ${newStatus} successfully`);
                 fetchBookings(currentPage, filters);
             }
         } catch {
-            toast.error('Failed to update status');
+            toast.error('Failed to update booking status');
         }
-    };
-
-    const handleTabChange = (tabId, status) => {
-        setActiveTab(tabId);
-        handleFilterChange('status', status);
     };
 
     const handleAction = (action, booking) => {
@@ -228,19 +206,6 @@ const AdminBookings = () => {
                         <Download size={14} /> Export CSV
                     </button>
                 </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex bg-white p-1 rounded-2xl border border-gray-200 shadow-sm w-fit overflow-x-auto no-scrollbar">
-                {B_TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => handleTabChange(tab.id, tab.status)}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-black text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -317,7 +282,7 @@ const AdminBookings = () => {
                                                     </p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className="text-sm font-bold text-gray-900 uppercase tracking-tight">{booking.propertyId?.propertyName || 'Deleted Property'}</span>
+                                                    <span className="text-sm font-bold text-gray-900 uppercase tracking-tight">{booking.hotelId?.name || 'Deleted Hotel'}</span>
                                                 </td>
                                                 <td className="p-4">
                                                     <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{booking.userId?.name || 'Guest User'}</p>
@@ -325,12 +290,12 @@ const AdminBookings = () => {
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="text-[10px] text-gray-600 flex flex-col gap-1 font-bold uppercase">
-                                                        <span className="flex items-center gap-1">IN: {new Date(booking.checkInDate).toLocaleDateString()}</span>
-                                                        <span className="flex items-center gap-1">OUT: {new Date(booking.checkOutDate).toLocaleDateString()}</span>
+                                                        <span className="flex items-center gap-1">IN: {new Date(booking.checkIn).toLocaleDateString()}</span>
+                                                        <span className="flex items-center gap-1">OUT: {new Date(booking.checkOut).toLocaleDateString()}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <BookingStatusBadge status={booking.bookingStatus} />
+                                                    <BookingStatusBadge status={booking.status} />
                                                 </td>
                                                 <td className="p-4 text-right font-bold text-gray-900 text-sm">
                                                     ₹{booking.totalAmount?.toLocaleString()}
@@ -348,23 +313,7 @@ const AdminBookings = () => {
                                                             <Link to={`/admin/bookings/${booking._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {booking.bookingStatus === 'confirmed' && (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(booking._id, 'checked_in')}
-                                                                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-green-50 text-[10px] font-bold uppercase text-green-600"
-                                                                >
-                                                                    <CheckCircle size={14} /> Mark Checked In
-                                                                </button>
-                                                            )}
-                                                            {booking.bookingStatus === 'checked_in' && (
-                                                                <button
-                                                                    onClick={() => handleUpdateStatus(booking._id, 'checked_out')}
-                                                                    className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-50 text-[10px] font-bold uppercase text-blue-600"
-                                                                >
-                                                                    <CheckCircle size={14} /> Mark Checked Out
-                                                                </button>
-                                                            )}
-                                                            {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'pending') && (
+                                                            {(booking.status === 'confirmed' || booking.status === 'pending') && (
                                                                 <button
                                                                     onClick={() => handleAction('cancel', booking)}
                                                                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-600"
