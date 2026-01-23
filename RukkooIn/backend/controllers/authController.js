@@ -22,24 +22,42 @@ export const sendOtp = async (req, res) => {
       return res.status(400).json({ message: 'Phone number is required' });
     }
 
-    // Generate 6 digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-
     let user;
     let Model = role === 'partner' ? Partner : User;
 
+    // FOR LOGIN: Check if user exists BEFORE sending OTP
     if (type === 'login') {
       user = await Model.findOne({ phone });
       if (!user) {
-        // If login but user not found, we can either error or treat as "new user" flow for users
-        // For Partner, stricter check usually.
+        // User doesn't exist - don't send OTP
         if (role === 'partner') {
-          return res.status(404).json({ message: 'Partner not found.' });
+          return res.status(404).json({ message: 'Partner account not found. Please register first.' });
         }
-        // For User, we might allow auto-register via verifyOtp, so we just send OTP to generic storage
+        return res.status(404).json({
+          message: 'Account not found. Please create an account first.',
+          requiresRegistration: true
+        });
       }
     }
+
+    // FOR REGISTER: Check if user already exists
+    if (type === 'register') {
+      user = await Model.findOne({ phone });
+      if (user) {
+        return res.status(409).json({
+          message: 'Account already exists. Please login instead.',
+          requiresLogin: true
+        });
+      }
+    }
+
+    // TEST NUMBERS - Bypass OTP with default 123456
+    const testNumbers = ['9685974247', '6261096283', '9752275626'];
+    const isTestNumber = testNumbers.includes(phone);
+
+    // Generate OTP - Use 123456 for test numbers, random for others
+    const otp = isTestNumber ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     if (user) {
       user.otp = otp;
@@ -49,13 +67,17 @@ export const sendOtp = async (req, res) => {
       // Store in Otp collection for new/unregistered users
       await Otp.findOneAndUpdate(
         { phone },
-        { phone, otp, expiresAt: otpExpires, tempData: { role } },
+        { phone, otp, expiresAt: otpExpires, tempData: { role, type } },
         { upsert: true, new: true }
       );
     }
 
-    // Send SMS
-    await smsService.sendOTP(phone, otp);
+    // Send SMS only for non-test numbers
+    if (!isTestNumber) {
+      await smsService.sendOTP(phone, otp);
+    } else {
+      console.log(`🧪 Test Number Detected: ${phone} - Using default OTP: 123456`);
+    }
 
     res.status(200).json({ message: 'OTP sent successfully' });
   } catch (error) {
@@ -66,50 +88,119 @@ export const sendOtp = async (req, res) => {
 
 export const registerPartner = async (req, res) => {
   try {
-    const { name, email, phone, password, address, documents } = req.body;
+    const {
+      full_name,
+      email,
+      phone,
+      owner_name,
+      aadhaar_number,
+      aadhaar_front,
+      aadhaar_back,
+      pan_number,
+      pan_card_image,
+      owner_address,
+      termsAccepted
+    } = req.body;
 
-    if (!name || !email || !phone || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
+    // Validation
+    if (!full_name || !email || !phone) {
+      return res.status(400).json({ message: 'Name, email, and phone are required' });
     }
 
+    if (!owner_name || !aadhaar_number || !aadhaar_front || !aadhaar_back) {
+      return res.status(400).json({ message: 'Owner details and Aadhaar documents are required' });
+    }
+
+    if (!pan_number || !pan_card_image) {
+      return res.status(400).json({ message: 'PAN details are required' });
+    }
+
+    if (!owner_address || !owner_address.street || !owner_address.city || !owner_address.state || !owner_address.zipCode) {
+      return res.status(400).json({ message: 'Complete address is required' });
+    }
+
+    if (!termsAccepted) {
+      return res.status(400).json({ message: 'You must accept terms and conditions' });
+    }
+
+    // Check if partner already exists
     const existingPartner = await Partner.findOne({ $or: [{ email }, { phone }] });
     if (existingPartner) {
-      return res.status(409).json({ message: 'Partner already exists' });
+      return res.status(409).json({ message: 'Partner with this email or phone already exists' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 10 * 60 * 1000;
+    // Generate random password for partner (they'll login via OTP)
+    const randomPassword = Math.random().toString(36).slice(-8);
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
 
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Store registration data temporarily
-    await Otp.findOneAndUpdate(
-      { phone },
-      {
-        phone,
-        otp,
-        expiresAt: otpExpires,
-        tempData: {
-          name,
-          email,
-          phone,
-          passwordHash,
-          address,
-          role: 'partner',
-          documents,
-          partnerApprovalStatus: 'pending'
-        }
+    // Create Partner directly with pending approval
+    const newPartner = new Partner({
+      name: full_name,
+      email,
+      phone,
+      password: passwordHash,
+      role: 'partner',
+      isPartner: true,
+      partnerApprovalStatus: 'pending',
+      isVerified: false,
+      ownerName: owner_name,
+      aadhaarNumber: aadhaar_number,
+      aadhaarFront: aadhaar_front,
+      aadhaarBack: aadhaar_back,
+      panNumber: pan_number,
+      panCardImage: pan_card_image,
+      address: {
+        street: owner_address.street,
+        city: owner_address.city,
+        state: owner_address.state,
+        zipCode: owner_address.zipCode,
+        country: owner_address.country || 'India',
+        coordinates: owner_address.coordinates || {}
       },
-      { upsert: true }
-    );
+      termsAccepted
+    });
 
-    // Send SMS
-    await smsService.sendOTP(phone, otp);
+    await newPartner.save();
 
-    res.status(200).json({ message: 'OTP sent for registration verification' });
+    // Send notification to admins
+    const admins = await Admin.find({ role: { $in: ['admin', 'superadmin'] } });
+    for (const admin of admins) {
+      notificationService.sendToUser(
+        admin._id,
+        {
+          title: 'New Partner Registration',
+          body: `${full_name} has registered as a partner and is pending approval.`
+        },
+        { type: 'partner_registration', partnerId: newPartner._id },
+        'admin'
+      ).catch(err => console.error('Failed to notify admin:', err));
+    }
+
+    // Send welcome email to partner
+    if (email) {
+      emailService.sendPartnerRegistrationEmail(newPartner).catch(err =>
+        console.error('Failed to send partner registration email:', err)
+      );
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful! Your account is pending admin approval. You can login once approved.',
+      partner: {
+        id: newPartner._id,
+        name: newPartner.name,
+        email: newPartner.email,
+        phone: newPartner.phone,
+        partnerApprovalStatus: newPartner.partnerApprovalStatus
+      }
+    });
+
   } catch (error) {
     console.error('Register Partner Error:', error);
-    res.status(500).json({ message: 'Server error initiating registration' });
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'Email or Phone already exists' });
+    }
+    res.status(500).json({ message: 'Server error during registration' });
   }
 };
 
@@ -151,6 +242,17 @@ export const verifyOtp = async (req, res) => {
       if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
         return res.status(400).json({ message: 'Invalid role context.' });
       }
+
+      // Check if this was a LOGIN attempt but user doesn't exist
+      if (otpRecord.tempData?.type === 'login') {
+        await Otp.deleteOne({ phone });
+        return res.status(404).json({
+          message: 'Account not found. Please create an account first.',
+          requiresRegistration: true
+        });
+      }
+
+      // REGISTRATION FLOW - Name is required
       if (!name) {
         return res.status(400).json({ message: 'Name is required for registration.' });
       }

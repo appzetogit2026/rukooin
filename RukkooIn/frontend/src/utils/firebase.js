@@ -3,16 +3,16 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCr_hCtUGigIpAoQL_rl3RaG_SFDlgYlCs",
+  apiKey: "AIzaSyDvZuIOlJce5MFqM7UdaPnMxnHggOVwUnA",
   authDomain: "rukkooin-39480.firebaseapp.com",
   projectId: "rukkooin-39480",
   storageBucket: "rukkooin-39480.firebasestorage.app",
   messagingSenderId: "463389493822",
-  appId: "1:463389493822:web:c2ea780030601e5e965f6f"
+  appId: "1:463389493822:web:79fa9aabcb1d88f6965f6f"
 };
 
 // VAPID KEY - Replace with yours from Firebase Console -> Cloud Messaging -> Web Configuration
-const vapidKey = "BJmKApyZ-Zz6k8h2CxKMAkqdWb3tGLU6g1XlSw3ZSjb8O2jC2rDTbjeW2614Y0alK8AFcoCG6nauT72Extj748k";
+const vapidKey = "BOF0yWdjH2UD1rGca-rOpwA2zrKW0Xy3ZmPmwH8KFTJcbXNJ5AHE8v4rM_xXUqW0fvd3SaZl_Qbnuazzc6lFdRM";
 
 const app = initializeApp(firebaseConfig);
 

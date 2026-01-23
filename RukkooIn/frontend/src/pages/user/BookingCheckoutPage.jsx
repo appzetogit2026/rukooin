@@ -154,7 +154,7 @@ const BookingCheckoutPage = () => {
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_payment_id: response.razorpay_payment_id,
                   razorpay_signature: response.razorpay_signature,
-                  bookingId: null // Booking created in verify step
+                  bookingId: bookingRes.booking._id // Booking created in previous step
                 };
                 const verifyRes = await paymentService.verifyPayment(verifyPayload);
                 if (verifyRes.success) {

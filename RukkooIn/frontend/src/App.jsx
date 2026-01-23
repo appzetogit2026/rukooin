@@ -163,7 +163,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/search', '/support', '/refer', '/hotel/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)

@@ -31,10 +31,12 @@ const triggerBookingNotifications = async (booking) => {
     }
 
     // 2. User Push
-    notificationService.sendToUser(user._id, {
-      title: 'Booking Confirmed!',
-      body: `You are going to ${property ? property.propertyName : 'Hotel'}.`
-    }, { type: 'booking', bookingId: fullBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
+    if (user) {
+      notificationService.sendToUser(user._id, {
+        title: 'Booking Confirmed!',
+        body: `You are going to ${property ? property.propertyName : 'Hotel'}.`
+      }, { type: 'booking', bookingId: fullBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
+    }
 
     // 3. Partner Notifications
     if (property && property.partnerId) {
@@ -52,37 +54,96 @@ const triggerBookingNotifications = async (booking) => {
 
 export const createBooking = async (req, res) => {
   try {
-    const { propertyId, roomTypeId, checkInDate, checkOutDate, guests, totalAmount, paymentMethod, paymentDetails } = req.body;
-
-    // Basic Validation
-    if (!propertyId || !roomTypeId || !checkInDate || !checkOutDate) {
-      return res.status(400).json({ message: 'Missing required booking details' });
-    }
-
-    const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    // Create Pending Booking
-    const booking = new Booking({
-      bookingId,
-      userId: req.user._id,
+    const {
       propertyId,
       roomTypeId,
       checkInDate,
       checkOutDate,
       guests,
       totalAmount,
-      paymentMethod, // 'wallet', 'online', 'pay_at_hotel'
-      bookingStatus: 'confirmed', // Assuming instant confirm for demo, usually 'pending' if online payment not verified
+      paymentMethod,
+      paymentDetails,
+      bookingUnit,
+      couponCode,
+      useWallet,
+      walletDeduction
+    } = req.body;
+
+    // Basic Validation
+    if (!propertyId || !roomTypeId || !checkInDate || !checkOutDate) {
+      return res.status(400).json({ message: 'Missing required booking details' });
+    }
+
+    // Fetch Property and RoomType to get required data
+    const property = await Property.findById(propertyId);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    const roomType = await RoomType.findById(roomTypeId);
+    if (!roomType) {
+      return res.status(404).json({ message: 'Room type not found' });
+    }
+
+    // Calculate total nights
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const totalNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+
+    if (totalNights <= 0) {
+      return res.status(400).json({ message: 'Invalid check-in/check-out dates' });
+    }
+
+    // Get price per night from room type
+    const pricePerNight = roomType.basePrice || roomType.price || 0;
+    const baseAmount = pricePerNight * totalNights;
+
+    // Calculate extra charges if any
+    const extraAdults = guests.extraAdults || 0;
+    const extraChildren = guests.extraChildren || 0;
+    const extraAdultPrice = (roomType.extraAdultPrice || 0) * extraAdults * totalNights;
+    const extraChildPrice = (roomType.extraChildPrice || 0) * extraChildren * totalNights;
+    const extraCharges = extraAdultPrice + extraChildPrice;
+
+    const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Create Pending Booking with all required fields
+    const booking = new Booking({
+      bookingId,
+      userId: req.user._id,
+      propertyId,
+      propertyType: property.propertyType.toLowerCase(), // Required field
+      roomTypeId,
+      bookingUnit: bookingUnit || 'room', // Required field
+      checkInDate,
+      checkOutDate,
+      totalNights, // Required field
+      guests: {
+        adults: guests.adults || 1,
+        children: guests.children || 0
+      },
+      pricePerNight, // Required field
+      baseAmount, // Required field
+      extraAdultPrice,
+      extraChildPrice,
+      extraCharges,
+      couponCode: couponCode || undefined,
+      totalAmount,
+      paymentMethod, // 'wallet', 'razorpay', 'pay_at_hotel'
+      bookingStatus: 'confirmed', // Assuming instant confirm for demo
       paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid' // Simplified
     });
 
     // Handle Wallet Payment
-    if (paymentMethod === 'wallet') {
+    if (paymentMethod === 'wallet' || (useWallet && walletDeduction > 0)) {
       const wallet = await Wallet.findOne({ userId: req.user._id });
-      if (!wallet || wallet.balance < totalAmount) {
+      const deductionAmount = walletDeduction || totalAmount;
+
+      if (!wallet || wallet.balance < deductionAmount) {
         return res.status(400).json({ message: 'Insufficient wallet balance' });
       }
-      wallet.balance -= totalAmount;
+
+      wallet.balance -= deductionAmount;
       await wallet.save();
 
       await Transaction.create({
@@ -90,42 +151,82 @@ export const createBooking = async (req, res) => {
         userId: req.user._id,
         type: 'debit',
         category: 'booking',
-        amount: totalAmount,
+        amount: deductionAmount,
         description: `Booking #${bookingId}`,
         status: 'completed'
       });
 
-      booking.paymentStatus = 'paid';
+      if (paymentMethod === 'wallet') {
+        booking.paymentStatus = 'paid';
+      }
     }
-    // Handle Online Payment (Razorpay Order Creation usually happens separately, verified here)
-    else if (paymentMethod === 'online') {
-      // Assuming paymentDetails contains success info verified middleware or trusted
+
+    // Handle Online Payment (Razorpay)
+    let razorpayOrder = null;
+    if (paymentMethod === 'razorpay' || paymentMethod === 'online') {
       if (paymentDetails && paymentDetails.paymentId) {
         booking.paymentStatus = 'paid';
-        booking.transactionId = paymentDetails.paymentId;
+        booking.paymentId = paymentDetails.paymentId;
       } else {
-        booking.bookingStatus = 'pending_payment';
+        booking.bookingStatus = 'pending';
         booking.paymentStatus = 'pending';
+
+        // Calculate amount to pay after wallet deduction
+        const amountToPay = totalAmount - (useWallet ? (walletDeduction || 0) : 0);
+
+        if (amountToPay > 0) {
+          try {
+            const instance = new Razorpay({
+              key_id: PaymentConfig.razorpayKeyId,
+              key_secret: PaymentConfig.razorpayKeySecret,
+            });
+
+            const options = {
+              amount: Math.round(amountToPay * 100), // amount in paisa
+              currency: PaymentConfig.currency || "INR",
+              receipt: bookingId,
+            };
+
+            razorpayOrder = await instance.orders.create(options);
+            // Optionally store order ID in booking if schema supports it
+            // booking.razorpayOrderId = razorpayOrder.id; 
+          } catch (error) {
+            console.error("Razorpay Order Creation Failed:", error);
+            return res.status(500).json({ message: "Failed to initiate payment gateway" });
+          }
+        } else {
+          // Fully paid by wallet
+          booking.paymentStatus = 'paid';
+          booking.bookingStatus = 'confirmed';
+        }
       }
     }
 
     await booking.save();
 
-    // Update Inventory (Simplified - Block Room)
+    // Update Inventory (Block Room for the stay duration)
     await AvailabilityLedger.create({
       propertyId,
       roomTypeId,
-      date: new Date(checkInDate),
-      totalRooms: 1, // multiple entries for date range? Simplified for now
-      bookedRooms: 1,
+      inventoryType: booking.bookingUnit || 'room',
+      source: 'platform',
       referenceId: booking._id,
-      type: 'booking'
+      startDate: new Date(checkInDate),
+      endDate: new Date(checkOutDate),
+      units: 1,
+      createdBy: 'system'
     });
 
     // Trigger Notifications
     triggerBookingNotifications(booking);
 
-    res.status(201).json({ success: true, booking });
+    res.status(201).json({
+      success: true,
+      booking,
+      paymentRequired: !!razorpayOrder,
+      order: razorpayOrder,
+      key: PaymentConfig.razorpayKeyId
+    });
   } catch (error) {
     console.error('Create Booking Error:', error);
     res.status(500).json({ message: 'Server error creating booking' });

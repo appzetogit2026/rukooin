@@ -17,19 +17,144 @@ import notificationService from '../services/notificationService.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments({});
-    const totalPartners = await Partner.countDocuments({});
-    const totalHotels = await Property.countDocuments();
-    const pendingHotels = await Property.countDocuments({ status: 'pending' });
-    const totalBookings = await Booking.countDocuments();
-    const confirmedBookings = await Booking.countDocuments({ bookingStatus: 'confirmed' });
-    const revenueData = await Booking.aggregate([
-      { $match: { bookingStatus: { $in: ['confirmed', 'checked_out'] }, paymentStatus: 'paid' } },
+    const today = new Date();
+    const startOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    // Helper for percentage change
+    const calculateGrowth = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    // 1. KPI Counts & Trends
+    const [
+      totalUsers, usersLastMonth,
+      totalPartners,
+      totalHotels,
+      pendingHotels,
+      totalBookings, bookingsLastMonth,
+      currentRevenueData, lastMonthRevenueData
+    ] = await Promise.all([
+      User.countDocuments({}),
+      User.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // Approximation for trend base
+      Partner.countDocuments({}),
+      Property.countDocuments({}),
+      Property.countDocuments({ status: 'pending' }),
+      Booking.countDocuments({}),
+      Booking.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
+      Booking.aggregate([
+         { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
+         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      Booking.aggregate([ // Revenue before this month
+         { $match: { 
+             bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
+             paymentStatus: 'paid',
+             createdAt: { $lt: startOfThisMonth }
+         }},
+         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ])
+    ]);
+
+    const totalRevenue = currentRevenueData[0]?.total || 0;
+    const prevRevenue = lastMonthRevenueData[0]?.total || 0;
+    
+    // Calculate trends (Simple approx based on total vs total-this-month isn't perfect for "vs last month", 
+    // but better: Calculate created in THIS month vs created in LAST month)
+    
+    const usersNewThisMonth = await User.countDocuments({ createdAt: { $gte: startOfThisMonth } });
+    const usersNewLastMonth = await User.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
+    
+    const bookingsThisMonth = await Booking.countDocuments({ createdAt: { $gte: startOfThisMonth } });
+    const bookingsLastMonthCount = await Booking.countDocuments({ createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } });
+
+    // Revenue This Month vs Last Month
+    const revThisMonthAgg = await Booking.aggregate([
+      { $match: { 
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
+          paymentStatus: 'paid',
+          createdAt: { $gte: startOfThisMonth }
+      }},
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
-    const totalRevenue = revenueData.length ? revenueData[0].total : 0;
-    const recentBookings = await Booking.find().sort({ createdAt: -1 }).limit(5);
-    const recentPropertyRequests = await Property.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(5);
+    const revLastMonthAgg = await Booking.aggregate([
+      { $match: { 
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, 
+          paymentStatus: 'paid',
+          createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+      }},
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+
+    const incomeThisMonth = revThisMonthAgg[0]?.total || 0;
+    const incomeLastMonth = revLastMonthAgg[0]?.total || 0;
+
+    const trends = {
+      users: calculateGrowth(usersNewThisMonth, usersNewLastMonth),
+      bookings: calculateGrowth(bookingsThisMonth, bookingsLastMonthCount),
+      revenue: calculateGrowth(incomeThisMonth, incomeLastMonth)
+    };
+
+    // 2. Charts Data
+    
+    // Revenue Chart (Last 6 Months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+
+    const monthlyRevenue = await Booking.aggregate([
+      {
+        $match: {
+          bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
+          paymentStatus: 'paid',
+          createdAt: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+          amount: { $sum: "$totalAmount" }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Booking Status Distribution
+    const bookingStatusStats = await Booking.aggregate([
+      { $group: { _id: "$bookingStatus", count: { $sum: 1 } } }
+    ]);
+    
+    // Format for frontend
+    const revenueChart = monthlyRevenue.map(item => {
+      const [year, month] = item._id.split('-');
+      const date = new Date(year, month - 1);
+      return {
+        name: date.toLocaleString('default', { month: 'short' }),
+        value: item.amount
+      };
+    });
+
+    const statusChart = bookingStatusStats.map(item => ({
+      name: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+      value: item.count
+    }));
+
+    // 3. Lists
+    const recentBookings = await Booking.find()
+      .populate('userId', 'name email')
+      .populate('hotelId', 'propertyName address') // Assuming 'hotelId' or 'propertyId' - checking schema, it is 'propertyId' ref 'Property' but in code 'hotelId' might be used? 
+      // Schema says: propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property" }
+      // Wait, let's double check the populate. The schema in Booking.js has 'propertyId'. 
+      .populate('propertyId', 'propertyName address')
+      .sort({ createdAt: -1 })
+      .limit(5);
+      
+    const recentPropertyRequests = await Property.find({ status: 'pending' })
+      .populate('partnerId', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(5);
 
     res.status(200).json({
       success: true,
@@ -39,8 +164,12 @@ export const getDashboardStats = async (req, res) => {
         totalHotels,
         pendingHotels,
         totalBookings,
-        confirmedBookings,
-        totalRevenue
+        totalRevenue,
+        trends
+      },
+      charts: {
+        revenue: revenueChart,
+        status: statusChart
       },
       recentBookings,
       recentPropertyRequests

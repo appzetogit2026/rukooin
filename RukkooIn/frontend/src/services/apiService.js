@@ -368,7 +368,7 @@ export const hotelService = {
   // Notification Methods for Partners
   getNotifications: async (page = 1, limit = 20) => {
     try {
-      const response = await api.get(`/hotel/notifications?page=${page}&limit=${limit}`);
+      const response = await api.get(`/hotels/notifications?page=${page}&limit=${limit}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -376,7 +376,7 @@ export const hotelService = {
   },
   markAllNotificationsRead: async () => {
     try {
-      const response = await api.put('/hotel/notifications/read-all');
+      const response = await api.put('/hotels/notifications/read-all');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -384,7 +384,7 @@ export const hotelService = {
   },
   deleteNotifications: async (ids) => {
     try {
-      const response = await api.delete('/hotel/notifications', { data: { ids } });
+      const response = await api.delete('/hotels/notifications', { data: { ids } });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

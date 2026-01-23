@@ -52,7 +52,6 @@ const OTPInput = () => {
 const steps = [
     { id: 1, title: 'Registration', desc: 'Create your partner account' },
     { id: 2, title: 'Owner Details', desc: 'Identity and Address' },
-    { id: 3, title: 'Verification', desc: 'Enter OTP sent to mobile' },
 ];
 
 const HotelSignup = () => {
@@ -84,7 +83,7 @@ const HotelSignup = () => {
             nextStep();
         }
 
-        // --- STEP 2: OWNER DETAILS SUBMISSION ---
+        // --- STEP 2: OWNER DETAILS SUBMISSION & REGISTRATION ---
         else if (currentStep === 2) {
             // Validation
             if (!formData.owner_name) return setError('Owner Name is required');
@@ -98,50 +97,37 @@ const HotelSignup = () => {
                 return setError('Complete address details are required');
             }
 
-            // SUBMIT TO BACKEND (Request OTP)
+            // SUBMIT REGISTRATION TO BACKEND
             setLoading(true);
             try {
-                // Ensure role is partner
-                const payload = { ...formData, role: 'partner' };
-                await authService.registerPartner(payload);
+                // Prepare clean payload with only required fields
+                const payload = {
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    owner_name: formData.owner_name,
+                    aadhaar_number: formData.aadhaar_number,
+                    aadhaar_front: formData.aadhaar_front,
+                    aadhaar_back: formData.aadhaar_back,
+                    pan_number: formData.pan_number,
+                    pan_card_image: formData.pan_card_image,
+                    owner_address: formData.owner_address,
+                    termsAccepted: formData.termsAccepted,
+                    role: 'partner'
+                };
+
+                const response = await authService.registerPartner(payload);
                 setLoading(false);
-                nextStep(); // Go to OTP Step
+
+                // Show success message
+                alert(response.message || 'Registration successful! Your account is pending admin approval. You can login once approved.');
+
+                // Redirect to login
+                navigate('/hotel/login');
             } catch (err) {
                 setLoading(false);
                 console.error("Registration Error:", err);
                 setError(err.message || "Registration failed. Please check your details.");
-            }
-        }
-
-        // --- STEP 3: OTP VERIFICATION ---
-        else if (currentStep === 3) {
-            const otpCode = formData.otpCode;
-            if (!otpCode || otpCode.length !== 6) return setError('Please enter the 6-digit OTP sent to your phone.');
-
-            setLoading(true);
-            try {
-                // Determine Payload for verify using phone from formData
-                const verifyPayload = {
-                    phone: formData.phone,
-                    otp: otpCode,
-                };
-
-                await authService.verifyPartnerOtp(verifyPayload); // This should call verifyPartnerOtp
-
-                // Update FCM Notification permission if possible here, or do it on login
-                // We can try requesting permission now if user is technically logged in or just registered
-                try {
-                    const token = await requestNotificationPermission();
-                    if (token) {
-                        await userService.updateFcmToken(token, 'web');
-                    }
-                } catch (e) { console.warn('FCM error', e); }
-
-                alert("Registration successful! Your account is pending admin approval.");
-                navigate('/hotel/login');
-            } catch (err) {
-                setLoading(false);
-                setError(err.message || "Invalid OTP");
             }
         }
     };
@@ -158,7 +144,6 @@ const HotelSignup = () => {
         switch (currentStep) {
             case 1: return <StepUserRegistration />;
             case 2: return <StepOwnerDetails />;
-            case 3: return <OTPInput />;
             default: return <div>Unknown Step</div>;
         }
     };
@@ -222,7 +207,7 @@ const HotelSignup = () => {
                                 <>Processing...</>
                             ) : (
                                 <>
-                                    {currentStep === steps.length ? 'Verify & Login' : 'Next Step'}
+                                    {currentStep === steps.length ? 'Submit Registration' : 'Next Step'}
                                     <ArrowRight size={16} />
                                 </>
                             )}

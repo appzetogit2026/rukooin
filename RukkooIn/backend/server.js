@@ -120,21 +120,71 @@ app.get('/', (req, res) => {
   res.send({ message: 'Rukkoin API is running successfully' });
 });
 
-// Database Connection & Server Start
-mongoose.connect(process.env.MONGODB_URL || "mongodb+srv://rukkooin:rukkooin@cluster0.6mzfrnp.mongodb.net/?appName=Cluster0")
-  .then(async () => {
-    console.log('✅ MongoDB connected successfully');
+// MongoDB Connection Options with retry logic
+const mongoOptions = {
+  serverSelectionTimeoutMS: 10000, // Timeout after 10s instead of 30s
+  socketTimeoutMS: 45000,
+  family: 4, // Use IPv4, skip trying IPv6
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  retryWrites: true,
+  retryReads: true,
+};
 
-    // Debug: Check Admin counts
-    const adminCount = await mongoose.connection.db.collection('admins').countDocuments();
-    const userCount = await mongoose.connection.db.collection('users').countDocuments();
-    console.log(`📊 DB Status - Admins: ${adminCount}, Users: ${userCount}`);
+// Database Connection with Retry Logic
+const connectWithRetry = async (retries = 5, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`🔄 Attempting MongoDB connection... (Attempt ${i + 1}/${retries})`);
 
-    server.listen(PORT, () => { // Use server.listen instead of app.listen
-      console.log(`🚀 Server is running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
+      await mongoose.connect(
+        process.env.MONGODB_URL || "mongodb+srv://rukkooin:rukkooin@cluster0.6mzfrnp.mongodb.net/?appName=Cluster0",
+        mongoOptions
+      );
+
+      console.log('✅ MongoDB connected successfully');
+
+      // Debug: Check Admin counts
+      const adminCount = await mongoose.connection.db.collection('admins').countDocuments();
+      const userCount = await mongoose.connection.db.collection('users').countDocuments();
+      console.log(`📊 DB Status - Admins: ${adminCount}, Users: ${userCount}`);
+
+      // Start server only after successful DB connection
+      server.listen(PORT, () => {
+        console.log(`🚀 Server is running on port ${PORT}`);
+      });
+
+      return; // Exit function on success
+    } catch (err) {
+      console.error(`❌ MongoDB connection attempt ${i + 1} failed:`, err.message);
+
+      if (i < retries - 1) {
+        console.log(`⏳ Retrying in ${delay / 1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('❌ All MongoDB connection attempts failed. Please check:');
+        console.error('   1. Your internet connection');
+        console.error('   2. MongoDB Atlas IP whitelist (add 0.0.0.0/0 for testing)');
+        console.error('   3. Your firewall/antivirus settings');
+        console.error('   4. DNS settings (try flushing DNS: ipconfig /flushdns)');
+        process.exit(1);
+      }
+    }
+  }
+};
+
+// Handle MongoDB connection events
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB disconnected. Attempting to reconnect...');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ MongoDB reconnected successfully');
+});
+
+// Start connection
+connectWithRetry();
