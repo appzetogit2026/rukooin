@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Gift, Copy, Share2, Users, ChevronRight,
@@ -6,35 +6,49 @@ import {
     MessageCircle, Twitter, Facebook, Mail, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { referralService } from '../../services/apiService';
 
 const ReferAndEarnPage = () => {
     const navigate = useNavigate();
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState('invite');
+    const [loading, setLoading] = useState(true);
+    const [referralData, setReferralData] = useState({
+        code: "...",
+        link: "",
+        earnings: { total: 0, pending: 0, thisMonth: 0 },
+        stats: { invited: 0, joined: 0, bookings: 0 },
+        history: []
+    });
+
     const codeRef = useRef(null);
 
-    // Mock User Data
-    const referralData = {
-        code: "HRITIK2024",
-        link: "https://rukkoo.in/r/HRITIK2024",
-        earnings: {
-            total: 1250,
-            pending: 350,
-            thisMonth: 500
-        },
-        stats: {
-            invited: 12,
-            joined: 8,
-            bookings: 5
-        },
-        history: [
-            { id: 1, name: "Rahul Sharma", status: "completed", reward: 200, date: "Dec 22, 2024", avatar: "RS" },
-            { id: 2, name: "Priya Patel", status: "completed", reward: 200, date: "Dec 20, 2024", avatar: "PP" },
-            { id: 3, name: "Mohit Kumar", status: "pending", reward: 200, date: "Dec 18, 2024", avatar: "MK" },
-            { id: 4, name: "Anita Verma", status: "completed", reward: 200, date: "Dec 15, 2024", avatar: "AV" },
-            { id: 5, name: "Vikram Singh", status: "pending", reward: 150, date: "Dec 12, 2024", avatar: "VS" },
-        ]
-    };
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const res = await referralService.getMyStats();
+                if (res.success) {
+                    const data = res.data;
+                    setReferralData({
+                        code: data.code,
+                        link: data.link,
+                        earnings: {
+                            total: data.earningsTotal || 0,
+                            pending: 0, // Backend needs to separate this if needed
+                            thisMonth: 0 // Backend needing separate aggregation
+                        },
+                        stats: data.stats,
+                        history: data.history
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load referral data", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(referralData.code);
@@ -55,6 +69,14 @@ const ReferAndEarnPage = () => {
         { step: 3, title: "They Book a Stay", desc: "When they complete their first booking", icon: CheckCircle },
         { step: 4, title: "You Both Earn", desc: "₹200 credited to both wallets!", icon: Gift },
     ];
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-surface flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-surface via-surface to-[#003836]">
@@ -305,7 +327,7 @@ const ReferAndEarnPage = () => {
                                                 </div>
                                                 <span className="text-sm font-medium text-gray-700">Completed Referrals</span>
                                             </div>
-                                            <span className="font-bold text-green-600">₹900</span>
+                                            <span className="font-bold text-green-600">₹{referralData.earnings.total}</span>
                                         </div>
 
                                         <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-xl">
@@ -315,7 +337,7 @@ const ReferAndEarnPage = () => {
                                                 </div>
                                                 <span className="text-sm font-medium text-gray-700">Pending Referrals</span>
                                             </div>
-                                            <span className="font-bold text-yellow-600">₹350</span>
+                                            <span className="font-bold text-yellow-600">₹{referralData.earnings.pending}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -355,7 +377,7 @@ const ReferAndEarnPage = () => {
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="font-bold text-surface text-sm">{item.name}</h4>
-                                            <p className="text-xs text-gray-400">{item.date}</p>
+                                            <p className="text-xs text-gray-400">{new Date(item.date).toLocaleDateString()}</p>
                                         </div>
                                         <div className="text-right">
                                             <p className={`font-bold text-sm ${item.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>

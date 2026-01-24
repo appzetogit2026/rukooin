@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import smsService from '../utils/smsService.js';
+import referralService from '../services/referralService.js';
 
 // Initialize Razorpay
 let razorpay;
@@ -307,6 +308,13 @@ export const verifyPayment = async (req, res) => {
       }
     } catch (notifErr) {
       console.error('Notification Trigger Custom Error:', notifErr);
+    }
+
+    // REFERRAL: Trigger Referral Reward
+    if (populatedBooking.userId) {
+      // userId might be an object or ID depending on population. Since we used populate('userId', 'name...'), it is an object.
+      const uId = populatedBooking.userId._id || populatedBooking.userId;
+      referralService.processBookingCompletion(uId, populatedBooking._id).catch(e => console.error('Referral Trigger Error (Online):', e));
     }
 
     res.json({

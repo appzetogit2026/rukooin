@@ -7,6 +7,7 @@ import Otp from '../models/Otp.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
+import referralService from '../services/referralService.js';
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -207,7 +208,7 @@ export const registerPartner = async (req, res) => {
 export const verifyOtp = async (req, res) => {
   try {
     // ... (existing verification logic)
-    const { phone, otp, name, email, role = 'user' } = req.body;
+    const { phone, otp, name, email, role = 'user', referralCode } = req.body;
 
     // ... (logic to verify OTP)
     // Select Model based on Role
@@ -304,6 +305,20 @@ export const verifyOtp = async (req, res) => {
         title: 'Welcome aboard!',
         body: 'Find your perfect stay today.'
       }, { type: 'welcome' }, 'user').catch(err => console.error('Failed to send welcome notification:', err));
+      notificationService.sendToUser(user._id, {
+        title: 'Welcome aboard!',
+        body: 'Find your perfect stay today.'
+      }, { type: 'welcome' }, 'user').catch(err => console.error('Failed to send welcome notification:', err));
+
+      // REFERRAL: Process Signup Referral
+      if (referralCode) {
+        // Run in background to not block response
+        referralService.processReferralSignup(user, referralCode).catch(err => console.error('Referral Signup Error:', err));
+      }
+
+      // REFERRAL: Auto-generate code for new user
+      referralService.generateCodeForUser(user).catch(err => console.error('Code Gen Error:', err));
+
     }
 
     const token = generateToken(user._id, user.role);

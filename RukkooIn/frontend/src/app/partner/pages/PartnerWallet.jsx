@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import walletService from '../../../services/walletService';
 import { toast } from 'react-hot-toast';
+import { useRazorpay } from 'react-razorpay';
 
 // --- Transaction Item (Compact) ---
 const TransactionItem = ({ txn }) => {
@@ -42,6 +43,7 @@ const TransactionItem = ({ txn }) => {
 };
 
 const PartnerWallet = () => {
+    const { Razorpay } = useRazorpay();
     const [wallet, setWallet] = useState(null);
     const [stats, setStats] = useState(null);
     const [transactions, setTransactions] = useState([]);
@@ -95,8 +97,45 @@ const PartnerWallet = () => {
                 await walletService.requestWithdrawal(amount);
                 toast.success('Withdrawal request submitted');
             } else if (activeModal === 'add_money') {
-                // Placeholder for Payment Gateway integration
-                toast.success('Add Money functionality coming soon!');
+                // 1. Create Order
+                const { order } = await walletService.addMoney(amount);
+
+                // 2. Open Razorpay
+                const options = {
+                    key: order.key,
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: "Rukkoin Partner",
+                    description: "Wallet Top-up",
+                    order_id: order.id,
+                    handler: async (response) => {
+                        try {
+                            // 3. Verify Payment
+                            await walletService.verifyAddMoney({
+                                ...response,
+                                amount // Pass amount for reference
+                            });
+                            toast.success('Money added successfully!');
+                            setActiveModal(null);
+                            setAmountInput('');
+                            fetchWalletData();
+                        } catch (err) {
+                            toast.error('Payment verification failed');
+                            console.error(err);
+                        }
+                    },
+                    prefill: {
+                        name: "Partner",
+                        contact: "",
+                    },
+                    theme: {
+                        color: "#004F4D",
+                    },
+                };
+
+                const razorpayInstance = new Razorpay(options);
+                razorpayInstance.open();
+                return; // Don't close modal immediately, let handler do it
             }
 
             setActiveModal(null);
@@ -182,7 +221,7 @@ const PartnerWallet = () => {
 
             {/* Modal for Withdraw / Add Money */}
             {activeModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fadeIn">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-4 animate-fadeIn">
                     <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-slideUp">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-[#003836]">

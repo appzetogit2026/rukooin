@@ -69,6 +69,22 @@ class WalletService {
   }
 
   /**
+   * Create Add Money Order
+   */
+  async addMoney(amount) {
+    const response = await apiService.post('/wallet/add-money', { amount });
+    return response.data;
+  }
+
+  /**
+   * Verify Add Money Payment
+   */
+  async verifyAddMoney(paymentData) {
+    const response = await apiService.post('/wallet/verify-add-money', paymentData);
+    return response.data;
+  }
+
+  /**
    * Format amount to INR currency
    */
   formatAmount(amount) {

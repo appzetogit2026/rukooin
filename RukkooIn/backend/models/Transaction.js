@@ -36,7 +36,9 @@ const transactionSchema = new mongoose.Schema({
       'refund_deduction',
       'no_show_penalty',
       'no_show_credit',
-      'booking'
+      'booking',
+      'referral_bonus',
+      'referral_penalty'
     ],
     required: true
   },

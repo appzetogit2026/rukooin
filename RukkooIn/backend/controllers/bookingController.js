@@ -11,6 +11,7 @@ import PaymentConfig from '../config/payment.config.js';
 import mongoose from 'mongoose';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
+import referralService from '../services/referralService.js';
 import User from '../models/User.js';
 
 // Helper: Trigger Notifications
@@ -185,8 +186,8 @@ export const createBooking = async (req, res) => {
 
     const bookingId = `BK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // Determine User Model based on role
-    const userModel = req.user.role === 'partner' ? 'Partner' : 'User';
+    // Determine User Model based on mongoose document model name
+    const userModel = req.user.constructor.modelName;
 
     // Create Booking Object
     const booking = new Booking({
@@ -274,6 +275,9 @@ export const createBooking = async (req, res) => {
             await adminWallet.credit(totalAdminCredit, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_tax');
           }
         }
+
+        // REFERRAL: Trigger Referral Reward (Immediate Wallet Payment)
+        referralService.processBookingCompletion(req.user._id, booking._id).catch(e => console.error('Referral Trigger Error (Wallet):', e));
       }
     }
 
@@ -693,6 +697,11 @@ export const markBookingAsPaid = async (req, res) => {
         title: 'Payment Received',
         body: `Your payment for booking #${booking.bookingId} has been confirmed by the hotel.`
       }, { type: 'payment_received', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    // REFERRAL: Trigger Referral Reward (Pay At Hotel Marked Paid)
+    if (booking.userId) {
+      referralService.processBookingCompletion(booking.userId, booking._id).catch(e => console.error('Referral Trigger Error (PayAtHotel):', e));
     }
 
     res.json({ success: true, message: 'Marked as Paid', booking });

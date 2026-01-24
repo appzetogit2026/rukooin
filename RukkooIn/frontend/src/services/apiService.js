@@ -667,6 +667,25 @@ export const reviewService = {
   }
 };
 
+export const referralService = {
+  getMyStats: async () => {
+    try {
+      const response = await api.get('/referrals/my-stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  getActiveProgram: async () => {
+    try {
+      const response = await api.get('/referrals/program/active');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+};
+
 export const handleResponse = (response) => response.data;
 
 export const handleError = (error) => {

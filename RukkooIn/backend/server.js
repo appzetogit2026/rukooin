@@ -100,6 +100,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
 import hotelRoutes from './routes/hotelRoutes.js';
+import referralRoutes from './routes/referralRoutes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -114,6 +115,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/hotels', hotelRoutes);
+app.use('/api/referrals', referralRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
