@@ -50,10 +50,14 @@ const PropertyDetailsPage = () => {
           if (roomAvail.availableUnits >= requiredUnits) {
             result = { available: true, unitsLeft: roomAvail.availableUnits };
           } else {
-            result = { available: false, message: `Only ${roomAvail.availableUnits} units available` };
+            result = { available: false, message: `Only ${roomAvail.availableUnits} units available`, unitsLeft: roomAvail.availableUnits };
           }
         } else {
-          result = { available: false, message: "Room not available for these dates" };
+          // If room not found in response, implied 0 availability? Or active check failed.
+          // Backend usually returns all active rooms. If not found, it might be fully blocked?
+          // Let's assume 0 if not present in ledger result but present in inventory list? 
+          // Availability controller returns ONLY active rooms with > 0 availability.
+          result = { available: false, message: "Sold Out for these dates", unitsLeft: 0 };
         }
       } else {
         result = response;
@@ -608,7 +612,7 @@ const PropertyDetailsPage = () => {
             <div className="mb-4">
               <h2 className="text-lg font-bold text-textDark mb-2">Amenities</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {amenities.map((item, idx) => (
+                {amenities.filter(item => item && item.trim()).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
                     <div className="p-2 bg-gray-50 rounded-lg">
                       <CheckCircle size={16} className="text-surface" />
@@ -624,7 +628,7 @@ const PropertyDetailsPage = () => {
           {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
             <div className="mb-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {selectedRoom.amenities.map((item, idx) => (
+                {selectedRoom.amenities.filter(item => item && item.trim()).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
                     <div className="p-2 bg-gray-50 rounded-lg">
                       <CheckCircle size={16} className="text-surface" />
@@ -787,7 +791,7 @@ const PropertyDetailsPage = () => {
                         Selected
                       </div>
                     )}
-                    <div className="flex justify-between items-start mb-2">
+                    <div className={`flex justify-between items-start mb-2 ${selectedRoom?._id === room._id ? 'pr-14' : ''}`}>
                       <h4 className="font-bold text-textDark">{room.type}</h4>
                       <span className="font-bold text-surface">₹{getRoomPrice(room) || 'N/A'}</span>
                     </div>
@@ -837,13 +841,14 @@ const PropertyDetailsPage = () => {
               {!isWholeUnit && (
                 <div className="col-span-1">
                   <label className="text-xs text-gray-500 block mb-1">{getUnitLabel()}</label>
-                  <select
+                  <input
+                    type="number"
+                    min="1"
                     className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                     value={guests.rooms}
-                    onChange={e => setGuests({ ...guests, rooms: parseInt(e.target.value) })}
-                  >
-                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                    onChange={e => setGuests({ ...guests, rooms: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                    onBlur={() => setGuests(prev => ({ ...prev, rooms: Math.max(1, Number(prev.rooms) || 1) }))}
+                  />
                 </div>
               )}
 
@@ -854,7 +859,8 @@ const PropertyDetailsPage = () => {
                   min="1"
                   className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                   value={guests.adults}
-                  onChange={e => setGuests({ ...guests, adults: Math.max(1, parseInt(e.target.value) || 0) })}
+                  onChange={e => setGuests({ ...guests, adults: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                  onBlur={() => setGuests(prev => ({ ...prev, adults: Math.max(1, Number(prev.adults) || 1) }))}
                   disabled={isBedBased}
                 />
               </div>
@@ -867,7 +873,8 @@ const PropertyDetailsPage = () => {
                     min="0"
                     className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
                     value={guests.children}
-                    onChange={e => setGuests({ ...guests, children: Math.max(0, parseInt(e.target.value) || 0) })}
+                    onChange={e => setGuests({ ...guests, children: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                    onBlur={() => setGuests(prev => ({ ...prev, children: Math.max(0, Number(prev.children) || 0) }))}
                   />
                 </div>
               )}
@@ -1225,7 +1232,7 @@ const PropertyDetailsPage = () => {
                   </span>
                 ) : availability?.available === true ? (
                   <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                    <CheckCircle size={10} /> Available
+                    <CheckCircle size={10} /> {availability.unitsLeft !== undefined ? `${availability.unitsLeft} Left!` : 'Available'}
                   </span>
                 ) : null}
               </div>

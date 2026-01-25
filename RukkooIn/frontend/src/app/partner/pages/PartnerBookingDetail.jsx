@@ -76,94 +76,92 @@ const PartnerBookingDetail = () => {
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Status Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center text-center">
-          <div className="mb-2">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Booking ID</span>
-            <p className="text-xl font-black text-gray-900">#{booking.bookingId || booking._id.slice(-6).toUpperCase()}</p>
+        {/* Status Card - Compact */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Booking ID</span>
+            <p className="text-sm font-black text-gray-900 truncate max-w-[180px]">#{booking.bookingId || booking._id.slice(-6).toUpperCase()}</p>
           </div>
-          <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide border ${booking.bookingStatus === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' :
-              booking.bookingStatus === 'cancelled' ? 'bg-red-50 text-red-700 border-red-100' :
-                booking.bookingStatus === 'no_show' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                  'bg-yellow-50 text-yellow-700 border-yellow-100'
+          <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${booking.bookingStatus === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' :
+            booking.bookingStatus === 'cancelled' ? 'bg-red-50 text-red-700 border-red-100' :
+              booking.bookingStatus === 'no_show' ? 'bg-gray-100 text-gray-600 border-gray-200' :
+                'bg-yellow-50 text-yellow-700 border-yellow-100'
             }`}>
             {booking.bookingStatus.replace('_', ' ')}
           </div>
         </div>
 
-        {/* Guest Info */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <User size={18} className="text-gray-400" /> Guest Details
+        {/* Guest Info - Compact */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
+            <User size={16} className="text-gray-400" /> Guest Details
           </h3>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center font-bold text-lg text-gray-500">
-                {user.name?.[0] || 'G'}
-              </div>
-              <div>
-                <p className="font-bold text-gray-900">{user.name || 'Guest'}</p>
-                <p className="text-sm text-gray-500">Joined via App</p>
-              </div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-base text-gray-500">
+              {user.name?.[0] || 'G'}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <a href={`tel:${user.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                <Phone size={18} className="text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase">Phone</p>
-                  <p className="font-semibold text-gray-900">{user.phone || 'N/A'}</p>
-                </div>
-              </a>
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <Mail size={18} className="text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase">Email</p>
-                  <p className="font-semibold text-gray-900 truncate max-w-[150px]">{user.email || 'N/A'}</p>
-                </div>
+            <div>
+              <p className="font-bold text-gray-900 text-sm">{user.name || 'Guest'}</p>
+              <p className="text-xs text-gray-500">Joined via App</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <a href={`tel:${user.phone}`} className="flex flex-col p-2.5 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+              <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Phone</p>
+              <div className="flex items-center gap-1.5 font-semibold text-gray-900 text-xs">
+                <Phone size={12} className="text-gray-400" /> {user.phone || 'N/A'}
+              </div>
+            </a>
+            <div className="flex flex-col p-2.5 bg-gray-50 rounded-xl">
+              <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Email</p>
+              <div className="flex items-center gap-1.5 font-semibold text-gray-900 text-xs truncate">
+                <Mail size={12} className="text-gray-400" /> <span className="truncate">{user.email || 'N/A'}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Booking Info */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Calendar size={18} className="text-gray-400" /> Stay Details
+        {/* Stay Info - Compact */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
+            <Calendar size={16} className="text-gray-400" /> Stay Details
           </h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-in</p>
-              <p className="font-bold text-gray-900">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="p-2.5 bg-gray-50 rounded-xl">
+              <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Check-in</p>
+              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkInDate).toLocaleDateString()}</p>
             </div>
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-out</p>
-              <p className="font-bold text-gray-900">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
+            <div className="p-2.5 bg-gray-50 rounded-xl">
+              <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Check-out</p>
+              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
             </div>
           </div>
-          <div className="p-3 bg-gray-50 rounded-xl mb-4">
-            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Room Type</p>
-            <p className="font-bold text-gray-900">{room.name || room.type || 'Standard Room'}</p>
-            <p className="text-xs text-gray-500 mt-1">{booking.bookingUnit} • {booking.totalNights} Night(s)</p>
+          <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+            <div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Room Type</p>
+              <p className="font-bold text-gray-900 text-sm">{room.name || room.type || 'Standard Room'}</p>
+            </div>
+            <p className="text-xs text-gray-500 font-medium">{booking.bookingUnit} Unit • {booking.totalNights} Night</p>
           </div>
         </div>
 
-        {/* Payment Info */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <CreditCard size={18} className="text-gray-400" /> Payment & Payout
+        {/* Payment Info - Compact */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
+            <CreditCard size={16} className="text-gray-400" /> Payment & Payout
           </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Total Amount (Collect from Guest)</span>
-              <span className="font-bold text-gray-900 text-lg">₹{booking.totalAmount}</span>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-gray-600">Total Amount (Collect)</span>
+              <span className="font-bold text-gray-900 text-base">₹{booking.totalAmount}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
+            <div className="flex justify-between items-center text-xs">
               <span className="text-gray-600">Partner Payout (Earnings)</span>
-              <span className="font-bold text-green-700">₹{booking.partnerPayout}</span>
+              <span className="font-bold text-green-700 text-sm">₹{booking.partnerPayout}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600">Payment Status</span>
-              <span className={`font-bold px-2 py-0.5 rounded text-xs ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            <div className="flex justify-between items-center text-xs pt-1">
+              <span className="text-gray-600">Status</span>
+              <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                 {booking.paymentStatus === 'paid' ? 'PAID' : 'PAY AT HOTEL'}
               </span>
             </div>

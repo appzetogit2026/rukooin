@@ -50,14 +50,20 @@ const PartnerSupport = () => {
 
                 {/* Contact Options */}
                 <div className="grid grid-cols-2 gap-3 mb-8">
-                    <button className="bg-[#004F4D] text-white p-5 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                    <button
+                        onClick={() => window.open('https://wa.me/919111384535', '_blank')}
+                        className="bg-[#004F4D] text-white p-5 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+                    >
                         <MessageSquare size={24} />
-                        <span className="text-sm font-bold">Live Chat</span>
+                        <span className="text-sm font-bold">WhatsApp Chat</span>
                     </button>
-                    <button className="bg-white border border-gray-200 text-[#003836] p-5 rounded-2xl shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                    <a
+                        href="tel:9111384535"
+                        className="bg-white border border-gray-200 text-[#003836] p-5 rounded-2xl shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
+                    >
                         <Phone size={24} />
                         <span className="text-sm font-bold">Call Support</span>
-                    </button>
+                    </a>
                 </div>
 
                 <div className="flex items-center gap-2 mb-4">
