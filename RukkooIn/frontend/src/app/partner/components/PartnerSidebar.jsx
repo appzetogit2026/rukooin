@@ -128,7 +128,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                         animate={{ x: 0 }}
                         exit={{ x: '-100%' }}
                         transition={{ type: 'tween', ease: 'circOut', duration: 0.4 }}
-                        className="fixed top-0 left-0 h-full w-[85%] max-w-[300px] bg-white z-[2001] overflow-y-auto overscroll-contain shadow-2xl"
+                        className="fixed top-0 left-0 h-[100dvh] w-[85%] max-w-[300px] bg-white z-[2001] overflow-y-auto overscroll-contain shadow-2xl"
                         style={{ touchAction: 'pan-y' }}
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -167,7 +167,7 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
                             </div>
                         </div>
 
-                        <div className="px-5 space-y-5 pb-10">
+                        <div className="px-5 space-y-5 pb-32">
                             {menuGroups.map((group, idx) => (
                                 <div key={idx}>
                                     <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 pl-2">

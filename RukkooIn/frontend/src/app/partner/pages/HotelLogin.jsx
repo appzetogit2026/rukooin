@@ -95,7 +95,7 @@ const HotelLogin = () => {
                         transition={{ type: "spring", delay: 0.2 }}
                         className="inline-block mb-4"
                     >
-                        <img src={logo} alt="Rukkoo.in Partner" className="w-32 h-auto" />
+                        <img src={logo} alt="Rukkoo Hub Partner" className="w-32 h-auto" />
                     </motion.div>
                     <h1 className="text-3xl font-bold text-white">Partner Login</h1>
                     <p className="text-teal-100 mt-2">Access your hotel dashboard</p>
