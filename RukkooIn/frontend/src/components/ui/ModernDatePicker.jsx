@@ -9,7 +9,8 @@ const ModernDatePicker = ({
     onChange,
     minDate,
     placeholder = "Select Date",
-    onClear
+    onClear,
+    align = "left"
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(date ? new Date(date) : new Date());
@@ -173,7 +174,7 @@ const ModernDatePicker = ({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute top-full left-0 z-50 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-[280px] sm:w-[320px]"
+                        className={`absolute top-full z-50 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 w-[280px] sm:w-[320px] ${align === 'right' ? 'right-0' : 'left-0'}`}
                     >
                         {renderHeader()}
                         {renderDays()}

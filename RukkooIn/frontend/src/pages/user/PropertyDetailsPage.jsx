@@ -835,6 +835,7 @@ const PropertyDetailsPage = () => {
                   onChange={(newDate) => setDates({ ...dates, checkOut: newDate })}
                   minDate={dates.checkIn ? new Date(new Date(dates.checkIn).getTime() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                   placeholder="Select Check-out"
+                  align="right"
                 />
               </div>
 
