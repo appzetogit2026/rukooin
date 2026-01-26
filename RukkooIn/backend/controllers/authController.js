@@ -657,6 +657,8 @@ export const updateAdminProfile = async (req, res) => {
 };
 
 
+import { uploadToCloudinary } from '../config/cloudinary.js';
+
 /**
  * @desc    Upload Documents (Public for Registration)
  * @route   POST /api/auth/partner/upload-docs
@@ -667,10 +669,21 @@ export const uploadDocs = async (req, res) => {
     if (!req.files || !req.files.length) {
       return res.status(400).json({ message: 'No documents provided' });
     }
-    const urls = req.files.map((f) => f.path);
+
+    const uploadPromises = req.files.map(async (file) => {
+      // file.path is the local disk path now
+      const result = await uploadToCloudinary(file.path, {
+        folder: 'rukkoin_docs'
+      });
+      return result.url;
+    });
+
+    const urls = await Promise.all(uploadPromises);
+
     res.json({ success: true, urls });
   } catch (e) {
-    res.status(500).json({ message: e.message });
+    console.error('Upload Error:', e);
+    res.status(500).json({ message: e.message || 'Upload failed' });
   }
 };
 

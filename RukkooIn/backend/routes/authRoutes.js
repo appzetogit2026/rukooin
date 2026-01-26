@@ -1,7 +1,7 @@
 import express from 'express';
 import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, updateFcmToken } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
-import upload from '../utils/cloudinary.js';
+import upload from '../middlewares/upload.js';
 
 const router = express.Router();
 
