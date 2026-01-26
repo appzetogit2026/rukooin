@@ -67,7 +67,7 @@ const PartnerContact = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Email</p>
-              <p className="text-xs text-gray-500">partners@rukko.in</p>
+              <p className="text-xs text-gray-500">rukkoohub@gmail.com</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
@@ -76,7 +76,7 @@ const PartnerContact = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
-              <p className="text-xs text-gray-500">+91-00000-00000</p>
+              <p className="text-xs text-gray-500">6232314147</p>
             </div>
           </div>
         </div>

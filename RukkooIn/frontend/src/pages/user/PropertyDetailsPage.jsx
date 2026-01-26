@@ -7,6 +7,7 @@ import {
   CheckCircle, Shield, Info, Clock, Wifi, Coffee, Car
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 const PropertyDetailsPage = () => {
   const { id } = useParams();
@@ -819,21 +820,21 @@ const PropertyDetailsPage = () => {
             <h3 className="font-bold text-textDark mb-3">Trip Details</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="col-span-1">
-                <label className="text-xs text-gray-500 block mb-1">Check-in</label>
-                <input
-                  type="date"
-                  className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                  value={dates.checkIn}
-                  onChange={e => setDates({ ...dates, checkIn: e.target.value })}
+                <ModernDatePicker
+                  label="Check-in"
+                  date={dates.checkIn}
+                  onChange={(newDate) => setDates({ ...dates, checkIn: newDate })}
+                  minDate={new Date().toISOString().split('T')[0]}
+                  placeholder="Select Check-in"
                 />
               </div>
               <div className="col-span-1">
-                <label className="text-xs text-gray-500 block mb-1">Check-out</label>
-                <input
-                  type="date"
-                  className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                  value={dates.checkOut}
-                  onChange={e => setDates({ ...dates, checkOut: e.target.value })}
+                <ModernDatePicker
+                  label="Check-out"
+                  date={dates.checkOut}
+                  onChange={(newDate) => setDates({ ...dates, checkOut: newDate })}
+                  minDate={dates.checkIn ? new Date(new Date(dates.checkIn).getTime() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                  placeholder="Select Check-out"
                 />
               </div>
 
