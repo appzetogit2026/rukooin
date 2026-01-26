@@ -948,63 +948,71 @@ export const getAdminNotifications = async (req, res) => {
 
 export const createBroadcastNotification = async (req, res) => {
   try {
-    const { title, body, targetAudience, type = 'general' } = req.body; // targetAudience: 'users', 'partners', 'all'
+    const { title, body, targetAudience, type = 'general' } = req.body; // targetAudience: 'users', 'partners', 'all' || 'everyone'
 
     if (!title || !body || !targetAudience) {
       return res.status(400).json({ message: 'Title, Body and Target Audience are required' });
     }
 
-    let query = {};
-    if (targetAudience === 'users') {
-      query = { role: 'user' };
-    } else if (targetAudience === 'partners') {
-      query = { role: 'partner' };
-    } else if (targetAudience === 'all') {
-      query = { role: { $in: ['user', 'partner'] } };
-    } else {
-      return res.status(400).json({ message: 'Invalid Target Audience' });
+    let recipients = [];
+
+    // 1. Fetch Users
+    if (targetAudience === 'users' || targetAudience === 'everyone' || targetAudience === 'all') {
+      const users = await User.find({ isBlocked: { $ne: true } }).select('_id');
+      recipients.push(...users.map(u => ({ id: u._id, type: 'user' })));
     }
 
-    // Find recipients
-    // Optimize: If 'all', we might have too many users.
-    // Ideally we use a background job. For now, assuming manageable scale (<10k users).
-    const recipients = await User.find(query).select('_id role');
+    // 2. Fetch Partners
+    if (targetAudience === 'partners' || targetAudience === 'everyone' || targetAudience === 'all') {
+      // Typically approved partners only? Or all? Let's say all active ones.
+      const partners = await Partner.find({ isBlocked: { $ne: true } }).select('_id');
+      recipients.push(...partners.map(p => ({ id: p._id, type: 'partner' })));
+    }
 
     if (recipients.length === 0) {
-      return res.status(404).json({ message: 'No recipients found for this audience' });
+      return res.status(404).json({ message: 'No active recipients found for this audience' });
     }
 
-    // Bulk Insert Notifications
-    // Note: This can be heavy.
-    const notifications = recipients.map(user => ({
-      userId: user._id,
-      userType: user.role, // 'user' or 'partner'
-      userModel: 'User',
-      title,
-      body,
-      type: 'broadcast',
-      isRead: false
-    }));
+    console.log(`Sending Broadcast: "${title}" to ${recipients.length} recipients.`);
 
-    if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
+    // 3. Send via Notification Service (Handles DB Save + FCM Push)
+    // Using simple loop to avoid excessive parallel load if many recipients
+    let sentCount = 0;
+
+    // Helper function to process in chunks to avoid overwhelming the server/firebase
+    const chunkSize = 50;
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+      const chunk = recipients.slice(i, i + chunkSize);
+      await Promise.all(chunk.map(async (recipient) => {
+        try {
+          await notificationService.sendToUser(
+            recipient.id,
+            { title, body },
+            { type: 'broadcast', broadcastId: Date.now().toString() },
+            recipient.type
+          );
+          sentCount++;
+        } catch (err) {
+          console.error(`Failed to send broadcast to ${recipient.type} ${recipient.id}:`, err);
+        }
+      }));
     }
 
-    // Log for Admin (Sent Tab)
+    // 4. Log for Admin (Sent Tab)
     await Notification.create({
       userId: req.user._id,
       userType: 'admin',
-      userModel: 'Admin',
+      userModel: 'Admin', // Assuming Admin model handles this
       title: `Broadcast Sent: ${title}`,
-      body: `Sent to ${targetAudience} (${recipients.length} recipients). Content: ${body}`,
+      body: `Sent to ${targetAudience} (${sentCount}/${recipients.length} recipients). Content: ${body}`,
       type: 'broadcast_log',
       isRead: true,
-      data: { originalTitle: title, originalBody: body, targetAudience, recipientCount: recipients.length }
+      data: { originalTitle: title, originalBody: body, targetAudience, recipientCount: sentCount }
     });
 
     res.status(201).json({
       success: true,
-      message: `Notification queued for ${recipients.length} recipients.`
+      message: `Notification broadcasted to ${sentCount} recipients.`
     });
 
   } catch (error) {

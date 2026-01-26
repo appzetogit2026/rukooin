@@ -146,7 +146,7 @@ const BookingCheckoutPage = () => {
             key: key,
             amount: order.amount, // Net amount after wallet deduction
             currency: order.currency,
-            name: "AppZeto Hotels",
+            name: "Rukkoo.in",
             description: `Booking Payment`,
             order_id: order.id,
             handler: async function (response) {
@@ -174,7 +174,35 @@ const BookingCheckoutPage = () => {
               email: user?.email || '',
               contact: user?.phone || ''
             },
-            theme: { color: "#000000" }
+            theme: { color: "#000000" },
+            // Enhanced Configuration for UPI Intent & App Redirects
+            config: {
+              display: {
+                blocks: {
+                  head: {
+                    name: "Pay via UPI / Apps",
+                    instruments: [
+                      { method: "upi" }, // Prioritize UPI Intent (GPay, PhonePe, etc.)
+                      { method: "wallet", wallets: ["paytm", "phonepe"] }
+                    ]
+                  },
+                  cards: {
+                    name: "Cards & Netbanking",
+                    instruments: [
+                      { method: "card" },
+                      { method: "netbanking" }
+                    ]
+                  }
+                },
+                sequence: ["block.head", "block.cards"],
+                preferences: {
+                  show_default_blocks: true
+                }
+              }
+            },
+            retry: {
+              enabled: true
+            }
           };
 
           const rzp = new window.Razorpay(options);

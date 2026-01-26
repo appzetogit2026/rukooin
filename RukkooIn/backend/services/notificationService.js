@@ -73,7 +73,7 @@ class NotificationService {
             badge: '/badge-72x72.png',
           },
           fcmOptions: {
-            link: data.url || '/',
+            link: data.url || '/', // Ensure URL is passed for web clicks
           },
         },
       };
@@ -117,6 +117,9 @@ class NotificationService {
         // Dynamic import to avoid circular dependency issues if any, or just standard import
         const Admin = (await import('../models/Admin.js')).default;
         user = await Admin.findById(userId);
+      } else if (userType === 'partner') {
+        const Partner = (await import('../models/Partner.js')).default;
+        user = await Partner.findById(userId);
       } else {
         user = await User.findById(userId);
       }
