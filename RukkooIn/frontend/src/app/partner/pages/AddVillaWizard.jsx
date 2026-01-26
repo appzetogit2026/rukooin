@@ -476,11 +476,7 @@ const AddVillaWizard = () => {
 
   const nextFromDocuments = () => {
     setError('');
-    const missing = propertyForm.documents.some(d => !d.fileUrl);
-    if (missing) {
-      setError('Please upload all required documents');
-      return;
-    }
+    // Optional
     setStep(9);
   };
 
@@ -1215,7 +1211,7 @@ const AddVillaWizard = () => {
                         <div>
                           <div className="font-bold text-sm text-gray-800">{d.name}</div>
                           <div className={`text-xs ${d.fileUrl ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>
-                            {d.fileUrl ? 'Document Uploaded' : 'Required'}
+                            {d.fileUrl ? 'Document Uploaded' : 'Optional'}
                           </div>
                         </div>
                       </div>
@@ -1273,7 +1269,7 @@ const AddVillaWizard = () => {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Documents</span>
-                      <span className={propertyForm.documents.every(d => d.fileUrl) ? "text-emerald-600 font-bold" : "text-red-500 font-bold"}>{propertyForm.documents.every(d => d.fileUrl) ? "Complete" : "Incomplete"}</span>
+                      <span className="text-gray-500 font-medium">{propertyForm.documents.filter(d => d.fileUrl).length}/{propertyForm.documents.length} (Optional)</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Photos</span>

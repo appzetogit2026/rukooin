@@ -490,11 +490,7 @@ const AddHostelWizard = () => {
 
   const nextFromDocuments = () => {
     setError('');
-    const missing = propertyForm.documents.some(d => !d.fileUrl);
-    if (missing) {
-      setError('Please upload all required documents');
-      return;
-    }
+    // Optional
     setStep(9);
   };
 
@@ -1204,7 +1200,7 @@ const AddHostelWizard = () => {
                         <div>
                           <div className="font-bold text-sm text-gray-800">{d.name}</div>
                           <div className={`text-xs ${d.fileUrl ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>
-                            {d.fileUrl ? 'Document Uploaded' : 'Required'}
+                            {d.fileUrl ? 'Document Uploaded' : 'Optional'}
                           </div>
                         </div>
                       </div>

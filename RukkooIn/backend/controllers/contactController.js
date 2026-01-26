@@ -1,5 +1,8 @@
 import ContactMessage from '../models/ContactMessage.js';
 import emailService from '../services/emailService.js';
+import notificationService from '../services/notificationService.js';
+import Notification from '../models/Notification.js';
+import Admin from '../models/Admin.js';
 import mongoose from 'mongoose';
 
 export const createContactMessage = async (req, res) => {
@@ -32,25 +35,30 @@ export const createContactMessage = async (req, res) => {
       // Based on previous file reads, it seems 'User' is used for everything usually, 
       // but 'Admin' model reference exists in code. Let's try finding User with role 'admin' first.
 
-      const adminUser = await mongoose.model('User').findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+      const adminUsers = await Admin.find({ role: { $in: ['admin', 'superadmin'] }, isActive: true });
 
-      if (adminUser) {
-        // 1. Send Email
+      for (const adminUser of adminUsers) {
+        // 1. Send Email (Optional: maybe just send to one? For now, sending to all active admins is safer for visibility)
         if (adminUser.email) {
           emailService.sendAdminSupportQueryEmail(adminUser.email, doc).catch(e => console.error('Email failed:', e));
         }
 
         // 2. Create In-App Notification
-        const Notification = mongoose.model('Notification');
         await Notification.create({
           userId: adminUser._id,
-          userType: 'admin', // or 'user' depending on schema, usually 'admin' for dashboard
+          userType: 'admin',
           title: `New Support Message: ${subject}`,
           body: `From: ${name} (${audience}). Click to view.`,
           type: 'support_message',
           data: { messageId: doc._id, audience },
           isRead: false
         });
+
+        // 3. Trigger Push Notification
+        notificationService.sendToUser(adminUser._id, {
+          title: `New Support Message: ${subject}`,
+          body: `From: ${name} (${audience}).`
+        }, { type: 'support_message', messageId: doc._id }, 'admin').catch(e => console.error('Push failed:', e));
       }
     } catch (err) {
       console.warn('Could not notify admin about support query:', err);

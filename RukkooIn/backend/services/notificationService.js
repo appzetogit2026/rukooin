@@ -111,10 +111,10 @@ class NotificationService {
    */
   async sendToUser(userId, notification, data = {}, userType = 'user') {
     try {
+      console.log(`[NotificationService] Sending to User: ${userId} (${userType})`);
       let user;
 
       if (userType === 'admin') {
-        // Dynamic import to avoid circular dependency issues if any, or just standard import
         const Admin = (await import('../models/Admin.js')).default;
         user = await Admin.findById(userId);
       } else if (userType === 'partner') {
@@ -125,32 +125,39 @@ class NotificationService {
       }
 
       if (!user) {
+        console.warn(`[NotificationService] User not found: ${userId} (${userType})`);
         return {
           success: false,
           error: `${userType} not found`,
         };
       }
 
+      let savedNotification;
+      try {
+        console.log('[NotificationService] Saving notification to DB...');
+        savedNotification = await Notification.create({
+          userId: user._id,
+          userType: userType, // 'user' or 'admin'
+          title: notification.title || 'Rukkoin',
+          body: notification.body || '',
+          data: data || {},
+          type: data.type || 'general',
+        });
+        console.log(`[NotificationService] DB Save Success. ID: ${savedNotification._id}`);
+      } catch (dbError) {
+        console.error('[NotificationService] [ERROR] Failed to save notification to database:', dbError);
+      }
+
       // Get all FCM tokens (app + web)
       const fcmTokens = this.getUserFcmTokens(user);
+      console.log(`[NotificationService] Found ${fcmTokens.length} FCM tokens for user.`);
 
       if (fcmTokens.length === 0) {
-        // Still save notification to database even without FCM token
-        try {
-          await Notification.create({
-            userId: user._id,
-            userType: userType, // 'user' or 'admin'
-            title: notification.title || 'Rukkoin',
-            body: notification.body || '',
-            data: data || {},
-            type: data.type || 'general',
-          });
-        } catch (dbError) {
-          console.error('[ERROR] Failed to save notification to database:', dbError);
-        }
+        console.warn('[NotificationService] User has no FCM tokens. Skipping Push.');
         return {
           success: false,
           error: 'User does not have FCM token',
+          notificationId: savedNotification?._id
         };
       }
 
@@ -160,39 +167,34 @@ class NotificationService {
 
       for (const token of fcmTokens) {
         try {
+          console.log(`[NotificationService] Sending to token: ${token.substring(0, 10)}...`);
           const result = await this.sendToToken(token, notification, data);
           if (result.success) {
+            console.log('[NotificationService] Push Sent Successfully.');
             successCount++;
             lastResult = result;
+          } else {
+            console.warn('[NotificationService] Push Failed:', result.error);
           }
         } catch (err) {
-          console.error('FCM send exception:', err);
+          console.error('[NotificationService] FCM send exception:', err);
         }
       }
 
-      // Save notification to database if at least one token was sent successfully
-      if (successCount > 0) {
-        try {
-          await Notification.create({
-            userId: user._id,
-            userType: userType,
-            title: notification.title || 'Rukkoin',
-            body: notification.body || '',
-            data: data || {},
-            type: data.type || 'general',
-            fcmMessageId: lastResult?.messageId || null
-          });
-        } catch (dbError) {
-          console.error('[ERROR] Failed to save notification to database:', dbError);
-        }
+      // Update notification with FCM Message ID if sent
+      if (successCount > 0 && savedNotification && lastResult?.messageId) {
+        savedNotification.fcmMessageId = lastResult.messageId;
+        await savedNotification.save().catch(e => console.error('Failed to update FCM ID:', e));
       }
 
+      console.log(`[NotificationService] Complete. Success: ${successCount}/${fcmTokens.length}`);
       return {
         success: successCount > 0,
-        successCount
+        successCount,
+        notificationId: savedNotification?._id
       };
     } catch (error) {
-      console.error('[ERROR] Error sending notification to user:', error);
+      console.error('[NotificationService] [ERROR] Error sending notification to user:', error);
       throw error;
     }
   }

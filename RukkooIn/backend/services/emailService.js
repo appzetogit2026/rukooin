@@ -2,15 +2,22 @@ import nodemailer from 'nodemailer';
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
+    this.transporter = null;
+  }
+
+  getTransporter() {
+    if (!this.transporter) {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
+        },
+      });
+    }
+    return this.transporter;
   }
 
   /**
@@ -22,7 +29,7 @@ class EmailService {
    */
   async sendEmail({ to, subject, html, text }) {
     try {
-      const info = await this.transporter.sendMail({
+      const info = await this.getTransporter().sendMail({
         from: `"${process.env.FROM_NAME || 'RukkooIn'}" <${process.env.SMTP_USER}>`,
         to,
         subject,

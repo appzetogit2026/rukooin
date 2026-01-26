@@ -594,7 +594,7 @@ const AddHotelWizard = () => {
         setStep(8); // Rules next
         break;
       case 8:
-        setStep(9); // Docs next
+        setStep(9); // Docs next - validation removed/optional
         break;
       case 9:
         submitAll();
@@ -1222,7 +1222,7 @@ const AddHotelWizard = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="font-bold text-gray-900">{doc.name}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">Required document</div>
+                          <div className="text-xs text-gray-400 mt-0.5">Optional document</div>
                         </div>
                         {doc.fileUrl ? (
                           <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>
@@ -1320,10 +1320,10 @@ const AddHotelWizard = () => {
                     {propertyForm.documents.map((doc, i) => (
                       <div key={i} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          {doc.fileUrl ? <CheckCircle size={14} className="text-emerald-500" /> : <div className="w-3.5 h-3.5 rounded-full border border-red-300 bg-red-50"></div>}
-                          <span className={doc.fileUrl ? 'text-gray-700' : 'text-red-500'}>{doc.name}</span>
+                          {doc.fileUrl ? <CheckCircle size={14} className="text-emerald-500" /> : <div className="w-3.5 h-3.5 rounded-full border border-gray-300 bg-gray-50"></div>}
+                          <span className={doc.fileUrl ? 'text-gray-700' : 'text-gray-500'}>{doc.name}</span>
                         </div>
-                        <span className="text-xs text-gray-400">{doc.fileUrl ? 'Attached' : 'Missing'}</span>
+                        <span className="text-xs text-gray-400">{doc.fileUrl ? 'Attached' : 'Optional'}</span>
                       </div>
                     ))}
                   </div>

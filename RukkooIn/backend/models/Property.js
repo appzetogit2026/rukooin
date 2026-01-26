@@ -5,7 +5,7 @@ const nearbyPlaceSchema = new mongoose.Schema({
   name: String,
   type: {
     type: String,
-    enum: ["airport", "railway", "metro", "hospital", "college", "tourist", "market"]
+    // enum removed to allow flexibilty (bus_stop, restaurant, other, etc.)
   },
   distanceKm: Number
 });
