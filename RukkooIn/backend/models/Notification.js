@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema(
     userModel: {
       type: String,
       required: true,
-      enum: ['User', 'Admin'],
+      enum: ['User', 'Admin', 'Partner'],
       default: 'User'
     },
     title: {

@@ -163,12 +163,12 @@ const AdminBookings = () => {
             ...bookings.map(b => [
                 b._id,
                 b.bookingId,
-                `"${b.hotelId?.name}"`,
-                `"${b.userId?.name}"`,
-                b.userId?.phone,
-                new Date(b.checkIn).toLocaleDateString(),
-                new Date(b.checkOut).toLocaleDateString(),
-                b.status,
+                `"${b.propertyId?.propertyName || 'Deleted Hotel'}"`,
+                `"${b.userId?.name || 'Guest Details Missing'}"`,
+                b.userId?.phone || 'N/A',
+                new Date(b.checkInDate).toLocaleDateString(),
+                new Date(b.checkOutDate).toLocaleDateString(),
+                b.bookingStatus,
                 b.totalAmount
             ].join(','))
         ].join('\n');
@@ -282,20 +282,40 @@ const AdminBookings = () => {
                                                     </p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className="text-sm font-bold text-gray-900 uppercase tracking-tight">{booking.hotelId?.name || 'Deleted Hotel'}</span>
-                                                </td>
-                                                <td className="p-4">
-                                                    <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{booking.userId?.name || 'Guest User'}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold uppercase">{booking.userId?.phone || 'N/A'}</p>
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="text-[10px] text-gray-600 flex flex-col gap-1 font-bold uppercase">
-                                                        <span className="flex items-center gap-1">IN: {new Date(booking.checkIn).toLocaleDateString()}</span>
-                                                        <span className="flex items-center gap-1">OUT: {new Date(booking.checkOut).toLocaleDateString()}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-gray-900 uppercase tracking-tight">
+                                                            {booking.propertyId?.propertyName || 'Deleted Hotel'}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-semibold uppercase">
+                                                            {booking.propertyId?.address?.city || 'Location N/A'}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <BookingStatusBadge status={booking.status} />
+                                                    <div className="flex flex-col">
+                                                        <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">
+                                                            {booking.userId?.name || 'Guest User'}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase">
+                                                            {booking.userId?.email || 'No Email'}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase">
+                                                            {booking.userId?.phone || 'No Phone'}
+                                                        </p>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="text-[10px] text-gray-600 flex flex-col gap-1 font-bold uppercase">
+                                                        <span className="flex items-center gap-1">
+                                                            IN: {booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            OUT: {booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <BookingStatusBadge status={booking.bookingStatus} />
                                                 </td>
                                                 <td className="p-4 text-right font-bold text-gray-900 text-sm">
                                                     ₹{booking.totalAmount?.toLocaleString()}
@@ -313,7 +333,7 @@ const AdminBookings = () => {
                                                             <Link to={`/admin/bookings/${booking._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                                                            {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'pending') && (
                                                                 <button
                                                                     onClick={() => handleAction('cancel', booking)}
                                                                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-600"

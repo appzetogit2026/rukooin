@@ -265,6 +265,14 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  // Fix for Back Button in WebView/App Wrappers (Flutter/Android)
+  // Ensures history stack has depth so "canGoBack" is true, preventing immediate app exit.
+  React.useEffect(() => {
+    if (window.history && window.history.length === 1) {
+      window.history.pushState(null, document.title, window.location.href);
+    }
+  }, []);
+
   React.useEffect(() => {
     const initFcm = async () => {
       // 1. Check if running in a WebView with a native bridge (e.g. Flutter)
