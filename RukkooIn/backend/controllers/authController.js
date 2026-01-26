@@ -300,11 +300,6 @@ export const verifyOtp = async (req, res) => {
       }
 
       // Send Welcome Notification (Stored + Push if token exists later)
-      // Since token might not be here, we trust the frontend will sync it later, or we store a notification for the inbox.
-      notificationService.sendToUser(user._id, {
-        title: 'Welcome aboard!',
-        body: 'Find your perfect stay today.'
-      }, { type: 'welcome' }, 'user').catch(err => console.error('Failed to send welcome notification:', err));
       notificationService.sendToUser(user._id, {
         title: 'Welcome aboard!',
         body: 'Find your perfect stay today.'
@@ -406,8 +401,8 @@ export const verifyPartnerOtp = async (req, res) => {
       notificationService.sendToUser(
         admin._id,
         {
-          title: 'New Partner Registration',
-          body: `${newPartner.name} has registered and needs review.`
+          title: `New Partner Registration: ${newPartner.name}`,
+          body: 'Review needed.'
         },
         { type: 'partner_registration', partnerId: newPartner._id },
         'admin' // Assuming sendToUser handles 'admin' type correctly

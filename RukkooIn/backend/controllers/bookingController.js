@@ -44,8 +44,21 @@ const triggerBookingNotifications = async (booking) => {
       // Push
       notificationService.sendToUser(property.partnerId, {
         title: 'New Booking Alert!',
-        body: `1 Night, ${fullBooking.guests.adults} Guests. Check App.`
+        body: `${fullBooking.totalNights} Night, ${fullBooking.guests.adults} Guests. Check App.`
       }, { type: 'new_booking', bookingId: fullBooking._id }, 'partner').catch(err => console.error('Partner Push failed:', err));
+
+      // SMS
+      // Need to find Partner Phone. Property has partnerId, need to fetch Partner User.
+      try {
+        const Partner = (await import('../models/Partner.js')).default;
+        const partner = await Partner.findById(property.partnerId);
+        if (partner && partner.phone) {
+          smsService.sendSMS(partner.phone, `New Booking Alert! ${fullBooking.totalNights} Night, ${fullBooking.guests.adults} Guests. Check App.`)
+            .catch(e => console.error('Partner SMS failed:', e));
+        }
+      } catch (smsErr) {
+        console.error('Partner SMS Lookup Error:', smsErr);
+      }
     }
 
   } catch (err) {
@@ -250,6 +263,12 @@ export const createBooking = async (req, res) => {
           }
 
           await partnerWallet.credit(partnerPayout, `Payment for Booking #${bookingId}`, bookingId, 'booking_payment');
+
+          // NOTIFICATION: Wallet Credit
+          notificationService.sendToUser(property.partnerId, {
+            title: 'Wallet Credited',
+            body: `Wallet Credited: ₹${partnerPayout} for Booking #${bookingId}`
+          }, { type: 'wallet_credit', bookingId: booking._id }, 'partner').catch(e => console.error(e));
         }
 
         // 2. Credit Admin (Commission + Tax)

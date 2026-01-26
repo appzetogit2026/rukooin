@@ -414,7 +414,7 @@ export const verifyPropertyDocuments = async (req, res) => {
       // NOTIFICATION: Property Live
       notificationService.sendToUser(property.partnerId, {
         title: 'Property Live!',
-        body: `Your property ${property.propertyName} is verification approved and LIVE now!`
+        body: `Your property ${property.propertyName} is LIVE now!`
       }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
 
     } else if (action === 'reject') {
@@ -672,7 +672,7 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       if (partner.email) emailService.sendPartnerApprovedEmail(partner).catch(e => console.error(e));
       notificationService.sendToUser(partner._id, {
         title: 'You are approved!',
-        body: 'Start listing your properties.'
+        body: 'You are approved! Start listing your properties.'
       }, { type: 'partner_approved' }, 'partner').catch(e => console.error(e));
 
     } else if (status === 'rejected') { // Explicit 'rejected' check or else clause
