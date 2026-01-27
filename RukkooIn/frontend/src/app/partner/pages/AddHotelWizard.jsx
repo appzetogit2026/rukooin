@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
-import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock } from 'lucide-react';
+import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
 const REQUIRED_DOCS_HOTEL = [
@@ -37,7 +37,7 @@ const AddHotelWizard = () => {
   const [tempNearbyPlace, setTempNearbyPlace] = useState({ name: '', type: 'tourist', distanceKm: '' });
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(null);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -339,9 +339,9 @@ const AddHotelWizard = () => {
     setError('');
   };
 
-  const uploadImages = async (files, onDone) => {
+  const uploadImages = async (files, type, onDone) => {
     try {
-      setUploading(true);
+      setUploading(type);
       const fd = new FormData();
       Array.from(files).forEach(f => fd.append('images', f));
       const res = await hotelService.uploadImages(fd);
@@ -350,7 +350,7 @@ const AddHotelWizard = () => {
     } catch {
       setError('Upload failed');
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
 
@@ -924,9 +924,15 @@ const AddHotelWizard = () => {
                 <button
                   type="button"
                   onClick={() => coverImageFileInputRef.current?.click()}
+                  disabled={!!uploading}
                   className="w-full h-48 sm:h-64 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center bg-gray-50 hover:bg-white hover:border-emerald-400 transition-all overflow-hidden group relative"
                 >
-                  {propertyForm.coverImage ? (
+                  {uploading === 'cover' ? (
+                    <div className="flex flex-col items-center gap-2 text-emerald-600">
+                      <Loader2 className="animate-spin" size={24} />
+                      <span className="text-sm font-medium">Uploading...</span>
+                    </div>
+                  ) : propertyForm.coverImage ? (
                     <div className="w-full h-full relative">
                       <img src={propertyForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -943,7 +949,7 @@ const AddHotelWizard = () => {
                   )}
                 </button>
                 <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files?.length) uploadImages(e.target.files, urls => urls[0] && updatePropertyForm('coverImage', urls[0]));
+                  if (e.target.files?.length) uploadImages(e.target.files, 'cover', urls => urls[0] && updatePropertyForm('coverImage', urls[0]));
                 }} />
               </div>
 
@@ -970,13 +976,18 @@ const AddHotelWizard = () => {
                   <button
                     type="button"
                     onClick={() => propertyImagesFileInputRef.current?.click()}
+                    disabled={!!uploading}
                     className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-white hover:border-emerald-400 flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all"
                   >
-                    <Plus size={24} />
+                    {uploading === 'gallery' ? (
+                      <Loader2 size={24} className="animate-spin text-emerald-600" />
+                    ) : (
+                      <Plus size={24} />
+                    )}
                   </button>
                 </div>
                 <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => {
-                  if (e.target.files?.length) uploadImages(e.target.files, urls => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...urls]));
+                  if (e.target.files?.length) uploadImages(e.target.files, 'gallery', urls => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...urls]));
                 }} />
               </div>
             </div>
@@ -1116,11 +1127,11 @@ const AddHotelWizard = () => {
                             </button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
-                          <Plus size={20} />
+                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
+                          {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                         </button>
                         <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => {
-                          if (e.target.files?.length) uploadImages(e.target.files, urls => urls.length && setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), ...urls.filter(Boolean)] })));
+                          if (e.target.files?.length) uploadImages(e.target.files, 'room', urls => urls.length && setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), ...urls.filter(Boolean)] })));
                         }}
                         />
                       </div>
@@ -1240,7 +1251,9 @@ const AddHotelWizard = () => {
                             : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white hover:border-emerald-400 hover:text-emerald-600'
                             }`}
                         >
-                          {doc.fileUrl ? (
+                          {uploading === `doc_${idx}` ? (
+                            <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                          ) : doc.fileUrl ? (
                             <>Change File</>
                           ) : (
                             <><Plus size={16} /> Upload</>
@@ -1260,7 +1273,7 @@ const AddHotelWizard = () => {
                         onChange={e => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          uploadImages([file], urls => {
+                          uploadImages([file], `doc_${idx}`, urls => {
                             if (urls[0]) {
                               const updated = [...propertyForm.documents];
                               updated[idx] = { ...updated[idx], fileUrl: urls[0] };

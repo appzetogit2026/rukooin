@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
-  BedDouble, Wifi, Coffee, Car, Users, CheckSquare, Snowflake, Tv, ShowerHead, ArrowLeft, ArrowRight, Clock
+  BedDouble, Wifi, Coffee, Car, Users, CheckSquare, Snowflake, Tv, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2
 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
@@ -57,7 +57,7 @@ const AddHomestayWizard = () => {
   const [locationResults, setLocationResults] = useState([]);
 
   // Image Upload State
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(null);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -350,9 +350,9 @@ const AddHomestayWizard = () => {
     }));
   };
 
-  const uploadImages = async (files, onDone) => {
+  const uploadImages = async (files, type, onDone) => {
     try {
-      setUploading(true);
+      setUploading(type);
       const fd = new FormData();
       Array.from(files).forEach(f => fd.append('images', f));
       const res = await hotelService.uploadImages(fd);
@@ -361,7 +361,7 @@ const AddHomestayWizard = () => {
     } catch {
       setError('Upload failed');
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
 
@@ -934,10 +934,15 @@ const AddHomestayWizard = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Main Cover Image</label>
                   <div
-                    onClick={() => coverImageFileInputRef.current?.click()}
+                    onClick={() => !uploading && coverImageFileInputRef.current?.click()}
                     className={`relative w-full aspect-video sm:aspect-[21/9] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden group ${propertyForm.coverImage ? 'border-transparent' : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50/10'}`}
                   >
-                    {propertyForm.coverImage ? (
+                    {uploading === 'cover' ? (
+                      <div className="flex flex-col items-center gap-2 text-emerald-600">
+                        <Loader2 className="animate-spin" size={32} />
+                        <span className="text-sm font-bold">Uploading Cover...</span>
+                      </div>
+                    ) : propertyForm.coverImage ? (
                       <>
                         <img src={propertyForm.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -954,7 +959,7 @@ const AddHomestayWizard = () => {
                         <p className="text-xs text-gray-400 mt-1">Recommended 1920x1080</p>
                       </div>
                     )}
-                    <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => u[0] && updatePropertyForm('coverImage', u[0]))} />
+                    <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'cover', u => u[0] && updatePropertyForm('coverImage', u[0]))} />
                   </div>
                 </div>
 
@@ -981,12 +986,13 @@ const AddHomestayWizard = () => {
                     <button
                       type="button"
                       onClick={() => propertyImagesFileInputRef.current?.click()}
+                      disabled={!!uploading}
                       className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all"
                     >
-                      <Plus size={24} />
+                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={24} /> : <Plus size={24} />}
                     </button>
                   </div>
-                  <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...u]))} />
+                  <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'gallery', u => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...u]))} />
                 </div>
               </div>
             </div>
@@ -1110,11 +1116,11 @@ const AddHomestayWizard = () => {
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (
-                          <button onClick={() => roomImagesFileInputRef.current?.click()} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
-                            <Plus size={20} />
+                          <button onClick={() => roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
+                            {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                           </button>
                         )}
-                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => setEditingRoomType({ ...editingRoomType, images: [...(editingRoomType.images || []), ...u].slice(0, 3) }))} />
+                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'room', u => setEditingRoomType({ ...editingRoomType, images: [...(editingRoomType.images || []), ...u].slice(0, 3) }))} />
                       </div>
                     </div>
 
@@ -1219,16 +1225,21 @@ const AddHomestayWizard = () => {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => document.getElementById(`doc-upload-${i}`).click()}
+                        onClick={() => !uploading && document.getElementById(`doc-upload-${i}`).click()}
+                        disabled={!!uploading}
                         className={`flex-1 py-2.5 rounded-lg text-sm font-bold border-2 border-dashed flex items-center justify-center gap-2 transition-all ${d.fileUrl ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'}`}
                       >
-                        {d.fileUrl ? 'Change Document' : 'Upload Document'}
+                        {uploading === `doc_${i}` ? (
+                          <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                        ) : (
+                          d.fileUrl ? 'Change Document' : 'Upload Document'
+                        )}
                       </button>
                       {d.fileUrl && (
                         <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-semibold text-sm">View</a>
                       )}
                     </div>
-                    <input id={`doc-upload-${i}`} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => uploadImages(e.target.files, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u[0] || ''; updatePropertyForm('documents', arr); })} />
+                    <input id={`doc-upload-${i}`} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => uploadImages(e.target.files, `doc_${i}`, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u[0] || ''; updatePropertyForm('documents', arr); })} />
                   </div>
                 ))}
               </div>

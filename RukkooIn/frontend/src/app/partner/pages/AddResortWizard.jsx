@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
-  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight, Clock
+  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight, Clock, Loader2
 } from 'lucide-react';
 
 import logo from '../../../assets/rokologin-removebg-preview.png';
@@ -53,7 +53,7 @@ const AddResortWizard = () => {
   const [locationResults, setLocationResults] = useState([]);
 
   // Image Upload State (Ref matching Hotel wizard)
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(null);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -341,9 +341,9 @@ const AddResortWizard = () => {
     });
   };
 
-  const uploadImages = async (files, onDone) => {
+  const uploadImages = async (files, type, onDone) => {
     try {
-      setUploading(true);
+      setUploading(type);
       const fd = new FormData();
       Array.from(files).forEach(f => fd.append('images', f));
       const res = await hotelService.uploadImages(fd);
@@ -352,7 +352,7 @@ const AddResortWizard = () => {
     } catch {
       setError('Upload failed');
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
 
@@ -924,7 +924,7 @@ const AddResortWizard = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-900">Cover Image</label>
                   <div
-                    onClick={() => coverImageFileInputRef.current?.click()}
+                    onClick={() => !uploading && coverImageFileInputRef.current?.click()}
                     className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer overflow-hidden hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group"
                   >
                     {propertyForm.coverImage ? (
@@ -935,7 +935,7 @@ const AddResortWizard = () => {
                         <span className="text-xs font-bold">Upload Cover Photo</span>
                       </div>
                     )}
-                    {uploading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full"></div></div>}
+                    {uploading === 'cover' && <div className="absolute inset-0 bg-white/80 flex flex-col gap-2 items-center justify-center"><Loader2 className="animate-spin text-emerald-600" size={32} /><span className="text-sm font-bold text-emerald-700">Uploading...</span></div>}
                   </div>
                   <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'cover')} />
                 </div>
@@ -961,9 +961,10 @@ const AddResortWizard = () => {
                     <button
                       type="button"
                       onClick={() => propertyImagesFileInputRef.current?.click()}
+                      disabled={!!uploading}
                       className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all"
                     >
-                      <Plus size={24} />
+                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={24} /> : <Plus size={24} />}
                     </button>
                   </div>
                   <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'gallery')} />
@@ -1102,10 +1103,10 @@ const AddResortWizard = () => {
                             </button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
-                          <Plus size={20} />
+                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
+                          {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                         </button>
-                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, u => setEditingRoomType({ ...editingRoomType, images: [...editingRoomType.images, ...u] }))} />
+                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'room', u => setEditingRoomType({ ...editingRoomType, images: [...editingRoomType.images, ...u] }))} />
                       </div>
                     </div>
 
@@ -1220,9 +1221,11 @@ const AddResortWizard = () => {
                           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-all cursor-pointer ${doc.fileUrl
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                             : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white hover:border-emerald-400 hover:text-emerald-600'
-                            }`}
+                            } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
                         >
-                          {doc.fileUrl ? (
+                          {uploading === `doc_${idx}` ? (
+                            <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                          ) : doc.fileUrl ? (
                             <>Change File</>
                           ) : (
                             <><Plus size={16} /> Upload</>
@@ -1242,7 +1245,7 @@ const AddResortWizard = () => {
                         onChange={e => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          uploadImages([file], urls => {
+                          uploadImages([file], `doc_${idx}`, urls => {
                             if (urls[0]) {
                               const updated = [...propertyForm.documents];
                               updated[idx] = { ...updated[idx], fileUrl: urls[0] };
