@@ -90,7 +90,9 @@ export const authService = {
   // Upload Partner Docs
   uploadDocs: async (formData) => {
     try {
-      const response = await api.post('/auth/partner/upload-docs', formData);
+      const response = await api.post('/auth/partner/upload-docs', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -308,7 +310,9 @@ export const hotelService = {
   },
   uploadImages: async (formData) => {
     try {
-      const response = await api.post('/hotels/upload', formData);
+      const response = await api.post('/hotels/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
