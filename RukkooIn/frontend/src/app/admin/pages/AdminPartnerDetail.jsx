@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Mail, Phone, Calendar, MapPin, Shield, CreditCard,
     History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2,
-    Building, FileText, CheckSquare, XSquare
+    Building, FileText, CheckSquare, XSquare, ArrowDownLeft, ArrowUpRight
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
+import walletService from '../../../services/walletService';
 import toast from 'react-hot-toast';
 
 const PartnerPropertiesTab = ({ properties }) => (
@@ -34,11 +35,10 @@ const PartnerPropertiesTab = ({ properties }) => (
                             <td className="p-4 text-xs font-bold text-gray-500 uppercase">{property.address?.city}, {property.address?.state}</td>
                             <td className="p-4 text-xs font-bold text-gray-500 uppercase">{property.type}</td>
                             <td className="p-4">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    property.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                    property.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-red-100 text-red-700'
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${property.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                        property.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-red-100 text-red-700'
+                                    }`}>
                                     {property.status}
                                 </span>
                             </td>
@@ -115,6 +115,95 @@ const PartnerDocumentsTab = ({ partner }) => (
         </div>
     </div>
 );
+
+const PartnerWalletTab = ({ partnerId }) => {
+    const [wallet, setWallet] = useState(null);
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchWalletData = async () => {
+            try {
+                setLoading(true);
+                const [wRes, tRes] = await Promise.all([
+                    walletService.getWallet({ ownerId: partnerId, viewAs: 'partner' }),
+                    walletService.getTransactions({ ownerId: partnerId, viewAs: 'partner', limit: 50 })
+                ]);
+                if (wRes.success) setWallet(wRes.wallet);
+                if (tRes.success) setTransactions(tRes.transactions);
+            } catch (error) {
+                console.error('Error fetching partner wallet:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWalletData();
+    }, [partnerId]);
+
+    if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-gray-300" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Available Balance</p>
+                    <h3 className="text-xl font-black text-gray-900">₹{wallet?.balance?.toLocaleString() || 0}</h3>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Earnings</p>
+                    <h3 className="text-xl font-black text-green-600">₹{wallet?.totalEarnings?.toLocaleString() || 0}</h3>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Payouts</p>
+                    <h3 className="text-xl font-black text-orange-600">₹{wallet?.totalWithdrawals?.toLocaleString() || 0}</h3>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pending Clearance</p>
+                    <h3 className="text-xl font-black text-blue-600">₹{wallet?.pendingClearance?.toLocaleString() || 0}</h3>
+                </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
+                        <tr>
+                            <th className="p-4 font-bold text-gray-600">Type</th>
+                            <th className="p-4 font-bold text-gray-600">Description</th>
+                            <th className="p-4 font-bold text-gray-600">Amount</th>
+                            <th className="p-4 font-bold text-gray-600">Date</th>
+                            <th className="p-4 font-bold text-gray-600 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {transactions.length > 0 ? (
+                            transactions.map((txn, i) => (
+                                <tr key={i} className="hover:bg-gray-50 uppercase text-[10px]">
+                                    <td className="p-4 font-bold">
+                                        <span className={`px-2 py-0.5 rounded ${txn.type === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {txn.type}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 font-bold text-gray-900">{txn.description}</td>
+                                    <td className="p-4 font-black">₹{txn.amount?.toLocaleString()}</td>
+                                    <td className="p-4 text-gray-500">{new Date(txn.createdAt).toLocaleString()}</td>
+                                    <td className="p-4 text-right">
+                                        <span className={`px-2 py-0.5 rounded font-bold ${txn.status === 'completed' || txn.status === 'success' ? 'text-green-600' : 'text-orange-500'}`}>
+                                            {txn.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No transactions found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 const AdminPartnerDetail = () => {
     const { id } = useParams();
@@ -211,6 +300,7 @@ const AdminPartnerDetail = () => {
 
     const tabs = [
         { id: 'properties', label: 'Properties', icon: Building },
+        { id: 'wallet', label: 'Wallet & Payouts', icon: CreditCard },
         { id: 'documents', label: 'Documents', icon: FileText },
         { id: 'activity', label: 'Activity Logs', icon: History },
     ];
@@ -249,11 +339,10 @@ const AdminPartnerDetail = () => {
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">ID: #{partner._id.slice(-6)}</p>
                         <div className="flex flex-col gap-1 mt-2">
                             {partner.isBlocked && <span className="text-xs font-bold text-red-600 uppercase">ACCOUNT BLOCKED</span>}
-                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded w-fit mx-auto md:mx-0 ${
-                                partner.partnerApprovalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                partner.partnerApprovalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                            }`}>
+                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded w-fit mx-auto md:mx-0 ${partner.partnerApprovalStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                                    partner.partnerApprovalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-red-100 text-red-700'
+                                }`}>
                                 {partner.partnerApprovalStatus}
                             </span>
                         </div>
@@ -301,16 +390,16 @@ const AdminPartnerDetail = () => {
                         {partner.isBlocked ? <Unlock size={16} /> : <Ban size={16} />}
                         {partner.isBlocked ? 'Unblock' : 'Block'}
                     </button>
-                    
+
                     {partner.partnerApprovalStatus === 'pending' && (
                         <>
-                            <button 
+                            <button
                                 onClick={() => handleApproval('approved')}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg text-xs font-bold uppercase transition-colors"
                             >
                                 <CheckSquare size={16} /> Approve
                             </button>
-                            <button 
+                            <button
                                 onClick={() => handleApproval('rejected')}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg text-xs font-bold uppercase transition-colors"
                             >
@@ -351,6 +440,7 @@ const AdminPartnerDetail = () => {
                         transition={{ duration: 0.15 }}
                     >
                         {activeTab === 'properties' && <PartnerPropertiesTab properties={properties} />}
+                        {activeTab === 'wallet' && <PartnerWalletTab partnerId={id} />}
                         {activeTab === 'documents' && <PartnerDocumentsTab partner={partner} />}
                         {activeTab === 'activity' && <div className="text-gray-400 py-10 text-center font-bold uppercase text-xs">Activity Logs (Coming Soon)</div>}
                     </motion.div>

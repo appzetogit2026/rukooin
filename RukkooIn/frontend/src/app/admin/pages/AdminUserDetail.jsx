@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     User, Mail, Phone, Calendar, MapPin, Shield, CreditCard,
-    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2
+    History, AlertTriangle, Ban, CheckCircle, Lock, Unlock, Loader2, ArrowDownLeft, ArrowUpRight
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
+import walletService from '../../../services/walletService';
 import toast from 'react-hot-toast';
 
 const UserBookingsTab = ({ bookings }) => (
@@ -47,6 +48,87 @@ const UserBookingsTab = ({ bookings }) => (
         </table>
     </div>
 );
+
+const UserWalletTab = ({ userId }) => {
+    const [wallet, setWallet] = useState(null);
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchWalletData = async () => {
+            try {
+                setLoading(true);
+                const [wRes, tRes] = await Promise.all([
+                    walletService.getWallet({ ownerId: userId, viewAs: 'user' }),
+                    walletService.getTransactions({ ownerId: userId, viewAs: 'user', limit: 50 })
+                ]);
+                if (wRes.success) setWallet(wRes.wallet);
+                if (tRes.success) setTransactions(tRes.transactions);
+            } catch (error) {
+                console.error('Error fetching user wallet:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWalletData();
+    }, [userId]);
+
+    if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-gray-300" /></div>;
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current Balance</p>
+                    <h3 className="text-2xl font-black text-gray-900">₹{wallet?.balance?.toLocaleString() || 0}</h3>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Transactions</p>
+                    <h3 className="text-2xl font-black text-gray-900">{transactions.length}</h3>
+                </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
+                        <tr>
+                            <th className="p-4 font-bold text-gray-600">Type</th>
+                            <th className="p-4 font-bold text-gray-600">Description</th>
+                            <th className="p-4 font-bold text-gray-600">Amount</th>
+                            <th className="p-4 font-bold text-gray-600">Date</th>
+                            <th className="p-4 font-bold text-gray-600 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {transactions.length > 0 ? (
+                            transactions.map((txn, i) => (
+                                <tr key={i} className="hover:bg-gray-50 uppercase text-[10px]">
+                                    <td className="p-4 font-bold">
+                                        <span className={`px-2 py-0.5 rounded ${txn.type === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {txn.type}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 font-bold text-gray-900">{txn.description}</td>
+                                    <td className="p-4 font-black">₹{txn.amount?.toLocaleString()}</td>
+                                    <td className="p-4 text-gray-500">{new Date(txn.createdAt).toLocaleString()}</td>
+                                    <td className="p-4 text-right">
+                                        <span className={`px-2 py-0.5 rounded font-bold ${txn.status === 'completed' || txn.status === 'success' ? 'text-green-600' : 'text-orange-500'}`}>
+                                            {txn.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No transactions found</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 const UserActivityTab = () => (
     <div className="space-y-4">
@@ -203,10 +285,6 @@ const AdminUserDetail = () => {
                             <span className="text-[10px] text-gray-500 uppercase font-bold">Total Spend</span>
                             <span className="text-lg font-bold text-gray-900">₹{bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0).toLocaleString()}</span>
                         </div>
-                        <div className="p-3 bg-white/50 rounded-lg border border-gray-200/50 flex justify-between items-center">
-                            <span className="text-[10px] text-gray-500 uppercase font-bold">Wallet Bal</span>
-                            <span className="text-lg font-bold text-green-600">₹0</span>
-                        </div>
                     </div>
                 </div>
 
@@ -258,7 +336,7 @@ const AdminUserDetail = () => {
                     >
                         {activeTab === 'bookings' && <UserBookingsTab bookings={bookings} />}
                         {activeTab === 'activity' && <UserActivityTab />}
-                        {activeTab === 'wallet' && <div className="text-gray-400 py-10 text-center font-bold uppercase text-xs">Wallet Transaction History (Coming Soon)</div>}
+                        {activeTab === 'wallet' && <UserWalletTab userId={id} />}
                     </motion.div>
                 </AnimatePresence>
             </div>

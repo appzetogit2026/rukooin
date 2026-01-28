@@ -65,5 +65,5 @@ body:has(#hotel-root) {
 }
 
 .input {
-  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-300 outline-none transition-all placeholder:text-gray-400 focus:border-[#004F4D] focus:ring-4 focus:ring-[#004F4D]/10 bg-white text-[#003836] font-medium shadow-sm;
+  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-400 outline-none transition-all placeholder:text-gray-400 focus:border-[#004F4D] focus:ring-4 focus:ring-[#004F4D]/10 bg-white text-[#003836] font-medium shadow-sm hover:border-gray-500;
 }

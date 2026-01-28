@@ -35,6 +35,8 @@ const NotificationsPage = React.lazy(() => import('./pages/user/NotificationsPag
 const SettingsPage = React.lazy(() => import('./pages/user/SettingsPage'));
 const PartnerLandingPage = React.lazy(() => import('./pages/user/PartnerLandingPage'));
 const LegalPage = React.lazy(() => import('./pages/user/LegalPage'));
+const TermsPage = React.lazy(() => import('./pages/user/TermsPage'));
+const PrivacyPage = React.lazy(() => import('./pages/user/PrivacyPage'));
 const AboutPage = React.lazy(() => import('./pages/user/AboutPage'));
 const ContactPage = React.lazy(() => import('./pages/user/ContactPage'));
 const AmenitiesPage = React.lazy(() => import('./pages/user/AmenitiesPage'));
@@ -163,7 +165,7 @@ const Layout = ({ children }) => {
   const showUserNavs = !isPartnerApp;
 
   // Specific user pages where BottomNav is hidden
-  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/'];
+  const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy'];
   const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)
@@ -182,7 +184,7 @@ const Layout = ({ children }) => {
     <>
       {showUserNavs && <TopNavbar />}
 
-      <div className={`min-h-screen md:pt-16 ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
+      <div className={`min-h-screen md:pt-24 ${showUserBottomNav || showPartnerBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         {showMaintenanceOverlay ? (
           <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-6 py-10 text-center bg-gradient-to-b from-[#111827] via-[#0f172a] to-black">
             <div className="flex flex-col items-center justify-center max-w-md w-full">
@@ -369,6 +371,9 @@ function App() {
             {/* User Auth Routes (Public Only) */}
             <Route path="/login" element={<PublicRoute><UserLogin /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><UserSignup /></PublicRoute>} />
+            <Route path="/legal" element={<LegalPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
 
             {/* Hotel/Partner Module Routes */}
             <Route path="/hotel/login" element={<HotelLogin />} />
@@ -458,7 +463,6 @@ function App() {
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/partner-landing" element={<PartnerLandingPage />} />
-              <Route path="/legal" element={<LegalPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />

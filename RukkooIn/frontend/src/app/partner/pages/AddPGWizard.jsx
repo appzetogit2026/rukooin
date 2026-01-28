@@ -71,6 +71,35 @@ const AddPGWizard = () => {
   const [editingRoomTypeIndex, setEditingRoomTypeIndex] = useState(null);
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
+  // --- Persistence Logic ---
+  const STORAGE_KEY = `rukko_pg_wizard_draft_${existingProperty?._id || 'new'}`;
+
+  // 1. Load from localStorage
+  useEffect(() => {
+    if (isEditMode) return;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const { step: savedStep, propertyForm: savedForm, roomTypes: savedRooms, createdProperty: savedProp } = JSON.parse(saved);
+        setStep(savedStep);
+        setPropertyForm(savedForm);
+        setRoomTypes(savedRooms);
+        if (savedProp) setCreatedProperty(savedProp);
+      } catch (e) {
+        console.error("Failed to load PG draft", e);
+      }
+    }
+  }, []);
+
+  // 2. Save to localStorage
+  useEffect(() => {
+    if (isEditMode) return;
+    const timeout = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, propertyForm, roomTypes, createdProperty }));
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [step, propertyForm, roomTypes, createdProperty]);
+
   const updatePropertyForm = (path, value) => {
     setPropertyForm(prev => {
       const clone = JSON.parse(JSON.stringify(prev));
@@ -573,6 +602,7 @@ const AddPGWizard = () => {
           await propertyService.deleteRoomType(propId, id);
         }
       }
+      localStorage.removeItem(STORAGE_KEY);
       setStep(10);
     } catch (e) {
       setError(e?.message || 'Failed to submit property');

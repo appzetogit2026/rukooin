@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
+import toast from 'react-hot-toast';
 
 const UserLogin = () => {
     const navigate = useNavigate();
@@ -14,6 +15,8 @@ const UserLogin = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resendTimer, setResendTimer] = useState(120);
+    const [canResend, setCanResend] = useState(false);
 
     // Pre-fill phone if coming from signup
     useEffect(() => {
@@ -21,6 +24,19 @@ const UserLogin = () => {
             setPhone(location.state.phone);
         }
     }, [location]);
+
+    // Timer countdown effect
+    useEffect(() => {
+        let interval;
+        if (step === 2 && resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (resendTimer === 0) {
+            setCanResend(true);
+        }
+        return () => clearInterval(interval);
+    }, [step, resendTimer === 0]);
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
@@ -34,6 +50,8 @@ const UserLogin = () => {
         try {
             setLoading(true);
             await authService.sendOtp(phone, 'login');
+            setResendTimer(120);
+            setCanResend(false);
             setStep(2);
         } catch (err) {
             // Check if account doesn't exist
@@ -59,9 +77,26 @@ const UserLogin = () => {
         newOtp[index] = value;
         setOtp(newOtp);
 
-        // Auto-focus next input
         if (value && index < 5) {
             document.getElementById(`otp-${index + 1}`)?.focus();
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (!canResend) return;
+
+        try {
+            setLoading(true);
+            setError('');
+            await authService.sendOtp(phone, 'login');
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']); // Clear OTP
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            setError(err.message || 'Failed to resend OTP');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -217,6 +252,28 @@ const UserLogin = () => {
                                                 className="w-10 h-12 text-center text-lg font-bold bg-white border-2 border-gray-400 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all shadow-sm"
                                             />
                                         ))}
+                                    </div>
+
+                                    <div className="text-center">
+                                        {canResend ? (
+                                            <p className="text-gray-400 text-[10px] font-bold">
+                                                Didn't receive code?{' '}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResendOTP}
+                                                    className="text-emerald-600 hover:underline"
+                                                >
+                                                    Resend OTP
+                                                </button>
+                                            </p>
+                                        ) : (
+                                            <p className="text-gray-400 text-[10px] font-bold">
+                                                Resend OTP in{' '}
+                                                <span className="text-emerald-600 tabular-nums">
+                                                    {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, '0')}
+                                                </span>
+                                            </p>
+                                        )}
                                     </div>
 
                                     {error && (

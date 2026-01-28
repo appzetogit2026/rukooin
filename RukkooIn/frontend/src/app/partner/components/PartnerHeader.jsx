@@ -15,7 +15,7 @@ const PartnerHeader = ({ title, subtitle }) => {
     useEffect(() => {
         const fetchWallet = async () => {
             try {
-                const walletData = await walletService.getWallet();
+                const walletData = await walletService.getWallet({ viewAs: 'partner' });
                 if (walletData.success && walletData.wallet) {
                     setWalletBalance(walletData.wallet.balance);
                 }
@@ -42,7 +42,7 @@ const PartnerHeader = ({ title, subtitle }) => {
 
     return (
         <>
-            <div className="flex items-center justify-between relative h-14 px-4 pt-2 bg-white/50 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-100/50">
+            <div className="flex items-center justify-between relative h-24 px-4 pt-2 bg-white/50 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-100/50">
                 <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="p-1.5 rounded-full bg-white hover:bg-gray-100 transition shadow-sm border border-gray-100"
@@ -50,8 +50,8 @@ const PartnerHeader = ({ title, subtitle }) => {
                     <Menu size={18} className="text-[#003836]" />
                 </button>
 
-                <div className="flex-1 flex justify-center items-center mt-2">
-                    <img src={logo} alt="Rukko" className="h-[60px] object-contain drop-shadow-sm scale-110" />
+                <div className="flex-1 flex justify-center items-center">
+                    <img src={logo} alt="Rukko" className="h-20 object-contain drop-shadow-sm" />
                 </div>
 
                 <div className="flex items-center gap-2">

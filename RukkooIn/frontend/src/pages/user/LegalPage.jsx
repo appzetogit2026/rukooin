@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileText, Shield } from 'lucide-react';
 import { legalService } from '../../services/apiService';
 
 const LegalPage = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const audience = searchParams.get('audience') || 'user';
+    const activeTab = searchParams.get('tab') || 'terms'; // terms or privacy
+
     const [privacy, setPrivacy] = useState(null);
     const [terms, setTerms] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -16,8 +20,8 @@ const LegalPage = () => {
         const loadData = async () => {
             try {
                 const [privacyRes, termsRes] = await Promise.allSettled([
-                    legalService.getPage('user', 'privacy'),
-                    legalService.getPage('user', 'terms')
+                    legalService.getPage(audience, 'privacy'),
+                    legalService.getPage(audience, 'terms')
                 ]);
 
                 if (!isMounted) return;
@@ -43,7 +47,20 @@ const LegalPage = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [audience]);
+
+    // Handle scroll to section if tab is present
+    useEffect(() => {
+        if (!loading && (terms || privacy)) {
+            const timer = setTimeout(() => {
+                const element = document.getElementById(activeTab);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [loading, terms, privacy, activeTab]);
 
     const renderContent = (fallbackTitle, fallbackContent, page) => {
         const title = page?.title || fallbackTitle;
@@ -75,7 +92,7 @@ const LegalPage = () => {
                     </button>
                     <h1 className="text-xl font-bold">Legal</h1>
                 </div>
-                <h2 className="text-2xl font-black">Terms & Policies</h2>
+                <h2 className="text-2xl font-black capitalize">{audience} Policies</h2>
             </div>
 
             <div className="px-5 -mt-6 relative z-10 space-y-4 pb-24">
@@ -86,7 +103,7 @@ const LegalPage = () => {
                     </div>
                 )}
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div id="privacy" className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 scroll-mt-32">
                     <div className="flex items-center gap-3 mb-4 text-surface border-b border-gray-100 pb-3">
                         <Shield size={24} />
                         <span className="font-bold text-lg">
@@ -100,7 +117,7 @@ const LegalPage = () => {
                     )}
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div id="terms" className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 scroll-mt-32">
                     <div className="flex items-center gap-3 mb-4 text-surface border-b border-gray-100 pb-3">
                         <FileText size={24} />
                         <span className="font-bold text-lg">

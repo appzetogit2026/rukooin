@@ -66,6 +66,35 @@ const AddHotelWizard = () => {
 
   const [originalRoomTypeIds, setOriginalRoomTypeIds] = useState([]);
 
+  // --- Persistence Logic ---
+  const STORAGE_KEY = `rukko_hotel_wizard_draft_${existingProperty?._id || 'new'}`;
+
+  // 1. Load from localStorage on mount
+  useEffect(() => {
+    if (isEditMode) return; // Don't load draft if editing existing property from dashboard
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const { step: savedStep, propertyForm: savedForm, roomTypes: savedRooms, createdProperty: savedProp } = JSON.parse(saved);
+        setStep(savedStep);
+        setPropertyForm(savedForm);
+        setRoomTypes(savedRooms);
+        if (savedProp) setCreatedProperty(savedProp);
+      } catch (e) {
+        console.error("Failed to load draft", e);
+      }
+    }
+  }, []);
+
+  // 2. Save to localStorage whenever state changes
+  useEffect(() => {
+    if (isEditMode) return;
+    const timeout = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, propertyForm, roomTypes, createdProperty }));
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [step, propertyForm, roomTypes, createdProperty]);
+
   const updatePropertyForm = (path, value) => {
     setPropertyForm(prev => {
       const clone = JSON.parse(JSON.stringify(prev));
@@ -553,6 +582,7 @@ const AddHotelWizard = () => {
           await propertyService.deleteRoomType(propId, id);
         }
       }
+      localStorage.removeItem(STORAGE_KEY);
       navigate('/hotel/dashboard');
     } catch (e) {
       setError(e?.message || 'Failed to submit property');

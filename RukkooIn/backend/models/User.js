@@ -96,7 +96,14 @@ const userSchema = new mongoose.Schema({
 
 // Compound indexes to allow same phone/email for different roles
 userSchema.index({ phone: 1, role: 1 }, { unique: true });
-userSchema.index({ email: 1, role: 1 }, { unique: true, sparse: true });
+// Partial index: only enforce uniqueness when email is not null
+userSchema.index(
+  { email: 1, role: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { email: { $type: 'string' } }
+  }
+);
 
 const User = mongoose.model('User', userSchema);
 export default User;

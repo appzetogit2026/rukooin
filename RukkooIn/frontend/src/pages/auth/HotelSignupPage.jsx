@@ -61,10 +61,15 @@ const HotelSignup = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Reset form on mount if desired, or ensure correct step
+    // Resume from persisted step on mount & handle error timeout
     useEffect(() => {
-        setStep(1);
-    }, [setStep]);
+        if (error) {
+            const timer = setTimeout(() => {
+                setError('');
+            }, 3000); // 3 seconds
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
 
     const currentStepIndex = currentStep - 1;
     const progress = (currentStep / steps.length) * 100;
@@ -91,6 +96,13 @@ const HotelSignup = () => {
             if (!formData.aadhaar_front) return setError('Aadhaar Front Image is required');
             if (!formData.aadhaar_back) return setError('Aadhaar Back Image is required');
             if (!formData.pan_number || formData.pan_number.length !== 10) return setError('Valid 10-digit PAN Number is required');
+
+            // PAN Regex Validation
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+            if (!panRegex.test(formData.pan_number)) {
+                return setError('Invalid PAN format. Please use (e.g., ABCDE1234F)');
+            }
+
             if (!formData.pan_card_image) return setError('PAN Card Image is required');
 
             if (!formData.owner_address?.street || !formData.owner_address?.city || !formData.owner_address?.state || !formData.owner_address?.zipCode) {
@@ -135,9 +147,8 @@ const HotelSignup = () => {
     const handleBack = () => {
         if (currentStep > 1) {
             prevStep();
-        } else {
-            navigate('/hotel'); // Exit
         }
+        // Disabled redirection on Step 1
     };
 
     const renderStep = () => {
@@ -149,49 +160,69 @@ const HotelSignup = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white text-[#003836] flex flex-col font-sans selection:bg-[#004F4D] selection:text-white">
+        <div className="h-screen overflow-hidden bg-white text-[#003836] flex flex-col font-sans selection:bg-[#004F4D] selection:text-white">
             {/* Top Bar */}
-            <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md z-50 px-4 flex items-center justify-between border-b border-gray-100">
-                <button onClick={handleBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <header className="absolute top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md z-50 px-4 flex items-center justify-between border-b border-gray-100">
+                <button
+                    onClick={handleBack}
+                    className={`p-2 rounded-full transition-colors ${currentStep === 1 ? 'opacity-20 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                    disabled={currentStep === 1}
+                >
                     <ArrowLeft size={20} className="text-[#003836]" />
                 </button>
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Step {currentStep} of {steps.length}</span>
                     <span className="text-xs md:text-sm font-bold text-[#003836] truncate">{steps[currentStepIndex]?.title}</span>
                 </div>
-                <button onClick={() => navigate('/hotel')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <button onClick={() => navigate('/hotel/login')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <X size={20} className="text-[#003836]" />
                 </button>
             </header>
 
             {/* Progress Bar */}
-            <div className="fixed top-16 left-0 right-0 z-40 bg-gray-100 h-1">
+            <div className="absolute top-16 left-0 right-0 z-40 bg-gray-100 h-1">
                 <div
                     className="h-full bg-[#004F4D] transition-all duration-500 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
 
-            {/* Main Content Area */}
-            <main className="flex-1 flex flex-col pt-24 pb-28 px-4 md:px-0 max-w-lg mx-auto w-full relative">
-                <div className="mb-6 md:text-center px-1">
-                    <h1 className="text-2xl md:text-3xl font-black mb-1 leading-tight">{steps[currentStepIndex]?.title}</h1>
-                    <p className="text-gray-500 text-sm md:text-base leading-snug">{steps[currentStepIndex]?.desc}</p>
-                </div>
+            {/* Main Content Area - Scrollable */}
+            <main className="flex-1 overflow-y-auto pt-24 pb-32 px-4 md:px-0 scroll-smooth">
+                <div className="max-w-lg mx-auto w-full">
+                    <div className="mb-6 md:text-center px-1">
+                        <h1 className="text-2xl md:text-3xl font-black mb-1 leading-tight">{steps[currentStepIndex]?.title}</h1>
+                        <p className="text-gray-500 text-sm md:text-base leading-snug">{steps[currentStepIndex]?.desc}</p>
+                    </div>
 
-                <div className="flex-1 relative">
-                    <StepWrapper stepKey={currentStep}>
-                        {renderStep()}
-                    </StepWrapper>
+                    <div className="relative">
+                        <StepWrapper stepKey={currentStep}>
+                            {renderStep()}
+                        </StepWrapper>
+
+                        {currentStep === 1 && (
+                            <div className="mt-8 text-center border-t border-gray-100 pt-6">
+                                <p className="text-gray-500 text-sm">
+                                    Already have a partner account?{' '}
+                                    <button
+                                        onClick={() => navigate('/hotel/login')}
+                                        className="text-[#004F4D] font-bold hover:underline"
+                                    >
+                                        Login Here
+                                    </button>
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </main>
 
             {/* Bottom Action Bar */}
-            <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 md:p-6 z-50">
+            <footer className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 md:p-6 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
                 <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
                     <button
                         onClick={handleBack}
-                        className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-[#004F4D] transition-colors"
+                        className={`text-xs font-bold underline px-3 py-2 transition-colors ${currentStep === 1 || loading ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-[#004F4D]'}`}
                         disabled={currentStep === 1 || loading}
                     >
                         Back
@@ -201,7 +232,7 @@ const HotelSignup = () => {
                         <button
                             onClick={handleNext}
                             disabled={loading}
-                            className={`bg-[#004F4D] text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                            className={`bg-[#004F4D] text-white px-8 py-3.5 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center gap-2 w-full md:w-auto justify-center ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
                         >
                             {loading ? (
                                 <>Processing...</>
@@ -215,7 +246,7 @@ const HotelSignup = () => {
                     </div>
                 </div>
                 {error && (
-                    <div className="absolute top-[30px] left-0 right-0 flex justify-center w-full px-4 transform -translate-y-full">
+                    <div className="absolute top-0 left-0 right-0 flex justify-center w-full px-4 transform -translate-y-[120%]">
                         <div className="bg-red-500 text-white text-[10px] md:text-sm font-bold px-4 py-2 rounded-full shadow-lg animate-bounce text-center break-words max-w-full">
                             {error}
                         </div>

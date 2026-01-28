@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService, userService } from '../../services/apiService';
 import { requestNotificationPermission } from '../../utils/firebase';
 import logo from '../../assets/rokologin-removebg-preview.png';
+import toast from 'react-hot-toast';
 
 const HotelLoginPage = () => {
     const navigate = useNavigate();
@@ -13,6 +14,8 @@ const HotelLoginPage = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resendTimer, setResendTimer] = useState(120);
+    const [canResend, setCanResend] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -22,6 +25,19 @@ const HotelLoginPage = () => {
             navigate('/hotel/dashboard', { replace: true });
         }
     }, [navigate]);
+
+    // Timer countdown effect
+    useEffect(() => {
+        let interval;
+        if (step === 2 && resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (resendTimer === 0) {
+            setCanResend(true);
+        }
+        return () => clearInterval(interval);
+    }, [step, resendTimer === 0]);
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
@@ -36,6 +52,8 @@ const HotelLoginPage = () => {
         setLoading(true);
         try {
             await authService.sendOtp(phone, 'login', 'partner');
+            setResendTimer(120);
+            setCanResend(false);
             setStep(2);
         } catch (err) {
             setError(err.message || 'Failed to send OTP');
@@ -57,6 +75,24 @@ const HotelLoginPage = () => {
         }
         if (value === '' && index > 0) {
             document.getElementById(`otp-${index - 1}`)?.focus();
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (!canResend) return;
+
+        try {
+            setLoading(true);
+            setError('');
+            await authService.sendOtp(phone, 'login', 'partner');
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']); // Clear OTP
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            setError(err.message || 'Failed to resend OTP');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -211,6 +247,28 @@ const HotelLoginPage = () => {
                                             autoFocus={index === 0}
                                         />
                                     ))}
+                                </div>
+
+                                <div className="text-center">
+                                    {canResend ? (
+                                        <p className="text-gray-400 text-xs font-bold">
+                                            Didn't receive code?{' '}
+                                            <button
+                                                type="button"
+                                                onClick={handleResendOTP}
+                                                className="text-[#004F4D] hover:underline"
+                                            >
+                                                Resend OTP
+                                            </button>
+                                        </p>
+                                    ) : (
+                                        <p className="text-gray-400 text-xs font-bold">
+                                            Resend OTP in{' '}
+                                            <span className="text-[#004F4D] tabular-nums">
+                                                {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, '0')}
+                                            </span>
+                                        </p>
+                                    )}
                                 </div>
 
                                 {error && (

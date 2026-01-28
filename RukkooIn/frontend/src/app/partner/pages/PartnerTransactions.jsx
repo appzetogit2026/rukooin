@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowUpRight, ArrowDownLeft, FileText, Download, Filter, Search, Calendar } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, FileText, Download, Filter, Search, Calendar, Loader2 } from 'lucide-react';
 import gsap from 'gsap';
 import PartnerHeader from '../components/PartnerHeader';
+import walletService from '../../../services/walletService';
 
 const TransactionRow = ({ txn }) => {
     const isCredit = txn.type === 'credit';
@@ -13,20 +14,20 @@ const TransactionRow = ({ txn }) => {
                     {isCredit ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                 </div>
                 <div>
-                    <h4 className="font-bold text-[#003836] text-sm group-hover:text-[#004F4D] transition-colors">{txn.desc}</h4>
+                    <h4 className="font-bold text-[#003836] text-sm group-hover:text-[#004F4D] transition-colors">{txn.description}</h4>
                     <div className="flex items-center gap-2 text-[10px] text-gray-400 font-medium mt-0.5">
-                        <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase tracking-wide">{txn.id}</span>
+                        <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 uppercase tracking-wide">{txn._id?.slice(-8).toUpperCase()}</span>
                         <span>•</span>
-                        <span>{txn.date}</span>
+                        <span>{new Date(txn.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 </div>
             </div>
             <div className="text-right">
                 <div className={`font-black text-sm ${isCredit ? 'text-green-600' : 'text-[#003836]'}`}>
-                    {isCredit ? '+' : '-'}₹{txn.amount}
+                    {isCredit ? '+' : '-'}₹{txn.amount?.toLocaleString('en-IN')}
                 </div>
-                <div className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${txn.status === 'Success' ? 'text-green-500' :
-                    txn.status === 'Pending' ? 'text-orange-500' : 'text-red-500'
+                <div className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${txn.status === 'completed' || txn.status === 'success' ? 'text-green-500' :
+                    txn.status === 'pending' ? 'text-orange-500' : 'text-red-500'
                     }`}>
                     {txn.status}
                 </div>
@@ -38,26 +39,38 @@ const TransactionRow = ({ txn }) => {
 const PartnerTransactions = () => {
     const listRef = useRef(null);
     const [filter, setFilter] = useState('all');
+    const [loading, setLoading] = useState(true);
+    const [transactions, setTransactions] = useState([]);
 
-    const transactions = [
-        { id: 'TXN-9921', desc: 'Booking Payment - Arjun Mehta', date: '27 Aug, 10:30 AM', amount: '2,400', type: 'credit', status: 'Success' },
-        { id: 'TXN-9920', desc: 'Weekly Payout to HDFC Bank', date: '26 Aug, 09:00 AM', amount: '15,000', type: 'debit', status: 'Pending' },
-        { id: 'TXN-9919', desc: 'Platform Commission Fee', date: '26 Aug, 09:00 AM', amount: '450', type: 'debit', status: 'Success' },
-        { id: 'TXN-9915', desc: 'Booking Payment - Sarah Smith', date: '25 Aug, 02:15 PM', amount: '4,500', type: 'credit', status: 'Success' },
-        { id: 'TXN-9912', desc: 'Refund - Booking #BK8801', date: '24 Aug, 11:00 AM', amount: '1,200', type: 'debit', status: 'Success' },
-        { id: 'TXN-9910', desc: 'Booking Payment - Rahul Verma', date: '23 Aug, 08:45 PM', amount: '3,200', type: 'credit', status: 'Success' },
-    ];
-
-    const filteredTxns = transactions.filter(t => filter === 'all' || t.type === filter);
+    const fetchTransactions = async () => {
+        try {
+            setLoading(true);
+            const data = await walletService.getTransactions({
+                viewAs: 'partner',
+                type: filter === 'all' ? undefined : filter
+            });
+            if (data.success) {
+                setTransactions(data.transactions);
+            }
+        } catch (error) {
+            console.error('Failed to fetch transactions', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        if (listRef.current) {
+        fetchTransactions();
+    }, [filter]);
+
+    useEffect(() => {
+        if (listRef.current && !loading) {
             gsap.fromTo(listRef.current.children,
                 { y: 10, opacity: 0 },
                 { y: 0, opacity: 1, stagger: 0.05, duration: 0.3, ease: 'power2.out', clearProps: 'all' }
             );
         }
-    }, [filter]);
+    }, [loading, transactions]);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -91,10 +104,10 @@ const PartnerTransactions = () => {
 
                     {/* Date / Download */}
                     <div className="flex gap-2">
-                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors">
+                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors" title="Filter by date">
                             <Calendar size={16} />
                         </button>
-                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors">
+                        <button className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-lg text-gray-500 hover:bg-[#004F4D] hover:text-white transition-colors" title="Download report">
                             <Download size={16} />
                         </button>
                     </div>
@@ -103,29 +116,35 @@ const PartnerTransactions = () => {
 
             <main className="max-w-3xl mx-auto px-4 pt-6">
 
-                {/* Search (Optional) */}
+                {/* Search */}
                 <div className="relative mb-6">
                     <input
                         type="text"
-                        placeholder="Search by ID or Name..."
+                        placeholder="Search by ID or Description..."
                         className="w-full h-12 bg-white rounded-2xl pl-12 pr-4 text-sm font-medium border border-gray-200 shadow-sm focus:outline-none focus:border-[#004F4D]/20 transition-colors"
                     />
                     <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden" ref={listRef}>
-                    {filteredTxns.length > 0 ? filteredTxns.map((txn, idx) => (
-                        <TransactionRow key={idx} txn={txn} />
-                    )) : (
-                        <div className="text-center py-12">
-                            <FileText size={32} className="mx-auto text-gray-300 mb-2" />
-                            <p className="text-sm text-gray-400 font-bold">No transactions found</p>
-                        </div>
-                    )}
-                </div>
+                {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-[#004F4D]" />
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden" ref={listRef}>
+                        {transactions.length > 0 ? transactions.map((txn, idx) => (
+                            <TransactionRow key={txn._id || idx} txn={txn} />
+                        )) : (
+                            <div className="text-center py-12">
+                                <FileText size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-sm text-gray-400 font-bold">No transactions found</p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <p className="text-center text-[10px] text-gray-400 mt-6 font-medium uppercase tracking-widest">
-                    Showing 30 days history
+                    Showing latest transactions
                 </p>
 
             </main>

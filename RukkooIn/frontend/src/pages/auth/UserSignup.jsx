@@ -4,6 +4,7 @@ import { Phone, Mail, ArrowRight, Loader2, Shield, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import { authService } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
 const UserSignup = () => {
     const navigate = useNavigate();
@@ -17,6 +18,8 @@ const UserSignup = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resendTimer, setResendTimer] = useState(120);
+    const [canResend, setCanResend] = useState(false);
 
     // Pre-fill phone if coming from login
     useEffect(() => {
@@ -24,6 +27,19 @@ const UserSignup = () => {
             setFormData(prev => ({ ...prev, phone: location.state.phone }));
         }
     }, [location]);
+
+    // Timer countdown effect
+    useEffect(() => {
+        let interval;
+        if (step === 2 && resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (resendTimer === 0) {
+            setCanResend(true);
+        }
+        return () => clearInterval(interval);
+    }, [step, resendTimer === 0]); // Re-run when step changes or timer hits 0
 
     const handleSendOTP = async (e) => {
         e.preventDefault();
@@ -42,6 +58,8 @@ const UserSignup = () => {
         try {
             setLoading(true);
             await authService.sendOtp(formData.phone, 'register');
+            setResendTimer(120);
+            setCanResend(false);
             setStep(2);
         } catch (err) {
             // Check if account already exists
@@ -68,6 +86,25 @@ const UserSignup = () => {
 
         if (value && index < 5) {
             document.getElementById(`otp-${index + 1}`)?.focus();
+        }
+    };
+
+    const handleResendOTP = async () => {
+        if (!canResend) return;
+
+        try {
+            setLoading(true);
+            setError('');
+            await authService.sendOtp(formData.phone, 'register');
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']); // Clear OTP
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            setError(err.message || 'Failed to resend OTP');
+            toast.error(err.message || 'Failed to resend OTP');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -255,6 +292,28 @@ const UserSignup = () => {
                                         </motion.p>
                                     )}
 
+                                    <div className="text-center py-2">
+                                        {canResend ? (
+                                            <p className="text-gray-600 text-sm">
+                                                Didn't receive code?{' '}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResendOTP}
+                                                    className="text-emerald-600 font-bold hover:underline"
+                                                >
+                                                    Resend OTP
+                                                </button>
+                                            </p>
+                                        ) : (
+                                            <p className="text-gray-500 text-sm">
+                                                Resend OTP in{' '}
+                                                <span className="text-emerald-600 font-bold tabular-nums">
+                                                    {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, '0')}
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
+
                                     <button
                                         type="submit"
                                         disabled={loading}
@@ -289,8 +348,8 @@ const UserSignup = () => {
                         Login
                     </button>
                 </p>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 

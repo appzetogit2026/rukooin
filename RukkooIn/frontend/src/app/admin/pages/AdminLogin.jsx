@@ -56,7 +56,7 @@ const AdminLogin = () => {
 
         if (result.success) {
             toast.success('Admin login successful!');
-            
+
             // Update FCM Token
             try {
                 const token = await requestNotificationPermission();

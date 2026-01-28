@@ -80,7 +80,10 @@ export const sendOtp = async (req, res) => {
       console.log(`🧪 Test Number Detected: ${phone} - Using default OTP: 123456`);
     }
 
-    res.status(200).json({ message: 'OTP sent successfully' });
+    res.status(200).json({
+      message: 'OTP sent successfully',
+      expiresIn: 600 // 10 minutes in seconds
+    });
   } catch (error) {
     console.error('Send OTP Error:', error);
     res.status(500).json({ message: 'Server error sending OTP' });

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone, Mail, ArrowRight, User, CheckCircle } from 'lucide-react';
 import { authService } from '../../services/apiService';
+import toast, { Toaster } from 'react-hot-toast';
 
 const UserSignupPage = () => {
     const navigate = useNavigate();
@@ -15,6 +16,26 @@ const UserSignupPage = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resendTimer, setResendTimer] = useState(120); // 2 minutes = 120 seconds
+    const [canResend, setCanResend] = useState(false);
+
+    // Timer countdown effect
+    useEffect(() => {
+        let interval;
+        if (step === 'otp' && resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => {
+                    if (prev <= 1) {
+                        setCanResend(true);
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [step, resendTimer]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -53,8 +74,11 @@ const UserSignupPage = () => {
             }
 
             console.log("Calling authService.sendOtp with:", formData.phone);
-            await authService.sendOtp(formData.phone);
+            // Pass 'register' type to backend for signup flow
+            await authService.sendOtp(formData.phone, 'register', 'user');
             console.log("OTP sent successfully");
+            setResendTimer(120); // Reset timer to 2 minutes
+            setCanResend(false); // Disable resend button
             setStep('otp');
         } catch (err) {
             console.error("Signup Error:", err);
@@ -105,8 +129,31 @@ const UserSignupPage = () => {
         }
     };
 
+    const handleResendOtp = async () => {
+        if (!canResend) return;
+
+        setError('');
+        setLoading(true);
+
+        try {
+            // Pass 'register' type to backend for signup flow
+            await authService.sendOtp(formData.phone, 'register', 'user');
+            setResendTimer(120);
+            setCanResend(false);
+            setOtp(['', '', '', '', '', '']); // Clear OTP inputs
+            toast.success('OTP sent successfully!');
+        } catch (err) {
+            console.error("Resend OTP Error:", err);
+            setError(err.message || 'Failed to resend OTP');
+            toast.error(err.message || 'Failed to resend OTP');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#F0F4F4] flex flex-col items-center justify-center p-4 font-sans">
+            <Toaster position="top-center" />
 
             {/* Header Section */}
             <div className="text-center mb-8">
@@ -216,7 +263,7 @@ const UserSignupPage = () => {
                             </p>
 
                             <form onSubmit={handleRegister}>
-                                <div className="flex gap-2 justify-center mb-8">
+                                <div className="flex gap-2 justify-center mb-8 px-4">
                                     {otp.map((digit, index) => (
                                         <input
                                             key={index}
@@ -232,18 +279,29 @@ const UserSignupPage = () => {
                                         />
                                     ))}
                                 </div>
-                                {error && <p className="text-red-500 text-xs mt-[-20px] mb-6 text-center font-medium">{error}</p>}
+                                {error && <p className="text-red-500 text-xs text-center font-medium mb-4">{error}</p>}
 
                                 <div className="text-center mb-6">
-                                    <p className="text-gray-400 text-sm">
-                                        Didn't receive code?{' '}
-                                        <button
-                                            type="button"
-                                            onClick={handleSendOtp}
-                                            className="text-teal-600 font-bold hover:underline"
-                                        >
-                                            Resend
-                                        </button>
+                                    <p className="text-gray-500 text-sm">
+                                        {canResend ? (
+                                            <>
+                                                Didn't receive code?{' '}
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResendOtp}
+                                                    className="text-teal-600 font-bold hover:underline"
+                                                >
+                                                    Resend OTP
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                Resend OTP in{' '}
+                                                <span className="text-teal-600 font-bold">
+                                                    {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, '0')}
+                                                </span>
+                                            </>
+                                        )}
                                     </p>
                                 </div>
 
