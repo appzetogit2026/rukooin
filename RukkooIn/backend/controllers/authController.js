@@ -670,9 +670,11 @@ import { uploadToCloudinary } from '../config/cloudinary.js';
 export const uploadDocs = async (req, res) => {
   try {
     if (!req.files || !req.files.length) {
+      console.warn('Upload Docs: No files received in request');
       return res.status(400).json({ message: 'No documents provided' });
     }
 
+    console.log(`Upload Docs: Processing ${req.files.length} files`);
     const uploadPromises = req.files.map(async (file) => {
       // file.path is the local disk path now
       const result = await uploadToCloudinary(file.path, {
@@ -682,10 +684,11 @@ export const uploadDocs = async (req, res) => {
     });
 
     const urls = await Promise.all(uploadPromises);
+    console.log('Upload Docs: Successfully uploaded all files to Cloudinary');
 
     res.json({ success: true, urls });
   } catch (e) {
-    console.error('Upload Error:', e);
+    console.error('Upload Docs Error:', e);
     res.status(500).json({ message: e.message || 'Upload failed' });
   }
 };
