@@ -18,13 +18,20 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
+    // Reset input so same file can be selected again immediately if needed
+    e.target.value = '';
+
     if (!file) return;
 
+    console.log('File Selected:', { name: file.name, type: file.type, size: file.size });
+
     // Validate
-    if (!file.type.startsWith('image/')) {
+    // Note: file.type might be empty on some mobile devices/cameras
+    if (file.type && !file.type.startsWith('image/')) {
       setError('Please upload an image file (JPG, PNG)');
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) { // 10MB
       setError('File size too large (max 10MB)');
       return;
@@ -37,7 +44,10 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       const fd = new FormData();
       fd.append('files', file);
 
+      console.log('Uploading file...');
       const res = await authService.uploadDocs(fd);
+      console.log('Upload response:', res);
+
       // res.files is an array of {url, publicId}
       if (res.success && res.files && res.files.length > 0) {
         onChange(res.files[0]);
@@ -46,7 +56,9 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       }
     } catch (err) {
       console.error("Upload Error:", err);
-      setError(typeof err === 'string' ? err : err.message || 'Upload failed. Try again.');
+      // Detailed error message extraction
+      const msg = err.message || (typeof err === 'string' ? err : 'Upload failed. Try again.');
+      setError(msg);
     } finally {
       setUploading(false);
     }
