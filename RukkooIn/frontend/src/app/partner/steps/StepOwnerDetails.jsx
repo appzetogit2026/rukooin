@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { authService } from '../../../services/apiService';
+import { compressImage } from '../../../utils/imageUtils';
 import { Upload, X, Check, Loader2, Image as ImageIcon, Eye } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -17,23 +18,23 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
   }, [error]);
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    // Reset input so same file can be selected again immediately if needed
-    e.target.value = '';
+    const originalFile = e.target.files[0];
+    e.target.value = ''; // Reset input so same file can be selected again immediately if needed
 
-    if (!file) return;
+    if (!originalFile) return;
 
-    console.log('File Selected:', { name: file.name, type: file.type, size: file.size });
+    console.log('Original File:', { name: originalFile.name, type: originalFile.type, size: originalFile.size });
 
-    // Validate
+    // 1. Basic Validation
     // Note: file.type might be empty on some mobile devices/cameras
-    if (file.type && !file.type.startsWith('image/')) {
+    if (originalFile.type && !originalFile.type.startsWith('image/')) {
       setError('Please upload an image file (JPG, PNG)');
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB
-      setError('File size too large (max 10MB)');
+    // 2. Pre-compression limits (Allowing up to 20MB for camera raw)
+    if (originalFile.size > 20 * 1024 * 1024) {
+      setError('File too large. Please upload an image under 20MB.');
       return;
     }
 
@@ -41,11 +42,23 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
     setUploading(true);
 
     try {
-      const fd = new FormData();
-      // Explicitly append filename for mobile/webview compatibility
-      fd.append('files', file, file.name);
+      // 3. Compress Image
+      console.log("Compressing image...");
+      // Using helper utility for canvas compression
+      const compressedFile = await compressImage(originalFile);
+      console.log('Compressed:', { size: compressedFile.size });
 
-      console.log('Uploading file...', file.name);
+      // 4. Post-compression validation (Cloudinary Free tier 10MB limit)
+      if (compressedFile.size > 10 * 1024 * 1024) {
+        throw new Error('Image is still too large after compression. Try a smaller image.');
+      }
+
+      const fd = new FormData();
+      // Explicitly append filename for mobile/webview compatibility (using original name)
+      fd.append('files', compressedFile, originalFile.name);
+
+      console.log('Uploading file...', originalFile.name);
+
       const res = await authService.uploadDocs(fd);
       console.log('Upload response:', res);
 
@@ -79,8 +92,6 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       setError('');
     } catch (err) {
       console.error("Delete Error:", err);
-      // Even if delete fails on server, clear UI? 
-      // User probably wants it removed from UI regardless.
       onChange({ url: '', publicId: '' });
     } finally {
       setUploading(false);
@@ -141,7 +152,7 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
             )}
             <div className="text-center">
               <p className="text-xs font-bold text-gray-600">
-                {uploading ? 'Uploading...' : placeholder}
+                {uploading ? 'Compressing & Uploading...' : placeholder}
               </p>
               {error ? (
                 <p className="text-[10px] text-red-500 mt-1">{error}</p>

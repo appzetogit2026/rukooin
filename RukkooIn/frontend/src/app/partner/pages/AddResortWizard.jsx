@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
+import { compressImage } from '../../../utils/imageUtils';
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
   BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight, Clock, Loader2
@@ -374,11 +375,33 @@ const AddResortWizard = () => {
     try {
       setUploading(type);
       const fd = new FormData();
-      Array.from(files).forEach(f => fd.append('images', f));
+
+      const fileArray = Array.from(files);
+      console.log(`Processing ${fileArray.length} images...`);
+
+      for (const file of fileArray) {
+        if (!file.type.startsWith('image/')) {
+          console.warn(`Skipping non-image file: ${file.name}`);
+          continue;
+        }
+
+        console.log(`original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+
+        const compressed = await compressImage(file);
+
+        console.log(`compressed: ${file.name} -> (${(compressed.size / 1024 / 1024).toFixed(2)}MB)`);
+
+        if (compressed.size > 10 * 1024 * 1024) throw new Error(`${file.name} too large`);
+
+        fd.append('images', compressed, file.name);
+      }
+
       const res = await hotelService.uploadImages(fd);
       const urls = Array.isArray(res?.urls) ? res.urls : [];
+      console.log('Upload done, urls:', urls);
       onDone(urls);
-    } catch {
+    } catch (err) {
+      console.error("Upload failed", err);
       setError('Upload failed');
     } finally {
       setUploading(null);

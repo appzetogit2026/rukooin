@@ -25,7 +25,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 20 * 1024 * 1024 } // Increased to 20MB for camera photos
+  limits: { fileSize: 10 * 1024 * 1024 } // Strict 10MB limit (Cloudinary Free Tier max)
 });
 
 export default upload;

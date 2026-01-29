@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
+import { compressImage } from '../../../utils/imageUtils'; // Import compression
 import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
@@ -372,8 +373,34 @@ const AddHotelWizard = () => {
     try {
       setUploading(type);
       const fd = new FormData();
-      Array.from(files).forEach(f => fd.append('images', f));
+
+      const fileArray = Array.from(files);
+      console.log(`Processing ${fileArray.length} images for upload...`);
+
+      for (const file of fileArray) {
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`File ${file.name} is not an image`);
+        }
+
+        console.log(`Compressing ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
+
+        // Compress
+        const compressed = await compressImage(file);
+
+        console.log(`Compressed ${file.name} -> ${(compressed.size / 1024 / 1024).toFixed(2)} MB`);
+
+        if (compressed.size > 10 * 1024 * 1024) {
+          throw new Error(`Image ${file.name} is too large (>10MB) even after compression`);
+        }
+
+        // Explicitly include filename in append for mobile/webview compatibility
+        fd.append('images', compressed, file.name);
+      }
+
+      console.log('Sending images to server...');
       const res = await hotelService.uploadImages(fd);
+      console.log('Upload success:', res);
+
       const urls = Array.isArray(res?.urls) ? res.urls : [];
       onDone(urls);
     } catch (err) {
