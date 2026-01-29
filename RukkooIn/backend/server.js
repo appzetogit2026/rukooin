@@ -73,17 +73,22 @@ app.use(cors({
       'https://www.rukkoo.in',
       'https://rukkoo-project.vercel.app'
     ];
-    const isLocalNetwork = origin.startsWith('http://192.168.') || origin.startsWith('http://10.');
+    // Add 172.16-31 range (often used by hotspots) and 10.x
+    const isLocalNetwork =
+      origin.startsWith('http://192.168.') ||
+      origin.startsWith('http://10.') ||
+      origin.startsWith('http://172.');
 
     if (allowedOrigins.indexOf(origin) !== -1 || isLocalNetwork) {
       callback(null, true);
     } else {
+      console.log('Blocked by CORS:', origin); // Log blocked origin for debugging
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Added OPTIONS
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 
 // Routes

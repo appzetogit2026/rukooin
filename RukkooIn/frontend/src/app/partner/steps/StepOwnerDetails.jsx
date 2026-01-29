@@ -42,9 +42,10 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
 
     try {
       const fd = new FormData();
-      fd.append('files', file);
+      // Explicitly append filename for mobile/webview compatibility
+      fd.append('files', file, file.name);
 
-      console.log('Uploading file...');
+      console.log('Uploading file...', file.name);
       const res = await authService.uploadDocs(fd);
       console.log('Upload response:', res);
 
@@ -122,7 +123,7 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
         <div className="relative">
           <input
             type="file"
-            accept="image/*"
+            accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
             onChange={handleFileChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             disabled={uploading}

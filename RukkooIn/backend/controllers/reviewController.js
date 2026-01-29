@@ -17,8 +17,12 @@ export const getPropertyReviews = async (req, res) => {
 export const createReview = async (req, res) => {
   try {
     const { propertyId, bookingId, rating, comment } = req.body;
+    console.log(`Creating review for Property: ${propertyId}, Rating: ${rating}`);
 
-    // Create the review
+    if (!propertyId || !rating) {
+      return res.status(400).json({ message: 'Property ID and Rating are required' });
+    }
+
     const review = await Review.create({
       userId: req.user._id,
       propertyId,
@@ -27,11 +31,17 @@ export const createReview = async (req, res) => {
       comment,
       status: 'approved'
     });
+    console.log('Review created:', review._id);
 
-    // Calculate new stats
+    // Calculate new stats directly from Reviews collection
+    const objectId = new mongoose.Types.ObjectId(propertyId);
+
     const stats = await Review.aggregate([
       {
-        $match: { propertyId: new mongoose.Types.ObjectId(propertyId), status: 'approved' }
+        $match: {
+          propertyId: objectId,
+          status: 'approved'
+        }
       },
       {
         $group: {
@@ -42,19 +52,22 @@ export const createReview = async (req, res) => {
       }
     ]);
 
-    // Update Property
+    console.log('Aggregation Stats:', stats);
+
+    let avgRating = rating;
+    let totalReviews = 1;
+
     if (stats.length > 0) {
-      await Property.findByIdAndUpdate(propertyId, {
-        avgRating: Math.round(stats[0].avgRating * 10) / 10, // Round to 1 decimal
-        totalReviews: stats[0].totalReviews
-      });
-    } else {
-      // Fallback for first review (should be covered by aggregation but safe to have)
-      await Property.findByIdAndUpdate(propertyId, {
-        avgRating: rating,
-        totalReviews: 1
-      });
+      avgRating = Math.round(stats[0].avgRating * 10) / 10;
+      totalReviews = stats[0].totalReviews;
     }
+
+    // Update Property with new stats
+    await Property.findByIdAndUpdate(propertyId, {
+      avgRating,
+      totalReviews
+    });
+    console.log(`Property ${propertyId} updated: Avg ${avgRating}, Count ${totalReviews}`);
 
     res.status(201).json(review);
   } catch (e) {

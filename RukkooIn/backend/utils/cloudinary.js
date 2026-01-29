@@ -14,19 +14,18 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    const isPdf = file.mimetype === 'application/pdf';
+    // Basic config to ensure robustness
     return {
       folder: 'rukkoin_uploads',
-      resource_type: 'auto', // Important for PDFs
-      allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf'],
-      transformation: isPdf ? undefined : [{ width: 1200, crop: 'limit', quality: 'auto' }]
+      resource_type: 'auto',
+      // allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf'], // Let Cloudinary detect
     };
   },
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 20 * 1024 * 1024 } // Increased to 20MB for camera photos
 });
 
 export default upload;
