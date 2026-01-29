@@ -88,13 +88,7 @@ export const authService = {
   // Upload Partner Docs
   uploadDocs: async (formData) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await api.post('/auth/partner/upload-docs', formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data' // Manual override for Flutter/WebView environment
-        }
-      });
+      const response = await api.post('/auth/partner/upload-docs', formData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

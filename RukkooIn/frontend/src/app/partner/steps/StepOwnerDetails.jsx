@@ -60,7 +60,7 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       console.log('Uploading file...', originalFile.name);
 
       const res = await authService.uploadDocs(fd);
-      console.log('Upload response:', res);
+      console.log('Full Upload Response:', JSON.stringify(res, null, 2));
 
       // res.files is an array of {url, publicId}
       if (res.success && res.files && res.files.length > 0) {
@@ -69,9 +69,26 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
         setError('Upload failed');
       }
     } catch (err) {
-      console.error("Upload Error:", err);
-      // Detailed error message extraction
-      const msg = err.message || (typeof err === 'string' ? err : 'Upload failed. Try again.');
+      console.error("Upload Error Details:", err);
+
+      let msg = 'Upload failed. Try again.';
+
+      if (typeof err === 'string') {
+        msg = err;
+      } else if (err?.response?.data?.message) {
+        // Backend returned specific error message
+        msg = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        msg = err.response.data.error;
+      } else if (err?.message) {
+        msg = err.message;
+      }
+
+      // Handle Network Error / 413 Payload Too Large
+      if (msg === 'Network Error' || (err?.response && err.response.status === 413)) {
+        msg = 'Upload failed: File size may be too large or connection unstable.';
+      }
+
       setError(msg);
     } finally {
       setUploading(false);

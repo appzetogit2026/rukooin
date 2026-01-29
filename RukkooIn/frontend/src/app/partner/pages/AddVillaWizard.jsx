@@ -380,7 +380,15 @@ const AddVillaWizard = () => {
       onDone(urls);
     } catch (err) {
       console.error("Upload failed", err);
-      setError('Upload failed');
+      let msg = 'Upload failed';
+      if (typeof err === 'string') msg = err;
+      else if (err?.response?.data?.message) msg = err.response.data.message;
+      else if (err?.message) msg = err.message;
+
+      if (msg === 'Network Error' || (err?.response && err.response.status === 413)) {
+        msg = 'Upload failed: File size may be too large.';
+      }
+      setError(msg);
     } finally {
       setUploading(null);
     }
