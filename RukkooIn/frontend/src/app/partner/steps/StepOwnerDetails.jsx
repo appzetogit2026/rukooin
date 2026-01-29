@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { authService } from '../../../services/apiService';
-import { compressImage } from '../../../utils/imageUtils';
 import { Upload, X, Check, Loader2, Image as ImageIcon, Eye } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -18,23 +17,22 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
   }, [error]);
 
   const handleFileChange = async (e) => {
-    const originalFile = e.target.files[0];
-    e.target.value = ''; // Reset input so same file can be selected again immediately if needed
+    const file = e.target.files[0];
+    e.target.value = ''; // Reset input
 
-    if (!originalFile) return;
+    if (!file) return;
 
-    console.log('Original File:', { name: originalFile.name, type: originalFile.type, size: originalFile.size });
+    console.log('Selected File:', { name: file.name, type: file.type, size: file.size });
 
-    // 1. Basic Validation
-    // Note: file.type might be empty on some mobile devices/cameras
-    if (originalFile.type && !originalFile.type.startsWith('image/')) {
-      setError('Please upload an image file (JPG, PNG)');
+    // Validation
+    if (file.type && !file.type.startsWith('image/')) {
+      setError('Please upload an image file (JPG, PNG, WebP)');
       return;
     }
 
-    // 2. Pre-compression limits (Allowing up to 20MB for camera raw)
-    if (originalFile.size > 20 * 1024 * 1024) {
-      setError('File too large. Please upload an image under 20MB.');
+    // Max 10MB (Cloudinary free tier limit)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File too large. Maximum 10MB allowed.');
       return;
     }
 
@@ -42,51 +40,35 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
     setUploading(true);
 
     try {
-      // 3. Compress Image
-      console.log("Compressing image...");
-      // Using helper utility for canvas compression
-      const compressedFile = await compressImage(originalFile);
-      console.log('Compressed:', { size: compressedFile.size });
+      const formData = new FormData();
+      formData.append('files', file);
 
-      // 4. Post-compression validation (Cloudinary Free tier 10MB limit)
-      if (compressedFile.size > 10 * 1024 * 1024) {
-        throw new Error('Image is still too large after compression. Try a smaller image.');
-      }
+      console.log('Uploading file...', file.name);
 
-      const fd = new FormData();
-      // Explicitly append filename for mobile/webview compatibility (using original name)
-      fd.append('files', compressedFile, originalFile.name);
+      const res = await authService.uploadDocs(formData);
+      console.log('Upload Response:', res);
 
-      console.log('Uploading file...', originalFile.name);
-
-      const res = await authService.uploadDocs(fd);
-      console.log('Full Upload Response:', JSON.stringify(res, null, 2));
-
-      // res.files is an array of {url, publicId}
       if (res.success && res.files && res.files.length > 0) {
         onChange(res.files[0]);
       } else {
         setError('Upload failed');
       }
     } catch (err) {
-      console.error("Upload Error Details:", err);
+      console.error("Upload Error:", err);
 
       let msg = 'Upload failed. Try again.';
 
       if (typeof err === 'string') {
         msg = err;
       } else if (err?.response?.data?.message) {
-        // Backend returned specific error message
         msg = err.response.data.message;
-      } else if (err?.response?.data?.error) {
-        msg = err.response.data.error;
       } else if (err?.message) {
         msg = err.message;
       }
 
-      // Handle Network Error / 413 Payload Too Large
-      if (msg === 'Network Error' || (err?.response && err.response.status === 413)) {
-        msg = 'Upload failed: File size may be too large or connection unstable.';
+      // Provide specific feedback for common errors
+      if (msg.includes('Network Error') || err?.response?.status === 413) {
+        msg = 'Upload failed: File may be too large or connection unstable.';
       }
 
       setError(msg);

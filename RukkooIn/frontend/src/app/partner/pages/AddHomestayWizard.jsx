@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
-import { compressImage } from '../../../utils/imageUtils';
+// Compression removed - Cloudinary handles optimization
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
   BedDouble, Wifi, Coffee, Car, Users, CheckSquare, Snowflake, Tv, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2
@@ -390,19 +390,13 @@ const AddHomestayWizard = () => {
 
       for (const file of fileArray) {
         if (!file.type.startsWith('image/')) {
-          console.warn(`Skipping non-image file: ${file.name}`);
-          continue;
+          throw new Error(`File ${file.name} is not an image`);
         }
-
-        console.log(`original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-
-        const compressed = await compressImage(file);
-
-        console.log(`compressed: ${file.name} -> (${(compressed.size / 1024 / 1024).toFixed(2)}MB)`);
-
-        if (compressed.size > 10 * 1024 * 1024) throw new Error(`${file.name} too large`);
-
-        fd.append('images', compressed, file.name);
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`Image ${file.name} is too large. Maximum 10MB allowed.`);
+        }
+        console.log(`Adding ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
+        fd.append('images', file);
       }
 
       const res = await hotelService.uploadImages(fd);

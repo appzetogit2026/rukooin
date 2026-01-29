@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
-import { compressImage } from '../../../utils/imageUtils'; // Import compression
+// Compression removed - Cloudinary handles optimization
 import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2 } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 
@@ -382,19 +382,13 @@ const AddHotelWizard = () => {
           throw new Error(`File ${file.name} is not an image`);
         }
 
-        console.log(`Compressing ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
-
-        // Compress
-        const compressed = await compressImage(file);
-
-        console.log(`Compressed ${file.name} -> ${(compressed.size / 1024 / 1024).toFixed(2)} MB`);
-
-        if (compressed.size > 10 * 1024 * 1024) {
-          throw new Error(`Image ${file.name} is too large (>10MB) even after compression`);
+        // Validate file size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`Image ${file.name} is too large. Maximum 10MB allowed.`);
         }
 
-        // Explicitly include filename in append for mobile/webview compatibility
-        fd.append('images', compressed, file.name);
+        console.log(`Adding ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
+        fd.append('images', file);
       }
 
       console.log('Sending images to server...');

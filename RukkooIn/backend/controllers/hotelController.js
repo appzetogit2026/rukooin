@@ -1,5 +1,5 @@
 import axios from 'axios';
-import upload from '../utils/cloudinary.js';
+import { uploadToCloudinary } from '../utils/cloudinary.js';
 
 const mapAddressComponents = (components) => {
   const get = (type) => {
@@ -14,29 +14,38 @@ const mapAddressComponents = (components) => {
   return { country, state, city, area, pincode };
 };
 
+/**
+ * @desc    Upload Images (Hotel/Property)
+ * @route   POST /api/hotels/upload
+ * @access  Private (Partner/Admin)
+ */
 export const uploadImages = async (req, res) => {
   try {
-    console.log(`[Upload API] Received request with ${req.files ? req.files.length : 0} files.`);
-    if (req.files) {
-      req.files.forEach((f, i) => {
-        console.log(`[Upload API] File ${i + 1}: ${f.originalname}, Size: ${f.size}, Mimetype: ${f.mimetype}`);
-      });
-    }
+    console.log(`[Upload Images] Received ${req.files ? req.files.length : 0} files`);
 
     if (!req.files || !req.files.length) {
       return res.status(400).json({ message: 'No images provided' });
     }
 
-    // Provide both formats for compatibility and future-proofing
-    const files = req.files.map(f => ({
-      url: f.path,
-      publicId: f.filename
+    const uploadPromises = req.files.map(file =>
+      uploadToCloudinary(file.path, 'properties')
+    );
+
+    const results = await Promise.all(uploadPromises);
+
+    const files = results.map(result => ({
+      url: result.url,
+      publicId: result.publicId
     }));
-    const urls = req.files.map((f) => f.path);
+
+    const urls = results.map(result => result.url);
+
+    console.log(`[Upload Images] Successfully uploaded ${files.length} images`);
 
     res.json({ success: true, files, urls });
-  } catch (e) {
-    res.status(500).json({ message: e.message || 'Upload failed' });
+  } catch (error) {
+    console.error('Upload Images Error:', error);
+    res.status(500).json({ message: error.message || 'Upload failed' });
   }
 };
 
@@ -129,5 +138,3 @@ export const calculateDistance = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
-
-export const _uploadMiddleware = upload.array('images', 10);

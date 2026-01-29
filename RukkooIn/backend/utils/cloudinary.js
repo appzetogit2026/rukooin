@@ -1,65 +1,80 @@
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import multer from 'multer';
-import dotenv from 'dotenv';
+import fs from 'fs';
 
-dotenv.config();
-
-/* ---------------- Cloudinary Config ---------------- */
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-/* ---------------- Storage Config ---------------- */
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: async (req, file) => {
-    return {
-      folder: 'rukkoin_uploads',
-      resource_type: 'image', // force image only (safe)
-      // Clean public_id: Timestamp + original name (without extension)
-      public_id: `${Date.now()}-${file.originalname.split('.')[0].replace(/[^a-zA-Z0-9]/g, "_")}`,
+/**
+ * Upload image to Cloudinary
+ * @param {string} filePath - Path to the file on local filesystem
+ * @param {string} folder - Cloudinary folder name (default: 'rukkoin')
+ * @param {string} publicId - Custom public_id (optional)
+ * @returns {Promise<Object>} - Upload result
+ */
+export const uploadToCloudinary = async (filePath, folder = 'general', publicId = null) => {
+  try {
+    const uploadOptions = {
+      folder: `rukkoin/${folder}`,
+      resource_type: 'auto',
       transformation: [
-        {
-          width: 1920,
-          height: 1920,
-          crop: 'limit',     // resize only if bigger
-        },
-        {
-          quality: 'auto',   // auto compression
-          fetch_format: 'auto', // webp / avif
-        },
-      ],
+        { width: 1920, height: 1920, crop: 'limit' },
+        { quality: 'auto' },
+        { fetch_format: 'auto' }
+      ]
     };
-  },
-});
 
-/* ---------------- Multer Config ---------------- */
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB (Free plan safe)
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/heic'];
-    // Note: 'image/jpg' isn't standard MIME, usually 'image/jpeg', but keeping for safety. 
-    // Added 'image/heic' as it was used in frontend checks previously.
-    if (!allowedTypes.includes(file.mimetype) && !file.mimetype.startsWith('image/')) {
-      // Fallback: if mimetype starts with image/, let it pass (safeguard for strict allowedTypes)
-      // But user request said strict. 
-      // User list: ["image/jpeg", "image/png", "image/jpg", "image/webp"]
-      // I'll stick to user's list but add heic if possible or strict compliance.
-      // Compliance:
-      const strictAllowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-      if (strictAllowed.includes(file.mimetype)) {
-        return cb(null, true);
-      }
-      return cb(new Error("Only image files are allowed"), false);
+    if (publicId) {
+      uploadOptions.public_id = publicId;
     }
-    cb(null, true);
-  },
-});
 
-export default upload;
+    const result = await cloudinary.uploader.upload(filePath, uploadOptions);
+
+    // Delete local file after successful upload
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes
+    };
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+
+    // Clean up local file even on error
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    throw new Error('Failed to upload file to Cloudinary');
+  }
+};
+
+/**
+ * Delete image from Cloudinary
+ * @param {string} publicId - Public ID of the image
+ * @returns {Promise<Object>} - Deletion result
+ */
+export const deleteFromCloudinary = async (publicId) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return {
+      success: result.result === 'ok',
+      message: result.result === 'ok' ? 'Image deleted successfully' : 'Image not found'
+    };
+  } catch (error) {
+    console.error('Cloudinary delete error:', error);
+    throw new Error('Failed to delete image from Cloudinary');
+  }
+};
+
+export default cloudinary;

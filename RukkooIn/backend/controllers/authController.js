@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
 import referralService from '../services/referralService.js';
-import { deleteFromCloudinary } from '../config/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -670,59 +670,6 @@ export const updateAdminProfile = async (req, res) => {
   }
 };
 
-/**
- * @desc    Upload Documents (Public for Registration)
- * @route   POST /api/auth/partner/upload-docs
- * @access  Public
- */
-export const uploadDocs = async (req, res) => {
-  try {
-    console.log(`[Upload Docs API] Received request with ${req.files ? req.files.length : 0} files.`);
-    if (req.files) {
-      req.files.forEach((f, i) => {
-        console.log(`[Upload Docs API] File ${i + 1}: ${f.originalname}, Size: ${f.size}, Mimetype: ${f.mimetype}`);
-      });
-    }
-
-    if (!req.files || !req.files.length) {
-      console.warn('Upload Docs: No files received in request');
-      return res.status(400).json({ message: 'No documents provided' });
-    }
-
-    console.log(`Upload Docs: Successfully received ${req.files.length} files from Cloudinary`);
-
-    // Multer-storage-cloudinary provides path (URL) and filename (Public ID)
-    const files = req.files.map(file => ({
-      url: file.path,
-      publicId: file.filename
-    }));
-
-    res.json({ success: true, files });
-  } catch (e) {
-    console.error('Upload Docs Error:', e);
-    res.status(500).json({ message: e.message || 'Upload failed' });
-  }
-};
-
-/**
- * @desc    Delete Document from Cloudinary
- * @route   POST /api/auth/partner/delete-doc
- * @access  Public
- */
-export const deleteDoc = async (req, res) => {
-  try {
-    const { publicId } = req.body;
-    if (!publicId) {
-      return res.status(400).json({ message: 'Public ID is required' });
-    }
-
-    const result = await deleteFromCloudinary(publicId);
-    res.json(result);
-  } catch (e) {
-    console.error('Delete Doc Error:', e);
-    res.status(500).json({ message: e.message || 'Delete failed' });
-  }
-};
 
 /**
  * @desc    Update FCM Token for Push Notifications
@@ -756,5 +703,59 @@ export const updateFcmToken = async (req, res) => {
   } catch (error) {
     console.error('Update FCM Token Error:', error);
     res.status(500).json({ message: 'Server error updating FCM token' });
+  }
+};
+
+/**
+ * @desc    Upload Documents (Partner Registration)
+ * @route   POST /api/auth/partner/upload-docs
+ * @access  Public
+ */
+export const uploadDocs = async (req, res) => {
+  try {
+    console.log(`[Upload Docs] Received ${req.files ? req.files.length : 0} files`);
+
+    if (!req.files || !req.files.length) {
+      return res.status(400).json({ message: 'No documents provided' });
+    }
+
+    const uploadPromises = req.files.map(file =>
+      uploadToCloudinary(file.path, 'partner-documents')
+    );
+
+    const results = await Promise.all(uploadPromises);
+
+    const files = results.map(result => ({
+      url: result.url,
+      publicId: result.publicId
+    }));
+
+    console.log(`[Upload Docs] Successfully uploaded ${files.length} documents`);
+
+    res.json({ success: true, files });
+  } catch (error) {
+    console.error('Upload Docs Error:', error);
+    res.status(500).json({ message: error.message || 'Upload failed' });
+  }
+};
+
+/**
+ * @desc    Delete Document from Cloudinary
+ * @route   POST /api/auth/partner/delete-doc
+ * @access  Public
+ */
+export const deleteDoc = async (req, res) => {
+  try {
+    const { publicId } = req.body;
+
+    if (!publicId) {
+      return res.status(400).json({ message: 'Public ID is required' });
+    }
+
+    const result = await deleteFromCloudinary(publicId);
+    res.json(result);
+  } catch (error) {
+    console.error('Delete Doc Error:', error);
+    res.status(500).json({ message: error.message || 'Delete failed' });
   }
 };

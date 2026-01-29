@@ -1,7 +1,7 @@
 import express from 'express';
 import { getActiveOffers, createOffer, validateOffer, getAllOffers, updateOffer, deleteOffer } from '../controllers/offerController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
-import upload from '../utils/cloudinary.js';
+import upload from '../utils/multer.js';
 
 const router = express.Router();
 

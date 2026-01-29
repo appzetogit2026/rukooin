@@ -2,15 +2,16 @@ import express from 'express';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import {
   uploadImages,
-  _uploadMiddleware,
   getAddressFromCoordinates,
   searchLocation,
   calculateDistance
 } from '../controllers/hotelController.js';
+import upload from '../utils/multer.js';
 
 const router = express.Router();
 
-router.post('/upload', protect, authorizedRoles('partner', 'admin'), _uploadMiddleware, uploadImages);
+// Upload route
+router.post('/upload', protect, authorizedRoles('partner', 'admin'), upload.array('images', 10), uploadImages);
 router.post('/location/address', protect, authorizedRoles('partner', 'admin'), getAddressFromCoordinates);
 router.get('/location/search', protect, authorizedRoles('partner', 'admin'), searchLocation);
 router.get('/location/distance', protect, authorizedRoles('partner', 'admin'), calculateDistance);
