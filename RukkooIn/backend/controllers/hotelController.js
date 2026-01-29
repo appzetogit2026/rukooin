@@ -16,6 +16,13 @@ const mapAddressComponents = (components) => {
 
 export const uploadImages = async (req, res) => {
   try {
+    console.log(`[Upload API] Received request with ${req.files ? req.files.length : 0} files.`);
+    if (req.files) {
+      req.files.forEach((f, i) => {
+        console.log(`[Upload API] File ${i + 1}: ${f.originalname}, Size: ${f.size}, Mimetype: ${f.mimetype}`);
+      });
+    }
+
     if (!req.files || !req.files.length) {
       return res.status(400).json({ message: 'No images provided' });
     }

@@ -677,6 +677,13 @@ export const updateAdminProfile = async (req, res) => {
  */
 export const uploadDocs = async (req, res) => {
   try {
+    console.log(`[Upload Docs API] Received request with ${req.files ? req.files.length : 0} files.`);
+    if (req.files) {
+      req.files.forEach((f, i) => {
+        console.log(`[Upload Docs API] File ${i + 1}: ${f.originalname}, Size: ${f.size}, Mimetype: ${f.mimetype}`);
+      });
+    }
+
     if (!req.files || !req.files.length) {
       console.warn('Upload Docs: No files received in request');
       return res.status(400).json({ message: 'No documents provided' });
