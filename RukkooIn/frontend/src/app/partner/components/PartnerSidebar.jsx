@@ -14,6 +14,7 @@ import logo from '../../../assets/rokologin-removebg-preview.png';
 const PartnerSidebar = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const { formData } = usePartnerStore();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     // Disable body scroll when sidebar is open
     useEffect(() => {
@@ -145,15 +146,19 @@ const PartnerSidebar = ({ isOpen, onClose }) => {
 
                                 <div className="flex items-start justify-between relative z-10">
                                     <div className="flex items-center gap-3 flex-1">
-                                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 backdrop-blur-sm">
-                                            <User size={22} className="text-white" />
+                                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 backdrop-blur-sm overflow-hidden">
+                                            {user.profileImage ? (
+                                                <img src={user.profileImage} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <User size={22} className="text-white" />
+                                            )}
                                         </div>
                                         <div className="flex-1 overflow-hidden">
                                             <h3 className="font-bold text-base leading-tight truncate">
-                                                {formData?.full_name || formData?.owner_name || 'Partner'}
+                                                {user.name || formData?.full_name || formData?.owner_name || 'Partner'}
                                             </h3>
                                             <p className="text-[10px] text-white/80 mt-0.5 truncate">
-                                                {formData?.email || 'Manage Account'}
+                                                {user.email || formData?.email || 'Manage Account'}
                                             </p>
                                         </div>
                                     </div>

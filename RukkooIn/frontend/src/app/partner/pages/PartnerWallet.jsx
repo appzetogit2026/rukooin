@@ -49,6 +49,7 @@ const PartnerWallet = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('transactions');
 
     // Modal States
     const [activeModal, setActiveModal] = useState(null); // 'withdraw' | 'add_money' | null
@@ -165,9 +166,9 @@ const PartnerWallet = () => {
     }
 
     return (
-        <div className="min-h-screen bg-white pb-24 font-sans">
-            {/* --- Top Dark Section --- */}
-            <div className="bg-[#004F4D] pt-10 pb-16 px-6 rounded-b-[40px] text-white text-center shadow-lg relative z-10">
+        <div className="h-screen bg-white flex flex-col font-sans overflow-hidden">
+            {/* --- Fixed Header Section --- */}
+            <div className="flex-shrink-0 bg-[#004F4D] pt-10 pb-16 px-6 rounded-b-[40px] text-white text-center shadow-lg relative z-30">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 mb-2">Available Balance</p>
                 <div className="text-5xl font-black mb-10 tracking-tight">
                     <span className="text-3xl font-medium align-top opacity-80 mr-1">₹</span>
@@ -190,30 +191,77 @@ const PartnerWallet = () => {
                 </div>
             </div>
 
-            {/* --- Toggle Pills --- */}
-            <div className="px-6 -mt-7 relative z-20 mb-10">
+            {/* --- Fixed Toggle Pills --- */}
+            <div className="flex-shrink-0 px-6 -mt-7 relative z-40 mb-6">
                 <div className="bg-white p-1.5 rounded-full shadow-lg border border-gray-100 flex max-w-[280px] mx-auto">
-                    <button className="flex-1 bg-[#004F4D] text-white py-2.5 rounded-full text-xs font-bold shadow-md transition-all">
+                    <button
+                        onClick={() => setActiveTab('transactions')}
+                        className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all ${activeTab === 'transactions' ? 'bg-[#004F4D] text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
                         Transactions
                     </button>
-                    <button className="flex-1 text-gray-400 py-2.5 rounded-full text-xs font-bold hover:bg-gray-50 transition-all">
+                    <button
+                        onClick={() => setActiveTab('analytics')}
+                        className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-all ${activeTab === 'analytics' ? 'bg-[#004F4D] text-white shadow-md' : 'text-gray-400 hover:bg-gray-50'}`}
+                    >
                         Analytics
                     </button>
                 </div>
             </div>
 
-            {/* --- Recent Activity List --- */}
-            <div className="px-6 max-w-lg mx-auto">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 pl-2">Recent Activity</h3>
-
-                <div className="space-y-2">
-                    {transactions.length > 0 ? (
-                        transactions.map((txn, idx) => (
-                            <TransactionItem key={txn._id || idx} txn={txn} />
-                        ))
+            {/* --- Scrollable Content --- */}
+            <div className="flex-1 overflow-y-auto px-6 pb-24 overscroll-contain">
+                <div className="max-w-lg mx-auto">
+                    {activeTab === 'transactions' ? (
+                        <>
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 pl-2">Recent Activity</h3>
+                            <div className="space-y-1">
+                                {transactions.length > 0 ? (
+                                    transactions.map((txn, idx) => (
+                                        <TransactionItem key={txn._id || idx} txn={txn} />
+                                    ))
+                                ) : (
+                                    <div className="text-center py-20 opacity-50">
+                                        <Clock size={40} className="mx-auto text-gray-300 mb-3" />
+                                        <p className="text-gray-400 text-sm font-medium">No recent transactions</p>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                     ) : (
-                        <div className="text-center py-10 opacity-50">
-                            <p className="text-gray-400 text-sm font-medium">No recent transactions</p>
+                        <div className="space-y-4 pt-2">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 pl-2">Performance Stats</h3>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Total Earnings</p>
+                                    <h4 className="text-xl font-black text-[#003836]">₹{stats?.totalEarnings?.toLocaleString('en-IN') || 0}</h4>
+                                </div>
+                                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">This Month</p>
+                                    <h4 className="text-xl font-black text-[#003836]">₹{stats?.thisMonthEarnings?.toLocaleString('en-IN') || 0}</h4>
+                                </div>
+                                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Withdrawals</p>
+                                    <h4 className="text-xl font-black text-[#003836]">₹{stats?.totalWithdrawals?.toLocaleString('en-IN') || 0}</h4>
+                                </div>
+                                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                                    <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Transactions</p>
+                                    <h4 className="text-xl font-black text-[#003836]">{stats?.transactionCount || 0}</h4>
+                                </div>
+                            </div>
+
+                            <div className="bg-[#004F4D]/5 p-6 rounded-[2.5rem] mt-4 border border-[#004F4D]/10">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-[#004F4D] shadow-sm">
+                                        <Clock size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-bold text-[#004F4D]/60 tracking-wider">Pending Clearance</p>
+                                        <h4 className="text-xl font-black text-[#003836]">₹{stats?.pendingClearance?.toLocaleString('en-IN') || 0}</h4>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

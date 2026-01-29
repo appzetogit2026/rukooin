@@ -5,9 +5,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Interceptor to add Token and Log
@@ -100,6 +97,16 @@ export const authService = {
   },
 
 
+
+  // Delete Partner Doc
+  deleteDoc: async (publicId) => {
+    try {
+      const response = await api.post('/auth/partner/delete-doc', { publicId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 
   // Update Profile
   updateProfile: async (data) => {

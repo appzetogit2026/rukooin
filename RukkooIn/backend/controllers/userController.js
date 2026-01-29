@@ -17,6 +17,9 @@ export const getUserProfile = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner,
+        profileImage: user.profileImage,
+        createdAt: user.createdAt,
+        partnerSince: user.partnerSince
       });
     } else {
       // Check if it's a partner
@@ -29,7 +32,10 @@ export const getUserProfile = async (req, res) => {
           phone: partner.phone,
           role: partner.role,
           isPartner: partner.isPartner,
-          partnerApprovalStatus: partner.partnerApprovalStatus
+          partnerApprovalStatus: partner.partnerApprovalStatus,
+          profileImage: partner.profileImage,
+          createdAt: partner.createdAt,
+          partnerSince: partner.partnerSince
         });
       } else {
         res.status(404).json({ message: 'User not found' });
@@ -62,6 +68,9 @@ export const updateUserProfile = async (req, res) => {
         user.password = await bcrypt.hash(req.body.password, 10);
       }
 
+      if (req.body.profileImage !== undefined) user.profileImage = req.body.profileImage;
+      if (req.body.profileImagePublicId !== undefined) user.profileImagePublicId = req.body.profileImagePublicId;
+
       const updatedUser = await user.save();
 
       res.json({
@@ -71,6 +80,9 @@ export const updateUserProfile = async (req, res) => {
         phone: updatedUser.phone,
         role: updatedUser.role,
         isPartner: isPartner ? updatedUser.isPartner : user.isPartner,
+        profileImage: updatedUser.profileImage,
+        createdAt: updatedUser.createdAt,
+        partnerSince: updatedUser.partnerSince,
         token: req.headers.authorization.split(' ')[1] // Keep existing token
       });
     } else {

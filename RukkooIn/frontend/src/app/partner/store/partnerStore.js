@@ -13,10 +13,10 @@ const INITIAL_DATA = {
     // Owner Details
     owner_name: '',
     aadhaar_number: '',
-    aadhaar_front: '',
-    aadhaar_back: '',
+    aadhaar_front: { url: '', publicId: '' },
+    aadhaar_back: { url: '', publicId: '' },
     pan_number: '',
-    pan_card_image: '',
+    pan_card_image: { url: '', publicId: '' },
     owner_address: {
         street: '',
         city: '',
@@ -152,6 +152,77 @@ const usePartnerStore = create(
                         rooms: (state.formData.rooms || []).filter(r => r.id !== roomId)
                     }
                 })),
+                clearCurrentStep: (mode = 'signup') => set((state) => {
+                    const step = state.currentStep;
+                    const newData = { ...state.formData };
+
+                    if (mode === 'signup') {
+                        if (step === 1) {
+                            newData.full_name = '';
+                            newData.email = '';
+                            newData.phone = '';
+                            newData.termsAccepted = false;
+                        } else if (step === 2) {
+                            newData.owner_name = '';
+                            newData.aadhaar_number = '';
+                            newData.aadhaar_front = { url: '', publicId: '' };
+                            newData.aadhaar_back = { url: '', publicId: '' };
+                            newData.pan_number = '';
+                            newData.pan_card_image = { url: '', publicId: '' };
+                            newData.owner_address = {
+                                street: '',
+                                city: '',
+                                state: '',
+                                zipCode: '',
+                                country: 'India'
+                            };
+                        }
+                    } else if (mode === 'join') {
+                        if (step === 1) {
+                            newData.propertyCategory = '';
+                            newData.bookingType = '';
+                            newData.inventoryType = '';
+                        } else if (step === 2) {
+                            newData.name = '';
+                            newData.description = '';
+                            newData.shortDescription = '';
+                        } else if (step === 3) {
+                            newData.address = {
+                                addressLine: '',
+                                city: '',
+                                state: '',
+                                pincode: '',
+                                coordinates: { lat: 20.5937, lng: 78.9629 }
+                            };
+                        } else if (step === 4) {
+                            newData.config = {};
+                        } else if (step === 5) {
+                            newData.inventory = [];
+                            newData.pricing = { basePrice: '', extraGuestPrice: '', cleaningFee: '' };
+                        } else if (step === 6) {
+                            newData.amenities = [];
+                        } else if (step === 7) {
+                            newData.images = { cover: '', gallery: [], inventory: [] };
+                        } else if (step === 8) {
+                            newData.contacts = { receptionPhone: '', managerPhone: '', emergencyContact: '' };
+                        } else if (step === 9) {
+                            newData.policies = {
+                                checkInPolicy: '',
+                                cancellationPolicy: '',
+                                idRequirement: '',
+                                genderRules: '',
+                                partiesAllowed: false,
+                                petsAllowed: false,
+                                smokingAllowed: false,
+                                alcoholAllowed: false
+                            };
+                        } else if (step === 10) {
+                            newData.documents = { ownershipProof: '', businessRegistration: '', fireSafety: '' };
+                        }
+                    }
+
+                    return { formData: newData };
+                }),
             }),
             {
                 name: 'partner-registration-storage', // unique name

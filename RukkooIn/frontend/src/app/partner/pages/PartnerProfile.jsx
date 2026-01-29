@@ -2,24 +2,28 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Edit, Save, Camera, CreditCard } from 'lucide-react';
 import gsap from 'gsap';
 import usePartnerStore from '../store/partnerStore';
-import { userService, authService } from '../../../services/apiService';
+import { userService, authService, hotelService } from '../../../services/apiService';
 import PartnerHeader from '../components/PartnerHeader';
 
 const Field = ({ label, value, icon: Icon, isEditing, onChange }) => (
-    <div className="mb-4">
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block">{label}</label>
-        <div className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${isEditing ? 'bg-white border-[#004F4D] ring-1 ring-[#004F4D]/10' : 'bg-gray-50 border-gray-100'}`}>
-            <Icon size={16} className="text-gray-400" />
+    <div className="mb-6 group">
+        <div className="flex items-center justify-between mb-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">{label}</label>
+        </div>
+        <div className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 ${isEditing ? 'bg-white border-[#004F4D] ring-4 ring-[#004F4D]/5 shadow-inner' : 'bg-gray-50/50 border-gray-100 hover:border-gray-200'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isEditing ? 'bg-[#004F4D] text-white' : 'bg-white text-gray-400 shadow-sm'}`}>
+                <Icon size={18} />
+            </div>
             {isEditing ? (
                 <input
                     type="text"
                     value={value}
                     onChange={onChange}
-                    className="flex-1 bg-transparent text-sm font-bold text-[#003836] focus:outline-none"
-                    placeholder="Not set"
+                    className="flex-1 bg-transparent text-sm font-bold text-[#003836] focus:outline-none placeholder:text-gray-300"
+                    placeholder={`Enter ${label}`}
                 />
             ) : (
-                <span className="flex-1 text-sm font-bold text-[#003836] truncate">{value || 'Not set'}</span>
+                <span className="flex-1 text-sm font-bold text-[#003836]">{value || 'Not set'}</span>
             )}
         </div>
     </div>
@@ -39,8 +43,12 @@ const PartnerProfile = () => {
         address: '',
         role: 'partner',
         aadhaarNumber: '',
-        panNumber: ''
+        panNumber: '',
+        profileImage: '',
+        profileImagePublicId: ''
     });
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         gsap.fromTo(containerRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' });
@@ -59,10 +67,12 @@ const PartnerProfile = () => {
                     address: addrStr,
                     role: data.role || 'partner',
                     aadhaarNumber: data.aadhaarNumber || '',
-                    panNumber: data.panNumber || ''
+                    panNumber: data.panNumber || '',
+                    profileImage: data.profileImage || '',
+                    profileImagePublicId: data.profileImagePublicId || ''
                 });
                 setApprovalStatus(data.partnerApprovalStatus || 'pending');
-                setMemberSince(data.partnerSince || data.createdAt || '');
+                setMemberSince(data.createdAt || data.partnerSince || '');
                 setPartnerId(data._id || '');
             } catch {
                 console.error('Failed to load partner profile');
@@ -110,14 +120,62 @@ const PartnerProfile = () => {
                     email: updated.email || profile.email,
                     phone: updated.phone || profile.phone,
                     address: addrStr,
-                    role: updated.role || profile.role
+                    role: updated.role || profile.role,
+                    profileImage: updated.profileImage || profile.profileImage,
+                    profileImagePublicId: updated.profileImagePublicId || profile.profileImagePublicId
                 });
+
+                // Sync with localStorage
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const updatedUser = { ...user, ...updated };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+
                 setIsEditing(false);
             } catch {
                 setIsEditing(false);
             }
         } else {
             setIsEditing(true);
+        }
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            setUploading(true);
+            const formData = new FormData();
+            formData.append('images', file);
+
+            const res = await hotelService.uploadImages(formData);
+            if (res.files && res.files.length > 0) {
+                const newUrl = res.files[0].url;
+                const newPublicId = res.files[0].publicId;
+
+                // Update Profile with new image
+                const updateRes = await authService.updateProfile({
+                    profileImage: newUrl,
+                    profileImagePublicId: newPublicId
+                });
+
+                if (updateRes.success) {
+                    setProfile(prev => ({
+                        ...prev,
+                        profileImage: newUrl,
+                        profileImagePublicId: newPublicId
+                    }));
+
+                    // Sync with localStorage
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    const updatedUser = { ...user, profileImage: newUrl, profileImagePublicId: newPublicId };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                }
+            }
+        } catch (err) {
+            console.error('Image upload failed:', err);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -132,27 +190,67 @@ const PartnerProfile = () => {
             <main ref={containerRef} className="max-w-xl mx-auto px-4 pt-8">
 
                 {/* Avatar Section */}
-                <div className="text-center mb-8 relative">
-                    <div className="w-24 h-24 bg-[#004F4D] text-white rounded-full flex items-center justify-center text-3xl font-black mx-auto shadow-xl shadow-[#004F4D]/20 relative group overflow-hidden">
-                        {(profile.name || 'P').substring(0, 2).toUpperCase()}
+                <div className="text-center mb-10 relative">
+                    <div className="relative inline-block">
+                        <div className="w-28 h-28 bg-[#004F4D] text-white rounded-full flex items-center justify-center text-4xl font-black mx-auto shadow-2xl shadow-[#004F4D]/30 relative border-4 border-white overflow-hidden bg-gradient-to-br from-[#004F4D] to-[#006b68]">
+                            {uploading ? (
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                                    <span className="text-[10px] uppercase font-bold tracking-tighter">Saving...</span>
+                                </div>
+                            ) : profile.profileImage ? (
+                                <img src={profile.profileImage} className="w-full h-full object-cover" alt="Profile" />
+                            ) : (
+                                (profile.name || 'P').substring(0, 2).toUpperCase()
+                            )}
+                        </div>
 
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            <Camera size={24} className="text-white" />
+                        {/* Permanent Camera Button */}
+                        <button
+                            onClick={() => fileInputRef.current.click()}
+                            disabled={uploading}
+                            className="absolute bottom-1 right-1 w-9 h-9 bg-white text-[#004F4D] rounded-full flex items-center justify-center shadow-lg border border-gray-100 hover:scale-110 active:scale-95 transition-all z-10"
+                        >
+                            <Camera size={18} />
+                        </button>
+                    </div>
+
+                    {/* Hidden File Input */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        accept="image/*"
+                    />
+
+                    <div className="mt-4">
+                        <h2 className="text-2xl font-black text-[#003836]">{profile.name || 'Partner'}</h2>
+                        <div className="flex items-center justify-center gap-2 mt-1.5">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${statusClass}`}>
+                                {statusLabel}
+                            </span>
                         </div>
                     </div>
-                    <h2 className="text-xl font-black mt-4">{profile.name || 'Partner'}</h2>
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full inline-block mt-1 ${statusClass}`}>{statusLabel}</span>
                 </div>
 
-                {/* Details Form */}
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 relative">
-                    <button
-                        onClick={handleToggleEdit}
-                        className="absolute top-6 right-6 w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center hover:bg-[#004F4D] hover:text-white transition-colors"
-                    >
-                        {isEditing ? <Save size={18} /> : <Edit size={18} />}
-                    </button>
+                {/* Details Form Card */}
+                <div className="bg-white p-6 pb-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 mb-6 transition-all duration-500">
+                    <div className="flex items-center justify-between mb-10 pb-4 border-b border-gray-50">
+                        <div>
+                            <p className="text-[10px] text-[#004F4D] font-black uppercase tracking-[0.2em] mb-1">Account & Settings</p>
+                            <h3 className="text-xl font-black text-[#003836]">Personal Profile</h3>
+                        </div>
+                        <button
+                            onClick={handleToggleEdit}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition-all shadow-lg active:scale-95 ${isEditing
+                                ? 'bg-[#004F4D] text-white shadow-[#004F4D]/20'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                }`}
+                        >
+                            {isEditing ? <><Save size={16} /> Save</> : <><Edit size={16} /> Edit Profile</>}
+                        </button>
+                    </div>
 
                     <Field
                         label="Full Name"
@@ -201,8 +299,7 @@ const PartnerProfile = () => {
                 </div>
 
                 <div className="mt-8 text-center text-xs text-gray-400">
-                    <p>Member since {memberSince ? new Date(memberSince).toLocaleDateString() : '—'}</p>
-                    <p>Partner ID: {partnerId ? `PART-${String(partnerId).slice(-6).toUpperCase()}` : '—'}</p>
+                    <p className="font-bold tracking-widest uppercase text-[10px]">Member since {memberSince ? new Date(memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '—'}</p>
                 </div>
 
             </main>

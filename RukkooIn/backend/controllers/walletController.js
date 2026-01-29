@@ -1,6 +1,9 @@
 import Wallet from '../models/Wallet.js';
+import mongoose from 'mongoose';
 import Transaction from '../models/Transaction.js';
 import Withdrawal from '../models/Withdrawal.js';
+import Property from '../models/Property.js';
+import Booking from '../models/Booking.js';
 import PaymentConfig from '../config/payment.config.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
@@ -35,7 +38,6 @@ try {
  * @route   GET /api/wallet
  * @access  Private (Partner)
  */
-import Booking from '../models/Booking.js';
 
 /**
  * @desc    Get wallet balance and details
@@ -417,38 +419,81 @@ export const getWalletStats = async (req, res) => {
       });
     }
 
-    // PARTNER Role: Return detailed earnings stats
+    // PARTNER Role: Calculate stats EXCLUSIVELY from Transaction history
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const monthlyEarnings = await Transaction.aggregate([
+    const statsData = await Transaction.aggregate([
       {
         $match: {
-          walletId: wallet._id, // Filter by specific wallet ID
-          type: 'credit',
-          category: { $in: ['booking_payment', 'adjustment'] },
-          createdAt: { $gte: startOfMonth }
+          walletId: wallet._id
         }
       },
       {
-        $group: {
-          _id: null,
-          total: { $sum: '$amount' }
+        $facet: {
+          totalEarnings: [
+            {
+              $match: {
+                type: 'credit',
+                category: 'booking_payment',
+                status: 'completed'
+              }
+            },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          thisMonthEarnings: [
+            {
+              $match: {
+                type: 'credit',
+                category: 'booking_payment',
+                status: 'completed',
+                createdAt: { $gte: startOfMonth }
+              }
+            },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          totalWithdrawals: [
+            {
+              $match: {
+                type: 'debit',
+                category: 'withdrawal',
+                status: 'completed'
+              }
+            },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          pendingClearance: [
+            {
+              $match: {
+                status: 'pending'
+              }
+            },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+          ],
+          txCount: [
+            { $count: 'count' }
+          ]
         }
       }
     ]);
 
-    const transactionCount = await Transaction.countDocuments({ walletId: wallet._id });
+    const result = statsData[0];
+
+    const totalEarnings = result.totalEarnings[0]?.total || 0;
+    const thisMonthEarnings = result.thisMonthEarnings[0]?.total || 0;
+    const totalWithdrawals = result.totalWithdrawals[0]?.total || 0;
+    const pendingClearance = result.pendingClearance[0]?.total || 0;
+    const transactionCount = result.txCount[0]?.count || 0;
 
     res.json({
       success: true,
       stats: {
-        totalEarnings: wallet.totalEarnings,
-        totalWithdrawals: wallet.totalWithdrawals,
+        totalEarnings,
+        totalWithdrawals,
         currentBalance: wallet.balance,
-        pendingClearance: wallet.pendingClearance,
-        thisMonthEarnings: monthlyEarnings[0]?.total || 0,
+        pendingClearance,
+        thisMonthEarnings,
         transactionCount
       }
     });

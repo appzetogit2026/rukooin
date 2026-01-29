@@ -88,6 +88,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  profileImage: {
+    type: String,
+    default: null
+  },
+  profileImagePublicId: {
+    type: String,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

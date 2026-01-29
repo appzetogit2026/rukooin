@@ -51,6 +51,14 @@ const adminSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  profileImage: {
+    type: String,
+    default: null
+  },
+  profileImagePublicId: {
+    type: String,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

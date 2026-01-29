@@ -19,10 +19,17 @@ export const uploadImages = async (req, res) => {
     if (!req.files || !req.files.length) {
       return res.status(400).json({ message: 'No images provided' });
     }
+
+    // Provide both formats for compatibility and future-proofing
+    const files = req.files.map(f => ({
+      url: f.path,
+      publicId: f.filename
+    }));
     const urls = req.files.map((f) => f.path);
-    res.json({ success: true, urls });
+
+    res.json({ success: true, files, urls });
   } catch (e) {
-    res.status(500).json({ message: e.message });
+    res.status(500).json({ message: e.message || 'Upload failed' });
   }
 };
 

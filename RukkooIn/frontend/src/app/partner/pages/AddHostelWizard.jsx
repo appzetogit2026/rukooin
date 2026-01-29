@@ -612,6 +612,28 @@ const AddHostelWizard = () => {
     else navigate(-1);
   };
 
+  const clearCurrentStep = () => {
+    if (!window.confirm("Clear all fields in this step?")) return;
+    if (step === 1) {
+      setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '' }));
+    } else if (step === 2) {
+      updatePropertyForm('address', { country: 'India', state: '', city: '', area: '', fullAddress: '', pincode: '' });
+      updatePropertyForm(['location', 'coordinates'], ['', '']);
+    } else if (step === 3) {
+      updatePropertyForm('amenities', []);
+    } else if (step === 4) {
+      updatePropertyForm('nearbyPlaces', []);
+    } else if (step === 5) {
+      setPropertyForm(prev => ({ ...prev, coverImage: '', propertyImages: [] }));
+    } else if (step === 6) {
+      setRoomTypes([]);
+    } else if (step === 7) {
+      setPropertyForm(prev => ({ ...prev, checkInTime: '12:00 PM', checkOutTime: '10:00 AM', cancellationPolicy: 'No refund after check-in', houseRules: [] }));
+    } else if (step === 8) {
+      updatePropertyForm('documents', REQUIRED_DOCS_HOSTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' })));
+    }
+  };
+
   const handleNext = () => {
     if (step === 1) nextFromBasic();
     else if (step === 2) nextFromLocation();
@@ -1274,6 +1296,37 @@ const AddHostelWizard = () => {
           )}
         </div>
       </main>
+
+      <footer className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 z-40">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+          <button
+            onClick={handleBack}
+            disabled={step === 1 || loading || isEditingSubItem}
+            className="px-6 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Back
+          </button>
+
+          {step < 9 && (
+            <button
+              onClick={clearCurrentStep}
+              disabled={loading}
+              className="px-4 py-3 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 disabled:opacity-50 transition-all text-sm"
+            >
+              Clear Step
+            </button>
+          )}
+
+          <button
+            onClick={step === 9 ? submitAll : handleNext}
+            disabled={loading || isEditingSubItem || (step === 6 && roomTypes.length === 0)}
+            className="flex-1 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+            {step === 9 ? 'Complete Registration' : 'Continue'}
+          </button>
+        </div>
+      </footer>
 
       <style>{`
         .btn-primary { background: #004F4D; color: white; font-weight: 700; padding: 10px 16px; border-radius: 12px; transition: transform 0.1s, background 0.1s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }

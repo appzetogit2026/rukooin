@@ -219,13 +219,23 @@ const JoinRokkooin = () => {
             {/* Bottom Action Bar */}
             <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 md:p-6 z-50">
                 <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
-                    <button
-                        onClick={handleBack}
-                        className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-[#004F4D] transition-colors"
-                        disabled={currentStep === 1 || isSubmitting}
-                    >
-                        Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleBack}
+                            className="text-xs font-bold underline px-3 py-2 text-gray-400 hover:text-[#004F4D] transition-colors"
+                            disabled={currentStep === 1 || isSubmitting}
+                        >
+                            Back
+                        </button>
+                        {currentStep < 11 && !isSubmitting && (
+                            <button
+                                onClick={() => { if (window.confirm("Clear all fields in this step?")) { usePartnerStore.getState().clearCurrentStep('join'); } }}
+                                className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors px-3 py-2 ml-1 border border-red-50 hover:bg-red-50 rounded-lg"
+                            >
+                                Clear Step
+                            </button>
+                        )}
+                    </div>
 
                     <div className="flex-1 flex flex-col items-end">
                         <button

@@ -38,50 +38,70 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       fd.append('files', file);
 
       const res = await authService.uploadDocs(fd);
-      if (res.success && res.urls && res.urls.length > 0) {
-        onChange(res.urls[0]);
+      // res.files is an array of {url, publicId}
+      if (res.success && res.files && res.files.length > 0) {
+        onChange(res.files[0]);
       } else {
         setError('Upload failed');
       }
     } catch (err) {
-      console.error(err);
-      setError('Upload failed. Try again.');
+      console.error("Upload Error:", err);
+      setError(typeof err === 'string' ? err : err.message || 'Upload failed. Try again.');
     } finally {
       setUploading(false);
     }
   };
 
-  const clearImage = (e) => {
+  const clearImage = async (e) => {
     e.stopPropagation();
-    onChange('');
-    setError('');
+    if (!value?.publicId) {
+      onChange({ url: '', publicId: '' });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      await authService.deleteDoc(value.publicId);
+      onChange({ url: '', publicId: '' });
+      setError('');
+    } catch (err) {
+      console.error("Delete Error:", err);
+      // Even if delete fails on server, clear UI? 
+      // User probably wants it removed from UI regardless.
+      onChange({ url: '', publicId: '' });
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const imageUrl = typeof value === 'object' ? value?.url : value;
 
   return (
     <div className="flex flex-col h-full">
       <label className="block text-xs font-bold text-gray-500 mb-2 truncate">{label}</label>
 
-      {value ? (
+      {imageUrl ? (
         <div className="relative group h-32 w-full rounded-xl bg-gray-50 border border-gray-200 overflow-hidden shadow-sm">
-          <img src={value} alt={label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+          <img src={imageUrl} alt={label} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
 
-          {/* Overlay Actions */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+          {/* Overlay Actions - Always visible for better mobile experience */}
+          <div className="absolute inset-0 bg-black/25 flex items-center justify-center gap-3 transition-opacity">
             <button
-              onClick={() => onView(value)}
-              className="p-2 bg-white rounded-full text-[#004F4D] hover:bg-emerald-50 transition-colors shadow-lg"
+              onClick={() => onView(imageUrl)}
+              className="p-2.5 bg-white/90 rounded-full text-[#004F4D] hover:bg-white transition-colors shadow-lg backdrop-blur-sm"
               title="View Image"
               type="button"
             >
-              <Eye size={18} />
+              <Eye size={20} />
             </button>
             <button
               onClick={clearImage}
-              className="p-2 bg-white rounded-full text-red-500 hover:bg-red-50 transition-colors shadow-lg"
+              disabled={uploading}
+              className="p-2.5 bg-white/90 rounded-full text-red-500 hover:bg-white transition-colors shadow-lg backdrop-blur-sm disabled:opacity-50"
               title="Remove Image"
               type="button"
             >
-              <X size={18} />
+              {uploading ? <Loader2 size={20} className="animate-spin" /> : <X size={20} />}
             </button>
           </div>
 

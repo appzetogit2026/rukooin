@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
 import referralService from '../services/referralService.js';
+import { deleteFromCloudinary } from '../config/cloudinary.js';
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -106,16 +107,23 @@ export const registerPartner = async (req, res) => {
       termsAccepted
     } = req.body;
 
+    // Extract URLs if fields are objects (for backward and forward compatibility)
+    const getUrl = (val) => (val && typeof val === 'object' ? val.url : val);
+
+    const aadhaarFrontUrl = getUrl(aadhaar_front);
+    const aadhaarBackUrl = getUrl(aadhaar_back);
+    const panImageUrl = getUrl(pan_card_image);
+
     // Validation
     if (!full_name || !email || !phone) {
       return res.status(400).json({ message: 'Name, email, and phone are required' });
     }
 
-    if (!owner_name || !aadhaar_number || !aadhaar_front || !aadhaar_back) {
+    if (!owner_name || !aadhaar_number || !aadhaarFrontUrl || !aadhaarBackUrl) {
       return res.status(400).json({ message: 'Owner details and Aadhaar documents are required' });
     }
 
-    if (!pan_number || !pan_card_image) {
+    if (!pan_number || !panImageUrl) {
       return res.status(400).json({ message: 'PAN details are required' });
     }
 
@@ -149,10 +157,10 @@ export const registerPartner = async (req, res) => {
       isVerified: false,
       ownerName: owner_name,
       aadhaarNumber: aadhaar_number,
-      aadhaarFront: aadhaar_front,
-      aadhaarBack: aadhaar_back,
+      aadhaarFront: aadhaarFrontUrl,
+      aadhaarBack: aadhaarBackUrl,
       panNumber: pan_number,
-      panCardImage: pan_card_image,
+      panCardImage: panImageUrl,
       address: {
         street: owner_address.street,
         city: owner_address.city,
@@ -331,7 +339,8 @@ export const verifyOtp = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner || (role === 'partner'),
-        partnerApprovalStatus: user.partnerApprovalStatus
+        partnerApprovalStatus: user.partnerApprovalStatus,
+        profileImage: user.profileImage
       }
     });
 
@@ -366,36 +375,26 @@ export const verifyPartnerOtp = async (req, res) => {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
-    // 2. Create Partner from tempData
-    const userData = otpRecord.tempData;
-    // ... (validations)
-    if (!userData) {
-      return res.status(400).json({ message: 'Registration data not found. Please register again.' });
-    }
-    if (userData.role !== 'partner') {
-      return res.status(400).json({ message: 'Invalid registration context.' });
+    // 2. Find existing Partner (they were saved during registration)
+    const partner = await Partner.findOne({ phone });
+    if (!partner) {
+      return res.status(404).json({ message: 'Partner registration not found. Please register again.' });
     }
 
-    const existingUser = await Partner.findOne({ phone });
-    if (existingUser) {
-      return res.status(409).json({ message: 'Partner account already exists.' });
+    if (partner.isVerified) {
+      // Optional: allow re-verification or just proceed
     }
 
-    // Create New Partner
-    const newPartner = new Partner({
-      ...userData,
-      password: userData.passwordHash || await bcrypt.hash(Math.random().toString(36), 10),
-      isVerified: true
-    });
+    // 3. Update Partner as Verified
+    partner.isVerified = true;
+    await partner.save();
 
-    await newPartner.save();
-
-    // 3. Cleanup OTP
+    // 4. Cleanup OTP
     await Otp.deleteOne({ phone });
 
     // NOTIFICATION & EMAIL TRIGGERS (PARTNER REGISTRATION)
-    if (newPartner.email) {
-      emailService.sendPartnerRegistrationEmail(newPartner).catch(err => console.error('Failed to send partner confirmation email:', err));
+    if (partner.email) {
+      emailService.sendPartnerRegistrationEmail(partner).catch(err => console.error('Failed to send partner confirmation email:', err));
     }
 
     // Notify Admins
@@ -404,28 +403,29 @@ export const verifyPartnerOtp = async (req, res) => {
       notificationService.sendToUser(
         admin._id,
         {
-          title: `New Partner Registration: ${newPartner.name}`,
+          title: `New Partner Registration: ${partner.name}`,
           body: 'Review needed.'
         },
-        { type: 'partner_registration', partnerId: newPartner._id },
+        { type: 'partner_registration', partnerId: partner._id },
         'admin' // Assuming sendToUser handles 'admin' type correctly
       ).catch(err => console.error('Failed to notify admin:', err));
     }
 
-    const token = generateToken(newPartner._id, newPartner.role);
+    const token = generateToken(partner._id, partner.role);
 
     res.status(200).json({
       success: true,
       message: 'Partner registration completed successfully.',
       token,
       user: {
-        id: newPartner._id,
-        name: newPartner.name,
-        email: newPartner.email,
-        phone: newPartner.phone,
-        role: newPartner.role,
-        isPartner: newPartner.isPartner,
-        partnerApprovalStatus: newPartner.partnerApprovalStatus
+        id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        role: partner.role,
+        isPartner: partner.isPartner,
+        partnerApprovalStatus: partner.partnerApprovalStatus,
+        profileImage: partner.profileImage
       }
     });
 
@@ -479,7 +479,8 @@ export const adminLogin = async (req, res) => {
         name: admin.name,
         email: admin.email,
         phone: admin.phone,
-        role: admin.role
+        role: admin.role,
+        profileImage: admin.profileImage
       }
     });
 
@@ -513,7 +514,10 @@ export const getMe = async (req, res) => {
         role: user.role,
         isPartner: user.isPartner || false,
         partnerApprovalStatus: user.partnerApprovalStatus,
-        address: user.address
+        address: user.address,
+        profileImage: user.profileImage,
+        partnerSince: user.partnerSince,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -529,7 +533,7 @@ export const getMe = async (req, res) => {
  */
 export const updateProfile = async (req, res) => {
   try {
-    const { name, email, phone, address } = req.body;
+    const { name, email, phone, address, profileImage, profileImagePublicId } = req.body;
     const currentUser = req.user; // From middleware
 
     // Determine Model based on role
@@ -580,6 +584,9 @@ export const updateProfile = async (req, res) => {
       };
     }
 
+    if (profileImage !== undefined) user.profileImage = profileImage;
+    if (profileImagePublicId !== undefined) user.profileImagePublicId = profileImagePublicId;
+
     await user.save();
 
     res.status(200).json({
@@ -592,7 +599,10 @@ export const updateProfile = async (req, res) => {
         phone: user.phone,
         role: user.role,
         isPartner: user.isPartner || false,
-        address: user.address
+        address: user.address,
+        profileImage: user.profileImage,
+        partnerSince: user.partnerSince,
+        createdAt: user.createdAt
       }
     });
 
@@ -650,7 +660,8 @@ export const updateAdminProfile = async (req, res) => {
         name: admin.name,
         email: admin.email,
         phone: admin.phone,
-        role: admin.role
+        role: admin.role,
+        profileImage: admin.profileImage
       }
     });
   } catch (error) {
@@ -658,9 +669,6 @@ export const updateAdminProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error updating admin profile' });
   }
 };
-
-
-import { uploadToCloudinary } from '../config/cloudinary.js';
 
 /**
  * @desc    Upload Documents (Public for Registration)
@@ -674,22 +682,38 @@ export const uploadDocs = async (req, res) => {
       return res.status(400).json({ message: 'No documents provided' });
     }
 
-    console.log(`Upload Docs: Processing ${req.files.length} files`);
-    const uploadPromises = req.files.map(async (file) => {
-      // file.path is the local disk path now
-      const result = await uploadToCloudinary(file.path, {
-        folder: 'rukkoin_docs'
-      });
-      return result.url;
-    });
+    console.log(`Upload Docs: Successfully received ${req.files.length} files from Cloudinary`);
 
-    const urls = await Promise.all(uploadPromises);
-    console.log('Upload Docs: Successfully uploaded all files to Cloudinary');
+    // Multer-storage-cloudinary provides path (URL) and filename (Public ID)
+    const files = req.files.map(file => ({
+      url: file.path,
+      publicId: file.filename
+    }));
 
-    res.json({ success: true, urls });
+    res.json({ success: true, files });
   } catch (e) {
     console.error('Upload Docs Error:', e);
     res.status(500).json({ message: e.message || 'Upload failed' });
+  }
+};
+
+/**
+ * @desc    Delete Document from Cloudinary
+ * @route   POST /api/auth/partner/delete-doc
+ * @access  Public
+ */
+export const deleteDoc = async (req, res) => {
+  try {
+    const { publicId } = req.body;
+    if (!publicId) {
+      return res.status(400).json({ message: 'Public ID is required' });
+    }
+
+    const result = await deleteFromCloudinary(publicId);
+    res.json(result);
+  } catch (e) {
+    console.error('Delete Doc Error:', e);
+    res.status(500).json({ message: e.message || 'Delete failed' });
   }
 };
 

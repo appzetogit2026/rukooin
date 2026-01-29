@@ -621,6 +621,28 @@ const AddPGWizard = () => {
     }
   };
 
+  const clearCurrentStep = () => {
+    if (!window.confirm("Clear all fields in this step?")) return;
+    if (step === 1) {
+      setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '', pgType: 'boys' }));
+    } else if (step === 2) {
+      updatePropertyForm('address', { country: 'India', state: '', city: '', area: '', fullAddress: '', pincode: '' });
+      updatePropertyForm(['location', 'coordinates'], ['', '']);
+    } else if (step === 3) {
+      updatePropertyForm('amenities', []);
+    } else if (step === 4) {
+      updatePropertyForm('nearbyPlaces', []);
+    } else if (step === 5) {
+      setPropertyForm(prev => ({ ...prev, coverImage: '', propertyImages: [] }));
+    } else if (step === 6) {
+      setRoomTypes([]);
+    } else if (step === 7) {
+      setPropertyForm(prev => ({ ...prev, checkInTime: '12:00 PM', checkOutTime: '10:00 AM', cancellationPolicy: 'No refund after check-in', houseRules: [] }));
+    } else if (step === 8) {
+      updatePropertyForm('documents', REQUIRED_DOCS_PG.map(d => ({ type: d.type, name: d.name, fileUrl: '' })));
+    }
+  };
+
   const handleNext = () => {
     if (loading) return;
     if (step === 1) nextFromBasic();
@@ -1318,6 +1340,16 @@ const AddPGWizard = () => {
           >
             Back
           </button>
+
+          {step < 9 && (
+            <button
+              onClick={clearCurrentStep}
+              disabled={loading}
+              className="px-4 py-3 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 disabled:opacity-50 transition-all text-sm"
+            >
+              Clear Step
+            </button>
+          )}
 
           <button
             onClick={step === 9 ? submitAll : handleNext}

@@ -376,8 +376,9 @@ const AddHotelWizard = () => {
       const res = await hotelService.uploadImages(fd);
       const urls = Array.isArray(res?.urls) ? res.urls : [];
       onDone(urls);
-    } catch {
-      setError('Upload failed');
+    } catch (err) {
+      console.error("Upload Error:", err);
+      setError(typeof err === 'string' ? err : err.message || 'Upload failed');
     } finally {
       setUploading(null);
     }
@@ -596,6 +597,28 @@ const AddHotelWizard = () => {
       setStep(step - 1);
     } else {
       navigate(-1);
+    }
+  };
+
+  const clearCurrentStep = () => {
+    if (!window.confirm("Clear all fields in this step?")) return;
+    if (step === 1) {
+      setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '', coverImage: '' }));
+    } else if (step === 2) {
+      updatePropertyForm('address', { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' });
+      updatePropertyForm(['location', 'coordinates'], ['', '']);
+    } else if (step === 3) {
+      updatePropertyForm('amenities', []);
+    } else if (step === 4) {
+      updatePropertyForm('nearbyPlaces', []);
+    } else if (step === 5) {
+      updatePropertyForm('propertyImages', []);
+    } else if (step === 6) {
+      setRoomTypes([]);
+    } else if (step === 7) {
+      setPropertyForm(prev => ({ ...prev, checkInTime: '', checkOutTime: '', cancellationPolicy: '', houseRules: [] }));
+    } else if (step === 8) {
+      updatePropertyForm('documents', REQUIRED_DOCS_HOTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' })));
     }
   };
 
@@ -1386,6 +1409,15 @@ const AddHotelWizard = () => {
           >
             Back
           </button>
+          {step < 9 && (
+            <button
+              onClick={clearCurrentStep}
+              disabled={loading}
+              className="px-4 py-3 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 disabled:opacity-50 transition-all text-sm"
+            >
+              Clear Step
+            </button>
+          )}
           <button
             onClick={handleNext}
             disabled={loading || (step === 8 && roomTypes.length === 0)}

@@ -220,13 +220,23 @@ const HotelSignup = () => {
             {/* Bottom Action Bar */}
             <footer className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 md:p-6 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
                 <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
-                    <button
-                        onClick={handleBack}
-                        className={`text-xs font-bold underline px-3 py-2 transition-colors ${currentStep === 1 || loading ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-[#004F4D]'}`}
-                        disabled={currentStep === 1 || loading}
-                    >
-                        Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleBack}
+                            className={`text-xs font-bold underline px-3 py-2 transition-colors ${currentStep === 1 || loading ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-[#004F4D]'}`}
+                            disabled={currentStep === 1 || loading}
+                        >
+                            Back
+                        </button>
+                        {!loading && (
+                            <button
+                                onClick={() => { if (window.confirm("Clear all fields in this step?")) { usePartnerStore.getState().clearCurrentStep('signup'); } }}
+                                className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors px-3 py-2 ml-2 border border-red-100 rounded-lg hover:bg-red-50"
+                            >
+                                Clear Step
+                            </button>
+                        )}
+                    </div>
 
                     <div className="flex-1 flex flex-col items-end">
                         <button

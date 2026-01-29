@@ -1,7 +1,7 @@
 import express from 'express';
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, updateFcmToken } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, deleteDoc, updateFcmToken } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
-import upload from '../middlewares/upload.js';
+import upload from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -10,6 +10,7 @@ router.post('/verify-otp', verifyOtp);
 router.post('/partner/register', registerPartner);
 router.post('/partner/verify-otp', verifyPartnerOtp);
 router.post('/partner/upload-docs', upload.array('files', 5), uploadDocs);
+router.post('/partner/delete-doc', deleteDoc);
 
 router.post('/admin/login', adminLogin);
 router.get('/me', protect, getMe);
