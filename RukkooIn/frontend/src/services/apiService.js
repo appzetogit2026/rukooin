@@ -107,6 +107,16 @@ export const authService = {
     }
   },
 
+  // Upload Partner Docs via Base64 (Flutter Camera)
+  uploadDocsBase64: async (images) => {
+    try {
+      const response = await api.post('/auth/partner/upload-docs-base64', { images });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Update Profile
   updateProfile: async (data) => {
     try {
@@ -319,6 +329,14 @@ export const hotelService = {
       const response = await api.post('/hotels/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  uploadImagesBase64: async (images) => {
+    try {
+      const response = await api.post('/hotels/upload-base64', { images });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

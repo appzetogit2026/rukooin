@@ -4,10 +4,11 @@ import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
 import {
   CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search,
-  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight, Clock, Loader2
+  BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, Umbrella, Waves, Mountain, Trees, Sun, ArrowLeft, ArrowRight, Clock, Loader2, Camera
 } from 'lucide-react';
 
 import logo from '../../../assets/rokologin-removebg-preview.png';
+import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_RESORT = [
   { type: "trade_license", name: "Trade License" },
@@ -55,6 +56,7 @@ const AddResortWizard = () => {
 
   // Image Upload State (Ref matching Hotel wizard)
   const [uploading, setUploading] = useState(null);
+  const [isFlutter, setIsFlutter] = useState(false);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -369,6 +371,46 @@ const AddResortWizard = () => {
         amenities: has ? prev.amenities.filter(a => a !== label) : [...prev.amenities, label]
       };
     });
+  };
+
+  useEffect(() => {
+    setIsFlutter(isFlutterApp());
+  }, []);
+
+  const handleCameraUpload = async (type, onDone) => {
+    try {
+      setUploading(type);
+      setError('');
+      console.log('[Camera] Opening Flutter camera...');
+
+      const result = await openFlutterCamera();
+
+      if (!result.success || !result.base64) {
+        throw new Error('Camera capture failed');
+      }
+
+      console.log('[Camera] Image captured, uploading...');
+
+      const isSingle = type === 'cover' || type === 'room';
+
+      const res = await hotelService.uploadImagesBase64([result]);
+      console.log('[Camera] Upload success:', res);
+
+      if (res && res.success && res.files && res.files.length > 0) {
+        if (isSingle) {
+          onDone(res.files[0].url);
+        } else {
+          onDone([res.files[0].url]);
+        }
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      console.error('[Camera] Error:', err);
+      setError(err.message || 'Camera capture failed');
+    } finally {
+      setUploading(null);
+    }
   };
 
   const uploadImages = async (files, type, onDone) => {
@@ -1001,7 +1043,7 @@ const AddResortWizard = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-900">Cover Image</label>
                   <div
-                    onClick={() => !uploading && coverImageFileInputRef.current?.click()}
+                    onClick={() => !uploading && (isFlutter ? handleCameraUpload('cover', url => updatePropertyForm('coverImage', url)) : coverImageFileInputRef.current?.click())}
                     className="relative w-full h-48 sm:h-64 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer overflow-hidden hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group"
                   >
                     {propertyForm.coverImage ? (
@@ -1009,7 +1051,7 @@ const AddResortWizard = () => {
                     ) : (
                       <div className="flex flex-col items-center text-gray-400 group-hover:text-emerald-600 transition-colors">
                         <Image size={40} className="mb-2 opacity-50" />
-                        <span className="text-xs font-bold">Upload Cover Photo</span>
+                        <span className="text-xs font-bold">{isFlutter ? 'Take/Upload Cover Photo' : 'Upload Cover Photo'}</span>
                       </div>
                     )}
                     {uploading === 'cover' && <div className="absolute inset-0 bg-white/80 flex flex-col gap-2 items-center justify-center"><Loader2 className="animate-spin text-emerald-600" size={32} /><span className="text-sm font-bold text-emerald-700">Uploading...</span></div>}
@@ -1037,11 +1079,11 @@ const AddResortWizard = () => {
                     ))}
                     <button
                       type="button"
-                      onClick={() => propertyImagesFileInputRef.current?.click()}
+                      onClick={() => isFlutter ? handleCameraUpload('gallery', urls => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...urls])) : propertyImagesFileInputRef.current?.click()}
                       disabled={!!uploading}
                       className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/30 transition-all"
                     >
-                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={24} /> : <Plus size={24} />}
+                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={24} /> : (isFlutter ? <Camera size={24} /> : <Plus size={24} />)}
                     </button>
                   </div>
                   <input ref={propertyImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'gallery')} />
@@ -1180,7 +1222,7 @@ const AddResortWizard = () => {
                             </button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
+                        <button type="button" onClick={() => isFlutter ? handleCameraUpload('room', url => setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), url] }))) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
                           {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                         </button>
                         <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'room', u => setEditingRoomType({ ...editingRoomType, images: [...editingRoomType.images, ...u] }))} />

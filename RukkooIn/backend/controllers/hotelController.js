@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
 
 const mapAddressComponents = (components) => {
   const get = (type) => {
@@ -45,6 +45,51 @@ export const uploadImages = async (req, res) => {
     res.json({ success: true, files, urls });
   } catch (error) {
     console.error('Upload Images Error:', error);
+    res.status(500).json({ message: error.message || 'Upload failed' });
+  }
+};
+
+/**
+ * @desc    Upload Images via Base64 (Flutter Camera)
+ * @route   POST /api/hotels/upload-base64
+ * @access  Private (Partner/Admin)
+ */
+export const uploadImagesBase64 = async (req, res) => {
+  try {
+    const { images } = req.body; // Array of {base64, mimeType, fileName}
+
+    console.log(`[Upload Images Base64] Received ${images ? images.length : 0} images`);
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ message: 'No images provided' });
+    }
+
+    const uploadPromises = images.map(async (img, index) => {
+      if (!img.base64) {
+        throw new Error(`Image ${index + 1} missing base64 data`);
+      }
+
+      const publicId = img.fileName
+        ? `${Date.now()}-${img.fileName.replace(/\.[^/.]+$/, '')}`
+        : null;
+
+      return uploadBase64ToCloudinary(img.base64, 'properties', publicId);
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    const files = results.map(result => ({
+      url: result.url,
+      publicId: result.publicId
+    }));
+
+    const urls = results.map(result => result.url);
+
+    console.log(`[Upload Images Base64] Successfully uploaded ${files.length} images`);
+
+    res.json({ success: true, files, urls });
+  } catch (error) {
+    console.error('Upload Images Base64 Error:', error);
     res.status(500).json({ message: error.message || 'Upload failed' });
   }
 };

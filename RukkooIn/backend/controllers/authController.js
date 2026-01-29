@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
 import referralService from '../services/referralService.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
 
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
@@ -757,5 +757,49 @@ export const deleteDoc = async (req, res) => {
   } catch (error) {
     console.error('Delete Doc Error:', error);
     res.status(500).json({ message: error.message || 'Delete failed' });
+  }
+};
+
+/**
+ * @desc    Upload Documents via Base64 (Flutter Camera)
+ * @route   POST /api/auth/partner/upload-docs-base64
+ * @access  Public
+ */
+export const uploadDocsBase64 = async (req, res) => {
+  try {
+    const { images } = req.body; // Array of {base64, mimeType, fileName}
+
+    console.log(`[Upload Docs Base64] Received ${images ? images.length : 0} images`);
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ message: 'No images provided' });
+    }
+
+    const uploadPromises = images.map(async (img, index) => {
+      if (!img.base64) {
+        throw new Error(`Image ${index + 1} missing base64 data`);
+      }
+
+      // Generate unique publicId if fileName provided
+      const publicId = img.fileName
+        ? `${Date.now()}-${img.fileName.replace(/\.[^/.]+$/, '')}`
+        : null;
+
+      return uploadBase64ToCloudinary(img.base64, 'partner-documents', publicId);
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    const files = results.map(result => ({
+      url: result.url,
+      publicId: result.publicId
+    }));
+
+    console.log(`[Upload Docs Base64] Successfully uploaded ${files.length} documents`);
+
+    res.json({ success: true, files });
+  } catch (error) {
+    console.error('Upload Docs Base64 Error:', error);
+    res.status(500).json({ message: error.message || 'Upload failed' });
   }
 };

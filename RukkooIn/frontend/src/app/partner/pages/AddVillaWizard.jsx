@@ -2,8 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
-import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Upload, X, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Upload, X, Clock, Loader2, Camera } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
+import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_VILLA = [
   { type: "ownership_proof", name: "Ownership Proof" },
@@ -37,6 +38,7 @@ const AddVillaWizard = () => {
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [isFlutter, setIsFlutter] = useState(false);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -383,6 +385,45 @@ const AddVillaWizard = () => {
         msg = 'Upload failed: File size may be too large.';
       }
       setError(msg);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  useEffect(() => {
+    setIsFlutter(isFlutterApp());
+  }, []);
+
+  const handleCameraUpload = async (type, onDone) => {
+    try {
+      setUploading(type);
+      setError('');
+      console.log('[Camera] Opening Flutter camera...');
+
+      const result = await openFlutterCamera();
+
+      if (!result.success || !result.base64) {
+        throw new Error('Camera capture failed');
+      }
+
+      console.log('[Camera] Image captured, uploading...');
+
+      const isSingle = type === 'cover' || type === 'room';
+
+      const res = await hotelService.uploadImagesBase64([result]);
+
+      if (res && res.success && res.files && res.files.length > 0) {
+        if (isSingle) {
+          onDone(res.files[0].url);
+        } else {
+          onDone([res.files[0].url]);
+        }
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      console.error('[Camera] Error:', err);
+      setError(err.message || 'Camera capture failed');
     } finally {
       setUploading(null);
     }
@@ -976,7 +1017,7 @@ const AddVillaWizard = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cover Image</label>
                   <button
-                    onClick={() => !uploading && coverImageFileInputRef.current?.click()}
+                    onClick={() => !uploading && (isFlutter ? handleCameraUpload('cover', u => updatePropertyForm('coverImage', u)) : coverImageFileInputRef.current?.click())}
                     className="w-full aspect-video sm:aspect-[21/9] rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center gap-3 overflow-hidden group hover:border-emerald-400 hover:bg-emerald-50/10 transition-all relative"
                   >
                     {uploading === 'cover' ? (
@@ -1003,7 +1044,7 @@ const AddVillaWizard = () => {
                           <Plus size={24} />
                         </div>
                         <div className="text-center">
-                          <div className="font-bold text-gray-600 group-hover:text-emerald-700">Add Cover Photo</div>
+                          <div className="font-bold text-gray-600 group-hover:text-emerald-700">{isFlutter ? 'Take/Upload Cover Photo' : 'Add Cover Photo'}</div>
                           <div className="text-xs text-gray-400">High quality landscape image</div>
                         </div>
                       </>
@@ -1032,11 +1073,11 @@ const AddVillaWizard = () => {
                       </div>
                     ))}
                     <button
-                      onClick={() => propertyImagesFileInputRef.current?.click()}
+                      onClick={() => isFlutter ? handleCameraUpload('gallery', u => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...u])) : propertyImagesFileInputRef.current?.click()}
                       disabled={!!uploading}
                       className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center gap-2 hover:border-emerald-400 hover:bg-emerald-50/20 transition-all"
                     >
-                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={20} /> : <Plus size={20} className="text-gray-400" />}
+                      {uploading === 'gallery' ? <Loader2 className="animate-spin text-emerald-600" size={20} /> : (isFlutter ? <Camera size={20} className="text-gray-400" /> : <Plus size={20} className="text-gray-400" />)}
                       {uploading !== 'gallery' && <span className="text-[10px] font-bold text-gray-500">Add</span>}
                     </button>
                   </div>
@@ -1172,7 +1213,7 @@ const AddVillaWizard = () => {
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 4 && (
-                          <button onClick={() => roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
+                          <button onClick={() => isFlutter ? handleCameraUpload('room', u => setEditingRoomType({ ...editingRoomType, images: [...(editingRoomType.images || []), ...u] })) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
                             {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                           </button>
                         )}

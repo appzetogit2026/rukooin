@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { authService } from '../../../services/apiService';
-import { Upload, X, Check, Loader2, Image as ImageIcon, Eye } from 'lucide-react';
+import { Upload, X, Check, Loader2, Image as ImageIcon, Eye, Camera } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../../utils/flutterBridge';
 
 const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", onView }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [isFlutter, setIsFlutter] = useState(false);
+
+  // Check if running in Flutter app
+  useEffect(() => {
+    setIsFlutter(isFlutterApp());
+    if (isFlutterApp()) {
+      console.log('[ImageUploader] Running in Flutter app - Camera enabled');
+    }
+  }, []);
 
   // Auto-clear error after 3 seconds
   useEffect(() => {
@@ -15,6 +25,51 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  // Handle Flutter camera capture
+  const handleCameraCapture = async () => {
+    if (!isFlutter) {
+      setError('Camera only available in mobile app');
+      return;
+    }
+
+    setError('');
+    setUploading(true);
+
+    try {
+      console.log('[Camera] Opening Flutter camera...');
+
+      // Open Flutter native camera
+      const cameraResult = await openFlutterCamera();
+
+      if (!cameraResult.success || !cameraResult.base64) {
+        throw new Error('Camera capture failed');
+      }
+
+      console.log('[Camera] Image captured, uploading...');
+
+      // Upload base64 to backend
+      const uploadResult = await uploadBase64Image(
+        cameraResult.base64,
+        cameraResult.mimeType,
+        cameraResult.fileName
+      );
+
+      if (uploadResult.success && uploadResult.files && uploadResult.files.length > 0) {
+        onChange(uploadResult.files[0]);
+        console.log('[Camera] Upload success:', uploadResult.files[0].url);
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      console.error('[Camera] Error:', err);
+      let msg = 'Camera capture failed';
+      if (err?.message) msg = err.message;
+      setError(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
@@ -130,34 +185,61 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
 
         </div>
       ) : (
-        <div className="relative">
-          <input
-            type="file"
-            accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
-            onChange={handleFileChange}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            disabled={uploading}
-          />
-          <div className={`
-             border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors
-             ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-[#004F4D] hover:bg-[#004F4D]/5 bg-gray-50'}
-          `}>
-            {uploading ? (
-              <Loader2 size={24} className="text-[#004F4D] animate-spin" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-gray-400">
-                <Upload size={16} />
-              </div>
-            )}
-            <div className="text-center">
-              <p className="text-xs font-bold text-gray-600">
-                {uploading ? 'Compressing & Uploading...' : placeholder}
-              </p>
-              {error ? (
-                <p className="text-[10px] text-red-500 mt-1">{error}</p>
+        <div className="space-y-2">
+          {/* Flutter Camera Button */}
+          {isFlutter && (
+            <button
+              type="button"
+              onClick={handleCameraCapture}
+              disabled={uploading}
+              className="w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors border-[#004F4D] bg-[#004F4D]/5 hover:bg-[#004F4D]/10 disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 size={24} className="text-[#004F4D] animate-spin" />
               ) : (
-                <p className="text-[10px] text-gray-400 mt-1">Tap to select</p>
+                <div className="w-10 h-10 rounded-full bg-[#004F4D] flex items-center justify-center shadow-sm text-white">
+                  <Camera size={20} />
+                </div>
               )}
+              <div className="text-center">
+                <p className="text-xs font-bold text-[#004F4D]">
+                  {uploading ? 'Uploading...' : 'Take Photo'}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">Use your camera</p>
+              </div>
+            </button>
+          )}
+
+          {/* File Upload Input */}
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/png, image/jpeg, image/jpg, image/webp, image/heic"
+              onChange={handleFileChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              disabled={uploading}
+            />
+            <div className={`
+               border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-colors
+               ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-[#004F4D] hover:bg-[#004F4D]/5 bg-gray-50'}
+            `}>
+              {uploading ? (
+                <Loader2 size={24} className="text-[#004F4D] animate-spin" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-gray-400">
+                  <Upload size={16} />
+                </div>
+              )}
+              <div className="text-center">
+                <p className="text-xs font-bold text-gray-600">
+                  {uploading ? 'Uploading...' : placeholder}
+                </p>
+                {error ? (
+                  <p className="text-[10px] text-red-500 mt-1">{error}</p>
+                ) : (
+                  <p className="text-[10px] text-gray-400 mt-1">{isFlutter ? 'Or select from gallery' : 'Tap to select'}</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

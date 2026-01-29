@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, updateFcmToken, uploadDocs, deleteDoc } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, updateFcmToken, uploadDocs, deleteDoc, uploadDocsBase64 } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 
@@ -12,6 +12,7 @@ router.post('/partner/verify-otp', verifyPartnerOtp);
 
 // Upload routes for partner registration
 router.post('/partner/upload-docs', uploadDocuments.array('files', 5), uploadDocs);
+router.post('/partner/upload-docs-base64', uploadDocsBase64); // Flutter camera upload
 router.post('/partner/delete-doc', deleteDoc);
 
 router.post('/admin/login', adminLogin);

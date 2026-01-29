@@ -77,4 +77,55 @@ export const deleteFromCloudinary = async (publicId) => {
   }
 };
 
+/**
+ * Upload base64 image to Cloudinary (for Flutter camera/mobile)
+ * @param {string} base64String - Base64 encoded image data
+ * @param {string} folder - Cloudinary folder name
+ * @param {string} publicId - Custom public_id (optional)
+ * @returns {Promise<Object>} - Upload result
+ */
+export const uploadBase64ToCloudinary = async (base64String, folder = 'general', publicId = null) => {
+  try {
+    // Ensure base64 string has proper data URI prefix
+    let dataUri = base64String;
+    if (!base64String.startsWith('data:')) {
+      // If no prefix, assume it's JPEG
+      dataUri = `data:image/jpeg;base64,${base64String}`;
+    }
+
+    const uploadOptions = {
+      folder: `rukkoin/${folder}`,
+      resource_type: 'auto',
+      transformation: [
+        { width: 1920, height: 1920, crop: 'limit' },
+        { quality: 'auto' },
+        { fetch_format: 'auto' }
+      ]
+    };
+
+    if (publicId) {
+      uploadOptions.public_id = publicId;
+    }
+
+    console.log(`[Cloudinary] Uploading base64 image to folder: ${folder}`);
+
+    const result = await cloudinary.uploader.upload(dataUri, uploadOptions);
+
+    console.log(`[Cloudinary] Upload success: ${result.secure_url}`);
+
+    return {
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes
+    };
+  } catch (error) {
+    console.error('Cloudinary base64 upload error:', error);
+    throw new Error('Failed to upload base64 image to Cloudinary');
+  }
+};
+
 export default cloudinary;
