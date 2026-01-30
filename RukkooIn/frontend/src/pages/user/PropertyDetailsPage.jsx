@@ -22,7 +22,6 @@ const PropertyDetailsPage = () => {
   const [taxRate, setTaxRate] = useState(0); // Fetched from backend
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
 
   // Check Availability Logic
   const checkAvailability = async () => {
@@ -417,7 +416,7 @@ const PropertyDetailsPage = () => {
         .filter(Boolean);
     }
     const list = [];
-    // if (images?.cover) list.push(images.cover);
+    if (images?.cover) list.push(images.cover);
     if (Array.isArray(images?.gallery)) list.push(...images.gallery);
     if (list.length > 0) return list;
     return ['https://via.placeholder.com/800x600'];
