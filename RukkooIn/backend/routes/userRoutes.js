@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead } from '../controllers/userController.js';
+import { getUserProfile, updateUserProfile, updateFcmToken, getNotifications, markNotificationRead, deleteNotifications, markAllNotificationsRead, getSavedHotels, toggleSavedHotel } from '../controllers/userController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -7,6 +7,10 @@ const router = express.Router();
 router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
 router.put('/fcm-token', protect, updateFcmToken);
+
+// Wishlist Routes
+router.get('/saved-hotels', protect, getSavedHotels);
+router.post('/saved-hotels/:id', protect, toggleSavedHotel);
 
 // Notification Routes
 router.get('/notifications', protect, getNotifications);

@@ -78,6 +78,24 @@ const ReferAndEarnPage = () => {
         );
     }
 
+    const handleShare = async () => {
+        const shareData = {
+            title: 'Join RukkooIn & Get ₹200!',
+            text: `Hey! Book hotels at amazing prices on RukkooIn. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
+            url: referralData.link || 'https://rukko.in'
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                console.error('Error sharing:', err);
+            }
+        } else {
+            handleCopy();
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-surface via-surface to-[#003836]">
 
@@ -413,7 +431,7 @@ const ReferAndEarnPage = () => {
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
                 className="fixed bottom-6 left-5 right-5 bg-gradient-to-r from-surface to-accent text-white font-bold py-4 rounded-2xl shadow-2xl shadow-surface/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform z-30"
-                onClick={handleCopy}
+                onClick={handleShare}
             >
                 <Share2 size={20} />
                 Invite Friends & Earn ₹200

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, legalService, reviewService, offerService, availabilityService } from '../../services/apiService';
+import { propertyService, legalService, reviewService, offerService, availabilityService, userService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
@@ -22,6 +22,7 @@ const PropertyDetailsPage = () => {
   const [taxRate, setTaxRate] = useState(0); // Fetched from backend
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Check Availability Logic
   const checkAvailability = async () => {
@@ -152,7 +153,7 @@ const PropertyDetailsPage = () => {
             petsAllowed: p.petsAllowed,
             coupleFriendly: p.coupleFriendly
           },
-          config: { pgType: p.pgType, resortType: p.resortType, foodType: p.foodType }
+          config: { pgType: p.pgType, resortType: p.resortType, foodType: p.foodType, hotelCategory: p.hotelCategory, starRating: p.starRating }
         };
         setProperty(adapted);
         // Only set selected room on first load if not set
@@ -197,6 +198,61 @@ const PropertyDetailsPage = () => {
       setOffers(data || []);
     } catch (error) {
       console.error("Failed to fetch offers");
+    }
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      userService.getSavedHotels()
+        .then(res => {
+          const list = res.data || res.savedHotels || [];
+          if (Array.isArray(list)) {
+            // Check if current ID exists in the list (handles populated objects or raw IDs)
+            const found = list.some(h => (typeof h === 'object' ? h._id : h) === id);
+            setIsSaved(found);
+          }
+        })
+        .catch(err => console.error("Failed to fetch saved status", err));
+    }
+  }, [id]);
+
+  const handleToggleSave = async () => {
+    if (!localStorage.getItem('token')) {
+      toast.error("Please login to save properties");
+      // Optional: navigate to login
+      return;
+    }
+    try {
+      // Optimistic update
+      const newState = !isSaved;
+      setIsSaved(newState);
+
+      await userService.toggleSavedHotel(id);
+
+      toast.success(newState ? "Added to wishlist" : "Removed from wishlist");
+    } catch (err) {
+      // Revert on error
+      setIsSaved(!isSaved);
+      toast.error("Failed to update wishlist");
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: property?.name || 'Rukkoo Stay',
+      text: `Check out ${property?.name || 'this amazing place'} on Rukkoo!`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error("Share failed:", err);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
     }
   };
 
@@ -567,11 +623,20 @@ const PropertyDetailsPage = () => {
           </button>
         </div>
         <div className="absolute top-4 right-4 flex gap-2 z-10">
-          <button className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors">
+          <button
+            onClick={handleShare}
+            className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors"
+          >
             <Share2 size={20} className="text-surface" />
           </button>
-          <button className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors">
-            <Heart size={20} className="text-surface" />
+          <button
+            onClick={handleToggleSave}
+            className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors"
+          >
+            <Heart
+              size={20}
+              className={`${isSaved ? 'fill-red-500 text-red-500' : 'text-surface'}`}
+            />
           </button>
         </div>
       </div>

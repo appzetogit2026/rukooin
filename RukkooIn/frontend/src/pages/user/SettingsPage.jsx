@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Lock, Globe, Moon, CreditCard, ChevronRight, LogOut, FileText, Shield, Info, Phone } from 'lucide-react';
+import { ArrowLeft, Moon, ChevronRight, LogOut, FileText, Shield, Info, Phone } from 'lucide-react';
 import { userService } from '../../services/apiService';
 
 const SettingsPage = () => {
@@ -8,21 +8,9 @@ const SettingsPage = () => {
     const [notifications, setNotifications] = useState(true);
 
     const sections = [
-        {
-            title: "Preferences",
-            items: [
-                { icon: Bell, label: "Push Notifications", type: "nav", path: "/notifications" },
-                { icon: Globe, label: "Language", type: "link", value: "English (US)" },
-            ]
-        },
+
         // ... (rest of sections unchanged)
-        {
-            title: "Security & Payments",
-            items: [
-                { icon: Lock, label: "Privacy Settings", type: "link" },
-                { icon: CreditCard, label: "Saved Cards", type: "link" },
-            ]
-        },
+
         {
             title: "About & Legal",
             items: [

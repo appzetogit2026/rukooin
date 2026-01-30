@@ -8,7 +8,7 @@ import User from '../models/User.js'; // Needed to find Admins? Or Admin model
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities } = req.body;
+    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
@@ -35,7 +35,9 @@ export const createProperty = async (req, res) => {
       hostLivesOnProperty: lowerType === 'homestay' ? hostLivesOnProperty : undefined,
       familyFriendly: lowerType === 'homestay' ? familyFriendly : undefined,
       resortType: lowerType === 'resort' ? resortType : undefined,
-      activities: lowerType === 'resort' ? activities : undefined
+      activities: lowerType === 'resort' ? activities : undefined,
+      hotelCategory: lowerType === 'hotel' ? hotelCategory : undefined,
+      starRating: lowerType === 'hotel' ? starRating : undefined
     });
     // Pricing is now handled in RoomType for ALL types
     await doc.save();
@@ -115,6 +117,8 @@ export const updateProperty = async (req, res) => {
       'familyFriendly',
       'resortType',
       'activities',
+      'hotelCategory',
+      'starRating',
       'isLive'
     ];
 

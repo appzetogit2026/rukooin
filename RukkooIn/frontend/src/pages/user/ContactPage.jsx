@@ -80,7 +80,7 @@ const ContactPage = () => {
             </div>
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
-              <p className="text-xs text-gray-500">+91-00000-00000</p>
+              <p className="text-xs text-gray-500">+91-6232314147</p>
             </div>
           </div>
         </div>
