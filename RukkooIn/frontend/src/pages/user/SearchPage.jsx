@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
-import { MapPin, Search, Filter, Star, IndianRupee, Navigation } from 'lucide-react';
+import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
 const SearchPage = () => {
@@ -15,7 +15,9 @@ const SearchPage = () => {
     // Filters State
     const [filters, setFilters] = useState({
         search: searchParams.get('search') || '',
-        type: searchParams.get('type') || 'all',
+        type: searchParams.get('type')
+            ? (searchParams.get('type') === 'all' ? 'all' : searchParams.get('type').split(','))
+            : 'all',
         minPrice: searchParams.get('minPrice') || '',
         maxPrice: searchParams.get('maxPrice') || '',
         sort: searchParams.get('sort') || 'newest',
@@ -67,7 +69,13 @@ const SearchPage = () => {
     const applyFilters = () => {
         const params = {};
         if (filters.search) params.search = filters.search;
-        if (filters.type && filters.type !== 'all') params.type = filters.type;
+        if (filters.type) {
+            if (Array.isArray(filters.type)) {
+                if (filters.type.length > 0) params.type = filters.type.join(',');
+            } else if (filters.type !== 'all') {
+                params.type = filters.type;
+            }
+        }
         if (filters.minPrice) params.minPrice = filters.minPrice;
         if (filters.maxPrice) params.maxPrice = filters.maxPrice;
         if (filters.sort) params.sort = filters.sort;
@@ -103,7 +111,6 @@ const SearchPage = () => {
         { label: 'Price: Low to High', value: 'price_low' },
         { label: 'Price: High to Low', value: 'price_high' },
         { label: 'Top Rated', value: 'rating' },
-        { label: 'Nearest', value: 'distance' },
     ];
 
     return (
@@ -118,7 +125,7 @@ const SearchPage = () => {
                     <input
                         type="text"
                         placeholder="Search by city, hotel, or area..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm font-medium text-gray-700 bg-gray-50/50"
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#004F4D] focus:border-[#004F4D] outline-none text-sm font-medium text-gray-700 bg-gray-50/50"
                         value={filters.search}
                         onChange={(e) => updateFilter('search', e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
@@ -131,19 +138,21 @@ const SearchPage = () => {
                         onClick={handleNearMe}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-bold transition-all active:scale-95
                         ${location
-                                ? 'bg-primary/5 text-primary border-primary'
+                                ? 'bg-[#004F4D]/5 text-[#004F4D] border-[#004F4D]'
                                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                     >
-                        <Navigation size={14} className={location ? "fill-primary" : ""} />
+                        <Navigation size={14} className={location ? "fill-[#004F4D]" : ""} />
                         {location ? "Nearby Active" : "Near Me"}
                     </button>
 
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all active:scale-95
-                        ${showFilters ? 'bg-gray-100' : 'bg-white'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-bold transition-all active:scale-95
+                        ${(filters.minPrice || filters.maxPrice || (Array.isArray(filters.type) && filters.type.length > 0 && filters.type !== 'all') || filters.amenities.length > 0)
+                                ? 'bg-[#004F4D]/5 text-[#004F4D] border-[#004F4D]'
+                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                     >
-                        <Filter size={14} />
+                        <Filter size={14} className={(filters.minPrice || filters.maxPrice || (Array.isArray(filters.type) && filters.type.length > 0 && filters.type !== 'all') || filters.amenities.length > 0) ? "fill-[#004F4D]" : ""} />
                         Filters
                     </button>
                 </div>
@@ -156,7 +165,7 @@ const SearchPage = () => {
                                 <MapPin size={12} />
                                 Search Radius
                             </label>
-                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-bold text-[#004F4D] bg-[#004F4D]/10 px-2 py-0.5 rounded-full">
                                 {filters.radius} km
                             </span>
                         </div>
@@ -169,7 +178,7 @@ const SearchPage = () => {
                             onChange={(e) => updateFilter('radius', Number(e.target.value))}
                             onMouseUp={() => fetchProperties()}
                             onTouchEnd={() => fetchProperties()}
-                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#004F4D]"
                         />
                         <div className="flex justify-between mt-1">
                             <span className="text-[10px] text-gray-400 font-medium">1 km</span>
@@ -192,7 +201,12 @@ const SearchPage = () => {
                     <div className="relative">
                         <select
                             value={filters.sort}
-                            onChange={(e) => updateFilter('sort', e.target.value)}
+                            onChange={(e) => {
+                                updateFilter('sort', e.target.value);
+                                // Trigger fetch immediately when sort changes
+                                const params = { ...Object.fromEntries([...searchParams]), sort: e.target.value };
+                                setSearchParams(params);
+                            }}
                             className="text-xs font-bold text-gray-500 bg-transparent outline-none pr-1 cursor-pointer"
                         >
                             {sortOptions.map(opt => (
@@ -234,7 +248,7 @@ const SearchPage = () => {
                                 setLocation(null);
                                 setSearchParams({});
                             }}
-                            className="mt-8 text-sm font-bold text-primary hover:underline"
+                            className="mt-8 text-sm font-bold text-[#004F4D] hover:underline"
                         >
                             Clear all filters
                         </button>
@@ -248,64 +262,104 @@ const SearchPage = () => {
                 )}
             </div>
 
-            {/* Filters Sidebar/Modal (Same logic, slightly updated style if needed) */}
+            {/* Filters Sidebar/Modal */}
             <div className={`
                 fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300
                 ${showFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
             `} onClick={() => setShowFilters(false)}>
                 <div
                     className={`
-                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-5 overflow-y-auto transition-transform duration-300
+                        absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-4 overflow-y-auto transition-transform duration-300
                         ${showFilters ? 'translate-x-0' : 'translate-x-full'}
                     `}
                     onClick={e => e.stopPropagation()}
                 >
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-800">Filters</h2>
-                        <button onClick={() => setShowFilters(false)} className="p-2 rounded-full hover:bg-gray-100">✕</button>
+                    <div className="flex justify-between items-center mb-5">
+                        <h2 className="text-lg font-bold text-gray-800">Filters</h2>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        type: 'all',
+                                        minPrice: '',
+                                        maxPrice: '',
+                                        amenities: []
+                                    }));
+                                }}
+                                className="text-xs font-bold text-red-500 hover:text-red-600"
+                            >
+                                Clear
+                            </button>
+                            <button onClick={() => setShowFilters(false)} className="p-1.5 rounded-full hover:bg-gray-100">
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="space-y-8">
+                    <div className="space-y-6">
                         {/* Type */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-3">Property Type</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {propertyTypes.map(type => (
-                                    <button
-                                        key={type}
-                                        onClick={() => updateFilter('type', type.toLowerCase())}
-                                        className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all
-                                        ${(filters.type === type.toLowerCase() || (type === 'All' && filters.type === 'all'))
-                                                ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
-                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                                    >
-                                        {type}
-                                    </button>
-                                ))}
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {propertyTypes.map(type => {
+                                    const typeValue = type === 'All' ? 'all' : type.toLowerCase();
+                                    const isSelected = typeValue === 'all'
+                                        ? filters.type === 'all'
+                                        : Array.isArray(filters.type) && filters.type.includes(typeValue);
+
+                                    return (
+                                        <button
+                                            key={type}
+                                            onClick={() => {
+                                                if (typeValue === 'all') {
+                                                    updateFilter('type', 'all');
+                                                } else {
+                                                    let currentTypes = Array.isArray(filters.type) ? [...filters.type] : [];
+                                                    if (filters.type === 'all') currentTypes = [];
+
+                                                    if (currentTypes.includes(typeValue)) {
+                                                        currentTypes = currentTypes.filter(t => t !== typeValue);
+                                                        if (currentTypes.length === 0) currentTypes = 'all';
+                                                    } else {
+                                                        currentTypes.push(typeValue);
+                                                    }
+                                                    updateFilter('type', currentTypes);
+                                                }
+                                            }}
+                                            className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all truncate
+                                            ${isSelected
+                                                    ? 'bg-[#004F4D] text-white border-[#004F4D] shadow-sm'
+                                                    : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            {type}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
                         {/* Price */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-3">Price Range</label>
-                            <div className="flex items-center gap-3">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Price Range</label>
+                            <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₹</span>
                                     <input
                                         type="number"
                                         placeholder="Min"
-                                        className="w-full pl-6 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-primary"
+                                        className="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-[#004F4D] bg-gray-50"
                                         value={filters.minPrice}
                                         onChange={(e) => updateFilter('minPrice', e.target.value)}
                                     />
                                 </div>
-                                <span className="text-gray-400 font-bold">-</span>
+                                <span className="text-gray-300 font-bold text-xs">-</span>
                                 <div className="relative flex-1">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">₹</span>
                                     <input
                                         type="number"
                                         placeholder="Max"
-                                        className="w-full pl-6 pr-3 py-2 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-primary"
+                                        className="w-full pl-5 pr-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-[#004F4D] bg-gray-50"
                                         value={filters.maxPrice}
                                         onChange={(e) => updateFilter('maxPrice', e.target.value)}
                                     />
@@ -313,29 +367,55 @@ const SearchPage = () => {
                             </div>
                         </div>
 
+                        {/* Amenities */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amenities</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {['Wi-Fi', 'AC', 'TV', 'Parking', 'Pool', 'Kitchen', 'Geyser', 'Power Backup'].map((amenity) => (
+                                    <button
+                                        key={amenity}
+                                        onClick={() => {
+                                            const newAmenities = filters.amenities.includes(amenity)
+                                                ? filters.amenities.filter(a => a !== amenity)
+                                                : [...filters.amenities, amenity];
+                                            updateFilter('amenities', newAmenities);
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                        ${filters.amenities.includes(amenity)
+                                                ? 'bg-[#004F4D]/10 text-[#004F4D] border-[#004F4D]'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                    >
+                                        {amenity}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Radius */}
                         {location && (
                             <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-sm font-bold text-gray-700">Search Radius</label>
-                                    <span className="text-xs font-bold text-primary">{filters.radius} km</span>
+                                <div className="flex justify-between mb-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Search Radius</label>
+                                    <span className="text-[10px] font-bold text-[#004F4D]">{filters.radius} km</span>
                                 </div>
                                 <input
                                     type="range"
                                     min="1" max="50"
                                     value={filters.radius}
                                     onChange={(e) => updateFilter('radius', e.target.value)}
-                                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#004F4D]"
                                 />
                             </div>
                         )}
 
-                        <button
-                            onClick={applyFilters}
-                            className="w-full bg-primary text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/25 active:scale-95 transition-transform"
-                        >
-                            Apply Filters
-                        </button>
+                        <div className="pt-2 pb-6">
+                            <button
+                                onClick={applyFilters}
+                                className="w-full bg-[#004F4D] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[#004F4D]/20 active:scale-95 transition-transform"
+                            >
+                                Apply Filters
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

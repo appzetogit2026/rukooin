@@ -7,7 +7,6 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
-import walletService from '../../../services/walletService';
 import toast from 'react-hot-toast';
 
 const UserBookingsTab = ({ bookings }) => (
@@ -27,7 +26,7 @@ const UserBookingsTab = ({ bookings }) => (
                     bookings.map((booking, i) => (
                         <tr key={i} className="hover:bg-gray-50">
                             <td className="p-4 font-mono text-xs text-gray-500">#{booking.bookingId || booking._id.slice(-6)}</td>
-                            <td className="p-4 font-bold text-gray-900">{booking.hotelId?.name || 'Deleted Hotel'}</td>
+                            <td className="p-4 font-bold text-gray-900">{booking.propertyId?.propertyName || booking.propertyId?.name || 'Deleted Hotel'}</td>
                             <td className="p-4 text-[10px] items-center font-bold text-gray-400 uppercase">{new Date(booking.createdAt).toLocaleDateString()}</td>
                             <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
@@ -49,111 +48,80 @@ const UserBookingsTab = ({ bookings }) => (
     </div>
 );
 
-const UserWalletTab = ({ userId }) => {
-    const [wallet, setWallet] = useState(null);
-    const [transactions, setTransactions] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchWalletData = async () => {
-            try {
-                setLoading(true);
-                const [wRes, tRes] = await Promise.all([
-                    walletService.getWallet({ ownerId: userId, viewAs: 'user' }),
-                    walletService.getTransactions({ ownerId: userId, viewAs: 'user', limit: 50 })
-                ]);
-                if (wRes.success) setWallet(wRes.wallet);
-                if (tRes.success) setTransactions(tRes.transactions);
-            } catch (error) {
-                console.error('Error fetching user wallet:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchWalletData();
-    }, [userId]);
-
-    if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-gray-300" /></div>;
-
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current Balance</p>
-                    <h3 className="text-2xl font-black text-gray-900">₹{wallet?.balance?.toLocaleString() || 0}</h3>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Transactions</p>
-                    <h3 className="text-2xl font-black text-gray-900">{transactions.length}</h3>
-                </div>
+const UserTransactionsTab = ({ wallet, transactions }) => (
+    <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Current Balance</p>
+                <h3 className="text-2xl font-black text-gray-900">₹{wallet?.balance?.toLocaleString() || 0}</h3>
             </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
-                        <tr>
-                            <th className="p-4 font-bold text-gray-600">Type</th>
-                            <th className="p-4 font-bold text-gray-600">Description</th>
-                            <th className="p-4 font-bold text-gray-600">Amount</th>
-                            <th className="p-4 font-bold text-gray-600">Date</th>
-                            <th className="p-4 font-bold text-gray-600 text-right">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {transactions.length > 0 ? (
-                            transactions.map((txn, i) => (
-                                <tr key={i} className="hover:bg-gray-50 uppercase text-[10px]">
-                                    <td className="p-4 font-bold">
-                                        <span className={`px-2 py-0.5 rounded ${txn.type === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {txn.type}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-bold text-gray-900">{txn.description}</td>
-                                    <td className="p-4 font-black">₹{txn.amount?.toLocaleString()}</td>
-                                    <td className="p-4 text-gray-500">{new Date(txn.createdAt).toLocaleString()}</td>
-                                    <td className="p-4 text-right">
-                                        <span className={`px-2 py-0.5 rounded font-bold ${txn.status === 'completed' || txn.status === 'success' ? 'text-green-600' : 'text-orange-500'}`}>
-                                            {txn.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No transactions found</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Transactions</p>
+                <h3 className="text-2xl font-black text-gray-900">{transactions?.length || 0}</h3>
             </div>
         </div>
-    );
-};
 
-const UserActivityTab = () => (
-    <div className="space-y-4">
-        {[
-            { action: "Login detected from New Delhi", time: "2 hours ago", ip: "192.168.1.1", icon: Lock },
-            { action: "Updated profile phone number", time: "2 days ago", ip: "192.168.1.1", icon: User },
-            { action: "Failed payment attempt", time: "5 days ago", ip: "192.168.1.1", icon: AlertTriangle },
-        ].map((log, i) => (
-            <div key={i} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0 text-gray-500">
-                    <log.icon size={14} />
-                </div>
-                <div>
-                    <p className="text-sm font-bold text-gray-900">{log.action}</p>
-                    <p className="text-[10px] font-bold uppercase text-gray-400 mt-1">IP: {log.ip} • {log.time}</p>
-                </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-xs font-bold text-gray-400 uppercase mb-4 tracking-widest">Recent Transactions</h3>
+            <div className="space-y-3">
+                {transactions && transactions.length > 0 ? (
+                    transactions.map((txn, i) => {
+                        const isDebit = txn.type === 'debit';
+                        const isBooking = txn.category?.includes('booking') || txn.isBooking;
+
+                        // Styling Logic based on User Screenshot
+                        return (
+                            <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors bg-white">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm ${isBooking ? 'bg-orange-50 text-orange-500' :
+                                        !isDebit ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
+                                        }`}>
+                                        {isBooking ? <Calendar size={20} /> :
+                                            !isDebit ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 truncate pr-2">{txn.description}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tight">
+                                            {new Date(txn.createdAt).toLocaleDateString('en-IN', {
+                                                day: 'numeric', month: 'short', year: 'numeric'
+                                            })} • {new Date(txn.createdAt).toLocaleTimeString('en-IN', {
+                                                hour: '2-digit', minute: '2-digit'
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className={`text-lg font-black tracking-tight ${isDebit ? 'text-gray-900' : 'text-green-600'}`}>
+                                        {isDebit ? '-' : '+'}₹{txn.amount?.toLocaleString()}
+                                    </p>
+                                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase mt-1 ${txn.status === 'completed' || txn.status === 'success' ? 'bg-green-50 text-green-600' :
+                                        txn.status === 'cancelled' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'
+                                        }`}>
+                                        {txn.status}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className="p-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
+                        <CreditCard size={32} className="mx-auto text-gray-300 mb-2" />
+                        <p className="text-xs font-bold uppercase text-gray-400">No transactions history</p>
+                    </div>
+                )}
             </div>
-        ))}
+        </div>
     </div>
 );
+
+
 
 const AdminUserDetail = () => {
     const { id } = useParams();
     const [user, setUser] = useState(null);
     const [bookings, setBookings] = useState([]);
+    const [wallet, setWallet] = useState(null);
+    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('bookings');
     const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
@@ -165,6 +133,8 @@ const AdminUserDetail = () => {
             if (data.success) {
                 setUser(data.user);
                 setBookings(data.bookings);
+                setWallet(data.wallet);
+                setTransactions(data.transactions);
             }
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -224,8 +194,7 @@ const AdminUserDetail = () => {
 
     const tabs = [
         { id: 'bookings', label: 'Booking History', icon: Calendar },
-        { id: 'activity', label: 'Activity Logs', icon: History },
-        { id: 'wallet', label: 'Wallet & Refund', icon: CreditCard },
+        { id: 'transactions', label: 'Transactions', icon: CreditCard },
     ];
 
     return (
@@ -299,9 +268,7 @@ const AdminUserDetail = () => {
                         {user.isBlocked ? <Unlock size={16} /> : <Ban size={16} />}
                         {user.isBlocked ? 'Unblock User' : 'Block User'}
                     </button>
-                    <button className="w-full px-4 py-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold uppercase transition-colors">
-                        Reset Password
-                    </button>
+
                 </div>
             </div>
 
@@ -335,8 +302,7 @@ const AdminUserDetail = () => {
                         transition={{ duration: 0.15 }}
                     >
                         {activeTab === 'bookings' && <UserBookingsTab bookings={bookings} />}
-                        {activeTab === 'activity' && <UserActivityTab />}
-                        {activeTab === 'wallet' && <UserWalletTab userId={id} />}
+                        {activeTab === 'transactions' && <UserTransactionsTab wallet={wallet} transactions={transactions} />}
                     </motion.div>
                 </AnimatePresence>
             </div>

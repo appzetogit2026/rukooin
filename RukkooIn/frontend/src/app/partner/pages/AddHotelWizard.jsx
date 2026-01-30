@@ -41,6 +41,10 @@ const AddHotelWizard = () => {
   const [locationResults, setLocationResults] = useState([]);
   const [uploading, setUploading] = useState(null);
   const [isFlutter, setIsFlutter] = useState(false);
+
+  useEffect(() => {
+    setIsFlutter(isFlutterApp());
+  }, []);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -1373,7 +1377,14 @@ const AddHotelWizard = () => {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => documentInputRefs.current[idx]?.click()}
+                          onClick={() => isFlutter
+                            ? handleCameraUpload(`doc_${idx}`, url => {
+                              const next = [...propertyForm.documents];
+                              next[idx].fileUrl = url;
+                              updatePropertyForm('documents', next);
+                            })
+                            : documentInputRefs.current[idx]?.click()
+                          }
                           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-all ${doc.fileUrl
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                             : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white hover:border-emerald-400 hover:text-emerald-600'

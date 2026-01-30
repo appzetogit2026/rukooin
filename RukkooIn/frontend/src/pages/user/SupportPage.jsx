@@ -1,16 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Phone, Mail, ChevronRight, HelpCircle } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Phone, Mail, ChevronRight, CircleHelp, Loader2 } from 'lucide-react';
+import { faqService } from '../../services/apiService';
 
 const SupportPage = () => {
     const navigate = useNavigate();
     const [openFaq, setOpenFaq] = useState(null);
+    const [faqs, setFaqs] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const faqs = [
-        { q: "How do I cancel my booking?", a: "You can cancel your booking from the 'My Bookings' section. Cancellation fees may apply depending on the policy." },
-        { q: "Can I adjust my check-in time?", a: "Standard check-in is at 12:00 PM. For early check-in, please contact the hotel directly." },
-        { q: "Where can I find my booking ID?", a: "Your booking ID is sent to your registered mobile number and email. You can also find it in the 'My Bookings' section." }
-    ];
+    useEffect(() => {
+        const fetchFaqs = async () => {
+            try {
+                const data = await faqService.getFaqs('user');
+                setFaqs(data);
+            } catch (error) {
+                console.error('Failed to fetch FAQs');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchFaqs();
+    }, []);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -32,13 +43,19 @@ const SupportPage = () => {
                 <div className="bg-white rounded-2xl p-5 shadow-lg shadow-gray-200/50 border border-white">
                     <h3 className="font-bold text-surface text-sm mb-4">Contact Us</h3>
                     <div className="grid grid-cols-2 gap-3">
-                        <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-blue-50 border border-blue-100 group active:scale-95 transition-transform">
+                        <button
+                            onClick={() => navigate('/contact')}
+                            className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-blue-50 border border-blue-100 group active:scale-95 transition-transform"
+                        >
                             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
                                 <MessageSquare size={20} />
                             </div>
                             <span className="text-xs font-bold text-blue-700">Chat with Us</span>
                         </button>
-                        <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-green-50 border border-green-100 group active:scale-95 transition-transform">
+                        <button
+                            onClick={() => navigate('/contact')}
+                            className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-green-50 border border-green-100 group active:scale-95 transition-transform"
+                        >
                             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-green-600 shadow-sm">
                                 <Phone size={20} />
                             </div>
@@ -50,23 +67,31 @@ const SupportPage = () => {
                 {/* FAQs */}
                 <div>
                     <h3 className="font-bold text-gray-500 text-xs uppercase tracking-wider mb-3 ml-1">Frequently Asked Questions</h3>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-                        {faqs.map((faq, i) => (
-                            <div key={i} className="group">
-                                <button
-                                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                    className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                                >
-                                    <span className="text-sm font-bold text-surface pr-4">{faq.q}</span>
-                                    <ChevronRight size={16} className={`text-gray-400 transition-transform duration-300 ${openFaq === i ? 'rotate-90' : ''}`} />
-                                </button>
-                                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <p className="text-xs text-gray-500 p-4 pt-0 leading-relaxed">
-                                        {faq.a}
-                                    </p>
-                                </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50 max-h-[500px] overflow-y-auto">
+                        {loading ? (
+                            <div className="p-8 flex justify-center">
+                                <Loader2 className="animate-spin text-gray-400" />
                             </div>
-                        ))}
+                        ) : faqs.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 text-xs">No FAQs available.</div>
+                        ) : (
+                            faqs.map((faq, i) => (
+                                <div key={faq._id || i} className="group">
+                                    <button
+                                        onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                                        className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                                    >
+                                        <span className="text-sm font-bold text-surface pr-4">{faq.question}</span>
+                                        <ChevronRight size={16} className={`text-gray-400 transition-transform duration-300 ${openFaq === i ? 'rotate-90' : ''}`} />
+                                    </button>
+                                    <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                        <p className="text-xs text-gray-500 p-4 pt-0 leading-relaxed">
+                                            {faq.answer}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 

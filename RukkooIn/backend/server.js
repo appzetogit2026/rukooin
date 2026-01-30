@@ -6,7 +6,7 @@ import { initializeFirebase } from './config/firebase.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import morgan from 'morgan';
-    
+
 // Initialize Firebase
 initializeFirebase();
 
@@ -112,6 +112,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
 import hotelRoutes from './routes/hotelRoutes.js';
 import referralRoutes from './routes/referralRoutes.js';
+import faqRoutes from './routes/faqRoutes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -127,6 +128,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/hotels', hotelRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/faqs', faqRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

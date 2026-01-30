@@ -4,6 +4,7 @@ import gsap from 'gsap';
 import usePartnerStore from '../store/partnerStore';
 import { userService, authService, hotelService } from '../../../services/apiService';
 import PartnerHeader from '../components/PartnerHeader';
+import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../../utils/flutterBridge';
 
 const Field = ({ label, value, icon: Icon, isEditing, onChange }) => (
     <div className="mb-6 group">
@@ -152,30 +153,60 @@ const PartnerProfile = () => {
             if (res.files && res.files.length > 0) {
                 const newUrl = res.files[0].url;
                 const newPublicId = res.files[0].publicId;
-
-                // Update Profile with new image
-                const updateRes = await authService.updateProfile({
-                    profileImage: newUrl,
-                    profileImagePublicId: newPublicId
-                });
-
-                if (updateRes.success) {
-                    setProfile(prev => ({
-                        ...prev,
-                        profileImage: newUrl,
-                        profileImagePublicId: newPublicId
-                    }));
-
-                    // Sync with localStorage
-                    const user = JSON.parse(localStorage.getItem('user') || '{}');
-                    const updatedUser = { ...user, profileImage: newUrl, profileImagePublicId: newPublicId };
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                }
+                await updateProfileImage(newUrl, newPublicId);
             }
         } catch (err) {
             console.error('Image upload failed:', err);
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleCameraCapture = async () => {
+        try {
+            setUploading(true);
+            const cameraResult = await openFlutterCamera();
+
+            if (!cameraResult.success || !cameraResult.base64) {
+                throw new Error('Camera capture failed');
+            }
+
+            const uploadResult = await uploadBase64Image(
+                cameraResult.base64,
+                cameraResult.mimeType,
+                cameraResult.fileName
+            );
+
+            if (uploadResult.success && uploadResult.files && uploadResult.files.length > 0) {
+                const newUrl = uploadResult.files[0].url;
+                const newPublicId = uploadResult.files[0].publicId;
+                await updateProfileImage(newUrl, newPublicId);
+            }
+        } catch (err) {
+            console.error('Camera upload failed:', err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const updateProfileImage = async (newUrl, newPublicId) => {
+        // Update Profile with new image
+        const updateRes = await authService.updateProfile({
+            profileImage: newUrl,
+            profileImagePublicId: newPublicId
+        });
+
+        if (updateRes.success) {
+            setProfile(prev => ({
+                ...prev,
+                profileImage: newUrl,
+                profileImagePublicId: newPublicId
+            }));
+
+            // Sync with localStorage
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const updatedUser = { ...user, profileImage: newUrl, profileImagePublicId: newPublicId };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
         }
     };
 
@@ -207,7 +238,7 @@ const PartnerProfile = () => {
 
                         {/* Permanent Camera Button */}
                         <button
-                            onClick={() => fileInputRef.current.click()}
+                            onClick={() => isFlutterApp() ? handleCameraCapture() : fileInputRef.current?.click()}
                             disabled={uploading}
                             className="absolute bottom-1 right-1 w-9 h-9 bg-white text-[#004F4D] rounded-full flex items-center justify-center shadow-lg border border-gray-100 hover:scale-110 active:scale-95 transition-all z-10"
                         >
@@ -215,7 +246,7 @@ const PartnerProfile = () => {
                         </button>
                     </div>
 
-                    {/* Hidden File Input */}
+                    {/* Hidden File Input (Only for Web) */}
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -302,8 +333,8 @@ const PartnerProfile = () => {
                     <p className="font-bold tracking-widest uppercase text-[10px]">Member since {memberSince ? new Date(memberSince).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '—'}</p>
                 </div>
 
-            </main>
-        </div>
+            </main >
+        </div >
     );
 };
 

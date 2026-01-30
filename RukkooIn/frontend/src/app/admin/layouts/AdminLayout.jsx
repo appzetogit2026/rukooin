@@ -3,8 +3,9 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home
 } from 'lucide-react';
+
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
@@ -70,13 +71,14 @@ const AdminLayout = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
-        { icon: ClipboardCheck, label: 'Property Management', path: '/admin/properties' },
+        { icon: Home, label: 'Property Management', path: '/admin/properties' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
         { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },
         { icon: Tag, label: 'Offers & Coupons', path: '/admin/offers' },
         { icon: FileText, label: 'Legal & Content', path: '/admin/legal' },
         { icon: MessageSquare, label: 'Contact Messages', path: '/admin/contact-messages' },
+        { icon: CircleHelp, label: 'FAQs', path: '/admin/faqs' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 
@@ -105,23 +107,23 @@ const AdminLayout = () => {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group relative ${isActive
-                                    ? 'bg-white text-black shadow-lg font-medium'
+                                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group relative text-sm font-medium ${isActive
+                                    ? 'bg-white text-black shadow-lg shadow-gray-900/10'
                                     : 'text-gray-400 hover:bg-gray-900 hover:text-white'
                                     }`}
                             >
-                                <item.icon size={20} className={isActive ? 'text-black' : 'text-gray-400 group-hover:text-white'} />
+                                <item.icon size={20} className={`shrink-0 ${isActive ? 'text-black' : 'text-gray-400 group-hover:text-white'}`} />
                                 {isSidebarOpen && (
                                     <motion.span
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        className="whitespace-nowrap flex-1"
+                                        className="whitespace-nowrap flex-1 truncate"
                                     >
                                         {item.label}
                                     </motion.span>
                                 )}
                                 {item.badge && isSidebarOpen && (
-                                    <span className="ml-auto w-2 h-2 bg-red-500 rounded-full"></span>
+                                    <span className="ml-auto w-2 h-2 bg-red-500 rounded-full shrink-0"></span>
                                 )}
                             </Link>
                         );

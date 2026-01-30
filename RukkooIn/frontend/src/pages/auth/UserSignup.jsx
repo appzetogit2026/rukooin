@@ -80,6 +80,8 @@ const UserSignup = () => {
 
     const handleOTPChange = (index, value) => {
         if (value.length > 1) return;
+        if (!/^\d*$/.test(value)) return; // Only allow numbers
+
         const newOtp = [...otp];
         newOtp[index] = value;
         setOtp(newOtp);
@@ -273,7 +275,9 @@ const UserSignup = () => {
                                             <input
                                                 key={index}
                                                 id={`otp-${index}`}
-                                                type="text"
+                                                type="tel"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                                 maxLength={1}
                                                 value={digit}
                                                 onChange={(e) => handleOTPChange(index, e.target.value)}

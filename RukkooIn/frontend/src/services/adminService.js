@@ -176,6 +176,27 @@ const adminService = {
     return response.data;
   },
 
+  // FAQ Management
+  getAllFaqs: async (params) => {
+    const response = await axiosInstance.get('/faqs/admin', { params });
+    return response.data;
+  },
+
+  createFaq: async (payload) => {
+    const response = await axiosInstance.post('/faqs', payload);
+    return response.data;
+  },
+
+  updateFaq: async (id, payload) => {
+    const response = await axiosInstance.put(`/faqs/${id}`, payload);
+    return response.data;
+  },
+
+  deleteFaq: async (id) => {
+    const response = await axiosInstance.delete(`/faqs/${id}`);
+    return response.data;
+  },
+
   getFinanceStats: async () => {
     const response = await axiosInstance.get('/admin/finance');
     return response.data;

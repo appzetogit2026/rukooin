@@ -65,6 +65,7 @@ const AdminProperties = React.lazy(() => import('./app/admin/pages/AdminProperti
 const AdminLegalPages = React.lazy(() => import('./app/admin/pages/AdminLegalPages'));
 const AdminContactMessages = React.lazy(() => import('./app/admin/pages/AdminContactMessages'));
 const AdminNotifications = React.lazy(() => import('./app/admin/pages/AdminNotifications'));
+const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
 
 // Lazy Imports - Partner Pages
 const HotelLogin = React.lazy(() => import('./pages/auth/HotelLoginPage'));
@@ -449,6 +450,7 @@ function App() {
                 <Route path="properties/:id" element={<AdminHotelDetail />} />
                 <Route path="offers" element={<AdminOffers />} />
                 <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="faqs" element={<AdminFaqs />} />
               </Route>
             </Route>
 

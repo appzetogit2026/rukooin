@@ -24,16 +24,7 @@ class WalletService {
    * Get transaction history
    */
   async getTransactions(params = {}) {
-    const { page = 1, limit = 20, type, category, viewAs } = params;
-    const queryParams = new URLSearchParams({
-      page,
-      limit,
-      ...(type && { type }),
-      ...(category && { category }),
-      ...(viewAs && { viewAs })
-    });
-
-    const response = await apiService.get(`/wallet/transactions?${queryParams}`);
+    const response = await apiService.get('/wallet/transactions', { params });
     return response.data;
   }
 

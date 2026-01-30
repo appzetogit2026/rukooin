@@ -39,6 +39,10 @@ const AddVillaWizard = () => {
   const [locationResults, setLocationResults] = useState([]);
   const [uploading, setUploading] = useState(null);
   const [isFlutter, setIsFlutter] = useState(false);
+
+  useEffect(() => {
+    setIsFlutter(isFlutterApp());
+  }, []);
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
@@ -1344,7 +1348,10 @@ const AddVillaWizard = () => {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => !uploading && document.getElementById(`doc-upload-${i}`).click()}
+                        onClick={() => !uploading && (isFlutter
+                          ? handleCameraUpload(`doc_${i}`, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u; updatePropertyForm('documents', arr); })
+                          : document.getElementById(`doc-upload-${i}`).click())
+                        }
                         disabled={!!uploading}
                         className={`flex-1 py-2.5 rounded-lg text-sm font-bold border-2 border-dashed flex items-center justify-center gap-2 transition-all ${d.fileUrl ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'}`}
                       >

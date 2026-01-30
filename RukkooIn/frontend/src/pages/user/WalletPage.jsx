@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, ArrowUpRight, ArrowDownLeft,
     X, IndianRupee, Loader2,
-    Calendar, Wallet
+    Calendar, Wallet, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { api } from '../../services/apiService';
 import toast, { Toaster } from 'react-hot-toast';
@@ -17,6 +17,7 @@ const WalletPage = () => {
     const [showAddMoneySheet, setShowAddMoneySheet] = useState(false);
     const [addAmount, setAddAmount] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
 
     const quickAmounts = [500, 1000, 2000];
 
@@ -183,30 +184,31 @@ const WalletPage = () => {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
-                                className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between"
+                                onClick={() => setSelectedTransaction(tx)}
+                                className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${tx.isBooking ? 'bg-orange-50 text-orange-600' :
+                                <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${tx.isBooking ? 'bg-orange-50 text-orange-600' :
                                         tx.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
                                         }`}>
-                                        {tx.isBooking ? <Calendar size={20} /> :
-                                            tx.type === 'credit' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                                        {tx.isBooking ? <Calendar size={18} /> :
+                                            tx.type === 'credit' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900 line-clamp-1">{tx.description || 'Transaction'}</h4>
-                                        <p className="text-xs text-gray-500 font-medium">
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="font-bold text-gray-900 text-xs truncate leading-tight">{tx.description || 'Transaction'}</h4>
+                                        <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5">
                                             {new Date(tx.createdAt).toLocaleDateString('en-IN', {
                                                 day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                                             })}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-right shrink-0">
                                     <div className={`font-black text-sm whitespace-nowrap ${tx.type === 'credit' ? 'text-green-600' : 'text-gray-900'
                                         }`}>
                                         {tx.type === 'credit' ? '+' : '-'}₹{tx.amount?.toLocaleString('en-IN')}
                                     </div>
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${tx.status === 'confirmed' || tx.status === 'success' ? 'bg-green-100 text-green-700' :
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full capitalize inline-block mt-0.5 ${tx.status === 'confirmed' || tx.status === 'success' ? 'bg-green-100 text-green-700' :
                                         tx.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
                                         }`}>
                                         {tx.status || 'Success'}
@@ -234,7 +236,7 @@ const WalletPage = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="fixed bottom-0 left-0 right-0 bg-white z-[70] rounded-t-[2rem] p-6 pb-10 shadow-2xl"
+                            className="fixed bottom-0 left-0 right-0 bg-white z-[70] rounded-t-[2rem] p-6 pb-10 shadow-2xl safe-area-bottom"
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-xl font-bold text-gray-900">Add Money to Wallet</h3>
@@ -243,16 +245,36 @@ const WalletPage = () => {
                                 </button>
                             </div>
 
-                            <div className="bg-gray-50 rounded-2xl p-4 mb-4 flex items-center gap-3 border border-gray-200 focus-within:border-[#004F4D] focus-within:ring-1 ring-[#004F4D] transition-all">
+                            <div className="bg-gray-50 rounded-2xl p-4 mb-2 flex items-center gap-3 border border-gray-200 focus-within:border-[#004F4D] focus-within:ring-1 ring-[#004F4D] transition-all">
                                 <IndianRupee size={24} className="text-gray-400" />
                                 <input
                                     type="number"
                                     value={addAmount}
-                                    onChange={(e) => setAddAmount(e.target.value)}
+                                    onChange={(e) => {
+                                        setAddAmount(e.target.value);
+                                        if (Number(e.target.value) < 10 && e.target.value !== '') {
+                                            // Optional: Set specific error state if needed, or just handle in render
+                                        }
+                                    }}
                                     placeholder="Enter amount"
                                     className="flex-1 bg-transparent text-3xl font-bold text-gray-900 outline-none placeholder:text-gray-300"
                                     autoFocus
                                 />
+                            </div>
+
+                            {/* Validation Message */}
+                            <div className="mb-6 px-1">
+                                {!addAmount ? (
+                                    <p className="text-xs text-gray-400 font-medium">Minimum amount required is ₹10</p>
+                                ) : Number(addAmount) < 10 ? (
+                                    <p className="text-xs text-red-500 font-medium flex items-center gap-1">
+                                        <AlertCircle size={12} /> Minimum amount must be ₹10
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                        <CheckCircle2 size={12} /> Valid amount
+                                    </p>
+                                )}
                             </div>
 
                             <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -269,12 +291,81 @@ const WalletPage = () => {
 
                             <button
                                 onClick={handleAddMoney}
-                                disabled={processing}
-                                className="w-full bg-[#004F4D] text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-[#004F4D]/20 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                disabled={processing || !addAmount || Number(addAmount) < 10}
+                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2
+                                    ${(!addAmount || Number(addAmount) < 10)
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                        : 'bg-[#004F4D] text-white shadow-[#004F4D]/20'
+                                    }`}
                             >
                                 {processing && <Loader2 size={20} className="animate-spin" />}
                                 {processing ? 'Processing...' : 'Proceed to Pay'}
                             </button>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Transaction Detail Sheet */}
+            <AnimatePresence>
+                {selectedTransaction && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.5 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setSelectedTransaction(null)}
+                            className="fixed inset-0 bg-black z-[80]"
+                        />
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="fixed bottom-0 left-0 right-0 bg-white z-[90] rounded-t-[2rem] p-6 pb-12 shadow-2xl safe-area-bottom"
+                        >
+                            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
+
+                            <div className="flex flex-col items-center mb-6">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ${selectedTransaction.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
+                                    }`}>
+                                    {selectedTransaction.type === 'credit' ? <ArrowDownLeft size={28} /> : <ArrowUpRight size={28} />}
+                                </div>
+                                <h3 className="text-xl font-black text-[#003836] text-center leading-tight mb-1">
+                                    {selectedTransaction.type === 'credit' ? '+' : '-'}₹{selectedTransaction.amount?.toLocaleString('en-IN')}
+                                </h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{selectedTransaction.status || 'Success'}</p>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-2xl p-3 space-y-3">
+                                <div className="flex justify-between items-start gap-4">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 shrink-0">Description</span>
+                                    <span className="text-xs font-bold text-gray-900 text-right leading-relaxed break-words">{selectedTransaction.description}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</span>
+                                    <span className="text-[11px] font-bold text-gray-900">
+                                        {new Date(selectedTransaction.createdAt).toLocaleString('en-IN', {
+                                            day: 'numeric', month: 'short',
+                                            hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transaction ID</span>
+                                    <span className="text-[10px] font-mono text-gray-500">
+                                        #{selectedTransaction._id?.slice(-8).toUpperCase()}
+                                    </span>
+                                </div>
+                                {selectedTransaction.bookingId && (
+                                    <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reference</span>
+                                        <span className="text-[10px] font-bold text-[#004F4D] bg-[#004F4D]/5 px-2 py-0.5 rounded">
+                                            #{selectedTransaction.bookingId}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </motion.div>
                     </>
                 )}

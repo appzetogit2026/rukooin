@@ -29,9 +29,12 @@ export const useLenis = (disabled = false) => {
 
         gsap.ticker.lagSmoothing(0);
 
+        window.lenis = lenis;
+
         return () => {
             lenis.destroy();
             gsap.ticker.remove(update);
+            window.lenis = null;
         };
     }, [disabled]);
 };

@@ -10,15 +10,22 @@ import PartnerHeader from '../components/PartnerHeader';
 // --- Card Component ---
 const BookingCard = ({ booking }) => {
     const navigate = useNavigate();
-    const statusConfig = {
-        pending: { color: 'text-yellow-600 bg-yellow-50 border-yellow-100', label: 'Pending' },
-        confirmed: { color: 'text-blue-600 bg-blue-50 border-blue-100', label: 'Confirmed' },
-        completed: { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', label: 'Completed' },
-        cancelled: { color: 'text-red-500 bg-red-50 border-red-100', label: 'Cancelled' },
-        no_show: { color: 'text-gray-500 bg-gray-100 border-gray-200', label: 'No Show' },
+
+    // Status Logic
+    const rawStatus = (booking.bookingStatus || booking.status || 'pending').toLowerCase().trim();
+
+    const getStatusStyle = (s) => {
+        if (s === 'confirmed') return { color: 'text-blue-600 bg-blue-50 border-blue-100', label: 'Confirmed' };
+        if (s === 'checked_in') return { color: 'text-purple-600 bg-purple-50 border-purple-100', label: 'In-House' };
+        if (s === 'checked_out' || s === 'completed') return { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', label: 'Completed' };
+        if (s === 'cancelled') return { color: 'text-red-500 bg-red-50 border-red-100', label: 'Cancelled' };
+        if (s === 'no_show') return { color: 'text-gray-500 bg-gray-100 border-gray-200', label: 'No Show' };
+        if (s === 'pending_payment') return { color: 'text-orange-600 bg-orange-50 border-orange-100', label: 'Payment Pending' };
+        // Default
+        return { color: 'text-yellow-600 bg-yellow-50 border-yellow-100', label: s.replace('_', ' ').toUpperCase() };
     };
 
-    const status = statusConfig[booking.bookingStatus] || statusConfig.pending; // Use bookingStatus
+    const status = getStatusStyle(rawStatus);
 
     // Helper to format dates
     const formatDate = (dateString) => {
@@ -37,13 +44,13 @@ const BookingCard = ({ booking }) => {
     };
 
     const guestName = booking.userId?.name || 'Guest User';
-    const checkInDate = formatDate(booking.checkInDate || booking.checkIn); // Handle both formats
+    const checkInDate = formatDate(booking.checkInDate || booking.checkIn);
     const checkOutDate = formatDate(booking.checkOutDate || booking.checkOut);
     const nights = calculateNights(booking.checkInDate || booking.checkIn, booking.checkOutDate || booking.checkOut);
     const guestCount = (booking.guests?.adults || 1) + (booking.guests?.children || 0);
-    const roomsCount = 1; // Default to 1 for now as per schema
+    const roomsCount = 1;
     const hotelName = booking.propertyId?.propertyName || booking.propertyId?.name || 'Hotel Property';
-    const bookingId = booking.bookingId || booking._id?.slice(-6).toUpperCase();
+    const bookingId = booking.bookingId || booking._id?.slice(-8).toUpperCase(); // Show bookingId if available
 
     return (
         <div
@@ -97,7 +104,7 @@ const BookingCard = ({ booking }) => {
             {/* Actions */}
             <div className="flex items-center gap-2">
                 <button
-                    onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/hotel/bookings/${booking._id}`); }}
                     className="flex-1 bg-[#004F4D] text-white h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform hover:bg-[#003f3d]"
                 >
                     View Details
@@ -112,7 +119,7 @@ const BookingCard = ({ booking }) => {
                     </a>
                 )}
                 <button
-                    onClick={() => navigate(`/hotel/bookings/${booking._id}`)}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/hotel/bookings/${booking._id}`); }}
                     className="w-9 h-9 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center border border-gray-100 hover:bg-gray-100 active:scale-95 transition-transform"
                 >
                     <ChevronRight size={16} />
@@ -124,7 +131,7 @@ const BookingCard = ({ booking }) => {
 
 // --- Main Component ---
 const PartnerBookings = () => {
-    const [activeTab, setActiveTab] = useState('confirmed');
+    const [activeTab, setActiveTab] = useState('upcoming');
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -148,9 +155,9 @@ const PartnerBookings = () => {
     const filteredBookings = bookings;
 
     const tabs = [
-        { id: 'confirmed', label: 'Upcoming' },
-        { id: 'pending', label: 'Pending' },
-        { id: 'completed', label: 'Completed' },
+        { id: 'upcoming', label: 'Upcoming' },
+        { id: 'in_house', label: 'In-House' },
+        { id: 'completed', label: 'History' },
         { id: 'cancelled', label: 'Cancelled' },
     ];
 

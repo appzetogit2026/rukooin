@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
-import { HelpCircle, ChevronDown, Mail, Phone, MessageSquare } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { CircleHelp, ChevronDown, Mail, Phone, MessageSquare, Loader2 } from 'lucide-react';
 import gsap from 'gsap';
 import PartnerHeader from '../components/PartnerHeader';
+import { faqService } from '../../../services/apiService';
 
 const FaqItem = ({ question, answer }) => {
+    /* ... existing FaqItem code ... */
     const [isOpen, setIsOpen] = useState(false);
     const contentRef = useRef(null);
 
@@ -35,12 +37,22 @@ const FaqItem = ({ question, answer }) => {
 };
 
 const PartnerSupport = () => {
-    const faqs = [
-        { q: "How do I update my room pricing?", a: "You can update pricing directly from the 'My Properties' section. Select the property, click Edit, and navigate to the Pricing step (Coming Soon)." },
-        { q: "When will I receive my payout?", a: "Payouts are processed weekly every Wednesday for all bookings completed in the previous week." },
-        { q: "How can I verify my property?", a: "Go to the KYC section and upload your business registration and ownership proofs. Our team will verify them within 48 hours." },
-        { q: "Can I temporarily close my listing?", a: "Yes, you can toggle your property status to 'Offline' in the Property Settings." }
-    ];
+    const [faqs, setFaqs] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchFaqs = async () => {
+            try {
+                const data = await faqService.getFaqs('partner');
+                setFaqs(data);
+            } catch (error) {
+                console.error('Failed to fetch FAQs');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchFaqs();
+    }, []);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -67,14 +79,22 @@ const PartnerSupport = () => {
                 </div>
 
                 <div className="flex items-center gap-2 mb-4">
-                    <HelpCircle size={18} className="text-gray-400" />
+                    <CircleHelp size={18} className="text-gray-400" />
                     <h3 className="font-black text-[#003836]">Frequently Asked Questions</h3>
                 </div>
 
                 <div>
-                    {faqs.map((faq, i) => (
-                        <FaqItem key={i} question={faq.q} answer={faq.a} />
-                    ))}
+                    {loading ? (
+                        <div className="p-8 flex justify-center">
+                            <Loader2 className="animate-spin text-[#004F4D]" />
+                        </div>
+                    ) : faqs.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400 text-sm">No FAQs available.</div>
+                    ) : (
+                        faqs.map((faq, i) => (
+                            <FaqItem key={faq._id || i} question={faq.question} answer={faq.answer} />
+                        ))
+                    )}
                 </div>
 
                 <div className="mt-8 text-center">

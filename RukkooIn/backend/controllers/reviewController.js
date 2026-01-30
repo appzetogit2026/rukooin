@@ -23,6 +23,12 @@ export const createReview = async (req, res) => {
       return res.status(400).json({ message: 'Property ID and Rating are required' });
     }
 
+    // Check if user already reviewed this property
+    const existingReview = await Review.findOne({ userId: req.user._id, propertyId });
+    if (existingReview) {
+      return res.status(400).json({ message: 'You have already submitted a review for this property' });
+    }
+
     const review = await Review.create({
       userId: req.user._id,
       propertyId,

@@ -76,8 +76,13 @@ export const uploadBase64Image = async (base64, mimeType = 'image/jpeg', fileNam
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Upload failed');
+      const text = await response.text();
+      try {
+        const error = JSON.parse(text);
+        throw new Error(error.message || 'Upload failed');
+      } catch (e) {
+        throw new Error(`Upload failed (${response.status}): ${text.substring(0, 50)}...`);
+      }
     }
 
     return await response.json();

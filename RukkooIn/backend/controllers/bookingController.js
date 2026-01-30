@@ -451,16 +451,21 @@ export const createBooking = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
-    const { type } = req.query; // 'upcoming', 'completed', 'cancelled'
+    const { type } = req.query; // 'upcoming', 'ongoing', 'completed', 'cancelled'
     const query = { userId: req.user._id };
 
     if (type === 'upcoming') {
-      query.bookingStatus = { $in: ['confirmed', 'pending_payment'] };
-      // query.checkInDate = { $gte: new Date() }; // Optional strict check
+      // Upcoming: Confirmed or Pending payment/verification. NOT checked-in.
+      query.bookingStatus = { $in: ['confirmed', 'pending', 'pending_payment'] };
+    } else if (type === 'ongoing') {
+      // Ongoing: Checked In
+      query.bookingStatus = 'checked_in';
     } else if (type === 'completed') {
+      // Completed: Checked Out (and legacy completed)
       query.bookingStatus = { $in: ['completed', 'checked_out'] };
     } else if (type === 'cancelled') {
-      query.bookingStatus = 'cancelled';
+      // Cancelled, No Show, Rejected
+      query.bookingStatus = { $in: ['cancelled', 'no_show', 'rejected'] };
     }
 
     const bookings = await Booking.find(query)
@@ -486,22 +491,25 @@ export const getPartnerBookings = async (req, res) => {
     const query = { propertyId: { $in: propertyIds } };
 
     if (status) {
-      // Simple status filtering
       if (status === 'upcoming') {
-        query.bookingStatus = { $in: ['confirmed', 'pending', 'checked_in'] };
-        // query.checkInDate = { $gte: new Date() }; // Optional
+        // Upcoming: Confirmed guests arriving in future.
+        query.bookingStatus = { $in: ['confirmed', 'pending'] };
+      } else if (status === 'in_house') {
+        // In-House: Active guests (Checked In)
+        query.bookingStatus = 'checked_in';
       } else if (status === 'completed') {
+        // Completed: Guests checked out
         query.bookingStatus = { $in: ['completed', 'checked_out'] };
       } else if (status === 'cancelled') {
-        query.bookingStatus = { $in: ['cancelled', 'no_show'] };
+        query.bookingStatus = { $in: ['cancelled', 'no_show', 'rejected'] };
       } else {
-        // Direct status match (e.g. 'confirmed', 'paid')
+        // Direct status match fallback
         query.bookingStatus = status;
       }
     }
 
     const bookings = await Booking.find(query)
-      .populate('userId', 'name email phone')
+      .populate('userId', 'name email phone avatar')
       .populate('propertyId', 'propertyName')
       .populate('roomTypeId', 'name')
       .sort({ createdAt: -1 });
@@ -811,5 +819,100 @@ export const markBookingNoShow = async (req, res) => {
     res.json({ success: true, message: 'Marked as No Show. Inventory released and commission refunded.', booking });
   } catch (e) {
     res.status(500).json({ message: e.message });
+  }
+};
+
+// Check-In Booking
+export const markCheckIn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus !== 'confirmed') {
+      return res.status(400).json({ message: 'Booking must be confirmed to check in.' });
+    }
+
+    booking.bookingStatus = 'checked_in';
+    await booking.save();
+
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: 'Checked In Successfully',
+        body: 'Welcome! Enjoy your stay.'
+      }, { type: 'check_in', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Checked In Successfully', booking });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Check-Out Booking
+export const markCheckOut = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus !== 'checked_in') {
+      return res.status(400).json({ message: 'Booking must be checked-in to check out.' });
+    }
+
+    // Determine if payment is required
+    if (booking.paymentStatus !== 'paid') {
+      // Allow Partner to override? Or strict? 
+      // Let's go strict for now but allow if query param ?force=true
+      if (req.query.force !== 'true') {
+        return res.status(400).json({ message: 'Payment Pending. Please Mark Paid first.', requirePayment: true });
+      }
+    }
+
+    booking.bookingStatus = 'checked_out';
+    // booking.actualCheckOutDate = new Date(); // Ideally add to schema
+    await booking.save();
+
+    // --- RELEASE INVENTORY (Early Checkout) ---
+    try {
+      const ledger = await AvailabilityLedger.findOne({ referenceId: booking._id });
+      if (ledger) {
+        const now = new Date();
+        // If checking out earlier than the blocked end date, free up the rest
+        if (now < new Date(ledger.endDate)) {
+          ledger.endDate = now;
+          await ledger.save();
+          console.log(`[Inventory] Released inventory for Booking ${booking.bookingId} (Early Checkout)`);
+        }
+      }
+    } catch (invErr) {
+      console.error('Inventory Release Failed during Check-out:', invErr);
+    }
+
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: 'Checked Out Successfully',
+        body: 'Thank you for staying with us!'
+      }, { type: 'check_out', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    // Referral Trigger (if not already done)
+    if (booking.userId && booking.paymentStatus === 'paid') {
+      referralService.processBookingCompletion(booking.userId, booking._id).catch(e => console.error('Referral Trigger Error:', e));
+    }
+
+    res.json({ success: true, message: 'Checked Out Successfully', booking });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

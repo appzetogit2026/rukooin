@@ -290,8 +290,12 @@ const AdminPartners = () => {
                                             >
                                                 <td className="p-4">
                                                     <Link to={`/admin/partners/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                                                        <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm font-bold uppercase text-xs">
-                                                            {user.name?.charAt(0) || 'P'}
+                                                        <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 border border-white shadow-sm font-bold uppercase text-xs overflow-hidden">
+                                                            {user.profileImage ? (
+                                                                <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                user.name?.charAt(0) || 'P'
+                                                            )}
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{user.name}</p>

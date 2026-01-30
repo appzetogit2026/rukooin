@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
-import AddHotelModal from '../components/AddHotelModal';
+
 
 const DashboardCard = ({ title, value, trend, icon: Icon, color, loading }) => (
     <motion.div
@@ -49,7 +49,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, color, loading }) => (
 
 const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
-    const [isAddHotelOpen, setIsAddHotelOpen] = useState(false);
+
 
     // Data States
     const [stats, setStats] = useState({
@@ -97,7 +97,7 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-8 p-2 pb-10">
-            <AddHotelModal isOpen={isAddHotelOpen} onClose={() => setIsAddHotelOpen(false)} />
+
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -105,20 +105,7 @@ const AdminDashboard = () => {
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h1>
                     <p className="text-gray-500 mt-1">Real-time insights into your property platform performance.</p>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => toast.success('Report generation started...')}
-                        className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2"
-                    >
-                        <Clock size={16} /> Download Report
-                    </button>
-                    <button
-                        onClick={() => setIsAddHotelOpen(true)}
-                        className="px-5 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl translate-y-0 hover:-translate-y-0.5 flex items-center gap-2"
-                    >
-                        <Building2 size={16} /> Add Property
-                    </button>
-                </div>
+
             </div>
 
             {/* Row 1: KPI Grid */}
@@ -284,8 +271,8 @@ const AdminDashboard = () => {
                                     <div className="text-right">
                                         <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalAmount)}</p>
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                                booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                    booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                            booking.bookingStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
                                             }`}>
                                             {booking.bookingStatus}
                                         </span>
