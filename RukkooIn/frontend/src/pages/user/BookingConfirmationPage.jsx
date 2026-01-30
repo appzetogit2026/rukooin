@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     CheckCircle, MapPin, Calendar, Users, FileText,
-    Phone, Navigation, Share2, Home, Download, Printer
+    Phone, Navigation, Share2, Home, Download, Printer, ChevronLeft
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
@@ -71,9 +71,9 @@ const BookingConfirmationPage = () => {
             {/* Header */}
             <div className="bg-white border-b border-gray-200 sticky top-0 z-30 print:hidden">
                 <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <button onClick={() => navigate('/')} className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors font-medium">
-                        <Home size={18} />
-                        <span className="hidden sm:inline">Home</span>
+                    <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 hover:text-black transition-colors font-medium">
+                        <ChevronLeft size={20} />
+                        <span className="hidden sm:inline">Back</span>
                     </button>
                     <h1 className="text-lg font-bold text-gray-900">Booking Confirmation</h1>
                     <button onClick={handlePrint} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600">

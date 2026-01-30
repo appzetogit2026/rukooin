@@ -180,7 +180,7 @@ const BookingsPage = () => {
                                                 {/* Status & ID */}
                                                 <div className="flex justify-between items-start mb-1.5">
                                                     {getStatusBadge(bookingStatus, booking.paymentStatus)}
-                                                    <span className="text-[9px] text-gray-400 font-medium tracking-wide">#{booking._id?.slice(-6) || booking.bookingId?.slice(-6)}</span>
+                                                    <span className="text-[9px] text-gray-400 font-medium tracking-wide">#{booking.bookingId || booking._id?.slice(-6)}</span>
                                                 </div>
 
                                                 {/* Hotel Name */}

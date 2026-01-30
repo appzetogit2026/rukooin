@@ -671,7 +671,10 @@ export const getHotelDetails = async (req, res) => {
 export const getBookingDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id)
+      .populate('userId', 'name email phone avatar')
+      .populate('propertyId', 'propertyName name address location coverImage')
+      .populate('roomTypeId', 'name type');
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     res.status(200).json({ success: true, booking });
   } catch (e) {
