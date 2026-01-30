@@ -105,22 +105,39 @@ export const getSavedHotels = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
       path: 'savedHotels',
-      select: 'name location images pricing rating isActive',
-      match: { isActive: true } // Only return active hotels
+      select: 'propertyName address coverImage avgRating totalReviews minPrice propertyType status isLive',
+      match: { status: 'approved' } // Only return approved hotels
     });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Format the response
+    // Get minimum prices for these properties
+    const savedHotelIds = user.savedHotels.map(h => h._id);
+    const RoomType = (await import('../models/RoomType.js')).default;
+
+    const priceMap = await RoomType.aggregate([
+      { $match: { propertyId: { $in: savedHotelIds }, isActive: true } },
+      { $group: { _id: '$propertyId', minPrice: { $min: '$pricePerNight' } } }
+    ]);
+
+    const prices = {};
+    priceMap.forEach(p => {
+      prices[p._id.toString()] = p.minPrice;
+    });
+
+    // Format the response to match PropertyCard expectations
     const savedHotels = user.savedHotels.map(hotel => ({
-      id: hotel._id,
-      name: hotel.name,
-      location: hotel.location?.city || hotel.location?.street || 'N/A',
-      image: hotel.images?.[0]?.url || '/placeholder-hotel.jpg',
-      rating: hotel.rating || 0,
-      price: hotel.pricing?.basePrice || 0
+      _id: hotel._id,
+      propertyName: hotel.propertyName,
+      address: hotel.address, // Pass full address object
+      coverImage: hotel.coverImage,
+      propertyType: hotel.propertyType,
+      avgRating: hotel.avgRating,
+      totalReviews: hotel.totalReviews,
+      minPrice: prices[hotel._id.toString()] || hotel.minPrice || 0,
+      status: hotel.status
     }));
 
     res.json({

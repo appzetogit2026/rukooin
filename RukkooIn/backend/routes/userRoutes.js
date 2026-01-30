@@ -8,6 +8,11 @@ router.get('/profile', protect, getUserProfile);
 router.put('/profile', protect, updateUserProfile);
 router.put('/fcm-token', protect, updateFcmToken);
 
+// Saved Hotels Routes
+import { getSavedHotels, toggleSavedHotel } from '../controllers/userController.js';
+router.get('/saved-hotels', protect, getSavedHotels);
+router.post('/saved-hotels/:id', protect, toggleSavedHotel);
+
 // Notification Routes
 router.get('/notifications', protect, getNotifications);
 router.put('/notifications/read-all', protect, markAllNotificationsRead); // Must be before :id

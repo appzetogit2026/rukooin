@@ -49,14 +49,17 @@ const BookingsPage = () => {
             }
             return <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><AlertCircle size={10} /> Pay at Hotel</span>;
         }
+        if (s === 'pending_payment') {
+            return <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><Clock size={10} /> Payment Pending</span>;
+        }
         if (s === 'checked_in') {
             return <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><Clock size={10} /> Ongoing</span>;
         }
         if (s === 'completed' || s === 'checked_out') {
             return <span className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Completed</span>;
         }
-        if (s === 'cancelled') {
-            return <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><XCircle size={10} /> Cancelled</span>;
+        if (s === 'cancelled' || s === 'no_show' || s === 'rejected') {
+            return <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><XCircle size={10} /> {s === 'no_show' ? 'No Show' : 'Cancelled'}</span>;
         }
         return <span className="bg-gray-100 text-gray-500 text-[10px] px-2 py-1 rounded-full">{status}</span>;
     };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { propertyService, legalService, reviewService, offerService, availabilityService } from '../../services/apiService';
+import { propertyService, legalService, reviewService, offerService, availabilityService, userService } from '../../services/apiService';
 import {
   MapPin, Star, Share2, Heart, ArrowLeft,
   Users, Calendar, Loader2, ChevronLeft, ChevronRight, MessageSquare, Tag, X, Gift,
@@ -94,17 +94,26 @@ const PropertyDetailsPage = () => {
   const [offers, setOffers] = useState([]);
   const [appliedOffer, setAppliedOffer] = useState(null);
 
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
   const [showOffersModal, setShowOffersModal] = useState(false);
 
   // Lock Body Scroll when Modal Open
   useEffect(() => {
     if (showOffersModal) {
+      if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
+      if (window.lenis) window.lenis.start();
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
     return () => {
+      if (window.lenis) window.lenis.start();
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [showOffersModal]);
 
@@ -152,13 +161,20 @@ const PropertyDetailsPage = () => {
             petsAllowed: p.petsAllowed,
             coupleFriendly: p.coupleFriendly
           },
-          config: { pgType: p.pgType, resortType: p.resortType, foodType: p.foodType }
+          config: {
+            pgType: p.pgType,
+            resortType: p.resortType,
+            foodType: p.foodType,
+            hotelCategory: p.hotelCategory,
+            starRating: p.starRating
+          }
         };
         setProperty(adapted);
         // Only set selected room on first load if not set
-        if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
-          setSelectedRoom(adapted.inventory[0]);
-        }
+        // REMOVED: Do NOT auto select room, so Property Images show first by default.
+        // if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
+        //   setSelectedRoom(adapted.inventory[0]);
+        // }
       } else {
         setProperty(response);
       }
@@ -197,6 +213,43 @@ const PropertyDetailsPage = () => {
       setOffers(data || []);
     } catch (error) {
       console.error("Failed to fetch offers");
+    }
+  };
+
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      const token = localStorage.getItem('token');
+      if (!token || !id) return;
+
+      try {
+        const response = await userService.getSavedHotels();
+        const savedList = response.savedHotels || [];
+        // Check if current hotel ID is in saved list
+        const isCurrentSaved = savedList.some(item => String(item.id) === String(id) || String(item._id) === String(id));
+        setIsSaved(isCurrentSaved);
+      } catch (error) {
+        console.error("Error checking saved status", error);
+      }
+    };
+    checkSavedStatus();
+  }, [id]);
+
+  const handleToggleSave = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error("Please login to save properties");
+      return;
+    }
+
+    try {
+      setSaveLoading(true);
+      await userService.toggleSavedHotel(id);
+      setIsSaved(prev => !prev);
+      toast.success(isSaved ? "Removed from Saved" : "Added to Saved");
+    } catch (error) {
+      toast.error("Failed to update saved status");
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -345,7 +398,7 @@ const PropertyDetailsPage = () => {
         .filter(Boolean);
     }
     const list = [];
-    if (images?.cover) list.push(images.cover);
+    // if (images?.cover) list.push(images.cover);
     if (Array.isArray(images?.gallery)) list.push(...images.gallery);
     if (list.length > 0) return list;
     return ['https://via.placeholder.com/800x600'];
@@ -570,8 +623,12 @@ const PropertyDetailsPage = () => {
           <button className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors">
             <Share2 size={20} className="text-surface" />
           </button>
-          <button className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors">
-            <Heart size={20} className="text-surface" />
+          <button
+            onClick={handleToggleSave}
+            disabled={saveLoading}
+            className="bg-white/90 p-2 rounded-full shadow-md hover:bg-white transition-colors"
+          >
+            <Heart size={20} className={isSaved ? "fill-red-500 text-red-500" : "text-surface"} />
           </button>
         </div>
       </div>
@@ -669,12 +726,12 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
-          {propertyType === 'Hotel' && config && (
+          {propertyType === 'Hotel' && config && (config.hotelCategory || config.starRating) && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">
               <div className="p-4 bg-blue-50 rounded-xl">
                 <h3 className="font-bold text-blue-900 mb-2">Hotel Info</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>Category: {config.hotelCategory}</li>
+                  {config.hotelCategory && <li>Category: {config.hotelCategory}</li>}
                   {config.starRating && <li>Rating: {config.starRating} Stars</li>}
                 </ul>
               </div>
@@ -794,7 +851,13 @@ const PropertyDetailsPage = () => {
                 {inventory.map((room) => (
                   <div
                     key={room._id}
-                    onClick={() => setSelectedRoom(room)}
+                    onClick={() => {
+                      setSelectedRoom(room);
+                      // Force scroll to top using multiple methods for reliability
+                      window.scrollTo(0, 0);
+                      document.documentElement.scrollTop = 0;
+                      document.body.scrollTop = 0;
+                    }}
                     className={`
                       border rounded-xl p-4 cursor-pointer transition-all relative overflow-hidden
                       ${selectedRoom?._id === room._id ? 'border-surface bg-surface/5 ring-1 ring-surface' : 'border-gray-200 hover:border-surface/50'}
@@ -1126,21 +1189,20 @@ const PropertyDetailsPage = () => {
           {/* User Reviews Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-textDark flex items-center gap-2">
-                Guest Reviews
-                <span className="text-sm font-normal text-gray-500">
-                  {reviews.length > 0 ? `(${reviews.length})` : ''}
-                  {rating ? ` • ${Number(rating).toFixed(1)}` : ' • New'}
-                  <Star size={12} className="inline fill-honey text-honey mb-0.5" />
-                </span>
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-textDark">Guest Reviews</h2>
+                <div className="flex items-center text-sm text-gray-500 pt-1">
+                  <span>{reviews.length > 0 ? `(${reviews.length})` : ''}</span>
+                  <span className="mx-1">•</span>
+                  <span className="font-bold text-black mr-1">{rating ? Number(rating).toFixed(1) : 'New'}</span>
+                  <Star size={14} className="fill-honey text-honey" />
+                </div>
+              </div>
               <button
                 onClick={() => setShowReviewForm(!showReviewForm)}
-                className="text-sm font-bold text-surface border border-surface px-4 py-2 rounded-lg hover:bg-surface hover:text-white transition-all flex items-center gap-2"
+                className="text-xs font-bold text-surface border border-surface px-3 py-1.5 rounded bg-surface/5 hover:bg-surface hover:text-white transition-all flex items-center gap-1.5"
               >
-                <div className="flex items-center gap-2">
-                  <MessageSquare size={16} /> <span>Write a Review</span>
-                </div>
+                <MessageSquare size={14} /> <span>Write a Review</span>
               </button>
             </div>
 
@@ -1285,7 +1347,10 @@ const PropertyDetailsPage = () => {
             </div>
 
             {/* Modal Body - Scrollable */}
-            <div className="p-4 overflow-y-auto overflow-x-hidden space-y-4 bg-gray-50 flex-1">
+            <div
+              className="p-4 overflow-y-auto overflow-x-hidden space-y-4 bg-gray-50 flex-1 overscroll-y-contain"
+              data-lenis-prevent
+            >
               {offers.map((offer) => (
                 <div
                   key={offer._id}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Wallet, TrendingUp, ArrowUpRight, ArrowDownLeft,
-    Plus, Clock, Loader2, AlertCircle, RefreshCw, Menu
+    Plus, Clock, Loader2, AlertCircle, RefreshCw, Menu, CheckCircle2
 } from 'lucide-react';
 import walletService from '../../../services/walletService';
 import { toast } from 'react-hot-toast';
@@ -13,11 +13,11 @@ const TransactionItem = ({ txn }) => {
     const isCompleted = txn.status === 'completed';
 
     return (
-        <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0 active:bg-gray-50/50 transition-colors">
+        <div className="flex items-center justify-between py-3 px-1 border-b border-gray-100 last:border-0 active:bg-gray-50/50 transition-colors">
             {/* Left Side: Icon + Text */}
-            <div className="flex items-center gap-3 flex-1 min-w-0 mr-4">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? 'bg-[#E8F5E9] text-[#2E7D32]' : 'bg-[#F5F5F5] text-gray-600'}`}>
-                    {isCredit ? <ArrowDownLeft size={18} strokeWidth={2.5} /> : <ArrowUpRight size={18} className="stroke-gray-500" strokeWidth={2.5} />}
+            <div className="flex items-center gap-3 flex-1 min-w-0 mr-3">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? 'bg-[#E8F5E9] text-[#2E7D32]' : 'bg-[#F5F5F5] text-gray-600'}`}>
+                    {isCredit ? <ArrowDownLeft size={16} strokeWidth={2.5} /> : <ArrowUpRight size={16} className="stroke-gray-500" strokeWidth={2.5} />}
                 </div>
                 <div className="min-w-0 flex-1">
                     <h4 className="font-bold text-[#003836] text-xs sm:text-sm truncate leading-tight">{txn.description}</h4>
@@ -29,11 +29,11 @@ const TransactionItem = ({ txn }) => {
 
             {/* Right Side: Amount + Status */}
             <div className="text-right flex-shrink-0">
-                <div className={`font-black text-sm sm:text-base ${isCredit ? 'text-[#2E7D32]' : 'text-[#003836]'}`}>
+                <div className={`font-black text-sm whitespace-nowrap ${isCredit ? 'text-[#2E7D32]' : 'text-[#003836]'}`}>
                     {isCredit ? '+' : '-'}₹{txn.amount?.toLocaleString('en-IN')}
                 </div>
-                <div className={`text-[9px] font-bold uppercase tracking-wide mt-1 ${txn.status === 'completed' ? 'text-green-600' :
-                    txn.status === 'pending' ? 'text-yellow-600' : 'text-red-500'
+                <div className={`text-[9px] font-bold uppercase tracking-wide mt-0.5 px-2 py-0.5 rounded-full inline-block ${txn.status === 'completed' ? 'bg-green-50 text-green-700' :
+                    txn.status === 'pending' ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-600'
                     }`}>
                     {txn.status === 'completed' ? 'Success' : txn.status}
                 </div>
@@ -218,7 +218,9 @@ const PartnerWallet = () => {
                             <div className="space-y-1">
                                 {transactions.length > 0 ? (
                                     transactions.map((txn, idx) => (
-                                        <TransactionItem key={txn._id || idx} txn={txn} />
+                                        <div key={txn._id || idx} onClick={() => setSelectedTxn(txn)} className="cursor-pointer">
+                                            <TransactionItem txn={txn} />
+                                        </div>
                                     ))
                                 ) : (
                                     <div className="text-center py-20 opacity-50">
@@ -290,7 +292,7 @@ const PartnerWallet = () => {
                             }
                         </p>
 
-                        <div className="mb-8">
+                        <div className="mb-2">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Amount (₹)</label>
                             <input
                                 type="number"
@@ -300,20 +302,133 @@ const PartnerWallet = () => {
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-[#003836] focus:outline-none focus:border-[#004F4D] focus:bg-white transition-all shadow-inner placeholder:text-gray-300"
                                 placeholder="0"
                             />
-                            {activeModal === 'withdraw' && (
-                                <p className="text-[10px] text-gray-400 mt-3 text-right font-medium">Available Balance: <span className="text-[#003836] font-bold">₹{wallet?.balance}</span></p>
-                            )}
+
+                            {/* Inline Validation */}
+                            <div className="mt-2 text-xs font-medium">
+                                {activeModal === 'withdraw' && (
+                                    <>
+                                        {!amountInput ? (
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-400">Min. withdrawal: ₹500</span>
+                                                <span className="text-[#004F4D]">Available: ₹{wallet?.balance}</span>
+                                            </div>
+                                        ) : Number(amountInput) < 500 ? (
+                                            <p className="text-red-500 flex items-center gap-1">
+                                                <AlertCircle size={12} /> Minimum withdrawal is ₹500
+                                            </p>
+                                        ) : Number(amountInput) > (wallet?.balance || 0) ? (
+                                            <div className="flex justify-between items-center text-red-500">
+                                                <span className="flex items-center gap-1"><AlertCircle size={12} /> Insufficient balance</span>
+                                                <span className="text-[10px] bg-red-50 px-2 py-1 rounded">Max: ₹{wallet?.balance}</span>
+                                            </div>
+                                        ) : (
+                                            <p className="text-green-600 flex items-center gap-1">
+                                                <CheckCircle2 size={12} /> Valid for withdrawal
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+
+                                {activeModal === 'add_money' && (
+                                    <>
+                                        {!amountInput ? (
+                                            <span className="text-gray-400">Min. amount: ₹10</span>
+                                        ) : Number(amountInput) < 10 ? (
+                                            <p className="text-red-500 flex items-center gap-1">
+                                                <AlertCircle size={12} /> Minimum amount is ₹10
+                                            </p>
+                                        ) : (
+                                            <p className="text-green-600 flex items-center gap-1">
+                                                <CheckCircle2 size={12} /> Valid amount
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         <button
                             onClick={handleTransaction}
-                            className="w-full bg-[#004F4D] text-white font-bold py-4 rounded-2xl text-sm active:scale-95 transition-transform shadow-lg shadow-[#004F4D]/20"
+                            disabled={
+                                !amountInput ||
+                                (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
+                                (activeModal === 'add_money' && Number(amountInput) < 10)
+                            }
+                            className={`w-full font-bold py-4 rounded-2xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-2
+                                ${(!amountInput ||
+                                    (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
+                                    (activeModal === 'add_money' && Number(amountInput) < 10))
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-[#004F4D] text-white shadow-lg shadow-[#004F4D]/20'
+                                }`}
                         >
                             Proceed Securely
                         </button>
                     </div>
                 </div>
             )}
+            {/* --- Transaction Detail Sheet (NEW) --- */}
+            <AnimatePresence>
+                {selectedTxn && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.5 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setSelectedTxn(null)}
+                            className="fixed inset-0 bg-black z-[80]"
+                        />
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="fixed bottom-0 left-0 right-0 bg-white z-[90] rounded-t-[2rem] p-6 pb-12 shadow-2xl safe-area-bottom"
+                        >
+                            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
+
+                            <div className="flex flex-col items-center mb-6">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ${selectedTxn.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
+                                    }`}>
+                                    {selectedTxn.type === 'credit' ? <ArrowDownLeft size={28} /> : <ArrowUpRight size={28} />}
+                                </div>
+                                <h3 className="text-xl font-black text-[#003836] text-center leading-tight mb-1">
+                                    {selectedTxn.type === 'credit' ? '+' : '-'}₹{selectedTxn.amount?.toLocaleString('en-IN')}
+                                </h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{selectedTxn.status || 'Success'}</p>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-2xl p-3 space-y-3">
+                                <div className="flex justify-between items-start gap-4">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 shrink-0">Description</span>
+                                    <span className="text-xs font-bold text-gray-900 text-right leading-relaxed break-words">{selectedTxn.description}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date & Time</span>
+                                    <span className="text-[11px] font-bold text-gray-900">
+                                        {new Date(selectedTxn.createdAt).toLocaleString('en-IN', {
+                                            day: 'numeric', month: 'short',
+                                            hour: '2-digit', minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transaction ID</span>
+                                    <span className="text-[10px] font-mono text-gray-500">
+                                        #{selectedTxn._id?.slice(-8).toUpperCase()}
+                                    </span>
+                                </div>
+                                {selectedTxn.referenceId && (
+                                    <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg border border-gray-100">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reference</span>
+                                        <span className="text-[10px] font-medium text-gray-600">#{selectedTxn.referenceId}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

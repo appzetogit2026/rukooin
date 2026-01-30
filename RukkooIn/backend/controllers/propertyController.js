@@ -361,7 +361,10 @@ export const getPublicProperties = async (req, res) => {
     const matchConditions = {};
 
     if (type && type !== 'all') {
-      matchConditions.propertyType = type.toLowerCase();
+      const typesList = type.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+      if (typesList.length > 0) {
+        matchConditions.propertyType = { $in: typesList };
+      }
     }
 
     if (search) {
@@ -458,6 +461,7 @@ export const getPublicProperties = async (req, res) => {
     // 7. Sorting
     let sortStage = { createdAt: -1 }; // Default new
     if (sort) {
+      if (sort === 'newest') sortStage = { createdAt: -1 };
       if (sort === 'price_low') sortStage = { startingPrice: 1 };
       if (sort === 'price_high') sortStage = { startingPrice: -1 };
       if (sort === 'rating') sortStage = { avgRating: -1 };

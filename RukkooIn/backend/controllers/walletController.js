@@ -159,14 +159,17 @@ export const getTransactions = async (req, res) => {
       // Map bookings to transaction-like objects
       const bookingTransactions = bookings.map(b => ({
         _id: b._id,
+        bookingId: b.bookingId, // Add Booking ID
         type: b.paymentStatus === 'refunded' ? 'credit' : 'debit',
         amount: b.totalAmount,
-        description: `Booking: ${b.propertyId?.name || 'Hotel Stay'}`,
+        description: `Booking: ${b.propertyId?.propertyName || b.propertyId?.name || 'Hotel Stay'}`,
         status: b.bookingStatus,
-        createdAt: b.createdAt,
-        isBooking: true
+        paymentStatus: b.paymentStatus,
+        isBooking: true,
+        checkInDate: b.checkInDate, // Add Check-in
+        checkOutDate: b.checkOutDate, // Add Check-out
+        createdAt: b.createdAt
       }));
-
       mergedList = [...mergedList, ...bookingTransactions];
     }
 

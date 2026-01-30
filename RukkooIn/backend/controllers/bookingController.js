@@ -455,12 +455,14 @@ export const getMyBookings = async (req, res) => {
     const query = { userId: req.user._id };
 
     if (type === 'upcoming') {
-      query.bookingStatus = { $in: ['confirmed', 'pending_payment'] };
+      query.bookingStatus = { $in: ['confirmed', 'pending_payment', 'pending'] };
       // query.checkInDate = { $gte: new Date() }; // Optional strict check
+    } else if (type === 'ongoing') {
+      query.bookingStatus = { $in: ['checked_in'] };
     } else if (type === 'completed') {
       query.bookingStatus = { $in: ['completed', 'checked_out'] };
     } else if (type === 'cancelled') {
-      query.bookingStatus = 'cancelled';
+      query.bookingStatus = { $in: ['cancelled', 'no_show', 'rejected'] };
     }
 
     const bookings = await Booking.find(query)
