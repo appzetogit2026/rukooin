@@ -6,6 +6,7 @@ import {
 import walletService from '../../../services/walletService';
 import { toast } from 'react-hot-toast';
 import { useRazorpay } from 'react-razorpay';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Transaction Item (Compact) ---
 const TransactionItem = ({ txn }) => {
@@ -50,6 +51,7 @@ const PartnerWallet = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('transactions');
+    const [selectedTxn, setSelectedTxn] = useState(null);
 
     // Modal States
     const [activeModal, setActiveModal] = useState(null); // 'withdraw' | 'add_money' | null

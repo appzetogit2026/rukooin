@@ -230,6 +230,12 @@ export const verifyOtp = async (req, res) => {
     let isRegistration = false;
 
     if (user) {
+      if (user.isBlocked) {
+        return res.status(403).json({
+          message: 'Your account has been blocked by admin. Please contact support.',
+          isBlocked: true
+        });
+      }
       // ... (existing login logic)
       if (user.otp !== otp) {
         return res.status(400).json({ message: 'Invalid OTP' });
@@ -379,6 +385,13 @@ export const verifyPartnerOtp = async (req, res) => {
     const partner = await Partner.findOne({ phone });
     if (!partner) {
       return res.status(404).json({ message: 'Partner registration not found. Please register again.' });
+    }
+
+    if (partner.isBlocked) {
+      return res.status(403).json({
+        message: 'Your account has been blocked by admin. Please contact support.',
+        isBlocked: true
+      });
     }
 
     if (partner.isVerified) {

@@ -26,6 +26,15 @@ const AdminNotifications = () => {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
+      // Mark all as read if viewing Received tab
+      if (activeTab === 'received') {
+        try {
+          await adminService.markAllNotificationsRead();
+        } catch (err) {
+          console.error('Failed to mark notifications read', err);
+        }
+      }
+
       // Re-using getNotifications. For 'received', we use default.
       // For 'sent', strictly speaking we need to filter by type='broadcast_log'.
       // Currently backend returns all admin notifications.

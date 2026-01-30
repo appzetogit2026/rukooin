@@ -271,7 +271,15 @@ const AdminProperties = () => {
                                                             <Building2 size={18} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{property.propertyName || 'Untitled'}</p>
+                                                                {property.avgRating > 0 && (
+                                                                    <span className="flex items-center bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-[9px] font-black border border-yellow-100">
+                                                                        <Star size={8} className="fill-yellow-500 text-yellow-500 mr-0.5" />
+                                                                        {property.avgRating?.toFixed(1)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <div className="flex items-center text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">
                                                                 <MapPin size={10} className="mr-1" />
                                                                 {property.address?.city || 'No Address'}, {property.address?.state || ''}
@@ -283,8 +291,8 @@ const AdminProperties = () => {
                                                     <p className="text-[10px] text-gray-700 font-bold uppercase">{property.propertyType || 'N/A'}</p>
                                                 </td>
                                                 <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.partnerId?.name || 'Unknown Partner'}</p>
-                                                    <p className="text-[10px] text-gray-400 uppercase tracking-tighter">ID: {property._id.slice(-6)}</p>
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{property.partnerId?.name || 'Unknown Partner'}</p>
+                                                    <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{property.partnerId?.email || 'No Email'}</p>
                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />

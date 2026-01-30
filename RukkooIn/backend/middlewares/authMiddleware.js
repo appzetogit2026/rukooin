@@ -38,6 +38,16 @@ export const protect = async (req, res, next) => {
     }
 
     console.log(`🛡️ Auth Middleware - Authorized: ${user.name} (${user.role})`);
+
+    // 4. Check Blocked Status
+    if (user.isBlocked) {
+      console.warn(`🛡️ Auth Middleware - User ${user.name} is BLOCKED`);
+      return res.status(403).json({
+        message: 'Your account has been blocked by admin. Please contact support.',
+        isBlocked: true
+      });
+    }
+
     req.user = user;
     next();
   } catch (error) {

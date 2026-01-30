@@ -29,15 +29,15 @@ const PartnerPropertiesTab = ({ properties }) => (
                         <tr key={i} className="hover:bg-gray-50">
                             <td className="p-4 font-bold text-gray-900">
                                 <Link to={`/admin/hotels/${property._id}`} className="hover:text-blue-600 hover:underline">
-                                    {property.name}
+                                    {property.propertyName}
                                 </Link>
                             </td>
                             <td className="p-4 text-xs font-bold text-gray-500 uppercase">{property.address?.city}, {property.address?.state}</td>
-                            <td className="p-4 text-xs font-bold text-gray-500 uppercase">{property.type}</td>
+                            <td className="p-4 text-xs font-bold text-gray-500 uppercase">{property.propertyType}</td>
                             <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${property.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                        property.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-red-100 text-red-700'
+                                    property.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-red-100 text-red-700'
                                     }`}>
                                     {property.status}
                                 </span>
@@ -116,8 +116,9 @@ const PartnerDocumentsTab = ({ partner }) => (
     </div>
 );
 
-const PartnerWalletTab = ({ partnerId }) => {
+const PartnerTransactionsTab = ({ partnerId }) => {
     const [wallet, setWallet] = useState(null);
+    const [stats, setStats] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -125,11 +126,13 @@ const PartnerWalletTab = ({ partnerId }) => {
         const fetchWalletData = async () => {
             try {
                 setLoading(true);
-                const [wRes, tRes] = await Promise.all([
+                const [wRes, sRes, tRes] = await Promise.all([
                     walletService.getWallet({ ownerId: partnerId, viewAs: 'partner' }),
+                    walletService.getWalletStats({ ownerId: partnerId, viewAs: 'partner' }),
                     walletService.getTransactions({ ownerId: partnerId, viewAs: 'partner', limit: 50 })
                 ]);
                 if (wRes.success) setWallet(wRes.wallet);
+                if (sRes.success) setStats(sRes.stats);
                 if (tRes.success) setTransactions(tRes.transactions);
             } catch (error) {
                 console.error('Error fetching partner wallet:', error);
@@ -151,55 +154,67 @@ const PartnerWalletTab = ({ partnerId }) => {
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Earnings</p>
-                    <h3 className="text-xl font-black text-green-600">₹{wallet?.totalEarnings?.toLocaleString() || 0}</h3>
+                    <h3 className="text-xl font-black text-green-600">₹{stats?.totalEarnings?.toLocaleString() || 0}</h3>
+                    <p className="text-[10px] text-gray-400 font-bold mt-1">+₹{stats?.thisMonthEarnings?.toLocaleString() || 0} this month</p>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Total Payouts</p>
-                    <h3 className="text-xl font-black text-orange-600">₹{wallet?.totalWithdrawals?.toLocaleString() || 0}</h3>
+                    <h3 className="text-xl font-black text-orange-600">₹{stats?.totalWithdrawals?.toLocaleString() || 0}</h3>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pending Clearance</p>
-                    <h3 className="text-xl font-black text-blue-600">₹{wallet?.pendingClearance?.toLocaleString() || 0}</h3>
+                    <h3 className="text-xl font-black text-blue-600">₹{stats?.pendingClearance?.toLocaleString() || 0}</h3>
                 </div>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-100 uppercase text-[10px] font-bold tracking-wider text-gray-500">
-                        <tr>
-                            <th className="p-4 font-bold text-gray-600">Type</th>
-                            <th className="p-4 font-bold text-gray-600">Description</th>
-                            <th className="p-4 font-bold text-gray-600">Amount</th>
-                            <th className="p-4 font-bold text-gray-600">Date</th>
-                            <th className="p-4 font-bold text-gray-600 text-right">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {transactions.length > 0 ? (
-                            transactions.map((txn, i) => (
-                                <tr key={i} className="hover:bg-gray-50 uppercase text-[10px]">
-                                    <td className="p-4 font-bold">
-                                        <span className={`px-2 py-0.5 rounded ${txn.type === 'credit' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {txn.type}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-bold text-gray-900">{txn.description}</td>
-                                    <td className="p-4 font-black">₹{txn.amount?.toLocaleString()}</td>
-                                    <td className="p-4 text-gray-500">{new Date(txn.createdAt).toLocaleString()}</td>
-                                    <td className="p-4 text-right">
-                                        <span className={`px-2 py-0.5 rounded font-bold ${txn.status === 'completed' || txn.status === 'success' ? 'text-green-600' : 'text-orange-500'}`}>
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <h3 className="text-xs font-bold text-gray-400 uppercase mb-4 tracking-widest">Recent Transactions</h3>
+                <div className="space-y-3">
+                    {transactions && transactions.length > 0 ? (
+                        transactions.map((txn, i) => {
+                            const isDebit = txn.type === 'debit';
+                            const isBooking = txn.category?.includes('booking');
+
+                            return (
+                                <div key={i} className="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-gray-50 transition-colors bg-white">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm ${isBooking ? 'bg-orange-50 text-orange-500' :
+                                            !isDebit ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
+                                            }`}>
+                                            {isBooking ? <Calendar size={20} /> :
+                                                !isDebit ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-gray-900 truncate pr-2">{txn.description}</p>
+                                            <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tight">
+                                                {new Date(txn.createdAt).toLocaleDateString('en-IN', {
+                                                    day: 'numeric', month: 'short', year: 'numeric'
+                                                })} • {new Date(txn.createdAt).toLocaleTimeString('en-IN', {
+                                                    hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className={`text-lg font-black tracking-tight ${isDebit ? 'text-gray-900' : 'text-green-600'}`}>
+                                            {isDebit ? '-' : '+'}₹{txn.amount?.toLocaleString()}
+                                        </p>
+                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase mt-1 ${txn.status === 'completed' || txn.status === 'success' ? 'bg-green-50 text-green-600' :
+                                            txn.status === 'cancelled' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-600'
+                                            }`}>
                                             {txn.status}
                                         </span>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="5" className="p-8 text-center text-gray-400 text-xs font-bold uppercase">No transactions found</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="p-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
+                            <CreditCard size={32} className="mx-auto text-gray-300 mb-2" />
+                            <p className="text-xs font-bold uppercase text-gray-400">No transactions history</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -300,9 +315,8 @@ const AdminPartnerDetail = () => {
 
     const tabs = [
         { id: 'properties', label: 'Properties', icon: Building },
-        { id: 'wallet', label: 'Wallet & Payouts', icon: CreditCard },
+        { id: 'transactions', label: 'Transactions', icon: CreditCard },
         { id: 'documents', label: 'Documents', icon: FileText },
-        { id: 'activity', label: 'Activity Logs', icon: History },
     ];
 
     return (
@@ -322,7 +336,11 @@ const AdminPartnerDetail = () => {
             <div className={`rounded-2xl p-8 border shadow-sm flex flex-col md:flex-row gap-8 transition-colors ${partner.isBlocked ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'}`}>
                 <div className="flex flex-col items-center md:items-start gap-4 min-w-[200px]">
                     <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold border-4 border-white shadow-lg relative uppercase">
-                        {partner.name.charAt(0)}
+                        {partner.profileImage ? (
+                            <img src={partner.profileImage} alt={partner.name} className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                            partner.name.charAt(0)
+                        )}
                         {partner.isBlocked && (
                             <div className="absolute -bottom-2 -right-2 bg-red-600 text-white p-1.5 rounded-full border-4 border-white">
                                 <Ban size={16} />
@@ -340,8 +358,8 @@ const AdminPartnerDetail = () => {
                         <div className="flex flex-col gap-1 mt-2">
                             {partner.isBlocked && <span className="text-xs font-bold text-red-600 uppercase">ACCOUNT BLOCKED</span>}
                             <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded w-fit mx-auto md:mx-0 ${partner.partnerApprovalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                    partner.partnerApprovalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                        'bg-red-100 text-red-700'
+                                partner.partnerApprovalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-red-100 text-red-700'
                                 }`}>
                                 {partner.partnerApprovalStatus}
                             </span>
@@ -440,9 +458,8 @@ const AdminPartnerDetail = () => {
                         transition={{ duration: 0.15 }}
                     >
                         {activeTab === 'properties' && <PartnerPropertiesTab properties={properties} />}
-                        {activeTab === 'wallet' && <PartnerWalletTab partnerId={id} />}
+                        {activeTab === 'transactions' && <PartnerTransactionsTab partnerId={id} />}
                         {activeTab === 'documents' && <PartnerDocumentsTab partner={partner} />}
-                        {activeTab === 'activity' && <div className="text-gray-400 py-10 text-center font-bold uppercase text-xs">Activity Logs (Coming Soon)</div>}
                     </motion.div>
                 </AnimatePresence>
             </div>

@@ -12,6 +12,8 @@ import AvailabilityLedger from '../models/AvailabilityLedger.js';
 import Notification from '../models/Notification.js';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
+import Wallet from '../models/Wallet.js';
+import Transaction from '../models/Transaction.js';
 
 
 
@@ -597,9 +599,35 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const bookings = await Booking.find({ userId: id }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, user, bookings });
+    const bookings = await Booking.find({ userId: id })
+      .populate('propertyId', 'propertyName name address')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const wallet = await Wallet.findOne({ partnerId: id, role: 'user' });
+    let walletTransactions = wallet
+      ? await Transaction.find({ walletId: wallet._id }).sort({ createdAt: -1 }).lean()
+      : [];
+
+    const bookingTransactions = bookings
+      .filter(b => ['paid', 'refunded', 'partial'].includes(b.paymentStatus))
+      .map(b => ({
+        _id: b._id,
+        bookingId: b.bookingId,
+        type: b.paymentStatus === 'refunded' ? 'credit' : 'debit',
+        amount: b.totalAmount,
+        description: `Booking: ${b.propertyId?.propertyName || b.propertyId?.name || 'Hotel Stay'}`,
+        status: b.bookingStatus,
+        paymentStatus: b.paymentStatus,
+        isBooking: true,
+        createdAt: b.createdAt
+      }));
+
+    const transactions = [...walletTransactions, ...bookingTransactions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json({ success: true, user, bookings, wallet, transactions });
   } catch (error) {
+    console.error('Get User Details Error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching user details' });
   }
 };
@@ -1052,8 +1080,6 @@ export const deleteAdminNotifications = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-import Wallet from '../models/Wallet.js';
 
 export const getFinanceStats = async (req, res) => {
   try {

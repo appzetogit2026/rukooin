@@ -815,3 +815,81 @@ export const markBookingNoShow = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+
+// Check-In Booking
+export const markCheckIn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus !== 'confirmed') {
+      return res.status(400).json({ message: 'Booking must be confirmed to check in.' });
+    }
+
+    booking.bookingStatus = 'checked_in';
+    await booking.save();
+
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: 'Checked In Successfully',
+        body: 'Welcome! Enjoy your stay.'
+      }, { type: 'check_in', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    res.json({ success: true, message: 'Checked In Successfully', booking });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Check-Out Booking
+export const markCheckOut = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findById(id).populate('propertyId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    if (booking.propertyId.partnerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (booking.bookingStatus !== 'checked_in') {
+      return res.status(400).json({ message: 'Booking must be checked-in to check out.' });
+    }
+
+    // Determine if payment is required
+    if (booking.paymentStatus !== 'paid') {
+         // Allow Partner to override? Or strict? 
+         // Let's go strict for now but allow if query param ?force=true
+         if (req.query.force !== 'true') {
+             return res.status(400).json({ message: 'Payment Pending. Please Mark Paid first.', requirePayment: true });
+         }
+    }
+
+    booking.bookingStatus = 'checked_out';
+    await booking.save();
+
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: 'Checked Out Successfully',
+        body: 'Thank you for staying with us!'
+      }, { type: 'check_out', bookingId: booking._id }, 'user').catch(console.error);
+    }
+
+    // Referral Trigger (if not already done)
+    if (booking.userId && booking.paymentStatus === 'paid') {
+      referralService.processBookingCompletion(booking.userId, booking._id).catch(e => console.error('Referral Trigger Error:', e));
+    }
+
+    res.json({ success: true, message: 'Checked Out Successfully', booking });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

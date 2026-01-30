@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Calendar, User, Phone, Mail, MapPin,
   CreditCard, CheckCircle, XCircle, Clock,
-  ChevronLeft, AlertTriangle
+  ChevronLeft, AlertTriangle, LogIn, LogOut
 } from 'lucide-react';
 import { bookingService } from '../../../services/apiService';
 import toast from 'react-hot-toast';
@@ -53,6 +53,40 @@ const PartnerBookingDetail = () => {
     }
   };
 
+  const handleCheckIn = async () => {
+    if (!window.confirm("Confirm Guest Check-In?")) return;
+    try {
+      await bookingService.checkIn(id);
+      toast.success("Checked In Successfully");
+      fetchBooking();
+    } catch (error) {
+      toast.error(error.message || "Action Failed");
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      if (!window.confirm("Confirm Guest Check-Out?")) return;
+      await bookingService.checkOut(id);
+      toast.success("Checked Out Successfully");
+      fetchBooking();
+    } catch (error) {
+      if (error.requirePayment) {
+        if (window.confirm(`${error.message}\n\nDo you want to FORCE check-out anyway?`)) {
+          try {
+            await bookingService.checkOut(id, true);
+            toast.success("Checked Out (Forced)");
+            fetchBooking();
+          } catch (e) {
+            toast.error(e.message || "Force Check-out Failed");
+          }
+        }
+      } else {
+        toast.error(error.message || "Action Failed");
+      }
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div></div>;
   if (!booking) return null;
 
@@ -61,8 +95,10 @@ const PartnerBookingDetail = () => {
   const room = booking.roomTypeId || {};
 
   const isPayAtHotel = booking.paymentStatus !== 'paid';
-  const canMarkPaid = isPayAtHotel && ['confirmed', 'pending', 'checked_in'].includes(booking.bookingStatus);
-  const canMarkNoShow = ['confirmed', 'pending'].includes(booking.bookingStatus); // Usually valid if date is passed or today, but logic can be loose for partner manual control
+  const canMarkPaid = isPayAtHotel && ['confirmed', 'checked_in'].includes(booking.bookingStatus);
+  const canMarkNoShow = ['confirmed'].includes(booking.bookingStatus);
+  const canCheckIn = booking.bookingStatus === 'confirmed';
+  const canCheckOut = booking.bookingStatus === 'checked_in';
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -185,26 +221,45 @@ const PartnerBookingDetail = () => {
         </div>
 
         {/* Actions */}
-        <div className="space-y-3 pt-4">
-          {canMarkPaid && (
-            <button
-              onClick={handleMarkPaid}
-              className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
-            >
-              <CheckCircle size={20} /> Mark Payment Received
-            </button>
-          )}
+      </div>
 
-          {canMarkNoShow && (
-            <button
-              onClick={handleNoShow}
-              className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-50 active:scale-95 transition-transform flex items-center justify-center gap-2"
-            >
-              <AlertTriangle size={20} /> Mark as No Show
-            </button>
-          )}
-        </div>
+      {/* Actions Grid */}
+      <div className="grid grid-cols-2 gap-3 pt-2">
+        {canCheckIn && (
+          <button
+            onClick={handleCheckIn}
+            className="col-span-2 bg-black text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <LogIn size={20} /> Check In Guest
+          </button>
+        )}
 
+        {canCheckOut && (
+          <button
+            onClick={handleCheckOut}
+            className="col-span-2 bg-black text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
+          >
+            <LogOut size={20} /> Check Out Guest
+          </button>
+        )}
+
+        {canMarkPaid && (
+          <button
+            onClick={handleMarkPaid}
+            className={`bg-green-600 text-white font-bold py-3 rounded-xl shadow-green-200 active:scale-95 transition-transform flex items-center justify-center gap-2 ${canCheckIn || canCheckOut ? 'col-span-1' : 'col-span-2'}`}
+          >
+            <CheckCircle size={18} /> Mark Payment
+          </button>
+        )}
+
+        {canMarkNoShow && (
+          <button
+            onClick={handleNoShow}
+            className={`bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 active:scale-95 transition-transform flex items-center justify-center gap-2 ${canCheckIn || canCheckOut ? 'col-span-1' : 'col-span-2'}`}
+          >
+            <AlertTriangle size={18} /> No Show
+          </button>
+        )}
       </div>
     </div>
   );

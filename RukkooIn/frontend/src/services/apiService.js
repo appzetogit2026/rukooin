@@ -22,12 +22,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response ? error.response.status : null;
+    const isBlocked = error.response?.data?.isBlocked;
+
+    if (status === 401 || (status === 403 && isBlocked)) {
       // Clear invalid token and redirect if not already on auth pages
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
-        console.warn("Session expired or invalid token. Redirecting to login...");
+        console.warn("Session expired or account blocked. Redirecting to login...");
         if (window.location.pathname.includes('/hotel/')) {
           window.location.href = '/hotel/login';
         } else {
@@ -183,6 +186,23 @@ export const bookingService = {
   markNoShow: async (id) => {
     try {
       const response = await api.put(`/bookings/${id}/no-show`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  checkIn: async (id) => {
+    try {
+      const response = await api.put(`/bookings/${id}/check-in`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  checkOut: async (id, force = false) => {
+    try {
+      const url = force ? `/bookings/${id}/check-out?force=true` : `/bookings/${id}/check-out`;
+      const response = await api.put(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -710,6 +730,56 @@ export const handleResponse = (response) => response.data;
 
 export const handleError = (error) => {
   throw error.response?.data || error.message;
+};
+
+/* --- FAQ SERVICES --- */
+export const faqService = {
+  // Public - Get active FAQs for an audience
+  getFaqs: async (audience) => {
+    try {
+      const response = await api.get(`/faqs?audience=${audience}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Admin - Get all FAQs
+  getAllFaqsAdmin: async (audience) => {
+    try {
+      const response = await api.get(`/faqs/admin?audience=${audience}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  createFaq: async (faqData) => {
+    try {
+      const response = await api.post('/faqs', faqData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  updateFaq: async (id, faqData) => {
+    try {
+      const response = await api.put(`/faqs/${id}`, faqData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  deleteFaq: async (id) => {
+    try {
+      const response = await api.delete(`/faqs/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
 };
 
 export default api;
