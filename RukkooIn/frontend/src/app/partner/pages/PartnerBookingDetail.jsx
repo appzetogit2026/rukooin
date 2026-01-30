@@ -80,7 +80,7 @@ const PartnerBookingDetail = () => {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Booking ID</span>
-            <p className="text-sm font-black text-gray-900 truncate max-w-[180px]">#{booking.bookingId || booking._id.slice(-6).toUpperCase()}</p>
+            <p className="text-sm font-black text-gray-900 break-all">#{booking.bookingId || booking._id}</p>
           </div>
           <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${booking.bookingStatus === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' :
             booking.bookingStatus === 'cancelled' ? 'bg-red-50 text-red-700 border-red-100' :
@@ -119,6 +119,17 @@ const PartnerBookingDetail = () => {
               </div>
             </div>
           </div>
+
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl flex items-center justify-between border border-gray-100">
+            <div className="flex items-center gap-2">
+              <User size={14} className="text-gray-400" />
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Total Guests</span>
+            </div>
+            <p className="font-bold text-gray-900 text-sm">
+              {booking.guests?.adults || 1} Adult{(booking.guests?.adults || 1) !== 1 ? 's' : ''}
+              {booking.guests?.children > 0 ? `, ${booking.guests.children} Child${booking.guests.children !== 1 ? 'ren' : ''}` : ''}
+            </p>
+          </div>
         </div>
 
         {/* Stay Info - Compact */}
@@ -141,7 +152,12 @@ const PartnerBookingDetail = () => {
               <p className="text-[9px] text-gray-400 font-bold uppercase">Room Type</p>
               <p className="font-bold text-gray-900 text-sm">{room.name || room.type || 'Standard Room'}</p>
             </div>
-            <p className="text-xs text-gray-500 font-medium">{booking.bookingUnit} Unit • {booking.totalNights} Night</p>
+            <div className="text-right">
+              <p className="text-xs text-gray-900 font-bold">
+                {Math.round(booking.baseAmount / (booking.pricePerNight * booking.totalNights)) || 1} {booking.bookingUnit === 'entire' ? 'Unit' : booking.bookingUnit === 'bed' ? 'Bed' : 'Room'}{(Math.round(booking.baseAmount / (booking.pricePerNight * booking.totalNights)) || 1) > 1 ? 's' : ''}
+              </p>
+              <p className="text-[10px] text-gray-500 font-medium">{booking.totalNights} Night{booking.totalNights > 1 ? 's' : ''}</p>
+            </div>
           </div>
         </div>
 

@@ -431,7 +431,7 @@ const AddHostelWizard = () => {
       else if (err?.message) msg = err.message;
 
       if (msg === 'Network Error' || (err?.response && err.response.status === 413)) {
-        msg = 'Upload failed: File size may be too large.';
+        msg = 'Upload failed: File size may be too large (Max 10MB).';
       }
       setError(msg);
     } finally {

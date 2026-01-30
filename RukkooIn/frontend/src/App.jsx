@@ -248,7 +248,18 @@ const PartnerProtectedRoute = ({ children }) => {
 
   const isPending = user.partnerApprovalStatus !== 'approved';
   if (isPending) {
-    const allowedPending = ['/hotel/dashboard', '/hotel/partner-dashboard', '/hotel/join', '/hotel/profile'];
+    const allowedPending = [
+      '/hotel/dashboard',
+      '/hotel/partner-dashboard',
+      '/hotel/join',
+      '/hotel/profile',
+      '/hotel/join-hotel',
+      '/hotel/join-resort',
+      '/hotel/join-hostel',
+      '/hotel/join-villa',
+      '/hotel/join-pg',
+      '/hotel/join-homestay'
+    ];
     if (!allowedPending.some(p => location.pathname.startsWith(p))) {
       return <Navigate to="/hotel/dashboard" replace />;
     }

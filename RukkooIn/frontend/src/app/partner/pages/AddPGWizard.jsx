@@ -432,7 +432,7 @@ const AddPGWizard = () => {
       else if (err?.message) msg = err.message;
 
       if (msg === 'Network Error' || (err?.response && err.response.status === 413)) {
-        msg = 'Upload failed: File size may be too large.';
+        msg = 'Upload failed: File size may be too large (Max 10MB).';
       }
       setError(msg);
     } finally {
@@ -746,8 +746,10 @@ const AddPGWizard = () => {
           <button onClick={handleBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
             <ArrowLeft size={20} />
           </button>
-          <div className="font-bold text-lg text-gray-800">{getStepTitle()}</div>
-          <div className="w-9"></div>
+          <div className="text-sm font-bold text-gray-900">
+            Step {step} of 9
+          </div>
+          <div className="w-8"></div>
         </div>
         <div className="h-1 bg-gray-100 w-full">
           <div
@@ -759,6 +761,9 @@ const AddPGWizard = () => {
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6 pb-32">
         <div className="max-w-xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">{getStepTitle()}</h1>
+          </div>
           {step === 1 && (
             <div className="space-y-6">
               <div className="space-y-4">

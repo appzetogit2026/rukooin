@@ -93,7 +93,20 @@ const PropertyDetailsPage = () => {
   // Offers State
   const [offers, setOffers] = useState([]);
   const [appliedOffer, setAppliedOffer] = useState(null);
+
   const [showOffersModal, setShowOffersModal] = useState(false);
+
+  // Lock Body Scroll when Modal Open
+  useEffect(() => {
+    if (showOffersModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showOffersModal]);
 
   useEffect(() => {
     legalService.getFinancialSettings()
@@ -609,11 +622,11 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Amenities */}
-          {amenities && amenities.length > 0 && (
+          {amenities && amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).length > 0 && (
             <div className="mb-4">
               <h2 className="text-lg font-bold text-textDark mb-2">Amenities</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {amenities.filter(item => item && item.trim()).map((item, idx) => (
+                {amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
                     <div className="p-2 bg-gray-50 rounded-lg">
                       <CheckCircle size={16} className="text-surface" />
@@ -626,10 +639,10 @@ const PropertyDetailsPage = () => {
           )}
 
           {/* Room Amenities */}
-          {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
+          {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).length > 0 && (
             <div className="mb-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {selectedRoom.amenities.filter(item => item && item.trim()).map((item, idx) => (
+                {selectedRoom.amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
                     <div className="p-2 bg-gray-50 rounded-lg">
                       <CheckCircle size={16} className="text-surface" />
@@ -805,7 +818,7 @@ const PropertyDetailsPage = () => {
                       </div>
                     )}
                     <div className="flex gap-2 flex-wrap">
-                      {room.amenities?.slice(0, 3).map((am, i) => (
+                      {room.amenities?.filter(a => a && typeof a === 'string' && a.trim()).slice(0, 3).map((am, i) => (
                         <span key={i} className="text-[10px] bg-gray-100 px-2 py-1 rounded-full text-gray-600">{am}</span>
                       ))}
                     </div>

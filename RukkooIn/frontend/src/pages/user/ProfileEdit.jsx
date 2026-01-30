@@ -259,7 +259,10 @@ const ProfileEdit = () => {
 
 
       {/* 1. Header Removed - Spacer for top padding */}
-      <div className="h-6"></div>
+      {/* Sticky Header */}
+      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm px-6 py-4 flex items-center justify-center border-b border-gray-50 shadow-sm mb-6">
+        <h1 className="text-lg font-bold text-gray-900">Edit Profile</h1>
+      </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}

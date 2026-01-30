@@ -65,7 +65,7 @@ const BookingsPage = () => {
         <div className="min-h-screen bg-gray-50">
 
             {/* Header with Scrollable Tabs */}
-            <div className="bg-surface text-white px-5 pt-10 pb-6 rounded-b-3xl shadow-lg shadow-surface/20 z-10 relative">
+            <div className="sticky top-0 bg-surface text-white px-5 pt-10 pb-6 rounded-b-3xl shadow-lg shadow-surface/20 z-10">
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h1 className="text-2xl font-black mb-1">My Bookings</h1>

@@ -14,6 +14,27 @@ const PartnerDashboard = () => {
     const navigate = useNavigate();
     const { stats, recentBookings, actionItems, loading, user } = usePartnerDashboard();
 
+    // Init Notifications
+    React.useEffect(() => {
+        const initNotifications = async () => {
+            try {
+                // Import dynamically to avoid circular deps if any, or just standard import
+                const { requestNotificationPermission } = await import('../../../utils/firebase');
+                const { userService } = await import('../../../services/apiService');
+
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await userService.updateFcmToken(token, 'web');
+                }
+            } catch (error) {
+                console.error("Partner Notification Init Failed:", error);
+            }
+        };
+        if (user) {
+            initNotifications();
+        }
+    }, [user]);
+
     // Helper for formatting Currency
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {

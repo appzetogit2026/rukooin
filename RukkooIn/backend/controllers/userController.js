@@ -35,7 +35,10 @@ export const getUserProfile = async (req, res) => {
           partnerApprovalStatus: partner.partnerApprovalStatus,
           profileImage: partner.profileImage,
           createdAt: partner.createdAt,
-          partnerSince: partner.partnerSince
+          partnerSince: partner.partnerSince,
+          address: partner.address,
+          aadhaarNumber: partner.aadhaarNumber,
+          panNumber: partner.panNumber
         });
       } else {
         res.status(404).json({ message: 'User not found' });

@@ -227,7 +227,7 @@ const PartnerReviews = () => {
             <PartnerHeader title="Reviews" subtitle="What guests are saying" />
 
             {/* Scorecard */}
-            <div className="bg-white sticky top-[56px] z-30 px-6 py-6 border-b border-gray-100 shadow-sm mb-6">
+            <div className="bg-white px-6 py-6 border-b border-gray-100 shadow-sm mb-6">
                 <div className="flex items-center gap-6">
                     <div className="text-center">
                         <div className="text-5xl font-black text-[#003836] tracking-tighter">
