@@ -284,7 +284,7 @@ const BookingConfirmationPage = () => {
 
                         <button
                             onClick={() => navigate('/bookings')}
-                            className="w-full bg-black text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                            className="w-full bg-black text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-gray-800 transition-all flex items-center justify-center gap-2 print:hidden"
                         >
                             My Bookings
                         </button>

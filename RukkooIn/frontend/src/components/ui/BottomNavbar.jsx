@@ -31,7 +31,7 @@ const BottomNavbar = () => {
     };
 
     return (
-        <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
+        <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 print:hidden">
             <div className="
         bg-white/95 backdrop-blur-2xl 
         border border-white/40 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)]
