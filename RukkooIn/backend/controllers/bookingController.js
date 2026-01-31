@@ -469,7 +469,7 @@ export const getMyBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('propertyId', 'propertyName address location coverImage')
+      .populate('propertyId', 'propertyName address location coverImage avgRating')
       .populate('roomTypeId', 'name')
       .sort({ createdAt: -1 });
 

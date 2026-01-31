@@ -171,7 +171,7 @@ const BookingsPage = () => {
                                                 />
                                                 {/* Rating Badge */}
                                                 <div className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                    <Star size={8} fill="currentColor" /> {hotel.avgRating > 0 ? hotel.avgRating : 'New'}
+                                                    <Star size={8} fill="currentColor" /> {hotel.avgRating > 0 ? Number(hotel.avgRating).toFixed(1) : 'New'}
                                                 </div>
                                             </div>
 
