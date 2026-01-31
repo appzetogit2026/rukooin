@@ -320,12 +320,12 @@ const BookingConfirmationPage = () => {
                                                     }
                                                 }
                                             }}
-                                            className="w-full bg-white border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl shadow-sm hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 mt-4"
+                                            className="w-full bg-white border-2 border-red-100 text-red-500 font-bold py-4 rounded-2xl shadow-sm hover:bg-red-50 hover:border-red-200 transition-all flex items-center justify-center gap-2 mt-4 print:hidden"
                                         >
                                             Cancel Booking
                                         </button>
                                     ) : (
-                                        <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-bold py-4 rounded-2xl text-center mt-4 text-xs">
+                                        <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-bold py-4 rounded-2xl text-center mt-4 text-xs print:hidden">
                                             Cancellation unavailable (Policy: Up to 1 day before Check-in)
                                         </div>
                                     )}

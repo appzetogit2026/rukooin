@@ -909,131 +909,143 @@ const AddHostelWizard = () => {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="space-y-4">
-                {!isEditingSubItem && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-500">Added Places</h3>
-                      <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{propertyForm.nearbyPlaces.length}/5</span>
-                    </div>
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
 
-                    <div className="grid gap-3">
-                      {propertyForm.nearbyPlaces.length === 0 ? (
-                        <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
-                          <div className="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <MapPin size={24} />
-                          </div>
-                          <p className="text-gray-500 font-medium text-sm">No nearby places added yet</p>
+              {!isEditingSubItem && (
+                <div className="space-y-3">
+                  {propertyForm.nearbyPlaces.map((place, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white hover:border-emerald-200 transition-colors shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <MapPin size={18} />
                         </div>
-                      ) : (
-                        propertyForm.nearbyPlaces.map((place, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white shadow-sm group hover:border-emerald-200 transition-all">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                                {idx + 1}
-                              </div>
-                              <div>
-                                <div className="font-bold text-gray-900">{place.name}</div>
-                                <div className="text-xs text-gray-500 flex items-center gap-1.5 capitalize">
-                                  <span>{place.type}</span>
-                                  <span className="w-1 h-1 rounded-full bg-gray-300" />
-                                  <span>{place.distanceKm} km away</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button onClick={() => startEditNearbyPlace(idx)} className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><FileText size={18} /></button>
-                              <button onClick={() => deleteNearbyPlace(idx)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                            </div>
+                        <div>
+                          <div className="font-bold text-gray-900">{place.name}</div>
+                          <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                            {place.type} • <span className="text-emerald-600">{place.distanceKm} km</span>
                           </div>
-                        ))
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => startEditNearbyPlace(idx)}
+                          className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        >
+                          <FileText size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteNearbyPlace(idx)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {propertyForm.nearbyPlaces.length === 0 && (
+                    <div className="text-center py-10 px-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                      <div className="w-12 h-12 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <MapPin size={24} />
+                      </div>
+                      <p className="text-gray-500 font-medium">No nearby places added yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Add tourist spots, transport hubs, etc.</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={startAddNearbyPlace}
+                    disabled={propertyForm.nearbyPlaces.length >= 5}
+                    className="w-full py-4 border border-emerald-200 text-emerald-700 bg-emerald-50/50 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={20} />
+                    Add Nearby Place
+                  </button>
+                </div>
+              )}
+
+              {isEditingSubItem && (
+                <div className="bg-white rounded-2xl border border-emerald-100 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+                    <span className="font-bold text-emerald-800 text-sm">
+                      {editingNearbyIndex === -1 ? 'Add New Place' : 'Edit Place'}
+                    </span>
+                    <button onClick={cancelEditNearbyPlace} className="text-emerald-600 hover:bg-emerald-100 p-1 rounded-md">
+                      <span className="text-xs font-bold">Close</span>
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-4">
+                    <div className="relative">
+                      <label className="text-xs font-semibold text-gray-500 mb-1 block">Search Place</label>
+                      <div className="flex gap-2">
+                        <input
+                          className="input w-full"
+                          placeholder="Type to search..."
+                          value={nearbySearchQuery}
+                          onChange={e => setNearbySearchQuery(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={searchNearbyPlaces}
+                          className="px-4 py-2 bg-gray-900 text-white rounded-xl font-semibold text-sm"
+                        >
+                          Search
+                        </button>
+                      </div>
+                      {nearbyResults.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                          {nearbyResults.slice(0, 6).map((p, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => selectNearbyPlace(p)}
+                              className="w-full text-left px-4 py-3 hover:bg-emerald-50 border-b border-gray-50 last:border-0 text-sm"
+                            >
+                              <div className="font-semibold text-gray-900">{p.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{p.address || p.formatted_address}</div>
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
 
-                    {propertyForm.nearbyPlaces.length < 5 && (
-                      <button
-                        onClick={startAddNearbyPlace}
-                        className="w-full py-4 border border-emerald-200 text-emerald-700 bg-emerald-50/50 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors"
-                      >
-                        <Plus size={20} /> Add Nearby Place
-                      </button>
-                    )}
-                  </>
-                )}
-
-                {isEditingSubItem && (
-                  <div className="bg-white rounded-2xl border border-emerald-100 shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
-                      <span className="font-bold text-emerald-800 text-sm">
-                        {editingNearbyIndex === -1 ? 'Add Nearby Place' : 'Edit Place'}
-                      </span>
-                      <button onClick={cancelEditNearbyPlace} className="text-emerald-600 hover:bg-emerald-100 p-1 rounded-md">
-                        <span className="text-xs font-bold">Close</span>
-                      </button>
-                    </div>
-
-                    <div className="p-4 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-500">Search Place (Auto-fill)</label>
-                        <div className="relative">
-                          <input
-                            className="input pl-9"
-                            placeholder="Search landmarks, stations..."
-                            value={nearbySearchQuery}
-                            onChange={e => setNearbySearchQuery(e.target.value)}
-                          />
-                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                          <button onClick={searchNearbyPlaces} className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black">Search</button>
-                        </div>
-                        {nearbyResults.length > 0 && (
-                          <div className="border border-gray-100 rounded-xl shadow-lg max-h-40 overflow-y-auto bg-white mt-1">
-                            {nearbyResults.map((p, i) => (
-                              <button key={i} onClick={() => selectNearbyPlace(p)} className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0">
-                                <div className="font-medium text-gray-800">{p.name}</div>
-                                <div className="text-xs text-gray-500 truncate">{p.address}</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="relative flex items-center gap-4">
-                        <div className="h-px bg-gray-200 flex-1"></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Or Enter Manually</span>
-                        <div className="h-px bg-gray-200 flex-1"></div>
-                      </div>
-
+                    <div className="space-y-3 pt-2 border-t border-gray-100">
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Place Name</label>
-                        <input className="input" placeholder="e.g. Central Railway Station" value={tempNearbyPlace.name} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, name: e.target.value })} />
+                        <label className="text-xs font-semibold text-gray-500">Name</label>
+                        <input className="input w-full" value={tempNearbyPlace.name} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, name: e.target.value })} />
                       </div>
-
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-gray-500">Type</label>
-                          <select className="input" value={tempNearbyPlace.type} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, type: e.target.value })}>
+                          <select className="input w-full appearance-none" value={tempNearbyPlace.type} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, type: e.target.value })}>
                             <option value="tourist">Tourist Attraction</option>
-                            <option value="transport">Transport Hub</option>
-                            <option value="market">Market / Shopping</option>
+                            <option value="airport">Airport</option>
+                            <option value="market">Market</option>
+                            <option value="railway">Railway Station</option>
+                            <option value="bus_stop">Bus Stop</option>
                             <option value="hospital">Hospital</option>
-                            <option value="college">College / University</option>
+                            <option value="restaurant">Restaurant</option>
                             <option value="other">Other</option>
                           </select>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-gray-500">Distance (km)</label>
-                          <input className="input" type="number" placeholder="0.5" value={tempNearbyPlace.distanceKm} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })} />
+                          <input className="input w-full" type="number" value={tempNearbyPlace.distanceKm} onChange={e => setTempNearbyPlace({ ...tempNearbyPlace, distanceKm: e.target.value })} />
                         </div>
                       </div>
+                    </div>
 
-                      <div className="pt-2 flex gap-3">
-                        <button onClick={cancelEditNearbyPlace} className="flex-1 py-3 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
-                        <button onClick={saveNearbyPlace} className="flex-1 py-3 text-white font-bold bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200">Save Place</button>
-                      </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={cancelEditNearbyPlace} className="flex-1 py-3 text-gray-600 font-semibold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                      <button type="button" onClick={saveNearbyPlace} className="flex-1 py-3 text-white font-bold bg-emerald-600 rounded-xl hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all transform active:scale-95">Save Place</button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

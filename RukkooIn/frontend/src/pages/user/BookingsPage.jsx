@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-    Calendar, MapPin, Clock, Users, ChevronRight,
-    Star, Phone, MessageCircle, MoreHorizontal,
+    MapPin, Clock,
+    Star,
     CheckCircle, XCircle, AlertCircle, Ticket
 } from 'lucide-react';
 import { bookingService } from '../../services/apiService';
@@ -23,22 +23,23 @@ const BookingsPage = () => {
     ];
 
     // Fetch Bookings when Active Tab Changes
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchBookings = async () => {
             try {
                 setLoading(true);
                 // Backend now handles filtering via 'type' query param
                 const data = await bookingService.getMyBookings(activeTab);
-                setBookings(data);
+                setBookings(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Failed to fetch bookings", err);
+                setBookings([]);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchBookings();
-    }, [activeTab]); // Re-fetch when tab changes
+    }, [activeTab]);
 
     const getStatusBadge = (status, paymentStatus) => {
         const s = (status || '').toLowerCase();
@@ -66,7 +67,6 @@ const BookingsPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-
             {/* Header with Scrollable Tabs */}
             <div className="sticky top-0 bg-surface text-white px-5 pt-10 pb-6 rounded-b-3xl shadow-lg shadow-surface/20 z-10">
                 <div className="flex justify-between items-center mb-6">
@@ -100,7 +100,7 @@ const BookingsPage = () => {
                         <div className="flex justify-center items-center py-20">
                             <div className="w-8 h-8 border-4 border-surface border-t-transparent rounded-full animate-spin"></div>
                         </div>
-                    ) : bookings.length === 0 ? (
+                    ) : (bookings.length === 0) ? (
                         // Empty State
                         <motion.div
                             key="empty"
@@ -129,7 +129,7 @@ const BookingsPage = () => {
                             )}
                         </motion.div>
                     ) : (
-                        // Bookings List (Using direct 'bookings' array now)
+                        // Bookings List
                         <motion.div
                             key={activeTab}
                             initial={{ opacity: 0, y: 20 }}
@@ -138,18 +138,14 @@ const BookingsPage = () => {
                             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
                             {bookings.map((booking, index) => {
-                                // Map backend data to UI format
-                                // Backend returns 'propertyId' populated with hotel details
                                 const hotel = booking.propertyId || {};
-                                const price = booking.totalAmount || 0;
+                                const bookingStatus = booking.bookingStatus || booking.status || 'pending';
                                 const checkInDate = booking.checkInDate || booking.checkIn;
                                 const checkOutDate = booking.checkOutDate || booking.checkOut;
-
                                 const checkIn = checkInDate ? new Date(checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
                                 const checkOut = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
 
                                 const propertyImage = hotel.propertyImages?.[0] || hotel.images?.[0]?.url || hotel.images?.[0] || hotel.coverImage || 'https://via.placeholder.com/150';
-                                const bookingStatus = booking.bookingStatus || booking.status || 'pending';
 
                                 return (
                                     <motion.div
@@ -160,45 +156,37 @@ const BookingsPage = () => {
                                         onClick={() => navigate(`/booking/${booking._id}`, { state: { booking: booking } })}
                                         className="bg-white rounded-xl overflow-hidden shadow-md shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
                                     >
-                                        {/* Top Section */}
                                         <div className="flex h-28">
-                                            {/* Hotel Image */}
                                             <div className="w-24 bg-gray-200 shrink-0 relative">
                                                 <img
                                                     src={propertyImage}
                                                     alt={hotel.propertyName || hotel.name || 'Hotel'}
                                                     className={`w-full h-full object-cover ${activeTab === 'cancelled' ? 'grayscale' : ''}`}
                                                 />
-                                                {/* Rating Badge */}
                                                 <div className="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                                                     <Star size={8} fill="currentColor" /> {hotel.avgRating > 0 ? Number(hotel.avgRating).toFixed(1) : 'New'}
                                                 </div>
                                             </div>
 
-                                            {/* Details */}
                                             <div className="flex-1 p-3 flex flex-col justify-center">
-                                                {/* Status & ID */}
                                                 <div className="flex justify-between items-start mb-1.5">
                                                     {getStatusBadge(bookingStatus, booking.paymentStatus)}
                                                     <span className="text-[9px] text-gray-400 font-medium tracking-wide">#{booking.bookingId || booking._id?.slice(-6)}</span>
                                                 </div>
 
-                                                {/* Hotel Name */}
                                                 <h3 className="font-bold text-surface text-sm leading-tight mb-0.5 line-clamp-1">
                                                     {hotel.propertyName || hotel.name || 'Unknown Property'}
                                                 </h3>
 
-                                                {/* Location */}
                                                 <p className="text-[10px] text-gray-400 flex items-center gap-0.5 mb-2">
-                                                    <MapPin size={9} /> {`${hotel.address?.city}, ${hotel.address?.state}`.replace('undefined, undefined', 'Location')}
+                                                    <MapPin size={9} /> {`${hotel.address?.city || ''}, ${hotel.address?.state || ''}`.replace('undefined', '').replace(/^, /, '').replace(/, $/, '') || 'Location'}
                                                 </p>
 
-                                                {/* Dates */}
                                                 <div className="flex items-center gap-2 text-[10px]">
                                                     <div className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md font-semibold text-gray-700">
                                                         {checkIn}
                                                     </div>
-                                                    <span className="text-gray-300 text-[8px]">➜</span>
+                                                    <span className="text-gray-300">→</span>
                                                     <div className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md font-semibold text-gray-700">
                                                         {checkOut}
                                                     </div>
@@ -206,43 +194,9 @@ const BookingsPage = () => {
                                             </div>
                                         </div>
 
-                                        {/* Bottom Section */}
-                                        <div className="border-t border-gray-100 px-3 py-2 flex justify-between items-center bg-gray-50/50 h-12">
-                                            <div>
-                                                <p className="text-[9px] text-gray-400 font-medium">Total Amount</p>
-                                                <p className="text-base font-black text-surface leading-tight">₹{price}</p>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                {/* Action Buttons */}
-                                                {activeTab === 'upcoming' && (
-                                                    <>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); window.location.href = 'tel:+919876543210'; }}
-                                                            className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-surface hover:bg-gray-50 transition-colors"
-                                                        >
-                                                            <Phone size={14} />
-                                                        </button>
-                                                    </>
-                                                )}
-
-                                                {activeTab === 'completed' && booking.canReview && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); }}
-                                                        className="bg-accent text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-sm"
-                                                    >
-                                                        Rate
-                                                    </button>
-                                                )}
-
-                                                {activeTab === 'cancelled' && (
-                                                    <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                                                        Refunded
-                                                    </span>
-                                                )}
-
-                                                <ChevronRight size={16} className="text-gray-300 ml-1" />
-                                            </div>
+                                        <div className="border-t border-gray-100 px-3 py-2 bg-gray-50/50 flex justify-between items-center">
+                                            <p className="text-[10px] text-gray-400 font-medium">Total Amount</p>
+                                            <p className="text-sm font-black text-surface">₹{booking.totalAmount?.toLocaleString()}</p>
                                         </div>
                                     </motion.div>
                                 );
@@ -251,19 +205,6 @@ const BookingsPage = () => {
                     )}
                 </AnimatePresence>
             </div>
-
-            {/* Quick Action FAB for Upcoming */}
-            {activeTab === 'upcoming' && bookings.length > 0 && (
-                <motion.div
-                    initial={{ y: 100 }}
-                    animate={{ y: 0 }}
-                    className="fixed bottom-24 right-5 z-30"
-                >
-                    <button className="w-14 h-14 bg-surface text-white rounded-full shadow-2xl shadow-surface/50 flex items-center justify-center active:scale-90 transition-transform">
-                        <MoreHorizontal size={24} />
-                    </button>
-                </motion.div>
-            )}
         </div>
     );
 };
