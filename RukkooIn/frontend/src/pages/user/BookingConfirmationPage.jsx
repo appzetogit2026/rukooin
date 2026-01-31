@@ -56,8 +56,13 @@ const BookingConfirmationPage = () => {
     const user = booking.userId || {};
 
     const handleDirections = () => {
-        if (property.address) {
-            const query = `${property.name}, ${property.address.city || property.address}`;
+        const propName = property.propertyName || property.name || 'Property';
+        const propAddress = property.address?.fullAddress ||
+            `${property.address?.street || ''}, ${property.address?.city || ''}, ${property.address?.state || ''}` ||
+            property.address;
+
+        if (propAddress) {
+            const query = `${propName}, ${propAddress}`;
             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
         }
     };
@@ -107,8 +112,8 @@ const BookingConfirmationPage = () => {
                             <div className="flex flex-col sm:flex-row gap-5">
                                 <div className="w-full sm:w-32 h-32 bg-gray-200 rounded-2xl overflow-hidden shrink-0">
                                     <img
-                                        src={!imgError ? (property.images?.[0]?.url || property.images?.[0] || property.coverImage || property.propertyId?.coverImage || "https://via.placeholder.com/150") : "https://via.placeholder.com/150"}
-                                        alt={property.name || "Property"}
+                                        src={!imgError ? (property.propertyImages?.[0] || property.images?.[0]?.url || property.images?.[0] || property.coverImage || property.propertyId?.coverImage || "https://via.placeholder.com/150") : "https://via.placeholder.com/150"}
+                                        alt={property.propertyName || property.name || "Property"}
                                         className="w-full h-full object-cover"
                                         onError={() => setImgError(true)}
                                     />
@@ -120,7 +125,7 @@ const BookingConfirmationPage = () => {
                                             <h2 className="text-xl font-bold text-gray-900 leading-tight mb-2">{property.name || property.propertyName || 'Property Name'}</h2>
                                             <div className="flex items-start gap-1 text-gray-500 text-sm mb-4">
                                                 <MapPin size={16} className="mt-0.5 shrink-0" />
-                                                <p>{property.address?.fullAddress || property.address?.street || property.address}</p>
+                                                <p>{property.address?.fullAddress || property.address?.street || property.address?.city || property.address}</p>
                                             </div>
                                         </div>
                                     </div>

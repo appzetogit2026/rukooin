@@ -148,7 +148,7 @@ const BookingsPage = () => {
                                 const checkIn = checkInDate ? new Date(checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
                                 const checkOut = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
 
-                                const propertyImage = hotel.images?.[0]?.url || hotel.images?.[0] || hotel.coverImage || 'https://via.placeholder.com/150';
+                                const propertyImage = hotel.propertyImages?.[0] || hotel.images?.[0]?.url || hotel.images?.[0] || hotel.coverImage || 'https://via.placeholder.com/150';
                                 const bookingStatus = booking.bookingStatus || booking.status || 'pending';
 
                                 return (
