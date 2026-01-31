@@ -5,7 +5,6 @@ import {
   uploadImagesBase64,
   getAddressFromCoordinates,
   searchLocation,
-  searchLocation,
   calculateDistance,
   deleteImage
 } from '../controllers/hotelController.js';
