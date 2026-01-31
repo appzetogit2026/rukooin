@@ -56,14 +56,18 @@ const BookingConfirmationPage = () => {
     const user = booking.userId || {};
 
     const handleDirections = () => {
-        const propName = property.propertyName || property.name || 'Property';
         const propAddress = property.address?.fullAddress ||
             `${property.address?.street || ''}, ${property.address?.city || ''}, ${property.address?.state || ''}` ||
             property.address;
 
+        if (property.location?.coordinates && property.location.coordinates.length === 2) {
+            const [lng, lat] = property.location.coordinates;
+            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+            return;
+        }
+
         if (propAddress) {
-            const query = `${propName}, ${propAddress}`;
-            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propAddress)}`, '_blank');
         }
     };
 
