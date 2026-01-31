@@ -86,7 +86,9 @@ const PartnerJoinPropertyType = React.lazy(() => import('./app/partner/pages/Par
 const PartnerProperties = React.lazy(() => import('./app/partner/pages/PartnerProperties'));
 const PartnerPropertyDetails = React.lazy(() => import('./app/partner/pages/PartnerPropertyDetails'));
 const PartnerBookingDetail = React.lazy(() => import('./app/partner/pages/PartnerBookingDetail'));
+
 const PartnerInventory = React.lazy(() => import('./app/partner/pages/PartnerInventory'));
+const PartnerInventoryProperties = React.lazy(() => import('./app/partner/pages/PartnerInventoryProperties'));
 const PartnerNotifications = React.lazy(() => import('./app/partner/pages/PartnerNotificationsPage'));
 const PartnerKYC = React.lazy(() => import('./app/partner/pages/PartnerKYC'));
 const PartnerSupport = React.lazy(() => import('./app/partner/pages/PartnerSupport'));
@@ -97,6 +99,7 @@ const PartnerSettings = React.lazy(() => import('./app/partner/pages/PartnerSett
 const PartnerAbout = React.lazy(() => import('./app/partner/pages/PartnerAbout'));
 const PartnerPrivacy = React.lazy(() => import('./app/partner/pages/PartnerPrivacy'));
 const PartnerContact = React.lazy(() => import('./app/partner/pages/PartnerContact'));
+const PartnerBankDetails = React.lazy(() => import('./app/partner/pages/PartnerBankDetails'));
 
 // Lazy Imports - Layouts
 const HotelLayout = React.lazy(() => import('./layouts/HotelLayout'));
@@ -408,7 +411,9 @@ function App() {
                 {/* Partner Sub-pages */}
                 <Route path="properties" element={<PartnerProperties />} />
                 <Route path="properties/:id" element={<PartnerPropertyDetails />} />
+                <Route path="inventory-properties" element={<PartnerInventoryProperties />} />
                 <Route path="inventory/:id" element={<PartnerInventory />} />
+                <Route path="bookings" element={<PartnerBookings />} />
                 <Route path="bookings" element={<PartnerBookings />} />
                 <Route path="bookings/:id" element={<PartnerBookingDetail />} />
                 <Route path="wallet" element={<PartnerWallet />} />
@@ -422,6 +427,7 @@ function App() {
                 <Route path="privacy" element={<PartnerPrivacy />} />
                 <Route path="contact" element={<PartnerContact />} />
                 <Route path="settings" element={<PartnerSettings />} />
+                <Route path="bank-details" element={<PartnerBankDetails />} />
                 <Route path="profile" element={<PartnerProfile />} />
               </Route>
             </Route>

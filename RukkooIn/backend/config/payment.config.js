@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export const PaymentConfig = {
   // Commission Settings
   adminCommissionRate: 10, // 10% commission on base amount
@@ -7,6 +9,7 @@ export const PaymentConfig = {
   // Razorpay Settings
   razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
+  razorpayAccountNumber: process.env.RAZORPAY_ACCOUNT_NUMBER, // Required for Payouts
 
   // Payment methods
   paymentMethods: ['upi', 'card', 'netbanking', 'wallet'],
@@ -44,5 +47,7 @@ export const PaymentConfig = {
     REFUNDED: 'refunded'
   }
 };
+
+console.log("💳 Payment Config - KeyID:", PaymentConfig.razorpayKeyId ? "OK" : "MISSING", "AccNo:", PaymentConfig.razorpayAccountNumber || "MISSING");
 
 export default PaymentConfig;

@@ -1086,9 +1086,7 @@ export const deleteAdminNotifications = async (req, res) => {
 
 export const getFinanceStats = async (req, res) => {
   try {
-    // 1. Get Admin Wallet Balance (Sum of all admin wallets if multiple)
-    const adminWallets = await Wallet.find({ role: 'admin' });
-    const adminBalance = adminWallets.reduce((acc, curr) => acc + (curr.balance || 0), 0);
+
 
     // 2. Aggregate Booking Financials
     // Include:
@@ -1139,10 +1137,13 @@ export const getFinanceStats = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50); // Limit to last 50 for now
 
+    // Correct Admin Balance: Sum of Commission + Taxes from all valid financial transactions
+    const derivedAdminBalance = (financials.totalCommission || 0) + (financials.totalTax || 0);
+
     res.status(200).json({
       success: true,
       stats: {
-        adminBalance,
+        adminBalance: derivedAdminBalance, // Derived from transactions
         totalRevenue: financials.totalGross, // Total Booking Value
         totalEarnings: financials.totalCommission, // Actual Platform Income
         totalTax: financials.totalTax,

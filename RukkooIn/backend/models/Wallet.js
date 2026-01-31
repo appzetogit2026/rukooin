@@ -51,7 +51,9 @@ const walletSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     }
-  }
+  },
+  razorpayContactId: String,
+  razorpayFundAccountId: String
 }, { timestamps: true });
 
 // Pre-save hook to set modelType based on role

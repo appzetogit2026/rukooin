@@ -510,7 +510,7 @@ const AddVillaWizard = () => {
       roomCategory: 'entire',
       maxAdults: '',
       maxChildren: 0,
-      totalInventory: '',
+      totalInventory: '1',
       pricePerNight: '',
       extraAdultPrice: 0,
       extraChildPrice: 0,
@@ -547,7 +547,7 @@ const AddVillaWizard = () => {
       setError('At least 4 images required');
       return;
     }
-    const payload = { ...rt };
+    const payload = { ...rt, totalInventory: 1 };
     if (editingRoomTypeIndex === -1) {
       setRoomTypes(prev => [{ ...payload }, ...prev]);
     } else {
@@ -1299,10 +1299,8 @@ const AddVillaWizard = () => {
                           <input className="input pl-7" type="number" placeholder="0" value={editingRoomType.pricePerNight} onChange={e => setEditingRoomType({ ...editingRoomType, pricePerNight: e.target.value })} />
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Total Units</label>
-                        <input className="input" type="number" placeholder="1" value={editingRoomType.totalInventory} onChange={e => setEditingRoomType({ ...editingRoomType, totalInventory: e.target.value })} />
-                      </div>
+                      {/* Total Units Hidden for Villa - Always 1 */}
+                      <input type="hidden" value="1" />
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-gray-500">Max Adults</label>
                         <input className="input" type="number" placeholder="1" value={editingRoomType.maxAdults} onChange={e => setEditingRoomType({ ...editingRoomType, maxAdults: e.target.value })} />

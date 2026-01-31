@@ -7,7 +7,8 @@ import {
   updateBankDetails,
   getWalletStats,
   createAddMoneyOrder,
-  verifyAddMoneyPayment
+  verifyAddMoneyPayment,
+  deleteBankDetails
 } from '../controllers/walletController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 
@@ -35,7 +36,8 @@ router.post('/withdraw', requestWithdrawal);
 // Get withdrawal history
 router.get('/withdrawals', getWithdrawals);
 
-// Update bank details
+// Update/Delete bank details
 router.put('/bank-details', updateBankDetails);
+router.delete('/bank-details', deleteBankDetails);
 
 export default router;

@@ -678,9 +678,7 @@ const AdminHotelDetail = () => {
                     >
                         {hotel.status === 'suspended' ? 'Activate' : 'Suspend'}
                     </button>
-                    <button className="flex-1 md:flex-none px-4 py-2 bg-black hover:bg-gray-800 text-white font-bold uppercase rounded-lg text-[10px] transition-colors shadow-lg">
-                        Edit Details
-                    </button>
+
                 </div>
             </div>
 

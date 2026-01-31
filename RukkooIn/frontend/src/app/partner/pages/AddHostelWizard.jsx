@@ -61,7 +61,7 @@ const AddHostelWizard = () => {
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
     propertyType: 'hostel',
-    hostelType: '',
+    hostelType: 'boys',
     description: '',
     shortDescription: '',
     coverImage: '',
@@ -135,6 +135,7 @@ const AddHostelWizard = () => {
         setCreatedProperty(prop);
         setPropertyForm({
           propertyName: prop.propertyName || '',
+          hostelType: prop.hostelType || 'boys',
           description: prop.description || '',
           shortDescription: prop.shortDescription || '',
           coverImage: prop.coverImage || '',

@@ -52,6 +52,12 @@ const PartnerWallet = () => {
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('transactions');
     const [selectedTxn, setSelectedTxn] = useState(null);
+    const [bankDetailsInput, setBankDetailsInput] = useState({
+        accountHolderName: '',
+        accountNumber: '',
+        ifscCode: '',
+        bankName: ''
+    });
 
     // Modal States
     const [activeModal, setActiveModal] = useState(null); // 'withdraw' | 'add_money' | null
@@ -86,19 +92,51 @@ const PartnerWallet = () => {
     }, []);
 
     const handleTransaction = async () => {
-        const amount = parseFloat(amountInput);
-        if (!amount || amount <= 0) {
-            toast.error('Please enter a valid amount');
-            return;
-        }
-
         try {
             if (activeModal === 'withdraw') {
+                // Check if bank details exist
+                if (!wallet?.bankDetails?.accountNumber) {
+                    const { accountNumber, ifscCode, accountHolderName, bankName } = bankDetailsInput;
+                    if (!accountNumber || !ifscCode || !accountHolderName || !bankName) {
+                        toast.error("Please fill all bank details");
+                        return;
+                    }
+                    if (accountHolderName.trim().length < 3) {
+                        toast.error("Account holder name must be at least 3 characters");
+                        return;
+                    }
+                    if (!/^[0-9]{9,18}$/.test(accountNumber)) {
+                        toast.error("Enter a valid account number (9-18 digits)");
+                        return;
+                    }
+                    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+                        toast.error("Enter a valid IFSC code");
+                        return;
+                    }
+                    if (bankName.trim().length < 2) {
+                        toast.error("Enter a valid bank name");
+                        return;
+                    }
+                    await walletService.updateBankDetails(bankDetailsInput);
+                    toast.success("Bank details saved!");
+                    fetchWalletData();
+                    return;
+                }
+
+                const amount = parseFloat(amountInput);
+                if (!amount || amount <= 0) {
+                    toast.error('Please enter a valid amount');
+                    return;
+                }
+
                 if (amount < 500) { toast.error('Minimum withdrawal is ₹500'); return; }
                 if (amount > wallet?.balance) { toast.error('Insufficient balance'); return; }
 
                 await walletService.requestWithdrawal(amount);
-                toast.success('Withdrawal request submitted');
+                toast.success('Withdrawal successful (Test Simulation)');
+                setActiveModal(null);
+                setAmountInput('');
+                fetchWalletData();
             } else if (activeModal === 'add_money') {
                 // 1. Create Order
                 const { order } = await walletService.addMoney(amount);
@@ -166,6 +204,12 @@ const PartnerWallet = () => {
             </div>
         );
     }
+
+    // Modal Content Helper
+    const isWithdraw = activeModal === 'withdraw';
+    const isAddMoney = activeModal === 'add_money';
+    // Logic: If in withdraw mode AND bank details (accountNumber) are missing, show bank form
+    const showBankForm = isWithdraw && !wallet?.bankDetails?.accountNumber;
 
     return (
         <div className="h-screen bg-white flex flex-col font-sans overflow-hidden">
@@ -277,7 +321,7 @@ const PartnerWallet = () => {
                     <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-slideUp">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-[#003836]">
-                                {activeModal === 'withdraw' ? 'Withdraw Funds' : 'Add Money'}
+                                {showBankForm ? 'Add Bank Details' : (activeModal === 'withdraw' ? 'Withdraw Funds' : 'Add Money')}
                             </h3>
                             <button
                                 onClick={() => setActiveModal(null)}
@@ -288,83 +332,127 @@ const PartnerWallet = () => {
                         </div>
 
                         <p className="text-xs text-gray-400 font-medium mb-8">
-                            {activeModal === 'withdraw'
-                                ? 'Transfer funds directly to your verified bank account.'
-                                : 'Add funds to your wallet using UPI or Cards.'
+                            {showBankForm
+                                ? 'We need your bank details to process payouts via Razorpay.'
+                                : (activeModal === 'withdraw'
+                                    ? 'Transfer funds directly to your verified bank account.'
+                                    : 'Add funds to your wallet using UPI or Cards.'
+                                )
                             }
                         </p>
 
                         <div className="mb-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Amount (₹)</label>
-                            <input
-                                type="number"
-                                autoFocus
-                                value={amountInput}
-                                onChange={(e) => setAmountInput(e.target.value)}
-                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-[#003836] focus:outline-none focus:border-[#004F4D] focus:bg-white transition-all shadow-inner placeholder:text-gray-300"
-                                placeholder="0"
-                            />
+                            {showBankForm ? (
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Account Holder Name"
+                                        value={bankDetailsInput.accountHolderName}
+                                        onChange={(e) => setBankDetailsInput({ ...bankDetailsInput, accountHolderName: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-[#003836] focus:outline-none focus:border-[#004F4D]"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Account Number"
+                                        value={bankDetailsInput.accountNumber}
+                                        onChange={(e) => setBankDetailsInput({ ...bankDetailsInput, accountNumber: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-[#003836] focus:outline-none focus:border-[#004F4D]"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="IFSC Code"
+                                        value={bankDetailsInput.ifscCode}
+                                        onChange={(e) => setBankDetailsInput({ ...bankDetailsInput, ifscCode: e.target.value.toUpperCase() })}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-[#003836] focus:outline-none focus:border-[#004F4D]"
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Bank Name"
+                                        value={bankDetailsInput.bankName}
+                                        onChange={(e) => setBankDetailsInput({ ...bankDetailsInput, bankName: e.target.value })}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-[#003836] focus:outline-none focus:border-[#004F4D]"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-3">Amount (₹)</label>
+                                    <input
+                                        type="number"
+                                        autoFocus
+                                        value={amountInput}
+                                        onChange={(e) => setAmountInput(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-[#003836] focus:outline-none focus:border-[#004F4D] focus:bg-white transition-all shadow-inner placeholder:text-gray-300"
+                                        placeholder="0"
+                                    />
 
-                            {/* Inline Validation */}
-                            <div className="mt-2 text-xs font-medium">
-                                {activeModal === 'withdraw' && (
-                                    <>
-                                        {!amountInput ? (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-400">Min. withdrawal: ₹500</span>
-                                                <span className="text-[#004F4D]">Available: ₹{wallet?.balance}</span>
-                                            </div>
-                                        ) : Number(amountInput) < 500 ? (
-                                            <p className="text-red-500 flex items-center gap-1">
-                                                <AlertCircle size={12} /> Minimum withdrawal is ₹500
-                                            </p>
-                                        ) : Number(amountInput) > (wallet?.balance || 0) ? (
-                                            <div className="flex justify-between items-center text-red-500">
-                                                <span className="flex items-center gap-1"><AlertCircle size={12} /> Insufficient balance</span>
-                                                <span className="text-[10px] bg-red-50 px-2 py-1 rounded">Max: ₹{wallet?.balance}</span>
-                                            </div>
-                                        ) : (
-                                            <p className="text-green-600 flex items-center gap-1">
-                                                <CheckCircle2 size={12} /> Valid for withdrawal
-                                            </p>
+                                    {/* Inline Validation */}
+                                    <div className="mt-2 text-xs font-medium">
+                                        {activeModal === 'withdraw' && (
+                                            <>
+                                                {!amountInput ? (
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-400">Min. withdrawal: ₹500</span>
+                                                        <span className="text-[#004F4D]">Available: ₹{wallet?.balance}</span>
+                                                    </div>
+                                                ) : Number(amountInput) < 500 ? (
+                                                    <p className="text-red-500 flex items-center gap-1">
+                                                        <AlertCircle size={12} /> Minimum withdrawal is ₹500
+                                                    </p>
+                                                ) : Number(amountInput) > (wallet?.balance || 0) ? (
+                                                    <div className="flex justify-between items-center text-red-500">
+                                                        <span className="flex items-center gap-1"><AlertCircle size={12} /> Insufficient balance</span>
+                                                        <span className="text-[10px] bg-red-50 px-2 py-1 rounded">Max: ₹{wallet?.balance}</span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-green-600 flex items-center gap-1">
+                                                        <CheckCircle2 size={12} /> Valid for withdrawal
+                                                    </p>
+                                                )}
+                                            </>
                                         )}
-                                    </>
-                                )}
 
-                                {activeModal === 'add_money' && (
-                                    <>
-                                        {!amountInput ? (
-                                            <span className="text-gray-400">Min. amount: ₹10</span>
-                                        ) : Number(amountInput) < 10 ? (
-                                            <p className="text-red-500 flex items-center gap-1">
-                                                <AlertCircle size={12} /> Minimum amount is ₹10
-                                            </p>
-                                        ) : (
-                                            <p className="text-green-600 flex items-center gap-1">
-                                                <CheckCircle2 size={12} /> Valid amount
-                                            </p>
+                                        {activeModal === 'add_money' && (
+                                            <>
+                                                {!amountInput ? (
+                                                    <span className="text-gray-400">Min. amount: ₹10</span>
+                                                ) : Number(amountInput) < 10 ? (
+                                                    <p className="text-red-500 flex items-center gap-1">
+                                                        <AlertCircle size={12} /> Minimum amount is ₹10
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-green-600 flex items-center gap-1">
+                                                        <CheckCircle2 size={12} /> Valid amount
+                                                    </p>
+                                                )}
+                                            </>
                                         )}
-                                    </>
-                                )}
-                            </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <button
                             onClick={handleTransaction}
                             disabled={
-                                !amountInput ||
-                                (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
-                                (activeModal === 'add_money' && Number(amountInput) < 10)
+                                showBankForm
+                                    ? (!bankDetailsInput.accountNumber || !bankDetailsInput.ifscCode)
+                                    : (!amountInput ||
+                                        (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
+                                        (activeModal === 'add_money' && Number(amountInput) < 10)
+                                    )
                             }
                             className={`w-full font-bold py-4 rounded-2xl text-sm active:scale-95 transition-transform flex items-center justify-center gap-2
-                                ${(!amountInput ||
-                                    (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
-                                    (activeModal === 'add_money' && Number(amountInput) < 10))
+                                ${(showBankForm
+                                    ? (!bankDetailsInput.accountNumber || !bankDetailsInput.ifscCode)
+                                    : (!amountInput ||
+                                        (activeModal === 'withdraw' && (Number(amountInput) < 500 || Number(amountInput) > (wallet?.balance || 0))) ||
+                                        (activeModal === 'add_money' && Number(amountInput) < 10))
+                                )
                                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                     : 'bg-[#004F4D] text-white shadow-lg shadow-[#004F4D]/20'
                                 }`}
                         >
-                            Proceed Securely
+                            {showBankForm ? 'Save Bank Details' : 'Proceed Securely'}
                         </button>
                     </div>
                 </div>

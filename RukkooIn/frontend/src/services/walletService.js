@@ -60,6 +60,14 @@ class WalletService {
   }
 
   /**
+   * Delete bank details
+   */
+  async deleteBankDetails() {
+    const response = await apiService.delete('/wallet/bank-details');
+    return response.data;
+  }
+
+  /**
    * Create Add Money Order
    */
   async addMoney(amount) {

@@ -59,7 +59,7 @@ const AddPGWizard = () => {
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
     propertyType: 'pg',
-    pgType: '',
+    pgType: 'boys',
     description: '',
     shortDescription: '',
     coverImage: '',

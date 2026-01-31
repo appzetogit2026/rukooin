@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Moon, Bell, Lock, Globe, Smartphone, LogOut, ChevronRight } from 'lucide-react';
+import { Moon, Bell, Lock, Globe, Smartphone, LogOut, ChevronRight, CreditCard } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import PartnerHeader from '../components/PartnerHeader';
 
@@ -57,6 +58,18 @@ const PartnerSettings = () => {
             <main className="max-w-xl mx-auto px-4 pt-6">
 
                 <div ref={listRef} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+
+                    {/* Wallet Section */}
+                    <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Payments</span>
+                    </div>
+                    <Link to="/hotel/bank-details" className="block">
+                        <SettingItem
+                            icon={CreditCard}
+                            label="Saved Bank Details"
+                            type="link"
+                        />
+                    </Link>
 
                     {/* Account Section */}
                     <div className="bg-gray-50/50 px-4 py-2 border-b border-gray-100">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     TrendingUp, Users, ShoppingBag, DollarSign, Building2,
@@ -12,11 +13,12 @@ import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
 
 
-const DashboardCard = ({ title, value, trend, icon: Icon, color, loading }) => (
+const DashboardCard = ({ title, value, trend, icon: Icon, color, loading, onClick }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-between"
+        className={`bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-between ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+        onClick={onClick}
     >
         <div className={`absolute top-0 right-0 p-4 opacity-5 ${color}`}>
             <Icon size={80} />
@@ -48,6 +50,7 @@ const DashboardCard = ({ title, value, trend, icon: Icon, color, loading }) => (
 );
 
 const AdminDashboard = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
 
 
@@ -117,6 +120,7 @@ const AdminDashboard = () => {
                     icon={DollarSign}
                     color="text-emerald-500"
                     loading={loading}
+                    onClick={() => navigate('/admin/finance')}
                 />
                 <DashboardCard
                     title="Total Bookings"
@@ -125,6 +129,7 @@ const AdminDashboard = () => {
                     icon={ShoppingBag}
                     color="text-blue-500"
                     loading={loading}
+                    onClick={() => navigate('/admin/bookings')}
                 />
                 <DashboardCard
                     title="Active Users"
@@ -133,6 +138,7 @@ const AdminDashboard = () => {
                     icon={Users}
                     color="text-purple-500"
                     loading={loading}
+                    onClick={() => navigate('/admin/users')}
                 />
                 <DashboardCard
                     title="Pending Reviews"
@@ -141,6 +147,7 @@ const AdminDashboard = () => {
                     icon={Building2}
                     color="text-orange-500"
                     loading={loading}
+                    onClick={() => navigate('/admin/properties')}
                 />
             </div>
 
@@ -250,7 +257,7 @@ const AdminDashboard = () => {
                             <Clock size={20} className="text-gray-400" />
                             Recent Bookings
                         </h3>
-                        <button className="text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
+                        <button onClick={() => navigate('/admin/bookings')} className="text-sm font-semibold text-blue-600 hover:text-blue-700">View All</button>
                     </div>
 
                     <div className="flex-1 space-y-4">
@@ -258,7 +265,7 @@ const AdminDashboard = () => {
                             [1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 animate-pulse rounded-xl"></div>)
                         ) : recentBookings.length > 0 ? (
                             recentBookings.map((booking, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
+                                <div key={i} onClick={() => navigate(`/admin/bookings/${booking._id}`)} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group">
                                     <div className="flex gap-4 items-center">
                                         <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm shadow-md group-hover:scale-105 transition-transform">
                                             {booking.userId?.name?.charAt(0) || 'U'}
@@ -315,7 +322,7 @@ const AdminDashboard = () => {
                                             <p className="text-xs text-gray-500">by {hotel.partnerId?.name || 'Partner'}</p>
                                         </div>
                                     </div>
-                                    <button className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                                    <button onClick={() => navigate(`/admin/properties/${hotel._id}`)} className="text-xs font-bold text-gray-700 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
                                         Review
                                     </button>
                                 </div>
