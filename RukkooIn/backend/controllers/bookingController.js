@@ -480,6 +480,27 @@ export const getMyBookings = async (req, res) => {
   }
 };
 
+export const getBookingDetail = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate('propertyId')
+      .populate('roomTypeId');
+
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Allow User (Owner) or Admin/Partner (if needed, but separate endpoints exist usually)
+    // For this specific 'user' endpoint, strictly check ownership
+    if (booking.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to view this booking' });
+    }
+
+    res.json(booking);
+  } catch (e) {
+    console.error('Get Booking Detail Error:', e);
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const getPartnerBookings = async (req, res) => {
   try {
     // 1. Find all properties owned by this partner

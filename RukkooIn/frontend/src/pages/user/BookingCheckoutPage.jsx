@@ -109,7 +109,7 @@ const BookingCheckoutPage = () => {
         const response = await bookingService.create(payload);
         if (response.success && response.booking) {
           toast.success("Booking Confirmed!");
-          navigate('/booking-confirmation', { state: { booking: response.booking, animate: true } });
+          navigate(`/booking/${response.booking._id || response.booking.bookingId}`, { state: { booking: response.booking, animate: true } });
         } else {
           throw new Error(response.message || "Booking failed");
         }
@@ -123,7 +123,7 @@ const BookingCheckoutPage = () => {
           // If full wallet payment, backend should create booking directly and mark paid
           if (response.success && response.booking) {
             toast.success("Paid via Wallet! Booking Confirmed.");
-            navigate('/booking-confirmation', { state: { booking: response.booking, animate: true } });
+            navigate(`/booking/${response.booking._id}`, { state: { booking: response.booking, animate: true } });
             return;
           } else {
             throw new Error(response.message || "Wallet payment failed");
@@ -160,7 +160,7 @@ const BookingCheckoutPage = () => {
                 const verifyRes = await paymentService.verifyPayment(verifyPayload);
                 if (verifyRes.success) {
                   toast.success("Payment Successful!");
-                  navigate('/booking-confirmation', { state: { booking: verifyRes.booking, animate: true } });
+                  navigate(`/booking/${verifyRes.booking._id}`, { state: { booking: verifyRes.booking, animate: true } });
                 } else {
                   toast.error("Payment Verification Failed");
                 }

@@ -157,7 +157,7 @@ const BookingsPage = () => {
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: index * 0.1 }}
-                                        onClick={() => navigate('/booking-confirmation', { state: { booking: booking } })}
+                                        onClick={() => navigate(`/booking/${booking._id}`, { state: { booking: booking } })}
                                         className="bg-white rounded-xl overflow-hidden shadow-md shadow-gray-200/50 border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
                                     >
                                         {/* Top Section */}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     CheckCircle, MapPin, Calendar, Users, FileText,
     Phone, Navigation, Share2, Home, Download, Printer, ChevronLeft
@@ -9,19 +9,50 @@ import toast from 'react-hot-toast';
 import { bookingService } from '../../services/apiService';
 
 const BookingConfirmationPage = () => {
+    const { id } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { booking, animate } = location.state || {};
 
+    // Initialize with state if available, else null
+    const [booking, setBooking] = useState(location.state?.booking || null);
+    const [loading, setLoading] = useState(!location.state?.booking);
     const [imgError, setImgError] = useState(false);
 
-    useEffect(() => {
-        if (!booking) {
-            navigate('/');
-            return;
-        }
+    const animate = location.state?.animate;
 
-        if (animate) {
+    useEffect(() => {
+        const loadBooking = async () => {
+            // If already loaded from state, just stop loading
+            if (booking) {
+                setLoading(false);
+                return;
+            }
+
+            // If no Booking in state and no ID in URL, redirect
+            if (!id && !booking) {
+                navigate('/');
+                return;
+            }
+
+            // Fetch if ID is present but booking is missing
+            try {
+                setLoading(true);
+                const data = await bookingService.getBookingDetail(id);
+                setBooking(data);
+            } catch (error) {
+                console.error("Failed to load booking:", error);
+                toast.error("Could not load booking details");
+                navigate('/');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadBooking();
+    }, [id, booking, navigate]);
+
+    useEffect(() => {
+        if (booking && animate) {
             const end = Date.now() + 3000;
             const colors = ['#10B981', '#3B82F6', '#F59E0B'];
 
@@ -46,7 +77,18 @@ const BookingConfirmationPage = () => {
                 }
             }());
         }
-    }, [booking, animate, navigate]);
+    }, [booking, animate]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-gray-500 font-medium">Loading Booking...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!booking) return null;
 

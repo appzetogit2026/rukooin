@@ -167,6 +167,14 @@ export const bookingService = {
       throw error.response?.data || error.message;
     }
   },
+  getBookingDetail: async (id) => {
+    try {
+      const response = await api.get(`/bookings/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   getPartnerBookingDetail: async (id) => {
     try {
       const response = await api.get(`/bookings/${id}/partner-detail`);
