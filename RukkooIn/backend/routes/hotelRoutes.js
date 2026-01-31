@@ -5,7 +5,9 @@ import {
   uploadImagesBase64,
   getAddressFromCoordinates,
   searchLocation,
-  calculateDistance
+  searchLocation,
+  calculateDistance,
+  deleteImage
 } from '../controllers/hotelController.js';
 import upload from '../utils/multer.js';
 
@@ -14,6 +16,7 @@ const router = express.Router();
 // Upload routes
 router.post('/upload', protect, authorizedRoles('partner', 'admin'), upload.array('images', 10), uploadImages);
 router.post('/upload-base64', protect, authorizedRoles('partner', 'admin'), uploadImagesBase64);
+router.post('/delete-image', protect, authorizedRoles('partner', 'admin'), deleteImage);
 router.post('/location/address', protect, authorizedRoles('partner', 'admin'), getAddressFromCoordinates);
 router.get('/location/search', protect, authorizedRoles('partner', 'admin'), searchLocation);
 router.get('/location/distance', protect, authorizedRoles('partner', 'admin'), calculateDistance);

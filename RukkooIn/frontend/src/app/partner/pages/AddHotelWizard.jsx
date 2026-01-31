@@ -40,6 +40,7 @@ const AddHotelWizard = () => {
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
 
   useEffect(() => {
@@ -134,6 +135,7 @@ const AddHotelWizard = () => {
       return;
     }
 
+    setLoadingLocation(true);
     try {
       // 1. Get Coordinates
       const pos = await new Promise((resolve, reject) => {
@@ -171,6 +173,8 @@ const AddHotelWizard = () => {
         // Validation/API error
         setError(err.message || 'Failed to fetch address from coordinates');
       }
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -305,9 +309,9 @@ const AddHotelWizard = () => {
       name: '',
       inventoryType: 'room',
       roomCategory: 'private',
-      maxAdults: 2,
+      maxAdults: '',
       maxChildren: 0,
-      totalInventory: 1,
+      totalInventory: '',
       pricePerNight: '',
       extraAdultPrice: 0,
       extraChildPrice: 0,
@@ -460,6 +464,32 @@ const AddHotelWizard = () => {
       setError(msg);
     } finally {
       setUploading(null);
+    }
+  };
+
+  const handleRemoveImage = async (url, type, index = null) => {
+    if (!url) return;
+    try {
+      // Optional: Delete from Cloudinary if it's our URL
+      if (url.includes('cloudinary.com') && url.includes('rukkoin')) {
+        await hotelService.deleteImage(url);
+      }
+    } catch (err) {
+      console.warn("Delete image from storage failed:", err);
+    }
+
+    if (type === 'cover') {
+      updatePropertyForm('coverImage', '');
+    } else if (type === 'gallery') {
+      const arr = [...propertyForm.propertyImages];
+      arr.splice(index, 1);
+      updatePropertyForm('propertyImages', arr);
+    } else if (type === 'room') {
+      setEditingRoomType(prev => {
+        const next = [...(prev.images || [])];
+        next.splice(index, 1);
+        return { ...prev, images: next };
+      });
     }
   };
 
@@ -883,8 +913,23 @@ const AddHotelWizard = () => {
                 <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address', 'area'], e.target.value)} />
               </div>
 
-              <button type="button" onClick={useCurrentLocation} className="w-full py-3 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors">
-                <MapPin size={18} /> Use Current Location
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                disabled={loadingLocation}
+                className="w-full py-4 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors disabled:opacity-50"
+              >
+                {loadingLocation ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    <span>Fetching Location...</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={18} />
+                    <span>Use Current Location</span>
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -1085,8 +1130,20 @@ const AddHotelWizard = () => {
                   ) : propertyForm.coverImage ? (
                     <div className="w-full h-full relative">
                       <img src={propertyForm.coverImage} alt="Cover" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white font-semibold flex items-center gap-2"><Image size={18} /> Change Image</span>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                        <span className="text-white font-semibold flex items-center gap-2" onClick={(e) => { e.stopPropagation(); isFlutter ? handleCameraUpload('cover', url => updatePropertyForm('coverImage', url)) : coverImageFileInputRef.current?.click(); }}>
+                          <Image size={18} /> Change Image
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(propertyForm.coverImage, 'cover');
+                          }}
+                          className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors shadow-lg"
+                        >
+                          <Trash2 size={20} />
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -1116,7 +1173,7 @@ const AddHotelWizard = () => {
                       <img src={img} alt="" className="w-full h-full object-cover" />
                       <button
                         type="button"
-                        onClick={() => { const arr = [...propertyForm.propertyImages]; arr.splice(i, 1); updatePropertyForm('propertyImages', arr); }}
+                        onClick={() => handleRemoveImage(img, 'gallery', i)}
                         className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 size={14} />
@@ -1268,11 +1325,7 @@ const AddHotelWizard = () => {
                         {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
                           <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
                             <img src={img} alt="" className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => {
-                              setEditingRoomType(prev => {
-                                const next = [...(prev.images || [])]; next.splice(i, 1); return { ...prev, images: next };
-                              });
-                            }} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Trash2 size={12} />
                             </button>
                           </div>

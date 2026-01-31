@@ -183,3 +183,39 @@ export const calculateDistance = async (req, res) => {
     res.status(500).json({ message: e.message });
   }
 };
+
+/**
+ * @desc    Delete Image from Cloudinary
+ * @route   POST /api/hotels/delete-image
+ * @access  Private (Partner/Admin)
+ */
+export const deleteImage = async (req, res) => {
+  try {
+    const { publicId, url } = req.body;
+
+    let pid = publicId;
+
+    // If no publicId but URL is provided, try to extract it
+    if (!pid && url) {
+      // Example URL: https://res.cloudinary.com/cloud_name/image/upload/v12345678/rukkoin/properties/filename.jpg
+      // Public ID would be: rukkoin/properties/filename
+      const parts = url.split('/');
+      const filename = parts.pop(); // filename.jpg
+      const folder2 = parts.pop(); // properties
+      const folder1 = parts.pop(); // rukkoin
+      pid = `${folder1}/${folder2}/${filename.split('.')[0]}`;
+    }
+
+    if (!pid) {
+      return res.status(400).json({ message: 'publicId or url is required' });
+    }
+
+    console.log(`[Delete Image] Attempting to delete: ${pid}`);
+    const result = await deleteFromCloudinary(pid);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Delete Image Error:', error);
+    res.status(500).json({ message: error.message || 'Deletion failed' });
+  }
+};

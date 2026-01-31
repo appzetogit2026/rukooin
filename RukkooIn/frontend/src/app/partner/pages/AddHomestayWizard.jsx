@@ -60,6 +60,7 @@ const AddHomestayWizard = () => {
 
   // Image Upload State
   const [uploading, setUploading] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
 
   useEffect(() => {
@@ -75,16 +76,16 @@ const AddHomestayWizard = () => {
     propertyName: '',
     description: '',
     shortDescription: '',
-    hostLivesOnProperty: true,
-    familyFriendly: true,
+    hostLivesOnProperty: '',
+    familyFriendly: '',
     coverImage: '',
     propertyImages: [],
-    address: { country: 'India', state: 'Goa', city: '', area: '', fullAddress: '', pincode: '' },
+    address: { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' },
     location: { type: 'Point', coordinates: ['', ''] },
     nearbyPlaces: [],
     amenities: [],
-    checkInTime: '12:00 PM',
-    checkOutTime: '11:00 AM',
+    checkInTime: '',
+    checkOutTime: '',
     cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_HOMESTAY.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -144,6 +145,7 @@ const AddHomestayWizard = () => {
       return;
     }
 
+    setLoadingLocation(true);
     try {
       // 1. Get Coordinates
       const pos = await new Promise((resolve, reject) => {
@@ -181,6 +183,8 @@ const AddHomestayWizard = () => {
         // Validation/API error
         setError(err.message || 'Failed to fetch address from coordinates');
       }
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -299,12 +303,12 @@ const AddHomestayWizard = () => {
     setEditingRoomTypeIndex(-1);
     setEditingRoomType({
       id: Date.now().toString() + Math.random().toString(36).slice(2),
-      name: 'Deluxe Private Room',
-      inventoryType: 'room', // 'room' or 'entire'
-      roomCategory: 'private', // 'private' or 'entire'
-      maxAdults: 2,
-      maxChildren: 1,
-      totalInventory: 1,
+      name: '',
+      inventoryType: 'room',
+      roomCategory: 'private',
+      maxAdults: '',
+      maxChildren: 0,
+      totalInventory: '',
       pricePerNight: '',
       extraAdultPrice: 0,
       extraChildPrice: 0,
@@ -423,6 +427,31 @@ const AddHomestayWizard = () => {
       setError(msg);
     } finally {
       setUploading(null);
+    }
+  };
+
+  const handleRemoveImage = async (url, type, index = null) => {
+    if (!url) return;
+    try {
+      if (url.includes('cloudinary.com') && url.includes('rukkoin')) {
+        await hotelService.deleteImage(url);
+      }
+    } catch (err) {
+      console.warn("Delete image failed:", err);
+    }
+
+    if (type === 'cover') {
+      updatePropertyForm('coverImage', '');
+    } else if (type === 'gallery') {
+      const arr = [...propertyForm.propertyImages];
+      arr.splice(index, 1);
+      updatePropertyForm('propertyImages', arr);
+    } else if (type === 'room') {
+      setEditingRoomType(prev => {
+        const next = [...(prev.images || [])];
+        next.splice(index, 1);
+        return { ...prev, images: next };
+      });
     }
   };
 
@@ -901,8 +930,23 @@ const AddHomestayWizard = () => {
                   <input className="input" placeholder="Pincode / Zip" value={propertyForm.address.pincode} onChange={e => updatePropertyForm(['address', 'pincode'], e.target.value)} />
                 </div>
 
-                <button type="button" onClick={useCurrentLocation} className="w-full py-3 rounded-xl border-2 border-dashed border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2">
-                  <MapPin size={18} /> Use Current Location
+                <button
+                  type="button"
+                  onClick={useCurrentLocation}
+                  disabled={loadingLocation}
+                  className="w-full py-4 rounded-xl border-2 border-dashed border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loadingLocation ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>Fetching Location...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={18} />
+                      <span>Use Current Location</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1100,7 +1144,7 @@ const AddHomestayWizard = () => {
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="text-white font-bold text-sm bg-white/20 backdrop-blur-md px-4 py-2 rounded-full">Change Cover</span>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); updatePropertyForm('coverImage', ''); }} className="absolute top-3 right-3 p-1.5 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 transition-colors z-10"><Trash2 size={16} /></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveImage(propertyForm.coverImage, 'cover'); }} className="absolute top-3 right-3 p-1.5 bg-white text-red-500 rounded-full shadow-md hover:bg-red-50 transition-colors z-10"><Trash2 size={16} /></button>
                       </>
                     ) : (
                       <div className="text-center p-6">
@@ -1128,7 +1172,7 @@ const AddHomestayWizard = () => {
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
                         <button
                           type="button"
-                          onClick={() => { const arr = [...propertyForm.propertyImages]; arr.splice(i, 1); updatePropertyForm('propertyImages', arr); }}
+                          onClick={() => handleRemoveImage(img, 'gallery', i)}
                           className="absolute top-1 right-1 bg-white/90 text-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         >
                           <Trash2 size={12} />
@@ -1264,7 +1308,7 @@ const AddHomestayWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button onClick={() => setEditingRoomType({ ...editingRoomType, images: editingRoomType.images.filter((_, x) => x !== i) })} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (

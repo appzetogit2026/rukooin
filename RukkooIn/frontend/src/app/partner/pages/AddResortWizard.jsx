@@ -56,6 +56,7 @@ const AddResortWizard = () => {
 
   // Image Upload State (Ref matching Hotel wizard)
   const [uploading, setUploading] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
 
   useEffect(() => {
@@ -71,16 +72,16 @@ const AddResortWizard = () => {
     propertyName: '',
     description: '',
     shortDescription: '',
-    resortType: 'beach',
+    resortType: '',
     activities: [],
     coverImage: '',
     propertyImages: [],
-    address: { country: 'India', state: '', city: '', area: '', fullAddress: '', pincode: '' },
+    address: { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' },
     location: { type: 'Point', coordinates: ['', ''] },
     nearbyPlaces: [],
     amenities: [],
-    checkInTime: '12:00 PM',
-    checkOutTime: '11:00 AM',
+    checkInTime: '',
+    checkOutTime: '',
     cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -152,6 +153,7 @@ const AddResortWizard = () => {
       return;
     }
 
+    setLoadingLocation(true);
     try {
       // 1. Get Coordinates
       const pos = await new Promise((resolve, reject) => {
@@ -187,6 +189,8 @@ const AddResortWizard = () => {
       } else {
         setError(err.message || 'Failed to fetch address from coordinates');
       }
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -353,17 +357,17 @@ const AddResortWizard = () => {
     setEditingRoomTypeIndex(-1);
     setEditingRoomType({
       id: Date.now().toString() + Math.random().toString(36).slice(2),
-      name: 'Deluxe Beach Cottage',
+      name: '',
       inventoryType: 'room',
       roomCategory: 'private',
-      maxAdults: 2,
-      maxChildren: 1,
-      totalInventory: 20,
-      pricePerNight: 9500,
+      maxAdults: '',
+      maxChildren: 0,
+      totalInventory: '',
+      pricePerNight: '',
       extraAdultPrice: 0,
       extraChildPrice: 0,
       images: [],
-      amenities: ['Sea View', 'AC', 'Mini Bar'],
+      amenities: [],
       isActive: true
     });
   };
@@ -516,6 +520,31 @@ const AddResortWizard = () => {
       setError(msg);
     } finally {
       setUploading(null);
+    }
+  };
+
+  const handleRemoveImage = async (url, type, index = null) => {
+    if (!url) return;
+    try {
+      if (url.includes('cloudinary.com') && url.includes('rukkoin')) {
+        await hotelService.deleteImage(url);
+      }
+    } catch (err) {
+      console.warn("Delete image failed:", err);
+    }
+
+    if (type === 'cover') {
+      updatePropertyForm('coverImage', '');
+    } else if (type === 'gallery') {
+      const arr = [...propertyForm.propertyImages];
+      arr.splice(index, 1);
+      updatePropertyForm('propertyImages', arr);
+    } else if (type === 'room') {
+      setEditingRoomType(prev => {
+        const next = [...(prev.images || [])];
+        next.splice(index, 1);
+        return { ...prev, images: next };
+      });
     }
   };
 
@@ -985,8 +1014,23 @@ const AddResortWizard = () => {
                 <input className="input" placeholder="Area" value={propertyForm.address.area} onChange={e => updatePropertyForm(['address', 'area'], e.target.value)} />
               </div>
 
-              <button type="button" onClick={useCurrentLocation} className="w-full py-3 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors">
-                <MapPin size={18} /> Use Current Location
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                disabled={loadingLocation}
+                className="w-full py-4 rounded-xl border border-dashed border-[#004F4D] text-[#004F4D] bg-[#004F4D]/5 font-bold flex items-center justify-center gap-2 hover:bg-[#004F4D]/10 transition-colors disabled:opacity-50"
+              >
+                {loadingLocation ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    <span>Fetching Location...</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={18} />
+                    <span>Use Current Location</span>
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -1183,6 +1227,15 @@ const AddResortWizard = () => {
                       </div>
                     )}
                     {uploading === 'cover' && <div className="absolute inset-0 bg-white/80 flex flex-col gap-2 items-center justify-center"><Loader2 className="animate-spin text-emerald-600" size={32} /><span className="text-sm font-bold text-emerald-700">Uploading...</span></div>}
+                    {propertyForm.coverImage && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveImage(propertyForm.coverImage, 'cover'); }}
+                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 shadow-lg hover:bg-red-700 transition-all z-10"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                   <input ref={coverImageFileInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'cover')} />
                 </div>
@@ -1198,7 +1251,7 @@ const AddResortWizard = () => {
                         <img src={img} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => updatePropertyForm('propertyImages', propertyForm.propertyImages.filter((_, idx) => idx !== i))}
+                          onClick={() => handleRemoveImage(img, 'gallery', i)}
                           className="absolute top-1 right-1 bg-white/90 p-1 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         >
                           <Trash2 size={14} />
@@ -1345,7 +1398,7 @@ const AddResortWizard = () => {
                         {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
                           <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
                             <img src={img} alt="" className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => setEditingRoomType({ ...editingRoomType, images: editingRoomType.images.filter((_, x) => x !== i) })} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Trash2 size={12} />
                             </button>
                           </div>

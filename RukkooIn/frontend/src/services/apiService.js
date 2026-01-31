@@ -441,6 +441,14 @@ export const hotelService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  deleteImage: async (url, publicId) => {
+    try {
+      const response = await api.post('/hotels/delete-image', { url, publicId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 

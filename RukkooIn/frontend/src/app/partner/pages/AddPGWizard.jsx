@@ -44,6 +44,7 @@ const AddPGWizard = () => {
   const [locationSearchQuery, setLocationSearchQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
 
   useEffect(() => {
@@ -58,18 +59,18 @@ const AddPGWizard = () => {
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
     propertyType: 'pg',
-    pgType: 'boys',
+    pgType: '',
     description: '',
     shortDescription: '',
     coverImage: '',
     propertyImages: [],
-    address: { country: 'India', state: '', city: '', area: '', fullAddress: '', pincode: '' },
+    address: { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' },
     location: { type: 'Point', coordinates: ['', ''] },
     nearbyPlaces: [],
     amenities: [],
-    checkInTime: '12:00 PM',
-    checkOutTime: '10:00 AM',
-    cancellationPolicy: 'No refund after check-in',
+    checkInTime: '',
+    checkOutTime: '',
+    cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_PG.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
   });
@@ -213,6 +214,7 @@ const AddPGWizard = () => {
       return;
     }
 
+    setLoadingLocation(true);
     try {
       // 1. Get Coordinates
       const pos = await new Promise((resolve, reject) => {
@@ -248,6 +250,8 @@ const AddPGWizard = () => {
       } else {
         setError(err.message || 'Failed to fetch address from coordinates');
       }
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -445,23 +449,48 @@ const AddPGWizard = () => {
     }
   };
 
+  const handleRemoveImage = async (url, type, index = null) => {
+    if (!url) return;
+    try {
+      if (url.includes('cloudinary.com') && url.includes('rukkoin')) {
+        await hotelService.deleteImage(url);
+      }
+    } catch (err) {
+      console.warn("Delete image failed:", err);
+    }
+
+    if (type === 'cover') {
+      updatePropertyForm('coverImage', '');
+    } else if (type === 'gallery') {
+      const arr = [...propertyForm.propertyImages];
+      arr.splice(index, 1);
+      updatePropertyForm('propertyImages', arr);
+    } else if (type === 'room') {
+      setEditingRoomType(prev => {
+        const next = [...(prev.images || [])];
+        next.splice(index, 1);
+        return { ...prev, images: next };
+      });
+    }
+  };
+
   const startAddRoomType = () => {
     setError('');
     setEditingRoomTypeIndex(-1);
     setEditingRoomType({
       id: Date.now().toString() + Math.random().toString(36).slice(2),
-      name: '4 Sharing Room',
+      name: '',
       inventoryType: 'bed',
       roomCategory: 'shared',
-      maxAdults: 1,
+      maxAdults: '',
       maxChildren: 0,
-      bedsPerRoom: 4,
-      totalInventory: 20,
+      bedsPerRoom: '',
+      totalInventory: '',
       pricePerNight: '',
       extraAdultPrice: 0,
       extraChildPrice: 0,
       images: [],
-      amenities: ['Bunk Bed', 'Personal Locker', 'Fan', 'Common Washroom'],
+      amenities: [],
       isActive: true
     });
   };
@@ -920,10 +949,20 @@ const AddPGWizard = () => {
 
               <button
                 onClick={useCurrentLocation}
-                className="w-full py-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 text-emerald-700 font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors"
+                disabled={loadingLocation}
+                className="w-full py-4 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 text-emerald-700 font-bold flex items-center justify-center gap-2 hover:bg-emerald-50 transition-colors disabled:opacity-50"
               >
-                <MapPin size={20} />
-                Use Current Location
+                {loadingLocation ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    <span>Fetching Location...</span>
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={20} />
+                    <span>Use Current Location</span>
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -1102,7 +1141,7 @@ const AddPGWizard = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cover Image</label>
-                  {propertyForm.coverImage && <button onClick={() => updatePropertyForm('coverImage', '')} className="text-[10px] text-red-500 font-bold hover:underline">Remove</button>}
+                  {propertyForm.coverImage && <button type="button" onClick={() => handleRemoveImage(propertyForm.coverImage, 'cover')} className="text-[10px] text-red-500 font-bold hover:underline">Remove</button>}
                 </div>
                 <div
                   onClick={() => !uploading && !propertyForm.coverImage && (isFlutter ? handleCameraUpload('cover', u => updatePropertyForm('coverImage', u)) : coverImageFileInputRef.current?.click())}
@@ -1140,7 +1179,7 @@ const AddPGWizard = () => {
                   {propertyForm.propertyImages.map((img, i) => (
                     <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100">
                       <img src={img} className="w-full h-full object-cover" />
-                      <button onClick={() => updatePropertyForm('propertyImages', propertyForm.propertyImages.filter((_, x) => x !== i))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm transform scale-90 group-hover:scale-100">
+                      <button type="button" onClick={() => handleRemoveImage(img, 'gallery', i)} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm transform scale-90 group-hover:scale-100">
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -1280,7 +1319,7 @@ const AddPGWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button onClick={() => setEditingRoomType({ ...editingRoomType, images: editingRoomType.images.filter((_, x) => x !== i) })} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (
