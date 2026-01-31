@@ -5,10 +5,22 @@ import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 import emailService from '../services/emailService.js';
 import User from '../models/User.js'; // Needed to find Admins? Or Admin model
+import Admin from '../models/Admin.js';
+
+const notifyAdminOfNewProperty = async (property) => {
+  try {
+    const admin = await Admin.findOne({ role: { $in: ['admin', 'superadmin'] } });
+    if (admin && admin.email) {
+      await emailService.sendAdminNewPropertyEmail(admin.email, property);
+    }
+  } catch (err) {
+    console.warn('Could not notify admin about property:', err.message);
+  }
+};
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, pgType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
+    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
@@ -32,6 +44,7 @@ export const createProperty = async (req, res) => {
       cancellationPolicy,
       houseRules,
       pgType: lowerType === 'pg' ? pgType : undefined,
+      hostelType: lowerType === 'hostel' ? hostelType : undefined,
       hostLivesOnProperty: lowerType === 'homestay' ? hostLivesOnProperty : undefined,
       familyFriendly: lowerType === 'homestay' ? familyFriendly : undefined,
       resortType: lowerType === 'resort' ? resortType : undefined,
@@ -41,6 +54,17 @@ export const createProperty = async (req, res) => {
     });
     // Pricing is now handled in RoomType for ALL types
     await doc.save();
+    // Inline RoomTypes if provided
+    if (Array.isArray(roomTypes) && roomTypes.length > 0) {
+      await RoomType.insertMany(
+        roomTypes.map(rt => ({
+          ...rt,
+          propertyId: doc._id,
+          isActive: true
+        }))
+      );
+    }
+
     // Inline documents upsert on create
     if (docsArray.length) {
       await PropertyDocument.findOneAndUpdate(
@@ -48,6 +72,7 @@ export const createProperty = async (req, res) => {
         {
           propertyType: lowerType,
           documents: docsArray.map(d => ({
+            type: d.type,
             name: d.name || d.type,
             fileUrl: d.fileUrl,
             isRequired: requiredDocs.includes(d.name || d.type),
@@ -64,21 +89,15 @@ export const createProperty = async (req, res) => {
       await doc.save();
     }
 
-    // NOTIFICATION: Notify Admin about new property
-    // We need to fetch an Admin email. Ideally from DB or Config.
-    // Assuming simple search for an Admin user.
-    try {
-      // Need to dynamically import Admin if not present or query User with role=admin
-      const AdminModel = mongoose.model('Admin'); // Usually registered. If not, use 'User' with role
-      // Or cleaner: just query User if Admin shares collection, but typically separate. 
-      // Based on authController, Admin is separate.
-      const admin = await AdminModel.findOne({ role: { $in: ['admin', 'superadmin'] } });
-      if (admin && admin.email) {
-        emailService.sendAdminNewPropertyEmail(admin.email, doc).catch(e => console.error(e));
-      }
-    } catch (err) {
-      // Fallback if Admin model not registered here or other issue
-      console.warn('Could not notify admin about property:', err.message);
+    // AUTO-SUBMIT: If room types are provided, we consider it a full submission
+    if (Array.isArray(roomTypes) && roomTypes.length > 0 && doc.status === 'draft') {
+      doc.status = 'pending';
+      await doc.save();
+    }
+
+    // NOTIFICATION: Notify Admin only if pending
+    if (doc.status === 'pending') {
+      notifyAdminOfNewProperty(doc).catch(e => console.error(e));
     }
 
     res.status(201).json({ success: true, property: doc });
@@ -129,6 +148,30 @@ export const updateProperty = async (req, res) => {
     });
 
     await property.save();
+
+    // documents update if provided
+    if (payload.documents && Array.isArray(payload.documents)) {
+      const lowerType = property.propertyType.toLowerCase();
+      const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
+      await PropertyDocument.findOneAndUpdate(
+        { propertyId: property._id },
+        {
+          propertyType: lowerType,
+          documents: payload.documents.map(d => ({
+            type: d.type,
+            name: d.name || d.type,
+            fileUrl: d.fileUrl,
+            isRequired: requiredDocs.includes(d.name || d.type),
+          })),
+          verificationStatus: 'pending',
+          adminRemark: undefined,
+          verifiedAt: undefined
+        },
+        { new: true, upsert: true }
+      );
+      property.status = 'pending';
+      await property.save();
+    }
 
     res.json({ success: true, property });
   } catch (e) {
@@ -319,9 +362,15 @@ export const upsertDocuments = async (req, res) => {
       },
       { new: true, upsert: true }
     );
+    const wasDraft = property.status === 'draft';
     property.status = 'pending';
     property.isLive = false;
     await property.save();
+
+    if (wasDraft) {
+      notifyAdminOfNewProperty(property).catch(e => console.error(e));
+    }
+
     res.json({ success: true, property, propertyDocument: doc });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -486,7 +535,7 @@ export const getPublicProperties = async (req, res) => {
 
 export const getMyProperties = async (req, res) => {
   try {
-    const query = { partnerId: req.user._id };
+    const query = { partnerId: req.user._id, status: { $ne: 'draft' } };
     if (req.query.type) {
       query.propertyType = String(req.query.type).toLowerCase();
     }

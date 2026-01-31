@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Home, Users, BedDouble, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Building2, Home, Users, BedDouble, ArrowLeft, ChevronRight, X } from 'lucide-react';
 
 const PartnerJoinPropertyType = () => {
   const navigate = useNavigate();
@@ -70,7 +70,9 @@ const PartnerJoinPropertyType = () => {
             <ArrowLeft size={20} />
           </button>
           <div className="font-bold text-lg text-gray-800">Select Property Type</div>
-          <div className="w-9"></div>
+          <button onClick={() => navigate('/partner/dashboard')} className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+            <X size={20} />
+          </button>
         </div>
       </div>
 

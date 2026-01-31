@@ -701,38 +701,35 @@ const PropertyDetailsPage = () => {
             </p>
           </div>
 
-          {/* Amenities */}
-          {amenities && amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).length > 0 && (
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-textDark mb-2">Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <CheckCircle size={16} className="text-surface" />
-                    </div>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Amenities - Dynamic Switching */}
+          {(() => {
+            // 1. Determine which list to use: Room-specific if selected, otherwise Property-wide
+            const showRoomAmenities = selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0;
+            const displayAmenities = showRoomAmenities ? selectedRoom.amenities : amenities;
+            const title = showRoomAmenities ? 'Room Amenities' : 'Amenities';
 
-          {/* Room Amenities */}
-          {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).length > 0 && (
-            <div className="mb-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {selectedRoom.amenities.filter(item => item && typeof item === 'string' && item.trim().length > 0).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <CheckCircle size={16} className="text-surface" />
+            // 2. Filter valid items
+            const validAmenities = displayAmenities?.filter(item => item && typeof item === 'string' && item.trim().length > 0) || [];
+
+            // 3. Render if items exist
+            if (validAmenities.length === 0) return null;
+
+            return (
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-textDark mb-2">{title}</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {validAmenities.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 text-gray-600 text-sm">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        <CheckCircle size={16} className="text-surface" />
+                      </div>
+                      {item}
                     </div>
-                    {item}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           {/* Type Specific Info - Dynamic Rendering */}
           {propertyType === 'PG' && config && (
             <div className="mb-8 grid md:grid-cols-2 gap-4">

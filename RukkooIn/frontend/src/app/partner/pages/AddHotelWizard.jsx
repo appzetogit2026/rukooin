@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
-import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2, Camera } from 'lucide-react';
+import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2, Camera, X } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
@@ -393,8 +393,8 @@ const AddHotelWizard = () => {
 
       console.log('[Camera] Image captured, uploading...');
 
-      // For single image upload (cover image)
-      const isSingle = type === 'cover' || type === 'room';
+      // For single image upload (cover image, room, or documents)
+      const isSingle = type === 'cover' || type === 'room' || type.startsWith('doc');
 
       const res = await hotelService.uploadImagesBase64([result]);
       console.log('[Camera] Upload success:', res);
@@ -616,25 +616,46 @@ const AddHotelWizard = () => {
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
-        houseRules: propertyForm.houseRules
+        houseRules: propertyForm.houseRules,
+        documents: propertyForm.documents
       };
       let propId = createdProperty?._id;
-      if (isEditMode && propId) {
+      if (propId) {
         const updated = await propertyService.update(propId, propertyPayload);
         propId = updated.property?._id || propId;
+
+        const existingIds = new Set(isEditMode ? originalRoomTypeIds : []);
+        const persistedIds = [];
+        for (const rt of roomTypes) {
+          const payload = {
+            name: rt.name,
+            inventoryType: 'room',
+            roomCategory: rt.roomCategory,
+            maxAdults: Number(rt.maxAdults),
+            maxChildren: Number(rt.maxChildren || 0),
+            totalInventory: Number(rt.totalInventory || 0),
+            pricePerNight: Number(rt.pricePerNight),
+            extraAdultPrice: Number(rt.extraAdultPrice || 0),
+            extraChildPrice: Number(rt.extraChildPrice || 0),
+            images: rt.images.filter(Boolean),
+            amenities: rt.amenities
+          };
+          if (rt.backendId) {
+            await propertyService.updateRoomType(propId, rt.backendId, payload);
+            persistedIds.push(rt.backendId);
+          } else {
+            const created = await propertyService.addRoomType(propId, payload);
+            if (created.roomType?._id) persistedIds.push(created.roomType._id);
+          }
+        }
+        for (const id of existingIds) {
+          if (!persistedIds.includes(id)) {
+            await propertyService.deleteRoomType(propId, id);
+          }
+        }
       } else {
-        const res = await propertyService.create(propertyPayload);
-        propId = res.property?._id;
-        setCreatedProperty(res.property);
-      }
-      const documentsPayload = propertyForm.documents.map(d => ({ type: d.type, name: d.name, fileUrl: d.fileUrl }));
-      if (documentsPayload.length) {
-        await propertyService.upsertDocuments(propId, documentsPayload);
-      }
-      const existingIds = new Set(isEditMode ? originalRoomTypeIds : []);
-      const persistedIds = [];
-      for (const rt of roomTypes) {
-        const payload = {
+        // Atomic Create
+        propertyPayload.roomTypes = roomTypes.map(rt => ({
           name: rt.name,
           inventoryType: 'room',
           roomCategory: rt.roomCategory,
@@ -646,24 +667,13 @@ const AddHotelWizard = () => {
           extraChildPrice: Number(rt.extraChildPrice || 0),
           images: rt.images.filter(Boolean),
           amenities: rt.amenities
-        };
-        if (rt.backendId) {
-          await propertyService.updateRoomType(propId, rt.backendId, payload);
-          persistedIds.push(rt.backendId);
-        } else {
-          const created = await propertyService.addRoomType(propId, payload);
-          if (created.roomType?._id) {
-            persistedIds.push(created.roomType._id);
-          }
-        }
-      }
-      for (const id of existingIds) {
-        if (!persistedIds.includes(id)) {
-          await propertyService.deleteRoomType(propId, id);
-        }
+        }));
+        const res = await propertyService.create(propertyPayload);
+        propId = res.property?._id;
+        setCreatedProperty(res.property);
       }
       localStorage.removeItem(STORAGE_KEY);
-      navigate('/hotel/dashboard');
+      setStep(10);
     } catch (e) {
       setError(e?.message || 'Failed to submit property');
     } finally {
@@ -675,6 +685,7 @@ const AddHotelWizard = () => {
     if (step > 1) {
       setStep(step - 1);
     } else {
+      localStorage.removeItem(STORAGE_KEY);
       navigate(-1);
     }
   };
@@ -751,6 +762,11 @@ const AddHotelWizard = () => {
     }
   };
 
+  const handleExit = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    navigate(-1);
+  };
+
   const isEditingSubItem = (step === 4 && editingNearbyIndex !== null) || (step === 6 && editingRoomType !== null);
 
   return (
@@ -760,9 +776,11 @@ const AddHotelWizard = () => {
           <ArrowLeft size={20} />
         </button>
         <div className="text-sm font-bold text-gray-900">
-          Step {step} of 9
+          {step <= 9 ? `Step ${step} of 9` : 'Registration Complete'}
         </div>
-        <div className="w-8" />
+        <button onClick={handleExit} className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+          <X size={20} />
+        </button>
       </header>
 
       <div className="w-full h-1 bg-gray-200 sticky top-16 z-20">
@@ -1483,6 +1501,24 @@ const AddHotelWizard = () => {
               </div>
             </div>
           )}
+
+          {step === 10 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center transition-all animate-bounce">
+                <CheckCircle size={48} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-extrabold text-gray-900">Registration Submitted!</h2>
+                <p className="text-gray-500 max-w-sm mx-auto">Your property registration has been sent for verification. Our team will review it and get back to you shortly.</p>
+              </div>
+              <button
+                onClick={() => navigate('/hotel/dashboard')}
+                className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
@@ -1506,7 +1542,7 @@ const AddHotelWizard = () => {
           )}
           <button
             onClick={handleNext}
-            disabled={loading || (step === 8 && roomTypes.length === 0)}
+            disabled={loading || (step === 6 && roomTypes.length === 0)}
             className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}

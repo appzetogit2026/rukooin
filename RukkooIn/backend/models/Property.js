@@ -25,6 +25,11 @@ const propertySchema = new mongoose.Schema({
     enum: ["boys", "girls", "unisex"]
   },
 
+  hostelType: {
+    type: String,
+    enum: ["boys", "girls", "mixed"]
+  },
+
   hostLivesOnProperty: { type: Boolean, default: false },
   familyFriendly: { type: Boolean, default: false },
 

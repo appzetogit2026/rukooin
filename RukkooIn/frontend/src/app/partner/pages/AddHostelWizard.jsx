@@ -55,10 +55,12 @@ const AddHostelWizard = () => {
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
   const roomImagesFileInputRef = useRef(null);
+  const documentInputRefs = useRef([]);
 
   const [propertyForm, setPropertyForm] = useState({
     propertyName: '',
     propertyType: 'hostel',
+    hostelType: 'mixed',
     description: '',
     shortDescription: '',
     coverImage: '',
@@ -383,7 +385,7 @@ const AddHostelWizard = () => {
 
       console.log('[Camera] Image captured, uploading...');
 
-      const isSingle = type === 'cover' || type === 'room';
+      const isSingle = type === 'cover' || type === 'room' || type.startsWith('doc');
 
       const res = await hotelService.uploadImagesBase64([result]);
 
@@ -602,6 +604,7 @@ const AddHostelWizard = () => {
       const propertyPayload = {
         propertyType: 'hostel',
         propertyName: propertyForm.propertyName,
+        hostelType: propertyForm.hostelType,
         description: propertyForm.description,
         shortDescription: propertyForm.shortDescription,
         coverImage: propertyForm.coverImage,
@@ -623,25 +626,47 @@ const AddHostelWizard = () => {
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
-        houseRules: propertyForm.houseRules
+        houseRules: propertyForm.houseRules,
+        documents: propertyForm.documents
       };
       let propId = createdProperty?._id;
-      if (isEditMode && propId) {
+      if (propId) {
         const updated = await propertyService.update(propId, propertyPayload);
         propId = updated.property?._id || propId;
+
+        const existingIds = new Set(isEditMode ? originalRoomTypeIds : []);
+        const persistedIds = [];
+        for (const rt of roomTypes) {
+          const payload = {
+            name: rt.name,
+            inventoryType: 'bed',
+            roomCategory: rt.roomCategory,
+            maxAdults: Number(rt.maxAdults),
+            maxChildren: Number(rt.maxChildren || 0),
+            bedsPerRoom: Number(rt.bedsPerRoom),
+            totalInventory: Number(rt.totalInventory || 0),
+            pricePerNight: Number(rt.pricePerNight),
+            extraAdultPrice: Number(rt.extraAdultPrice || 0),
+            extraChildPrice: Number(rt.extraChildPrice || 0),
+            images: rt.images.filter(Boolean),
+            amenities: rt.amenities
+          };
+          if (rt.backendId) {
+            await propertyService.updateRoomType(propId, rt.backendId, payload);
+            persistedIds.push(rt.backendId);
+          } else {
+            const created = await propertyService.addRoomType(propId, payload);
+            if (created.roomType?._id) persistedIds.push(created.roomType._id);
+          }
+        }
+        for (const id of existingIds) {
+          if (!persistedIds.includes(id)) {
+            await propertyService.deleteRoomType(propId, id);
+          }
+        }
       } else {
-        const res = await propertyService.create(propertyPayload);
-        propId = res.property?._id;
-        setCreatedProperty(res.property);
-      }
-      const documentsPayload = propertyForm.documents.map(d => ({ type: d.type, name: d.name, fileUrl: d.fileUrl }));
-      if (documentsPayload.length) {
-        await propertyService.upsertDocuments(propId, documentsPayload);
-      }
-      const existingIds = new Set(isEditMode ? originalRoomTypeIds : []);
-      const persistedIds = [];
-      for (const rt of roomTypes) {
-        const payload = {
+        // Atomic Create
+        propertyPayload.roomTypes = roomTypes.map(rt => ({
           name: rt.name,
           inventoryType: 'bed',
           roomCategory: rt.roomCategory,
@@ -654,21 +679,10 @@ const AddHostelWizard = () => {
           extraChildPrice: Number(rt.extraChildPrice || 0),
           images: rt.images.filter(Boolean),
           amenities: rt.amenities
-        };
-        if (rt.backendId) {
-          await propertyService.updateRoomType(propId, rt.backendId, payload);
-          persistedIds.push(rt.backendId);
-        } else {
-          const created = await propertyService.addRoomType(propId, payload);
-          if (created.roomType?._id) {
-            persistedIds.push(created.roomType._id);
-          }
-        }
-      }
-      for (const id of existingIds) {
-        if (!persistedIds.includes(id)) {
-          await propertyService.deleteRoomType(propId, id);
-        }
+        }));
+        const res = await propertyService.create(propertyPayload);
+        propId = res.property?._id;
+        setCreatedProperty(res.property);
       }
       localStorage.removeItem(STORAGE_KEY);
       setStep(10);
@@ -680,8 +694,12 @@ const AddHostelWizard = () => {
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-    else navigate(-1);
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+      navigate(-1);
+    }
   };
 
   const clearCurrentStep = () => {
@@ -735,6 +753,11 @@ const AddHostelWizard = () => {
 
   const isEditingSubItem = (step === 4 && editingNearbyIndex !== null) || (step === 6 && editingRoomType !== null);
 
+  const handleExit = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
@@ -742,9 +765,11 @@ const AddHostelWizard = () => {
           <ArrowLeft size={20} />
         </button>
         <div className="text-sm font-bold text-gray-900">
-          Step {step} of 9
+          {step <= 9 ? `Step ${step} of 9` : 'Registration Complete'}
         </div>
-        <div className="w-8" />
+        <button onClick={handleExit} className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+          <X size={20} />
+        </button>
       </header>
 
       <div className="w-full h-1 bg-gray-200 sticky top-16 z-20">
@@ -772,10 +797,29 @@ const AddHostelWizard = () => {
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500">Property Type</label>
-                  <div className="px-4 py-3 bg-gray-50 border border-gray-200 text-gray-500 font-semibold rounded-xl text-sm">
-                    Hostel / PG
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Property Type</label>
+                    <div className="px-4 py-3 bg-gray-50 border border-gray-200 text-gray-500 font-semibold rounded-xl text-sm">
+                      Hostel
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Hostel Type</label>
+                    <div className="relative">
+                      <select
+                        className="input appearance-none bg-white pr-10"
+                        value={propertyForm.hostelType}
+                        onChange={e => updatePropertyForm('hostelType', e.target.value)}
+                      >
+                        <option value="boys">Boys</option>
+                        <option value="girls">Girls</option>
+                        <option value="mixed">Mixed</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <ChevronLeft size={16} className="-rotate-90" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1236,11 +1280,13 @@ const AddHostelWizard = () => {
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (
-                          <button onClick={() => isFlutter ? handleCameraUpload('room', u => setEditingRoomType({ ...editingRoomType, images: [...(editingRoomType.images || []), ...u] })) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
+                          <button type="button" onClick={() => isFlutter ? handleCameraUpload('room', url => setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), url].slice(0, 3) }))) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-20 h-20 flex-shrink-0 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/20 transition-all">
                             {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                           </button>
                         )}
-                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => uploadImages(e.target.files, 'room', u => setEditingRoomType({ ...editingRoomType, images: [...(editingRoomType.images || []), ...u].slice(0, 3) }))} />
+                        <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => {
+                          if (e.target.files?.length) uploadImages(e.target.files, 'room', urls => urls.length && setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), ...urls].slice(0, 3) })));
+                        }} />
                       </div>
                     </div>
 
@@ -1331,47 +1377,128 @@ const AddHostelWizard = () => {
 
           {step === 8 && (
             <div className="space-y-6">
-              <div className="space-y-3">
-                {propertyForm.documents.map((d, i) => (
-                  <div key={i} className={`p-4 rounded-xl border transition-all ${d.fileUrl ? 'border-emerald-200 bg-emerald-50/10' : 'border-gray-200 bg-white'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${d.fileUrl ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
-                          <FileText size={20} />
-                        </div>
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
+              <div className="space-y-4">
+                <div className="text-sm font-semibold text-gray-700">Please provide the following documents</div>
+                <div className="grid gap-3">
+                  {propertyForm.documents.map((doc, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-2xl bg-white hover:border-emerald-200 transition-colors shadow-sm">
+                      <div className="flex justify-between items-start mb-3">
                         <div>
-                          <div className="font-bold text-sm text-gray-800">{d.name}</div>
-                          <div className={`text-xs ${d.fileUrl ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>
-                            {d.fileUrl ? 'Document Uploaded' : 'Optional'}
-                          </div>
+                          <div className="font-bold text-gray-900">{doc.name}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">Optional document</div>
                         </div>
-                      </div>
-                      {d.fileUrl && <CheckCircle size={20} className="text-emerald-500" />}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => !uploading && (isFlutter
-                          ? handleCameraUpload(`doc_${i}`, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u; updatePropertyForm('documents', arr); })
-                          : document.getElementById(`doc-upload-${i}`).click())
-                        }
-                        disabled={!!uploading}
-                        className={`flex-1 py-2.5 rounded-lg text-sm font-bold border-2 border-dashed flex items-center justify-center gap-2 transition-all ${d.fileUrl ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'}`}
-                      >
-                        {uploading === `doc_${i}` ? (
-                          <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                        {doc.fileUrl ? (
+                          <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>
                         ) : (
-                          d.fileUrl ? 'Change Document' : 'Upload Document'
+                          <div className="bg-gray-100 text-gray-400 p-1.5 rounded-full"><FileText size={18} /></div>
                         )}
-                      </button>
-                      {d.fileUrl && (
-                        <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-semibold text-sm">View</a>
-                      )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => isFlutter
+                            ? handleCameraUpload(`doc_${idx}`, url => {
+                              const next = [...propertyForm.documents];
+                              next[idx].fileUrl = url;
+                              updatePropertyForm('documents', next);
+                            })
+                            : documentInputRefs.current[idx]?.click()
+                          }
+                          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-all ${doc.fileUrl
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-white hover:border-emerald-400 hover:text-emerald-600'
+                            }`}
+                        >
+                          {uploading === `doc_${idx}` ? (
+                            <><Loader2 size={16} className="animate-spin" /> Uploading...</>
+                          ) : doc.fileUrl ? (
+                            <>Change File</>
+                          ) : (
+                            <><Plus size={16} /> Upload</>
+                          )}
+                        </button>
+                        {doc.fileUrl && (
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="p-2.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border border-gray-200 hover:border-emerald-200 bg-white">
+                            <Search size={18} />
+                          </a>
+                        )}
+                      </div>
+
+                      <input
+                        type="file"
+                        className="hidden"
+                        ref={el => (documentInputRefs.current[idx] = el)}
+                        onChange={e => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          uploadImages([file], `doc_${idx}`, urls => {
+                            if (urls[0]) {
+                              const updated = [...propertyForm.documents];
+                              updated[idx] = { ...updated[idx], fileUrl: urls[0] };
+                              updatePropertyForm('documents', updated);
+                            }
+                          });
+                          e.target.value = '';
+                        }}
+                      />
                     </div>
-                    <input id={`doc-upload-${i}`} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => uploadImages(e.target.files, `doc_${i}`, u => { const arr = [...propertyForm.documents]; arr[i].fileUrl = u[0] || ''; updatePropertyForm('documents', arr); })} />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+            </div>
+          )}
+
+          {step === 9 && (
+            <div className="space-y-6">
+              <div className="bg-emerald-50 rounded-2xl p-6 text-center">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-emerald-600">
+                  <CheckCircle size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-emerald-900">Ready to Submit!</h3>
+                <p className="text-emerald-700 text-sm mt-1">Review your hostel details below.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden p-4 space-y-3">
+                  <div className="flex gap-4">
+                    <img src={propertyForm.coverImage} className="w-20 h-20 rounded-lg object-cover bg-gray-100" />
+                    <div>
+                      <h4 className="font-bold text-gray-900">{propertyForm.propertyName}</h4>
+                      <p className="text-xs text-gray-500 capitalize">{propertyForm.hostelType} Hostel</p>
+                      <p className="text-xs text-emerald-600 font-medium mt-1">{propertyForm.address.city}, {propertyForm.address.state}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h4 className="font-bold text-gray-900 text-sm mb-3">Inventory Summary</h4>
+                  <div className="space-y-2">
+                    {roomTypes.map((rt, i) => (
+                      <div key={i} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600">{rt.name}</span>
+                        <span className="font-bold text-emerald-700">₹{rt.pricePerNight}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h4 className="font-bold text-gray-900 text-sm mb-2">Documents</h4>
+                  <p className="text-xs text-gray-500">{propertyForm.documents.filter(d => d.fileUrl).length} of {propertyForm.documents.length} documents uploaded.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 10 && (
+            <div className="text-center py-12 space-y-6">
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle size={40} />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Property Submitted!</h2>
+              <p className="text-gray-500 max-w-sm mx-auto">Your hostel listing has been submitted for review. Our team will verify the details and documents within 24-48 hours.</p>
               <button
                 type="button"
                 onClick={() => navigate('/hotel/dashboard')}

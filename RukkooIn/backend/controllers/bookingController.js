@@ -344,6 +344,10 @@ export const createBooking = async (req, res) => {
             };
 
             razorpayOrder = await instance.orders.create(options);
+
+            // Set status to awaiting_payment so it doesn't show in user's list until paid
+            booking.bookingStatus = 'awaiting_payment';
+            booking.paymentStatus = 'pending';
           } catch (error) {
             console.error("Razorpay Order Creation Failed:", error);
             return res.status(500).json({ message: "Failed to initiate payment gateway" });
@@ -455,8 +459,9 @@ export const getMyBookings = async (req, res) => {
     const query = { userId: req.user._id };
 
     if (type === 'upcoming') {
-      // Upcoming: Confirmed or Pending payment/verification. NOT checked-in.
-      query.bookingStatus = { $in: ['confirmed', 'pending', 'pending_payment'] };
+      // Upcoming: Confirmed. NOT checked-in.
+      // Hiding 'pending'/'awaiting_payment' to ensure only finalized bookings appear
+      query.bookingStatus = { $in: ['confirmed'] };
     } else if (type === 'ongoing') {
       // Ongoing: Checked In
       query.bookingStatus = 'checked_in';
@@ -514,7 +519,7 @@ export const getPartnerBookings = async (req, res) => {
     if (status) {
       if (status === 'upcoming') {
         // Upcoming: Confirmed guests arriving in future.
-        query.bookingStatus = { $in: ['confirmed', 'pending'] };
+        query.bookingStatus = { $in: ['confirmed'] };
       } else if (status === 'in_house') {
         // In-House: Active guests (Checked In)
         query.bookingStatus = 'checked_in';

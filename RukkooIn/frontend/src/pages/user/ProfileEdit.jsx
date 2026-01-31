@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Mail, ArrowLeft, Save, Loader2, MapPin, Navigation, Home } from 'lucide-react';
+import { User, Phone, Mail, ArrowLeft, Save, Loader2, MapPin, Navigation, Home, Camera } from 'lucide-react';
 import { authService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import { isFlutterApp, openFlutterCamera, uploadBase64Image } from '../../utils/flutterBridge';
 
 const ProfileEdit = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
+    profileImage: '',
+    profileImagePublicId: '',
     address: {
       street: '',
       city: '',
@@ -33,6 +38,8 @@ const ProfileEdit = () => {
           name: user.name || '',
           phone: user.phone || '',
           email: user.email || '',
+          profileImage: user.profileImage || '',
+          profileImagePublicId: user.profileImagePublicId || '',
           address: user.address || {
             street: '',
             city: '',
@@ -50,23 +57,12 @@ const ProfileEdit = () => {
 
   const autoFillAddress = async (lat, lng) => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAP_API_KEY;
-    console.log('API Key loaded:', apiKey ? 'Yes' : 'No');
-    console.log('Fetching address for coordinates:', lat, lng);
-
-    if (!apiKey) {
-      toast.error('Google Maps API key not configured');
-      console.error('Missing VITE_GOOGLE_MAP_API_KEY in .env file');
-      return;
-    }
+    if (!apiKey) return;
 
     try {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
-      console.log('Geocoding API URL:', url);
-
       const response = await fetch(url);
       const data = await response.json();
-
-      console.log('Geocoding response:', data);
 
       if (data.status === 'OK' && data.results?.[0]) {
         const result = data.results[0];
@@ -98,135 +94,132 @@ const ProfileEdit = () => {
 
         const street = [streetNumber, route, neighborhood].filter(Boolean).join(', ') || result.formatted_address.split(',')[0];
 
-        const addressData = {
-          street: street,
-          city: city,
-          state: state,
-          zipCode: pincode,
-          country: country || 'India',
-          coordinates: { lat, lng }
-        };
-
-        console.log('Parsed address data:', addressData);
-
         setFormData(prev => ({
           ...prev,
-          address: addressData
+          address: {
+            street: street,
+            city: city,
+            state: state,
+            zipCode: pincode,
+            country: country || 'India',
+            coordinates: { lat, lng }
+          }
         }));
 
-        toast.success('Address auto-filled from location!');
-      } else {
-        console.error('Geocoding failed. Status:', data.status);
-        toast.error(`Failed to get address: ${data.status}`);
+        toast.success('Address auto-filled!');
       }
     } catch (error) {
-      console.error('Failed to auto-fill address:', error);
-      toast.error('Failed to get address details. Please enter manually.');
+      console.error('Auto-fill error:', error);
+      toast.error('Failed to get address details.');
     }
   };
 
   const handleGetCurrentLocation = () => {
-    console.log('Requesting location permission...');
-
     if (!('geolocation' in navigator)) {
-      toast.error('Location detection not supported by your browser');
-      console.error('Geolocation API not available');
+      toast.error('Geolocation not supported');
       return;
     }
 
     setFetchingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        await autoFillAddress(latitude, longitude);
+        setFetchingLocation(false);
+      },
+      (error) => {
+        console.error('Location error:', error);
+        setFetchingLocation(false);
+        toast.error('Unable to retrieve location');
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
 
-    // Try with high accuracy first
-    const tryHighAccuracy = () => {
-      console.log('Trying high accuracy mode...');
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log('✅ High accuracy location obtained:', { latitude, longitude });
-          console.log('Accuracy:', position.coords.accuracy, 'meters');
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-          await autoFillAddress(latitude, longitude);
-          setFetchingLocation(false);
-        },
-        (error) => {
-          console.warn('❌ High accuracy failed:', error.message);
-          // If high accuracy times out, try low accuracy
-          if (error.code === 3) { // TIMEOUT
-            toast.loading('Retrying with lower accuracy...', { duration: 1000 });
-            tryLowAccuracy();
-          } else {
-            handleLocationError(error);
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000, // 15 seconds for high accuracy
-          maximumAge: 0
-        }
-      );
-    };
+    // Validate size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
 
-    // Fallback to low accuracy (faster, less precise)
-    const tryLowAccuracy = () => {
-      console.log('Trying low accuracy mode (faster)...');
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log('✅ Low accuracy location obtained:', { latitude, longitude });
-          console.log('Accuracy:', position.coords.accuracy, 'meters');
+    // Validate type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG and WebP images supported');
+      return;
+    }
 
-          toast.success('Location found (approximate)');
-          await autoFillAddress(latitude, longitude);
-          setFetchingLocation(false);
-        },
-        (error) => {
-          console.error('❌ Low accuracy also failed:', error);
-          handleLocationError(error);
-        },
-        {
-          enableHighAccuracy: false, // Faster but less accurate
-          timeout: 10000, // 10 seconds
-          maximumAge: 60000 // Accept cached location up to 1 minute old
-        }
-      );
-    };
+    const uploadData = new FormData();
+    uploadData.append('files', file);
 
-    const handleLocationError = (error) => {
-      setFetchingLocation(false);
-      console.error('Geolocation error:', error);
+    try {
+      setImageUploading(true);
+      // Reuse existing generic upload service
+      const response = await authService.uploadDocs(uploadData);
 
-      let errorMessage = 'Unable to detect location. ';
-      switch (error.code) {
-        case 1: // PERMISSION_DENIED
-          errorMessage += 'Permission denied. Please enable location access in your browser settings.';
-          break;
-        case 2: // POSITION_UNAVAILABLE
-          errorMessage += 'Location information unavailable. Please check your device location settings.';
-          break;
-        case 3: // TIMEOUT
-          errorMessage += 'Location request timed out. You may be indoors or have weak GPS signal. Please enter address manually.';
-          break;
-        default:
-          errorMessage += 'Unknown error occurred.';
+      if (response && response.files && response.files.length > 0) {
+        const { url, publicId } = response.files[0];
+        setFormData(prev => ({
+          ...prev,
+          profileImage: url,
+          profileImagePublicId: publicId
+        }));
+        toast.success('Image uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleCameraCapture = async () => {
+    try {
+      setImageUploading(true);
+      const cameraResult = await openFlutterCamera();
+
+      if (!cameraResult.success || !cameraResult.base64) {
+        throw new Error('Camera capture failed');
       }
 
-      toast.error(errorMessage, { duration: 5000 });
-    };
+      // Use the generic base64 upload utility
+      const uploadResult = await uploadBase64Image(
+        cameraResult.base64,
+        cameraResult.mimeType,
+        cameraResult.fileName
+      );
 
-    // Start with high accuracy attempt
-    tryHighAccuracy();
+      if (uploadResult.success && uploadResult.files && uploadResult.files.length > 0) {
+        const { url, publicId } = uploadResult.files[0];
+        setFormData(prev => ({
+          ...prev,
+          profileImage: url,
+          profileImagePublicId: publicId
+        }));
+        toast.success('Photo uploaded successfully');
+      }
+    } catch (err) {
+      console.error('Camera upload failed:', err);
+      toast.error('Camera upload failed');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (!formData.name || formData.name.length < 3) {
       toast.error('Name must be at least 3 characters');
       return;
     }
 
-    if (!formData.phone || formData.phone.length !== 10) {
+    if (formData.phone && formData.phone.length !== 10) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
     }
@@ -239,7 +232,7 @@ const ProfileEdit = () => {
       localStorage.setItem('user', JSON.stringify(response.user));
 
       toast.success('Profile updated successfully!');
-      navigate(-1); // Go back
+      navigate(-1);
     } catch (error) {
       toast.error(error.message || 'Failed to update profile');
     } finally {
@@ -254,14 +247,24 @@ const ProfileEdit = () => {
     }));
   };
 
+  const handleCameraClick = () => {
+    if (isFlutterApp()) {
+      handleCameraCapture();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center pt-safe-top px-6 pb-24 md:pb-0">
 
-
-      {/* 1. Header Removed - Spacer for top padding */}
       {/* Sticky Header */}
-      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm px-6 py-4 flex items-center justify-center border-b border-gray-50 shadow-sm mb-6">
+      <div className="sticky top-0 left-0 right-0 w-full z-20 bg-white/95 backdrop-blur-sm px-6 py-4 flex items-center justify-between border-b border-gray-50 shadow-sm mb-6">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">
+          <ArrowLeft size={20} className="text-gray-700" />
+        </button>
         <h1 className="text-lg font-bold text-gray-900">Edit Profile</h1>
+        <div className="w-10"></div> {/* Spacer for balance */}
       </div>
 
       <motion.div
@@ -272,16 +275,37 @@ const ProfileEdit = () => {
 
         {/* Profile Picture */}
         <div className="flex flex-col items-center">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-surface text-white flex items-center justify-center shadow-lg shadow-surface/20">
-              <User size={32} />
+          <div className="relative group">
+            <div className="w-24 h-24 rounded-full bg-surface text-white flex items-center justify-center shadow-lg shadow-surface/20 overflow-hidden border-4 border-white">
+              {formData.profileImage ? (
+                <img src={formData.profileImage} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} />
+              )}
+              {imageUploading && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <Loader2 size={24} className="animate-spin text-white" />
+                </div>
+              )}
             </div>
-            <div className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full border border-gray-100 shadow-sm cursor-pointer">
-              <Save size={12} className="text-surface" />
-            </div>
+            <button
+              type="button"
+              onClick={handleCameraClick}
+              disabled={imageUploading}
+              className="absolute bottom-0 right-0 p-2 bg-surface text-white rounded-full border-2 border-white shadow-md cursor-pointer hover:bg-surface-dark transition-colors"
+            >
+              <Camera size={16} />
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={imageUploading}
+            />
           </div>
-          <h2 className="mt-3 text-lg font-bold text-gray-900">{formData.name || 'User'}</h2>
-          <p className="text-xs text-gray-400 font-medium">+91 {formData.phone}</p>
+          <p className="mt-2 text-xs text-gray-400">Tap icon to change photo</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -317,6 +341,23 @@ const ProfileEdit = () => {
                 />
               </div>
             </div>
+
+            {/* Phone */}
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Phone Number</label>
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-2 focus-within:border-surface transition-colors">
+                <Phone size={16} className="text-gray-300" />
+                <input
+                  type="tel"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
+                  className="flex-1 text-sm font-bold text-gray-800 outline-none placeholder:text-gray-300"
+                  placeholder="9876543210"
+                />
+              </div>
+            </div>
           </div>
 
 
@@ -328,7 +369,7 @@ const ProfileEdit = () => {
                 type="button"
                 onClick={handleGetCurrentLocation}
                 disabled={fetchingLocation}
-                className="flex items-center gap-1 text-[10px] font-bold text-surface bg-surface/5 px-2 py-1 rounded-md"
+                className="flex items-center gap-1 text-[10px] font-bold text-surface bg-surface/5 px-2 py-1 rounded-md hover:bg-surface/10 transaction-colors"
               >
                 {fetchingLocation ? <Loader2 size={10} className="animate-spin" /> : <Navigation size={10} />}
                 Auto-Detect
@@ -402,8 +443,8 @@ const ProfileEdit = () => {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-surface text-white py-3.5 rounded-2xl font-bold text-sm shadow-xl shadow-surface/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4"
+            disabled={loading || imageUploading}
+            className="w-full bg-surface text-white py-3.5 rounded-2xl font-bold text-sm shadow-xl shadow-surface/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : 'Update Profile'}
           </button>

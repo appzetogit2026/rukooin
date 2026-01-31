@@ -22,7 +22,7 @@ import StepReview from '../steps/StepReview';
 const JoinRokkooin = () => {
     useLenis();
     const navigate = useNavigate();
-    const { currentStep, nextStep, prevStep, formData, updateFormData } = usePartnerStore();
+    const { currentStep, nextStep, prevStep, formData, updateFormData, resetForm } = usePartnerStore();
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,6 +44,11 @@ const JoinRokkooin = () => {
 
     const currentStepIndex = currentStep - 1;
     const progress = (currentStep / steps.length) * 100;
+
+    const handleExit = () => {
+        resetForm();
+        navigate('/partner/dashboard');
+    };
 
     const handleNext = async () => {
         setError('');
@@ -143,6 +148,7 @@ const JoinRokkooin = () => {
                 await hotelService.saveOnboardingStep(finalPayload);
 
                 alert("✅ Application Submitted for Approval!");
+                resetForm();
                 navigate('/hotel/dashboard');
             } catch (err) {
                 console.error("Submission Failed:", err);
@@ -157,6 +163,7 @@ const JoinRokkooin = () => {
         if (currentStep > 1) {
             prevStep();
         } else {
+            resetForm();
             navigate('/hotel');
         }
     };
@@ -189,7 +196,7 @@ const JoinRokkooin = () => {
                     <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Step {currentStep} of {steps.length}</span>
                     <span className="text-xs md:text-sm font-bold text-[#003836] truncate max-w-[150px] md:max-w-none">{steps[currentStepIndex]?.title}</span>
                 </div>
-                <button onClick={() => navigate('/hotel')} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <button onClick={handleExit} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                     <X size={20} className="text-[#003836]" />
                 </button>
             </header>
