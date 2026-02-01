@@ -5,6 +5,7 @@ import Withdrawal from '../models/Withdrawal.js';
 import Property from '../models/Property.js';
 import Booking from '../models/Booking.js';
 import PaymentConfig from '../config/payment.config.js';
+import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import axios from 'axios';
 import Joi from 'joi';
@@ -353,14 +354,21 @@ export const requestWithdrawal = async (req, res) => {
     }
 
     // 5. Deduct Wallet & Create Records
+    const withdrawalId = 'WD' + Date.now() + Math.floor(Math.random() * 1000);
+
     const withdrawal = await Withdrawal.create({
+      withdrawalId,
       partnerId: req.user._id,
       walletId: wallet._id,
       amount,
       bankDetails: wallet.bankDetails,
       status: (payoutStatus === 'processed' || payoutStatus === 'pending_payout') ? 'completed' : 'pending',
       razorpayPayoutId: payoutId,
-      notes: rzpError ? `RZP Error: ${rzpError}` : ''
+      razorpayFundAccountId: wallet.razorpayFundAccountId,
+      processingDetails: {
+        remarks: rzpError ? `RZP Error: ${rzpError}` : 'Initiated from partner app',
+        initiatedAt: new Date()
+      }
     });
 
     // Deduct amount from wallet (Immediate deduction)
@@ -372,6 +380,7 @@ export const requestWithdrawal = async (req, res) => {
     const transaction = await Transaction.create({
       walletId: wallet._id,
       partnerId: req.user._id,
+      modelType: 'Partner',
       type: 'debit',
       category: 'withdrawal',
       amount,
@@ -379,7 +388,10 @@ export const requestWithdrawal = async (req, res) => {
       description: `Withdrawal Request (${withdrawal.withdrawalId})`,
       reference: withdrawal.withdrawalId,
       status: (payoutStatus === 'processed' || payoutStatus === 'pending_payout') ? 'completed' : 'pending',
-      razorpayPayoutId: payoutId
+      metadata: {
+        withdrawalId: withdrawal.withdrawalId,
+        razorpayPayoutId: payoutId
+      }
     });
 
     withdrawal.transactionId = transaction._id;

@@ -130,6 +130,17 @@ app.use('/api/hotels', hotelRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/faqs', faqRoutes);
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('❌ Global Error Handler:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
+
 // Basic Route
 app.get('/', (req, res) => {
   res.send({ message: 'Rukkoin API is running successfully' });

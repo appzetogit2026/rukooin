@@ -43,15 +43,16 @@ const withdrawalSchema = new mongoose.Schema({
   transactionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Transaction'
-  }
+  },
+  razorpayPayoutId: String,
+  razorpayFundAccountId: String
 }, { timestamps: true });
 
 // Generate withdrawal ID
-withdrawalSchema.pre('save', async function (next) {
+withdrawalSchema.pre('save', async function () {
   if (!this.withdrawalId) {
     this.withdrawalId = 'WD' + Date.now() + Math.floor(Math.random() * 1000);
   }
-  next();
 });
 
 // Indexes
