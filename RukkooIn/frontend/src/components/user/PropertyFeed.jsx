@@ -1,29 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { propertyService } from '../../services/apiService';
+import { propertyService, userService } from '../../services/apiService';
 import PropertyCard from './PropertyCard';
 import { Loader2 } from 'lucide-react';
 
 const PropertyFeed = ({ selectedType, selectedCity }) => {
   const [properties, setProperties] = useState([]);
+  const [savedHotelIds, setSavedHotelIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchProperties = async () => {
+    const fetchPropertiesAndSaved = async () => {
       setLoading(true);
       setError(null);
       try {
         const filters = {};
-        // Backend expects 'type' for property type filtering
         if (selectedType && selectedType !== 'All') filters.type = selectedType;
 
-        // Note: Backend currently does not support 'city' filtering in main query. 
-        // We might need to filter client-side if strict filtering is needed.
-        // For now, we fetch based on type.
+        // Fetch properties and saved status in parallel if logged in
+        const promises = [propertyService.getPublic(filters)];
+        if (localStorage.getItem('token')) {
+          promises.push(userService.getSavedHotels());
+        }
 
-        const data = await propertyService.getPublic(filters);
+        const [data, savedRes] = await Promise.all(promises);
 
-        // Client-side filtering for City if selected (since backend ignores it)
+        if (savedRes) {
+          const list = savedRes.savedHotels || [];
+          setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
+        }
+
         let filteredData = data;
         if (selectedCity && selectedCity !== 'All') {
           filteredData = data.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
@@ -38,7 +44,7 @@ const PropertyFeed = ({ selectedType, selectedCity }) => {
       }
     };
 
-    fetchProperties();
+    fetchPropertiesAndSaved();
   }, [selectedType, selectedCity]);
 
   if (loading) {
@@ -68,7 +74,11 @@ const PropertyFeed = ({ selectedType, selectedCity }) => {
   return (
     <div className="px-5 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {properties.map(property => (
-        <PropertyCard key={property._id} data={property} />
+        <PropertyCard
+          key={property._id}
+          data={property}
+          isSaved={savedHotelIds.includes(property._id)}
+        />
       ))}
     </div>
   );

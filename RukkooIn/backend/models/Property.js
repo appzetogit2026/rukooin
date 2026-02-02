@@ -14,6 +14,7 @@ const propertySchema = new mongoose.Schema({
 
   // BASIC INFO
   propertyName: { type: String, required: true },
+  contactNumber: { type: String },
   propertyType: {
     type: String,
     enum: ["villa", "resort", "hotel", "hostel", "pg", "homestay"],

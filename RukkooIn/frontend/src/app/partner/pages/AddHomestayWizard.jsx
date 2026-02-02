@@ -86,6 +86,7 @@ const AddHomestayWizard = () => {
     amenities: [],
     checkInTime: '',
     checkOutTime: '',
+    contactNumber: '',
     cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_HOMESTAY.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -540,6 +541,7 @@ const AddHomestayWizard = () => {
           checkOutTime: prop.checkOutTime || '',
           cancellationPolicy: prop.cancellationPolicy || '',
           houseRules: prop.houseRules || [],
+          contactNumber: prop.contactNumber || '',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_HOMESTAY.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -650,6 +652,7 @@ const AddHomestayWizard = () => {
       const propertyPayload = {
         propertyType: 'homestay',
         propertyName: propertyForm.propertyName,
+        contactNumber: propertyForm.contactNumber,
         description: propertyForm.description,
         shortDescription: propertyForm.shortDescription,
         hostLivesOnProperty: propertyForm.hostLivesOnProperty,
@@ -880,6 +883,16 @@ const AddHomestayWizard = () => {
                     <input type="checkbox" checked={propertyForm.familyFriendly} onChange={e => updatePropertyForm('familyFriendly', e.target.checked)} className="hidden" />
                     <span className={`text-sm font-bold ${propertyForm.familyFriendly ? 'text-emerald-900' : 'text-gray-700'}`}>Family Friendly</span>
                   </label>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Contact Number (For Guest Inquiries)</label>
+                  <input
+                    className="input w-full"
+                    placeholder="e.g. +91 9876543210"
+                    value={propertyForm.contactNumber}
+                    onChange={e => updatePropertyForm('contactNumber', e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -1544,10 +1557,10 @@ const AddHomestayWizard = () => {
                 <p className="text-gray-500 max-w-sm mx-auto">Your homestay registration has been sent for verification. Our team will review it and get back to you shortly.</p>
               </div>
               <button
-                onClick={() => navigate('/hotel/dashboard')}
+                onClick={() => navigate('/hotel/properties')}
                 className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
               >
-                Go to Dashboard
+                Go to My Properties
               </button>
             </div>
           )}

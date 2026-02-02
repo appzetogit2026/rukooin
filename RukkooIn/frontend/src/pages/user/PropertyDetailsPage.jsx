@@ -24,8 +24,11 @@ const PropertyDetailsPage = () => {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   // Check Availability Logic
-  const checkAvailability = async () => {
+  const checkAvailability = async (directCall = false) => {
     if (!dates.checkIn || !dates.checkOut || !selectedRoom) {
+      if (directCall) {
+        toast.error("Please select dates and room first");
+      }
       setAvailability(null);
       return null;
     }
@@ -54,10 +57,6 @@ const PropertyDetailsPage = () => {
             result = { available: false, message: `Only ${roomAvail.availableUnits} units available`, unitsLeft: roomAvail.availableUnits };
           }
         } else {
-          // If room not found in response, implied 0 availability? Or active check failed.
-          // Backend usually returns all active rooms. If not found, it might be fully blocked?
-          // Let's assume 0 if not present in ledger result but present in inventory list? 
-          // Availability controller returns ONLY active rooms with > 0 availability.
           result = { available: false, message: "Sold Out for these dates", unitsLeft: 0 };
         }
       } else {
@@ -532,7 +531,7 @@ const PropertyDetailsPage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!dates.checkIn || !dates.checkOut) {
       toast.error("Please select check-in and check-out dates");
       return;
@@ -543,15 +542,16 @@ const PropertyDetailsPage = () => {
       return;
     }
 
-    // If check hasn't run or completed yet
-    if (!availability) {
-      toast.error("Please wait while we verify availability");
-      checkAvailability();
-      return;
+    // Capture availability result (either from state or fresh check)
+    let currentAvailability = availability;
+
+    if (!currentAvailability || checkingAvailability) {
+      // If we are currently checking, or haven't checked yet, do a fresh wait
+      currentAvailability = await checkAvailability();
     }
 
-    if (availability.available !== true) {
-      toast.error(availability.message || "Selected room is not available for these dates");
+    if (!currentAvailability || currentAvailability.available !== true) {
+      toast.error(currentAvailability?.message || "Selected room is not available for these dates");
       return;
     }
 
@@ -1340,13 +1340,20 @@ const PropertyDetailsPage = () => {
               </p>
             )}
           </div>
-          <button
-            onClick={handleBook}
-            disabled={bookingLoading}
-            className="bg-surface text-white px-8 py-3 rounded-xl font-bold flex-1 md:flex-none md:w-64 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-surface-dark transition-colors"
-          >
-            {bookingLoading ? 'Processing...' : 'Book Now'}
-          </button>
+          <div className="flex flex-1 md:flex-none gap-2">
+            <button
+              onClick={handleBook}
+              disabled={bookingLoading || checkingAvailability}
+              className="bg-surface text-white px-8 py-3 rounded-xl font-bold flex-1 md:w-64 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-surface-dark transition-colors flex items-center justify-center gap-2"
+            >
+              {(bookingLoading || checkingAvailability) ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>{checkingAvailability ? 'Checking...' : 'Processing...'}</span>
+                </>
+              ) : 'Book Now'}
+            </button>
+          </div>
         </div>
       </div>
 

@@ -29,6 +29,10 @@ const OverviewTab = ({ hotel }) => (
                         <span className="font-bold text-gray-900 capitalize">{hotel.propertyType}</span>
                     </div>
                     <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Contact Number</span>
+                        <span className="font-bold text-gray-900">{hotel.contactNumber || 'Not Provided'}</span>
+                    </div>
+                    <div className="flex justify-between">
                         <span className="text-gray-500 font-bold uppercase text-[10px]">Status</span>
                         <span className="font-bold text-gray-900 capitalize">{hotel.status}</span>
                     </div>

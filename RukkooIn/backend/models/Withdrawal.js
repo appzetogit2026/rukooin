@@ -49,7 +49,7 @@ const withdrawalSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Generate withdrawal ID
-withdrawalSchema.pre('save', async function () {
+withdrawalSchema.pre('validate', async function () {
   if (!this.withdrawalId) {
     this.withdrawalId = 'WD' + Date.now() + Math.floor(Math.random() * 1000);
   }

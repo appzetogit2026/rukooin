@@ -183,11 +183,20 @@ const BookingConfirmationPage = () => {
                                         >
                                             <Navigation size={14} /> Directions
                                         </button>
-                                        <button
-                                            className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <Phone size={14} /> Contact Property
-                                        </button>
+                                        {property.contactNumber ? (
+                                            <a
+                                                href={`tel:${property.contactNumber}`}
+                                                className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Phone size={14} /> Contact Property
+                                            </a>
+                                        ) : (
+                                            <button
+                                                className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Phone size={14} /> Contact Property
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

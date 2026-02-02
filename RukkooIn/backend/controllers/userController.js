@@ -162,7 +162,7 @@ export const toggleSavedHotel = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     // Check if hotel is already saved
-    const isSaved = user.savedHotels.includes(hotelId);
+    const isSaved = user.savedHotels.some(id => id.toString() === hotelId);
 
     if (isSaved) {
       // Remove

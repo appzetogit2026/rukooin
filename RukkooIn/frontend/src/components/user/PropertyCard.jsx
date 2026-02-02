@@ -1,9 +1,20 @@
-import React from 'react';
-import { MapPin, Star, IndianRupee } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Star, IndianRupee, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { userService } from '../../services/apiService';
+import toast from 'react-hot-toast';
 
-const PropertyCard = ({ property, data, className = "" }) => {
+const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved }) => {
   const navigate = useNavigate();
+  const [isSaved, setIsSaved] = useState(initialIsSaved || false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  // Sync with initialIsSaved if it changes
+  useEffect(() => {
+    if (initialIsSaved !== undefined) {
+      setIsSaved(initialIsSaved);
+    }
+  }, [initialIsSaved]);
 
   const item = property || data;
 
@@ -19,6 +30,30 @@ const PropertyCard = ({ property, data, className = "" }) => {
     startingPrice,
     details
   } = item;
+
+  const handleToggleSave = async (e) => {
+    e.stopPropagation(); // Don't navigate to details
+    if (!localStorage.getItem('token')) {
+      toast.error("Please login to save properties");
+      return;
+    }
+
+    if (saveLoading) return;
+
+    setSaveLoading(true);
+    const newState = !isSaved;
+    setIsSaved(newState); // Optimistic update
+
+    try {
+      await userService.toggleSavedHotel(_id || item.id);
+      toast.success(newState ? "Added to wishlist" : "Removed from wishlist");
+    } catch (error) {
+      setIsSaved(!newState); // Revert
+      toast.error("Failed to update wishlist");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   // Function to clean dirty URLs (handles backticks, spaces, quotes)
   const cleanImageUrl = (url) => {
@@ -102,6 +137,17 @@ const PropertyCard = ({ property, data, className = "" }) => {
             e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
           }}
         />
+
+        {/* Wishlist Button */}
+        <button
+          onClick={handleToggleSave}
+          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-sm z-20 hover:bg-white active:scale-90 transition-all"
+        >
+          <Heart
+            size={14}
+            className={`${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-400'}`}
+          />
+        </button>
 
         {typeLabel && (
           <div className={`absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-bold ${getTypeColor(badgeTypeKey)} shadow-sm z-10`}>

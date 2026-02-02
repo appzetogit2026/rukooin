@@ -72,6 +72,7 @@ const AddHostelWizard = () => {
     amenities: [],
     checkInTime: '',
     checkOutTime: '',
+    contactNumber: '',
     cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_HOSTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -171,6 +172,7 @@ const AddHostelWizard = () => {
           checkOutTime: prop.checkOutTime || '10:00 AM',
           cancellationPolicy: prop.cancellationPolicy || 'No refund after check-in',
           houseRules: prop.houseRules || [],
+          contactNumber: prop.contactNumber || '',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_HOSTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -634,6 +636,7 @@ const AddHostelWizard = () => {
       const propertyPayload = {
         propertyType: 'hostel',
         propertyName: propertyForm.propertyName,
+        contactNumber: propertyForm.contactNumber,
         hostelType: propertyForm.hostelType,
         description: propertyForm.description,
         shortDescription: propertyForm.shortDescription,
@@ -870,6 +873,16 @@ const AddHostelWizard = () => {
                     placeholder="Tell guests about your hostel, facilities, and neighborhood..."
                     value={propertyForm.description}
                     onChange={e => updatePropertyForm('description', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Contact Number (For Guest Inquiries)</label>
+                  <input
+                    className="input w-full"
+                    placeholder="e.g. +91 9876543210"
+                    value={propertyForm.contactNumber}
+                    onChange={e => updatePropertyForm('contactNumber', e.target.value)}
                   />
                 </div>
               </div>
@@ -1541,10 +1554,10 @@ const AddHostelWizard = () => {
               <p className="text-gray-500 max-w-sm mx-auto">Your hostel listing has been submitted for review. Our team will verify the details and documents within 24-48 hours.</p>
               <button
                 type="button"
-                onClick={() => navigate('/hotel/dashboard')}
+                onClick={() => navigate('/hotel/properties')}
                 className="btn-primary"
               >
-                Go to Dashboard
+                Go to My Properties
               </button>
             </div>
           )}

@@ -20,7 +20,7 @@ const notifyAdminOfNewProperty = async (property) => {
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
+    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
@@ -29,6 +29,7 @@ export const createProperty = async (req, res) => {
     const docsArray = Array.isArray(documents) ? documents : [];
     const doc = new Property({
       propertyName,
+      contactNumber,
       propertyType: lowerType,
       description,
       shortDescription,
@@ -138,6 +139,7 @@ export const updateProperty = async (req, res) => {
       'activities',
       'hotelCategory',
       'starRating',
+      'contactNumber',
       'isLive'
     ];
 

@@ -244,6 +244,10 @@ const PartnerPropertyDetails = () => {
                     <h3 className="text-xs font-bold text-gray-500 uppercase">Description</h3>
                     <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{property.description}</p>
                   </div>
+                  <div className="bg-white p-4 rounded-xl border border-gray-100 space-y-2 shadow-sm">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase">Contact Number</h3>
+                    <p className="text-sm font-medium text-gray-900">{property.contactNumber || 'Not provided'}</p>
+                  </div>
                 </div>
               )}
 

@@ -321,7 +321,7 @@ export const hotelService = {
   getAll: async (filters = {}) => {
     try {
       const params = new URLSearchParams(filters).toString();
-      const url = params ? `/hotels?${params}` : '/hotels';
+      const url = params ? `/properties?${params}` : '/properties';
       const response = await api.get(url);
       return response.data;
     } catch (error) {
@@ -330,15 +330,17 @@ export const hotelService = {
   },
   getById: async (id) => {
     try {
-      const response = await api.get(`/hotels/${id}`);
+      const response = await api.get(`/properties/${id}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
-  getMyHotels: async () => {
+  getMyHotels: async (filters = {}) => {
     try {
-      const response = await api.get('/properties/my');
+      const params = new URLSearchParams(filters).toString();
+      const url = params ? `/properties/my?${params}` : '/properties/my';
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

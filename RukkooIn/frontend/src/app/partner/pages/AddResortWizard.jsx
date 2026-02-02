@@ -82,6 +82,7 @@ const AddResortWizard = () => {
     amenities: [],
     checkInTime: '',
     checkOutTime: '',
+    contactNumber: '',
     cancellationPolicy: '',
     houseRules: [],
     documents: REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -594,6 +595,7 @@ const AddResortWizard = () => {
           checkOutTime: prop.checkOutTime || '',
           cancellationPolicy: prop.cancellationPolicy || '',
           houseRules: prop.houseRules || [],
+          contactNumber: prop.contactNumber || '',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -704,6 +706,7 @@ const AddResortWizard = () => {
       const propertyPayload = {
         propertyType: 'resort',
         propertyName: propertyForm.propertyName,
+        contactNumber: propertyForm.contactNumber,
         description: propertyForm.description,
         shortDescription: propertyForm.shortDescription,
         resortType: propertyForm.resortType,
@@ -959,6 +962,16 @@ const AddResortWizard = () => {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-500">Detailed Description</label>
                   <textarea className="input w-full min-h-[100px]" placeholder="Tell guests what makes your resort unique..." value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Contact Number (For Guest Inquiries)</label>
+                  <input
+                    className="input w-full"
+                    placeholder="e.g. +91 9876543210"
+                    value={propertyForm.contactNumber}
+                    onChange={e => updatePropertyForm('contactNumber', e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -1637,10 +1650,10 @@ const AddResortWizard = () => {
                 <p className="text-gray-500 max-w-sm mx-auto">Your resort registration has been sent for verification. Our team will review it and get back to you shortly.</p>
               </div>
               <button
-                onClick={() => navigate('/hotel/dashboard')}
+                onClick={() => navigate('/hotel/properties')}
                 className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
               >
-                Go to Dashboard
+                Go to My Properties
               </button>
             </div>
           )}

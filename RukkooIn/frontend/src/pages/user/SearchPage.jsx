@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
+import { userService } from '../../services/apiService';
 import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
@@ -9,6 +10,7 @@ const SearchPage = () => {
     const navigate = useNavigate();
 
     const [properties, setProperties] = useState([]);
+    const [savedHotelIds, setSavedHotelIds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false); // Mobile toggle
 
@@ -43,7 +45,18 @@ const SearchPage = () => {
                 params.radius = filters.radius;
             }
 
-            const res = await propertyService.getPublicProperties(params);
+            // Fetch properties and saved status in parallel if logged in
+            const promises = [propertyService.getPublicProperties(params)];
+            if (localStorage.getItem('token')) {
+                promises.push(userService.getSavedHotels());
+            }
+
+            const [res, savedRes] = await Promise.all(promises);
+
+            if (savedRes) {
+                const list = savedRes.savedHotels || [];
+                setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
+            }
 
             // Backend returns a direct array of properties
             if (Array.isArray(res)) {
@@ -256,7 +269,11 @@ const SearchPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {properties.map(property => (
-                            <PropertyCard key={property._id} property={property} />
+                            <PropertyCard
+                                key={property._id}
+                                property={property}
+                                isSaved={savedHotelIds.includes(property._id)}
+                            />
                         ))}
                     </div>
                 )}
