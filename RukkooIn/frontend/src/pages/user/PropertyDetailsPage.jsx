@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { propertyService, legalService, reviewService, offerService, availabilityService, userService } from '../../services/apiService';
 import {
@@ -97,10 +98,11 @@ const PropertyDetailsPage = () => {
   const [saveLoading, setSaveLoading] = useState(false);
 
   const [showOffersModal, setShowOffersModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   // Lock Body Scroll when Modal Open
   useEffect(() => {
-    if (showOffersModal) {
+    if (showOffersModal || showImageModal) {
       if (window.lenis) window.lenis.stop();
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
@@ -114,7 +116,7 @@ const PropertyDetailsPage = () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showOffersModal]);
+  }, [showOffersModal, showImageModal]);
 
   useEffect(() => {
     legalService.getFinancialSettings()
@@ -602,11 +604,12 @@ const PropertyDetailsPage = () => {
   return (
     <div className="bg-gray-50 min-h-screen pb-24">
       {/* Header Image */}
-      <div className="relative h-[40vh] md:h-[50vh]">
+      <div className="relative h-[40vh] md:h-[50vh] cursor-zoom-in group">
         <img
           src={mainImage}
           alt={name}
-          className="w-full h-full object-cover"
+          onClick={() => setShowImageModal(true)}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {galleryImages.length > 1 && (
           <>
@@ -1414,6 +1417,70 @@ const PropertyDetailsPage = () => {
               ))}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* FULL SCREEN IMAGE MODAL */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 animate-fadeIn">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between text-white z-10">
+            <div className="flex flex-col">
+              <h3 className="font-bold text-sm md:text-base line-clamp-1">{name}</h3>
+              <p className="text-[10px] md:text-xs opacity-70">Image {currentImageIndex + 1} of {galleryImages.length}</p>
+            </div>
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Main Image View */}
+          <div className="flex-1 relative flex items-center justify-center p-4">
+            <motion.img
+              key={currentImageIndex}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              src={galleryImages[currentImageIndex]}
+              alt={`Gallery ${currentImageIndex}`}
+              className="max-w-full max-h-full object-contain shadow-2xl"
+            />
+
+            {galleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
+                  className="absolute left-2 md:left-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full backdrop-blur-md transition-all active:scale-95"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
+                  className="absolute right-2 md:right-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-3 md:p-4 rounded-full backdrop-blur-md transition-all active:scale-95"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Thumbnails / Counter Bar */}
+          <div className="p-4 flex justify-center gap-1.5 overflow-x-auto hide-scrollbar">
+            {galleryImages.map((img, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentImageIndex(idx)}
+                className={`
+                  w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all
+                  ${idx === currentImageIndex ? 'border-surface scale-110 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'}
+                `}
+              >
+                <img src={img} className="w-full h-full object-cover" />
+              </button>
+            ))}
           </div>
         </div>
       )}

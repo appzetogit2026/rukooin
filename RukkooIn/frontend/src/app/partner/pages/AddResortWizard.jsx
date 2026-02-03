@@ -654,8 +654,8 @@ const AddResortWizard = () => {
   };
   const nextFromNearby = () => {
     setError('');
-    if (propertyForm.nearbyPlaces.length < 3) {
-      setError('Please add at least 3 nearby places');
+    if (propertyForm.nearbyPlaces.length < 1) {
+      setError('Please add at least 1 nearby place');
       return;
     }
     setStep(5);
