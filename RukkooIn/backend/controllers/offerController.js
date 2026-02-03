@@ -1,9 +1,10 @@
 import Offer from '../models/Offer.js';
+import Booking from '../models/Booking.js';
 
 /**
  * @desc    Get active offers for users
  * @route   GET /api/offers
- * @access  Public
+ * @access  Public (Optional Auth)
  */
 export const getActiveOffers = async (req, res) => {
   try {
@@ -18,6 +19,7 @@ export const getActiveOffers = async (req, res) => {
 
     // Seed default if empty
     if (offers.length === 0) {
+      // ... same seed logic ...
       const seedOffers = [
         {
           title: "New User Special",
@@ -29,7 +31,8 @@ export const getActiveOffers = async (req, res) => {
           minBookingAmount: 500,
           image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&q=80",
           bg: "bg-[#004F4D]",
-          btnText: "Apply Now"
+          btnText: "Apply Now",
+          userLimit: 1
         },
         {
           title: "Winter Wonderland",
@@ -42,11 +45,11 @@ export const getActiveOffers = async (req, res) => {
           minBookingAmount: 1000,
           image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80",
           bg: "bg-[#1A1A1A]",
-          btnText: "Grab Deal"
+          btnText: "Grab Deal",
+          userLimit: 2
         }
       ];
 
-      // Try to insert only if code doesn't exist
       for (const so of seedOffers) {
         const exists = await Offer.findOne({ code: so.code });
         if (!exists) {
@@ -56,6 +59,23 @@ export const getActiveOffers = async (req, res) => {
 
       const freshOffers = await Offer.find({ isActive: true });
       return res.json(freshOffers);
+    }
+
+    // Filter by userLimit if user is logged in
+    if (req.user) {
+      const filteredOffers = [];
+      for (const offer of offers) {
+        const userUsageCount = await Booking.countDocuments({
+          userId: req.user._id,
+          couponCode: offer.code,
+          bookingStatus: { $nin: ['cancelled', 'rejected'] }
+        });
+
+        if (userUsageCount < (offer.userLimit || 1)) {
+          filteredOffers.push(offer);
+        }
+      }
+      return res.json(filteredOffers);
     }
 
     res.json(offers);
@@ -99,6 +119,17 @@ export const validateOffer = async (req, res) => {
     // 3. Overall Usage Limit
     if (offer.usageCount >= offer.usageLimit) {
       return res.status(400).json({ message: "Coupon limit reached" });
+    }
+
+    // 4. User Usage Limit
+    const userUsageCount = await Booking.countDocuments({
+      userId: req.user._id,
+      couponCode: offer.code,
+      bookingStatus: { $nin: ['cancelled', 'rejected'] }
+    });
+
+    if (userUsageCount >= (offer.userLimit || 1)) {
+      return res.status(400).json({ message: `You have reached the usage limit for this coupon (${offer.userLimit || 1} time(s))` });
     }
 
     // Calculate Discount

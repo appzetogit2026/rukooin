@@ -72,3 +72,27 @@ export const authorizedRoles = (...roles) => {
     next();
   };
 };
+
+export const optionalProtect = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      let user = await User.findById(decoded.id);
+      if (!user) user = await Partner.findById(decoded.id);
+      if (!user) user = await Admin.findById(decoded.id);
+
+      if (user && !user.isBlocked) {
+        req.user = user;
+      }
+    }
+    next();
+  } catch (error) {
+    // Continue even if token is invalid, but don't set req.user
+    next();
+  }
+};

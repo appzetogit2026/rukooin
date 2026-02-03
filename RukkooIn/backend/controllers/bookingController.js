@@ -161,7 +161,15 @@ export const createBooking = async (req, res) => {
           (!offer.endDate || new Date() <= offer.endDate);
         const isValidAmount = grossAmount >= (offer.minBookingAmount || 0);
 
-        if (isValidDate && isValidAmount) {
+        // User Usage Limit
+        const userUsageCount = await Booking.countDocuments({
+          userId: req.user._id,
+          couponCode: offer.code,
+          bookingStatus: { $nin: ['cancelled', 'rejected'] }
+        });
+        const isUnderUserLimit = userUsageCount < (offer.userLimit || 1);
+
+        if (isValidDate && isValidAmount && isUnderUserLimit) {
           if (offer.discountType === 'percentage') {
             discountAmount = (grossAmount * offer.discountValue) / 100;
             if (offer.maxDiscount) {

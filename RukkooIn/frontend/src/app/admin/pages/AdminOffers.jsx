@@ -97,8 +97,37 @@ const AdminOffers = () => {
     }
   };
 
+  const validateForm = () => {
+    if (!formData.title.trim()) return "Title is required";
+    if (!formData.code.trim()) return "Coupon code is required";
+    if (formData.code.length < 3) return "Code must be at least 3 characters";
+    if (!formData.discountValue || formData.discountValue <= 0) return "Valid discount value is required";
+
+    if (formData.discountType === 'percentage' && formData.discountValue > 100) {
+      return "Percentage discount cannot exceed 100%";
+    }
+
+    if (formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
+      return "End date cannot be before start date";
+    }
+
+    if (formData.usageLimit < 1) return "Overall usage limit must be at least 1";
+    if (formData.userLimit < 1) return "User limit must be at least 1";
+
+    if (!isEditing && !imageFile) return "Offer image is required";
+
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const error = validateForm();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
     try {
       let data;
       let headers = {};

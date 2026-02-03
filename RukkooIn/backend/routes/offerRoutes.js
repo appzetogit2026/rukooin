@@ -1,11 +1,11 @@
 import express from 'express';
 import { getActiveOffers, createOffer, validateOffer, getAllOffers, updateOffer, deleteOffer } from '../controllers/offerController.js';
-import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { protect, authorizedRoles, optionalProtect } from '../middlewares/authMiddleware.js';
 import upload from '../utils/multer.js';
 
 const router = express.Router();
 
-router.get('/', getActiveOffers);
+router.get('/', optionalProtect, getActiveOffers);
 router.post('/validate', protect, validateOffer);
 
 // Admin Routes
