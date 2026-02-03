@@ -40,7 +40,25 @@
        Clean Light Gray/White as per "Light Theme" preference.
        The previous teal gradient was rejected.
     */
-    @apply bg-slate-50 text-textDark font-sans min-h-screen;
+    @apply bg-slate-50 text-textDark font-sans min-h-screen selection:bg-teal-100;
+
+    /* Prevent pull-to-refresh and overscroll in some containers if needed */
+    /* overscroll-behavior-y: none; */
+
+    /* Better touch handling for mobile apps */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Prevent zoom on focus for iOS by ensuring font-size is at least 16px */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 
@@ -69,8 +87,14 @@ body:has(#hotel-root) {
 }
 
 @media print {
+
   /* Hide Navbar and specific buttons during print */
-  nav, .navbar, footer, .bottom-nav, button[class*="print:hidden"], [aria-label="Bottom Navigation"] {
+  nav,
+  .navbar,
+  footer,
+  .bottom-nav,
+  button[class*="print:hidden"],
+  [aria-label="Bottom Navigation"] {
     display: none !important;
   }
 }
