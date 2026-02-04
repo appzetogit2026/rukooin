@@ -16,7 +16,7 @@ const ExclusiveOffers = () => {
             try {
                 setLoading(true);
                 const data = await offerService.getActive();
-                setOffers(data);
+                setOffers(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error("Fetch Offers Error:", err);
                 setError(err.message);

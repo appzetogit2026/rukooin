@@ -211,7 +211,7 @@ const PropertyDetailsPage = () => {
   const fetchOffers = async () => {
     try {
       const data = await offerService.getActive();
-      setOffers(data || []);
+      setOffers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to fetch offers");
     }
@@ -983,7 +983,7 @@ const PropertyDetailsPage = () => {
 
 
             {/* --- OFFERS SECTION --- */}
-            {offers.length > 0 && (
+            {(offers.length > 0 || appliedOffer) && (
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2">
