@@ -17,50 +17,6 @@ export const getActiveOffers = async (req, res) => {
       ]
     }).sort({ createdAt: -1 });
 
-    // Seed default if empty
-    if (offers.length === 0) {
-      // ... same seed logic ...
-      const seedOffers = [
-        {
-          title: "New User Special",
-          subtitle: "Flat ₹100 Off on your first booking",
-          description: "Applicable on all hotels for new users.",
-          code: "NEWRUKKO",
-          discountType: "flat",
-          discountValue: 100,
-          minBookingAmount: 500,
-          image: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&q=80",
-          bg: "bg-[#004F4D]",
-          btnText: "Apply Now",
-          userLimit: 1
-        },
-        {
-          title: "Winter Wonderland",
-          subtitle: "Get 15% Off up to ₹500",
-          description: "Special winter discount for premium stays.",
-          code: "WINTER15",
-          discountType: "percentage",
-          discountValue: 15,
-          maxDiscount: 500,
-          minBookingAmount: 1000,
-          image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80",
-          bg: "bg-[#1A1A1A]",
-          btnText: "Grab Deal",
-          userLimit: 2
-        }
-      ];
-
-      for (const so of seedOffers) {
-        const exists = await Offer.findOne({ code: so.code });
-        if (!exists) {
-          await Offer.create(so);
-        }
-      }
-
-      const freshOffers = await Offer.find({ isActive: true });
-      return res.json(freshOffers);
-    }
-
     // Filter by userLimit if user is logged in
     if (req.user) {
       const filteredOffers = [];
