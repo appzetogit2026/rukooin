@@ -20,7 +20,7 @@ const notifyAdminOfNewProperty = async (property) => {
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, familyFriendly, resortType, activities, hotelCategory, starRating } = req.body;
+    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, resortType, activities, hotelCategory, starRating } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
@@ -47,11 +47,11 @@ export const createProperty = async (req, res) => {
       pgType: lowerType === 'pg' ? pgType : undefined,
       hostelType: lowerType === 'hostel' ? hostelType : undefined,
       hostLivesOnProperty: lowerType === 'homestay' ? hostLivesOnProperty : undefined,
-      familyFriendly: lowerType === 'homestay' ? familyFriendly : undefined,
       resortType: lowerType === 'resort' ? resortType : undefined,
       activities: lowerType === 'resort' ? activities : undefined,
       hotelCategory: lowerType === 'hotel' ? hotelCategory : undefined,
-      starRating: lowerType === 'hotel' ? starRating : undefined
+      starRating: lowerType === 'hotel' ? starRating : undefined,
+      suitability: req.body.suitability || 'none'
     });
     // Pricing is now handled in RoomType for ALL types
     await doc.save();
@@ -134,12 +134,12 @@ export const updateProperty = async (req, res) => {
       'houseRules',
       'pgType',
       'hostLivesOnProperty',
-      'familyFriendly',
       'resortType',
       'activities',
       'hotelCategory',
       'starRating',
       'contactNumber',
+      'suitability',
       'isLive'
     ];
 

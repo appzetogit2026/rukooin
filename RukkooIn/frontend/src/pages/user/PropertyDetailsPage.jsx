@@ -160,7 +160,7 @@ const PropertyDetailsPage = () => {
             cancellationPolicy: p.cancellationPolicy,
             houseRules: p.houseRules,
             petsAllowed: p.petsAllowed,
-            coupleFriendly: p.coupleFriendly
+            suitability: p.suitability
           },
           config: {
             pgType: p.pgType,
@@ -1131,7 +1131,7 @@ const PropertyDetailsPage = () => {
                     { label: 'Pets Allowed', value: policies.petsAllowed || policies.petFriendly, type: 'bool' },
                     { label: 'Smoking Allowed', value: policies.smokingAllowed || policies.smokingAlcohol, type: 'bool' },
                     { label: 'Alcohol Allowed', value: policies.alcoholAllowed, type: 'bool' },
-                    { label: 'Couple Friendly', value: policies.coupleFriendly, type: 'bool' },
+                    { label: 'Suitability', value: policies.suitability, type: 'mixed' },
                     { label: 'ID Required', value: policies.idProofMandatory || policies.idProofRequired || policies.idRequirement, type: 'mixed' }
                   ].map((rule, idx) => {
                     if (rule.value === undefined || rule.value === null) return null;

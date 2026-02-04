@@ -32,7 +32,11 @@ const propertySchema = new mongoose.Schema({
   },
 
   hostLivesOnProperty: { type: Boolean, default: false },
-  familyFriendly: { type: Boolean, default: false },
+  suitability: {
+    type: String,
+    enum: ["Couple Friendly", "Family Friendly", "none"],
+    default: "none"
+  },
 
   resortType: {
     type: String,
@@ -46,7 +50,7 @@ const propertySchema = new mongoose.Schema({
   starRating: {
     type: Number,
     min: 1,
-    max: 7
+    max: 5
   },
 
   activities: [String],

@@ -159,6 +159,12 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
           <Star size={10} className="fill-honey text-honey" />
           {displayRating}
         </div>
+
+        {item.suitability && item.suitability !== 'none' && (
+          <div className="absolute bottom-2 left-2 bg-emerald-500/90 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm z-10">
+            {item.suitability}
+          </div>
+        )}
       </div>
 
       <div className="px-3 py-2">

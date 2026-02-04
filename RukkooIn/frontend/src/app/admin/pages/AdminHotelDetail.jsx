@@ -41,6 +41,10 @@ const OverviewTab = ({ hotel }) => (
                         <span className="font-bold text-gray-900">{hotel.createdAt ? new Date(hotel.createdAt).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
+                        <span className="text-gray-500 font-bold uppercase text-[10px]">Suitability</span>
+                        <span className="font-bold text-gray-900 uppercase">{hotel.suitability || 'None'}</span>
+                    </div>
+                    <div className="flex justify-between">
                         <span className="text-gray-500 font-bold uppercase text-[10px]">Total Room Types</span>
                         <span className="font-bold text-gray-900">{hotel.rooms?.length || 0}</span>
                     </div>

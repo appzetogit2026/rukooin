@@ -72,6 +72,7 @@ const AddPGWizard = () => {
     checkOutTime: '',
     contactNumber: '',
     cancellationPolicy: '',
+    suitability: 'none',
     houseRules: [],
     documents: REQUIRED_DOCS_PG.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
   });
@@ -172,6 +173,7 @@ const AddPGWizard = () => {
           cancellationPolicy: prop.cancellationPolicy || 'No refund after check-in',
           houseRules: prop.houseRules || [],
           contactNumber: prop.contactNumber || '',
+          suitability: prop.suitability || 'none',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_PG.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -660,6 +662,7 @@ const AddPGWizard = () => {
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
+        suitability: propertyForm.suitability,
         houseRules: propertyForm.houseRules,
         documents: propertyForm.documents
       };
@@ -890,8 +893,20 @@ const AddPGWizard = () => {
                     onChange={e => updatePropertyForm('contactNumber', e.target.value)}
                   />
                 </div>
-              </div>
 
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Suitability</label>
+                  <select
+                    className="input w-full appearance-none"
+                    value={propertyForm.suitability}
+                    onChange={e => updatePropertyForm('suitability', e.target.value)}
+                  >
+                    <option value="none">None</option>
+                    <option value="Couple Friendly">Couple Friendly</option>
+                    <option value="Family Friendly">Family Friendly</option>
+                  </select>
+                </div>
+              </div>
               {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-center gap-2"><CheckCircle size={16} className="rotate-45" /> {error}</div>}
             </div>
           )}

@@ -63,6 +63,7 @@ const AddVillaWizard = () => {
     checkOutTime: '',
     contactNumber: '',
     cancellationPolicy: '',
+    suitability: 'none',
     houseRules: [],
     documents: REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
   });
@@ -162,6 +163,7 @@ const AddVillaWizard = () => {
           cancellationPolicy: prop.cancellationPolicy || '',
           houseRules: prop.houseRules || [],
           contactNumber: prop.contactNumber || '',
+          suitability: prop.suitability || 'none',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -676,6 +678,7 @@ const AddVillaWizard = () => {
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
+        suitability: propertyForm.suitability,
         houseRules: propertyForm.houseRules,
         documents: propertyForm.documents
       };
@@ -874,6 +877,19 @@ const AddVillaWizard = () => {
                     value={propertyForm.contactNumber}
                     onChange={e => updatePropertyForm('contactNumber', e.target.value)}
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Suitability</label>
+                  <select
+                    className="input w-full appearance-none"
+                    value={propertyForm.suitability}
+                    onChange={e => updatePropertyForm('suitability', e.target.value)}
+                  >
+                    <option value="none">None</option>
+                    <option value="Couple Friendly">Couple Friendly</option>
+                    <option value="Family Friendly">Family Friendly</option>
+                  </select>
                 </div>
               </div>
 

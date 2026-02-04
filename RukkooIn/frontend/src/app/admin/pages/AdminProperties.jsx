@@ -147,7 +147,7 @@ const AdminProperties = () => {
             return;
         }
 
-        const headers = ['ID', 'Property Name', 'Type', 'Owner', 'Status', 'City'];
+        const headers = ['ID', 'Property Name', 'Type', 'Owner', 'Status', 'Suitability', 'City'];
         const csvContent = [
             headers.join(','),
             ...properties.map(h => [
@@ -156,6 +156,7 @@ const AdminProperties = () => {
                 `"${h.propertyType}"`,
                 `"${h.partnerId?.name || ''}"`,
                 h.status,
+                `"${h.suitability || 'none'}"`,
                 `"${h.address?.city || ''}"`
             ].join(','))
         ].join('\n');
@@ -243,6 +244,7 @@ const AdminProperties = () => {
                                 <th className="p-4">Type</th>
                                 <th className="p-4">Owner</th>
                                 <th className="p-4">Status</th>
+                                <th className="p-4">Suitability</th>
                                 <th className="p-4 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -296,6 +298,9 @@ const AdminProperties = () => {
                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />
+                                                </td>
+                                                <td className="p-4">
+                                                    <p className="text-[10px] text-gray-700 font-bold uppercase">{property.suitability || 'none'}</p>
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button

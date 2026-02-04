@@ -77,7 +77,6 @@ const AddHomestayWizard = () => {
     description: '',
     shortDescription: '',
     hostLivesOnProperty: '',
-    familyFriendly: '',
     coverImage: '',
     propertyImages: [],
     address: { country: '', state: '', city: '', area: '', fullAddress: '', pincode: '' },
@@ -88,6 +87,7 @@ const AddHomestayWizard = () => {
     checkOutTime: '',
     contactNumber: '',
     cancellationPolicy: '',
+    suitability: 'none',
     houseRules: [],
     documents: REQUIRED_DOCS_HOMESTAY.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
   });
@@ -512,7 +512,6 @@ const AddHomestayWizard = () => {
           description: prop.description || '',
           shortDescription: prop.shortDescription || '',
           hostLivesOnProperty: prop.hostLivesOnProperty ?? true,
-          familyFriendly: prop.familyFriendly ?? true,
           coverImage: prop.coverImage || '',
           propertyImages: prop.propertyImages || [],
           address: {
@@ -542,6 +541,7 @@ const AddHomestayWizard = () => {
           cancellationPolicy: prop.cancellationPolicy || '',
           houseRules: prop.houseRules || [],
           contactNumber: prop.contactNumber || '',
+          suitability: prop.suitability || 'none',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
             : REQUIRED_DOCS_HOMESTAY.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
@@ -656,7 +656,6 @@ const AddHomestayWizard = () => {
         description: propertyForm.description,
         shortDescription: propertyForm.shortDescription,
         hostLivesOnProperty: propertyForm.hostLivesOnProperty,
-        familyFriendly: propertyForm.familyFriendly,
         coverImage: propertyForm.coverImage,
         propertyImages: propertyForm.propertyImages.filter(Boolean),
         address: propertyForm.address,
@@ -671,6 +670,7 @@ const AddHomestayWizard = () => {
         checkInTime: propertyForm.checkInTime,
         checkOutTime: propertyForm.checkOutTime,
         cancellationPolicy: propertyForm.cancellationPolicy,
+        suitability: propertyForm.suitability,
         houseRules: propertyForm.houseRules,
         documents: propertyForm.documents
       };
@@ -747,7 +747,7 @@ const AddHomestayWizard = () => {
   const clearCurrentStep = () => {
     if (!window.confirm("Clear all fields in this step?")) return;
     if (step === 1) {
-      setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '', hostLivesOnProperty: true, familyFriendly: true }));
+      setPropertyForm(prev => ({ ...prev, propertyName: '', description: '', shortDescription: '', hostLivesOnProperty: true }));
     } else if (step === 2) {
       updatePropertyForm('address', { country: 'India', state: 'Goa', city: '', area: '', fullAddress: '', pincode: '' });
       updatePropertyForm(['location', 'coordinates'], ['', '']);
@@ -867,21 +867,13 @@ const AddHomestayWizard = () => {
                   <textarea className="input w-full min-h-[100px]" placeholder="Tell guests about your home, the neighborhood, and what to expect..." value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="pt-2">
                   <label className={`flex items-center gap-3 px-4 py-3 border rounded-xl cursor-pointer transition-all ${propertyForm.hostLivesOnProperty ? 'bg-emerald-50 border-emerald-200 ring-1 ring-emerald-500' : 'bg-gray-50 border-gray-200 hover:bg-white'}`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center border ${propertyForm.hostLivesOnProperty ? 'bg-emerald-600 border-transparent text-white' : 'bg-white border-gray-300'}`}>
                       {propertyForm.hostLivesOnProperty && <CheckCircle size={14} />}
                     </div>
                     <input type="checkbox" checked={propertyForm.hostLivesOnProperty} onChange={e => updatePropertyForm('hostLivesOnProperty', e.target.checked)} className="hidden" />
                     <span className={`text-sm font-bold ${propertyForm.hostLivesOnProperty ? 'text-emerald-900' : 'text-gray-700'}`}>Host Lives on Property</span>
-                  </label>
-
-                  <label className={`flex items-center gap-3 px-4 py-3 border rounded-xl cursor-pointer transition-all ${propertyForm.familyFriendly ? 'bg-emerald-50 border-emerald-200 ring-1 ring-emerald-500' : 'bg-gray-50 border-gray-200 hover:bg-white'}`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${propertyForm.familyFriendly ? 'bg-emerald-600 border-transparent text-white' : 'bg-white border-gray-300'}`}>
-                      {propertyForm.familyFriendly && <CheckCircle size={14} />}
-                    </div>
-                    <input type="checkbox" checked={propertyForm.familyFriendly} onChange={e => updatePropertyForm('familyFriendly', e.target.checked)} className="hidden" />
-                    <span className={`text-sm font-bold ${propertyForm.familyFriendly ? 'text-emerald-900' : 'text-gray-700'}`}>Family Friendly</span>
                   </label>
                 </div>
 
@@ -893,6 +885,18 @@ const AddHomestayWizard = () => {
                     value={propertyForm.contactNumber}
                     onChange={e => updatePropertyForm('contactNumber', e.target.value)}
                   />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Suitability</label>
+                  <select
+                    className="input w-full appearance-none"
+                    value={propertyForm.suitability}
+                    onChange={e => updatePropertyForm('suitability', e.target.value)}
+                  >
+                    <option value="none">None</option>
+                    <option value="Couple Friendly">Couple Friendly</option>
+                    <option value="Family Friendly">Family Friendly</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1520,8 +1524,8 @@ const AddHomestayWizard = () => {
                     <div className="font-semibold text-sm">{propertyForm.hostLivesOnProperty ? 'Lives on Property' : 'Does Not Live'}</div>
                   </div>
                   <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
-                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Target</div>
-                    <div className="font-semibold text-sm">{propertyForm.familyFriendly ? 'Family Friendly' : 'All Guests'}</div>
+                    <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Suitability</div>
+                    <div className="font-semibold text-sm capitalize">{propertyForm.suitability}</div>
                   </div>
                 </div>
 
