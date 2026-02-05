@@ -113,6 +113,7 @@ import availabilityRoutes from './routes/availabilityRoutes.js';
 import hotelRoutes from './routes/hotelRoutes.js';
 import referralRoutes from './routes/referralRoutes.js';
 import faqRoutes from './routes/faqRoutes.js';
+import partnerRoutes from './routes/partnerRoutes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -129,6 +130,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/hotels', hotelRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/faqs', faqRoutes);
+app.use('/api/partners', partnerRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

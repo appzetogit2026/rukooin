@@ -167,10 +167,17 @@ class ReferralService {
             );
 
             // Send Notifications
-            await notificationService.sendToUser(referral.referrerId, {
-                title: 'Referral Reward Unlocked! ',
-                body: `You earned ₹${referral.rewardAmount} because your friend completed their first stay!`
-            }, { type: 'referral_reward' }, referral.referrerModel === 'Partner' ? 'partner' : 'user');
+            if (referral.referrerModel === 'Partner') {
+                await notificationService.sendToPartner(referral.referrerId, {
+                    title: 'Referral Reward Unlocked! 💰',
+                    body: `You earned ₹${referral.rewardAmount} because your friend completed their first stay!`
+                }, { type: 'referral_reward' });
+            } else {
+                await notificationService.sendToUser(referral.referrerId, {
+                    title: 'Referral Reward Unlocked! 🎁',
+                    body: `You earned ₹${referral.rewardAmount} because your friend completed their first stay!`
+                }, { type: 'referral_reward' }, 'user');
+            }
 
             await notificationService.sendToUser(referral.referredUserId, {
                 title: 'Welcome Bonus Unlocked! 🎉',

@@ -102,11 +102,11 @@ class NotificationService {
   }
 
   /**
-   * Send notification to a user or admin by ID
-   * @param {string} userId - User or Admin ID
+   * Send notification to a user, admin or partner by ID
+   * @param {string} userId - Target ID
    * @param {Object} notification - Notification payload
    * @param {Object} data - Additional data payload
-   * @param {string} userType - 'user', 'admin' (default: 'user')
+   * @param {string} userType - 'user', 'admin', 'partner' (default: 'user')
    * @returns {Promise<Object>} - Result of sending notification
    */
   async sendToUser(userId, notification, data = {}, userType = 'user') {
@@ -137,7 +137,7 @@ class NotificationService {
         console.log('[NotificationService] Saving notification to DB...');
         savedNotification = await Notification.create({
           userId: user._id,
-          userType: userType, // 'user' or 'admin'
+          userType: userType,
           title: notification.title || 'Rukkoin',
           body: notification.body || '',
           data: data || {},
@@ -196,6 +196,47 @@ class NotificationService {
     } catch (error) {
       console.error('[NotificationService] [ERROR] Error sending notification to user:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Send notification to a partner by ID
+   * @param {string} partnerId - Partner ID
+   * @param {Object} notification - Notification payload
+   * @param {Object} data - Additional data payload
+   * @returns {Promise<Object>}
+   */
+  async sendToPartner(partnerId, notification, data = {}) {
+    return this.sendToUser(partnerId, notification, data, 'partner');
+  }
+
+  /**
+   * Send notification to all active admins
+   * @param {Object} notification - Notification payload
+   * @param {Object} data - Additional data payload
+   * @returns {Promise<void>}
+   */
+  async sendToAdmins(notification, data = {}) {
+    try {
+      const Admin = (await import('../models/Admin.js')).default;
+      const activeAdmins = await Admin.find({ isActive: true });
+
+      if (activeAdmins.length === 0) {
+        console.warn('[NotificationService] No active admins found to notify.');
+        return;
+      }
+
+      console.log(`[NotificationService] Notifying ${activeAdmins.length} admins.`);
+
+      // Send to each admin (using sendToUser to handle DB logging and multi-token push)
+      const notifyPromises = activeAdmins.map(admin =>
+        this.sendToUser(admin._id, notification, data, 'admin')
+          .catch(err => console.error(`[NotificationService] Failed to notify admin ${admin._id}:`, err))
+      );
+
+      await Promise.all(notifyPromises);
+    } catch (error) {
+      console.error('[NotificationService] Error in sendToAdmins:', error);
     }
   }
 }

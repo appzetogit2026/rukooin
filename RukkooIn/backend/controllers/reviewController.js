@@ -1,6 +1,7 @@
 import Review from '../models/Review.js';
 import Property from '../models/Property.js';
 import mongoose from 'mongoose';
+import notificationService from '../services/notificationService.js';
 
 export const getPropertyReviews = async (req, res) => {
   try {
@@ -69,11 +70,19 @@ export const createReview = async (req, res) => {
     }
 
     // Update Property with new stats
-    await Property.findByIdAndUpdate(propertyId, {
+    const property = await Property.findByIdAndUpdate(propertyId, {
       avgRating,
       totalReviews
     });
     console.log(`Property ${propertyId} updated: Avg ${avgRating}, Count ${totalReviews}`);
+
+    // NOTIFICATION: Notify Partner
+    if (property && property.partnerId) {
+      notificationService.sendToPartner(property.partnerId, {
+        title: 'New Review Received! ⭐',
+        body: `Your property "${property.propertyName}" just received a ${rating}-star review.`
+      }, { type: 'new_review', propertyId: property._id, reviewId: review._id }).catch(e => console.error(e));
+    }
 
     res.status(201).json(review);
   } catch (e) {
@@ -155,6 +164,14 @@ export const replyToReview = async (req, res) => {
     review.reply = reply;
     review.replyAt = new Date();
     await review.save();
+
+    // NOTIFICATION: Notify User
+    if (review.userId) {
+      notificationService.sendToUser(review.userId, {
+        title: 'New Reply to Your Review 💬',
+        body: `The manager of "${review.propertyId.propertyName}" has replied to your review.`
+      }, { type: 'review_reply', reviewId: review._id }, 'user').catch(e => console.error(e));
+    }
 
     res.json({ success: true, review });
   } catch (e) {

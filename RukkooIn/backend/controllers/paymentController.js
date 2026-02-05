@@ -292,10 +292,10 @@ export const verifyPayment = async (req, res) => {
       // 3. Partner Notifications
       if (property && property.partnerId) {
         // Push
-        notificationService.sendToUser(property.partnerId, {
+        notificationService.sendToPartner(property.partnerId, {
           title: 'New Booking Alert!',
           body: `1 Night, ${populatedBooking.guests.adults} Guests. Check App.`
-        }, { type: 'new_booking', bookingId: populatedBooking._id }, 'partner').catch(err => console.error('Partner Push failed:', err));
+        }, { type: 'new_booking', bookingId: populatedBooking._id }).catch(err => console.error('Partner Push failed:', err));
 
         // SMS
         // Fetch partner user to get phone

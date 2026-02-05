@@ -175,18 +175,10 @@ export const registerPartner = async (req, res) => {
     await newPartner.save();
 
     // Send notification to admins
-    const admins = await Admin.find({ role: { $in: ['admin', 'superadmin'] } });
-    for (const admin of admins) {
-      notificationService.sendToUser(
-        admin._id,
-        {
-          title: 'New Partner Registration',
-          body: `${full_name} has registered as a partner and is pending approval.`
-        },
-        { type: 'partner_registration', partnerId: newPartner._id },
-        'admin'
-      ).catch(err => console.error('Failed to notify admin:', err));
-    }
+    notificationService.sendToAdmins({
+      title: 'New Partner Registration',
+      body: `${full_name} has registered as a partner and is pending approval.`
+    }, { type: 'partner_registration', partnerId: newPartner._id }).catch(err => console.error('Failed to notify admins:', err));
 
     // Send welcome email to partner
     if (email) {
@@ -331,6 +323,12 @@ export const verifyOtp = async (req, res) => {
       // REFERRAL: Auto-generate code for new user
       referralService.generateCodeForUser(user).catch(err => console.error('Code Gen Error:', err));
 
+      // NOTIFICATION: Notify Admin of new user
+      notificationService.sendToAdmins({
+        title: 'New User Registration 👤',
+        body: `${user.name} has joined the platform.`
+      }, { type: 'new_user_registration', userId: user._id }).catch(err => console.error('Admin User alert failed:', err));
+
     }
 
     const token = generateToken(user._id, user.role);
@@ -346,7 +344,12 @@ export const verifyOtp = async (req, res) => {
         role: user.role,
         isPartner: user.isPartner || (role === 'partner'),
         partnerApprovalStatus: user.partnerApprovalStatus,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        address: user.address,
+        aadhaarNumber: user.aadhaarNumber,
+        panNumber: user.panNumber,
+        createdAt: user.createdAt,
+        partnerSince: user.partnerSince
       }
     });
 
@@ -411,18 +414,10 @@ export const verifyPartnerOtp = async (req, res) => {
     }
 
     // Notify Admins
-    const admins = await Admin.find({ role: { $in: ['admin', 'superadmin'] } });
-    for (const admin of admins) {
-      notificationService.sendToUser(
-        admin._id,
-        {
-          title: `New Partner Registration: ${partner.name}`,
-          body: 'Review needed.'
-        },
-        { type: 'partner_registration', partnerId: partner._id },
-        'admin' // Assuming sendToUser handles 'admin' type correctly
-      ).catch(err => console.error('Failed to notify admin:', err));
-    }
+    notificationService.sendToAdmins({
+      title: `New Partner Registration: ${partner.name}`,
+      body: 'Review needed.'
+    }, { type: 'partner_registration', partnerId: partner._id }).catch(err => console.error('Failed to notify admins:', err));
 
     const token = generateToken(partner._id, partner.role);
 
@@ -438,7 +433,12 @@ export const verifyPartnerOtp = async (req, res) => {
         role: partner.role,
         isPartner: partner.isPartner,
         partnerApprovalStatus: partner.partnerApprovalStatus,
-        profileImage: partner.profileImage
+        profileImage: partner.profileImage,
+        address: partner.address,
+        aadhaarNumber: partner.aadhaarNumber,
+        panNumber: partner.panNumber,
+        createdAt: partner.createdAt,
+        partnerSince: partner.partnerSince
       }
     });
 
@@ -529,6 +529,8 @@ export const getMe = async (req, res) => {
         partnerApprovalStatus: user.partnerApprovalStatus,
         address: user.address,
         profileImage: user.profileImage,
+        aadhaarNumber: user.aadhaarNumber,
+        panNumber: user.panNumber,
         partnerSince: user.partnerSince,
         createdAt: user.createdAt
       }

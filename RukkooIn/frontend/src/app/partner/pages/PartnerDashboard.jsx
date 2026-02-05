@@ -6,7 +6,7 @@ import usePartnerDashboard from '../hooks/usePartnerDashboard';
 import DashboardStatCard from '../components/dashboard/DashboardStatCard';
 import RecentBookingsTable from '../components/dashboard/RecentBookingsTable';
 import ActionRequired from '../components/dashboard/ActionRequired';
-import { Calendar, Wallet, Building2, Star, Plus } from 'lucide-react';
+import { Calendar, Wallet, Building2, Star, Plus, Clock, XCircle, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PartnerDashboard = () => {
@@ -84,7 +84,7 @@ const PartnerDashboard = () => {
                 <ActionRequired items={actionItems} />
 
                 {/* KPI Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                     <DashboardStatCard
                         icon={Calendar}
                         label="Total Bookings"
@@ -105,13 +105,33 @@ const PartnerDashboard = () => {
                     />
 
                     <DashboardStatCard
-                        icon={Building2}
-                        label="Active Properties"
-                        value={stats.activeProperties}
+                        icon={CheckCircle2}
+                        label="Approved"
+                        value={stats.approvedProperties}
                         subtext="Online & Bookable"
                         actionLabel="Manage"
                         onAction={() => navigate('/hotel/properties')}
-                        colorClass="text-purple-600"
+                        colorClass="text-green-600"
+                    />
+
+                    <DashboardStatCard
+                        icon={Clock}
+                        label="Pending"
+                        value={stats.pendingProperties}
+                        subtext="Under verification"
+                        actionLabel="Check Status"
+                        onAction={() => navigate('/hotel/properties')}
+                        colorClass="text-orange-500"
+                    />
+
+                    <DashboardStatCard
+                        icon={XCircle}
+                        label="Rejected"
+                        value={stats.rejectedProperties}
+                        subtext="Needs attention"
+                        actionLabel="Fix Issues"
+                        onAction={() => navigate('/hotel/properties')}
+                        colorClass="text-red-500"
                     />
 
                     <DashboardStatCard
@@ -121,7 +141,7 @@ const PartnerDashboard = () => {
                         subtext="Action required"
                         actionLabel="Reply"
                         onAction={() => navigate('/hotel/reviews')}
-                        colorClass="text-orange-500"
+                        colorClass="text-purple-600"
                     />
                 </div>
 

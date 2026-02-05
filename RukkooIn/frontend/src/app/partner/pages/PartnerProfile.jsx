@@ -34,20 +34,34 @@ const PartnerProfile = () => {
     const { formData } = usePartnerStore();
     const [isEditing, setIsEditing] = useState(false);
     const containerRef = useRef(null);
-    const [approvalStatus, setApprovalStatus] = useState('pending');
+    const [loading, setLoading] = useState(true);
+
+    // Initial state from localStorage to prevent flicker
+    const getInitialProfile = () => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const addr = user.address || {};
+        const addrStr = [addr.street, addr.city, addr.state].filter(Boolean).join(', ');
+
+        return {
+            name: user.name || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            address: addrStr,
+            role: user.role || 'partner',
+            aadhaarNumber: user.aadhaarNumber || '',
+            panNumber: user.panNumber || '',
+            profileImage: user.profileImage || '',
+            profileImagePublicId: user.profileImagePublicId || ''
+        };
+    };
+
+    const [profile, setProfile] = useState(getInitialProfile());
+    const [approvalStatus, setApprovalStatus] = useState(() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return user.partnerApprovalStatus || 'pending';
+    });
     const [memberSince, setMemberSince] = useState('');
     const [partnerId, setPartnerId] = useState('');
-    const [profile, setProfile] = useState({
-        name: formData?.propertyName || '',
-        email: '',
-        phone: '',
-        address: '',
-        role: 'partner',
-        aadhaarNumber: '',
-        panNumber: '',
-        profileImage: '',
-        profileImagePublicId: ''
-    });
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
 
@@ -58,10 +72,12 @@ const PartnerProfile = () => {
     useEffect(() => {
         const fetchProfile = async () => {
             try {
+                setLoading(true);
                 const data = await userService.getProfile();
                 const addr = data.address || {};
                 const addrStr = [addr.street, addr.city, addr.state].filter(Boolean).join(', ');
-                setProfile({
+
+                const profileData = {
                     name: data.name || '',
                     email: data.email || '',
                     phone: data.phone || '',
@@ -71,17 +87,26 @@ const PartnerProfile = () => {
                     panNumber: data.panNumber || '',
                     profileImage: data.profileImage || '',
                     profileImagePublicId: data.profileImagePublicId || ''
-                });
+                };
+
+                setProfile(profileData);
                 setApprovalStatus(data.partnerApprovalStatus || 'pending');
                 setMemberSince(data.createdAt || data.partnerSince || '');
                 setPartnerId(data._id || '');
-            } catch {
-                console.error('Failed to load partner profile');
-                setProfile((p) => ({
-                    ...p,
-                    name: p.name || 'Partner',
-                    role: 'partner'
-                }));
+
+                // Sync with localStorage to ensure next visit is instant
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                const updatedUser = {
+                    ...user,
+                    ...data,
+                    id: data._id // Ensure ID consistency
+                };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            } catch (error) {
+                console.error('Failed to load partner profile:', error);
+            } finally {
+                setLoading(false);
             }
         };
         fetchProfile();

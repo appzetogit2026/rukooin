@@ -392,6 +392,24 @@ export const updateHotelStatus = async (req, res) => {
 
     const hotel = await Property.findByIdAndUpdate(id, update, { new: true });
     if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    // NOTIFICATION: Notify Partner
+    if (status || typeof isLive === 'boolean') {
+      const msg = status === 'approved' || update.isLive === true
+        ? `Your property "${hotel.propertyName}" is now ${status || 'Live'}!`
+        : `Management update: "${hotel.propertyName}" status changed to ${status || (update.isLive ? 'Live' : 'Hidden')}.`;
+
+      notificationService.sendToPartner(hotel.partnerId, {
+        title: 'Property Status Update 🏢',
+        body: msg
+      }, {
+        type: 'property_status_updated',
+        propertyId: hotel._id,
+        status: hotel.status,
+        isLive: hotel.isLive
+      }).catch(e => console.error('Partner status update push failed:', e));
+    }
+
     res.status(200).json({ success: true, hotel });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating hotel status' });
@@ -414,10 +432,10 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = true;
 
       // NOTIFICATION: Property Live
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToPartner(property.partnerId, {
         title: 'Property Live!',
         body: `Your property ${property.propertyName} is LIVE now!`
-      }, { type: 'property_verified', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      }, { type: 'property_verified', propertyId: property._id }).catch(e => console.error(e));
 
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
@@ -427,10 +445,10 @@ export const verifyPropertyDocuments = async (req, res) => {
       property.isLive = false;
 
       // Notify Rejection?
-      notificationService.sendToUser(property.partnerId, {
+      notificationService.sendToPartner(property.partnerId, {
         title: 'Property Documents Rejected',
         body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
-      }, { type: 'property_rejected', propertyId: property._id }, 'partner').catch(e => console.error(e));
+      }, { type: 'property_rejected', propertyId: property._id }).catch(e => console.error(e));
 
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
@@ -506,6 +524,21 @@ export const updatePartnerStatus = async (req, res) => {
     const { userId, isBlocked } = req.body;
     const partner = await Partner.findByIdAndUpdate(userId, { isBlocked }, { new: true });
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
+
+    // NOTIFICATION: Notify Partner
+    notificationService.sendToPartner(partner._id, {
+      title: isBlocked ? 'Account Blocked ⚠️' : 'Account Unblocked ✅',
+      body: isBlocked
+        ? 'Your partner account has been blocked by administration.'
+        : 'Your partner account has been unblocked. You can now access your dashboard.'
+    }, { type: 'partner_status_update', isBlocked }).catch(e => console.error('Partner status update push failed:', e));
+
+    // NOTIFICATION: Notify Admin for audit log
+    notificationService.sendToAdmins({
+      title: `Partner ${isBlocked ? 'Blocked' : 'Unblocked'}`,
+      body: `Partner ${partner.name} has been ${isBlocked ? 'blocked' : 'unblocked'} by admin.`
+    }, { type: 'partner_status_change', partnerId: partner._id, isBlocked }).catch(console.error);
+
     res.status(200).json({ success: true, message: `Partner ${isBlocked ? 'blocked' : 'unblocked'} successfully`, partner });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating partner status' });
@@ -518,9 +551,11 @@ export const deletePartner = async (req, res) => {
     const partner = await Partner.findByIdAndDelete(userId);
     if (!partner) return res.status(404).json({ success: false, message: 'Partner not found' });
 
-    // Also consider deleting associated properties or marking them as suspended?
-    // For now, just delete the partner. 
-    // Ideally, we should check if they have active bookings/properties.
+    // NOTIFICATION: Notify Admin
+    notificationService.sendToAdmins({
+      title: 'Partner Account Deleted 🗑️',
+      body: `Partner account for ${partner.name} has been permanently deleted.`
+    }, { type: 'partner_deleted', partnerId: userId }).catch(console.error);
 
     res.status(200).json({ success: true, message: 'Partner deleted successfully' });
   } catch (error) {
@@ -533,6 +568,21 @@ export const updateUserStatus = async (req, res) => {
     const { userId, isBlocked } = req.body;
     const user = await User.findByIdAndUpdate(userId, { isBlocked }, { new: true });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // NOTIFICATION: Notify User
+    notificationService.sendToUser(user._id, {
+      title: isBlocked ? 'Account Suspended ⚠️' : 'Account Active ✅',
+      body: isBlocked
+        ? 'Your account has been suspended by administration. Contact support for assistance.'
+        : 'Your account has been reactivated. Welcome back!'
+    }, { type: 'user_status_update', isBlocked }, 'user').catch(console.error);
+
+    // NOTIFICATION: Notify Admin
+    notificationService.sendToAdmins({
+      title: `User ${isBlocked ? 'Suspended' : 'Activated'}`,
+      body: `User ${user.name} (${user.phone}) has been ${isBlocked ? 'suspended' : 'activated'} by admin.`
+    }, { type: 'user_status_change', userId: user._id, isBlocked }).catch(console.error);
+
     res.status(200).json({ success: true, message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating user status' });
@@ -544,6 +594,13 @@ export const deleteUser = async (req, res) => {
     const { userId } = req.body;
     const user = await User.findByIdAndDelete(userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // NOTIFICATION: Notify Admin
+    notificationService.sendToAdmins({
+      title: 'User Account Deleted 🗑️',
+      body: `User account for ${user.name} has been deleted.`
+    }, { type: 'user_deleted', userId }).catch(console.error);
+
     res.status(200).json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error deleting user' });
@@ -586,6 +643,32 @@ export const updateBookingStatus = async (req, res) => {
         referenceId: booking._id
       });
     }
+
+    // Trigger Notifications
+    const fullBooking = await Booking.findById(booking._id).populate('propertyId');
+    const ut = booking.userModel ? booking.userModel.toLowerCase() : 'user';
+
+    // 1. Notify User
+    if (booking.userId) {
+      notificationService.sendToUser(booking.userId, {
+        title: `Booking Status Update`,
+        body: `Your booking #${booking.bookingId} at ${fullBooking?.propertyId?.propertyName || 'Hotel'} has been updated to ${status}.`
+      }, { type: 'booking_update', bookingId: booking._id }, ut).catch(console.error);
+    }
+
+    // 2. Notify Partner
+    if (fullBooking?.propertyId?.partnerId) {
+      notificationService.sendToPartner(fullBooking.propertyId.partnerId, {
+        title: `Booking Update Alert`,
+        body: `Booking #${booking.bookingId} status updated to ${status} by Administrator.`
+      }, { type: 'booking_update', bookingId: booking._id }).catch(console.error);
+    }
+
+    // 3. Notify Admins
+    notificationService.sendToAdmins({
+      title: 'Booking Status Updated',
+      body: `Booking #${booking.bookingId} status changed to ${status} by Admin.`
+    }, { type: 'booking_update', bookingId: booking._id }).catch(console.error);
 
     res.status(200).json({ success: true, booking });
   } catch (e) {
@@ -701,10 +784,10 @@ export const updatePartnerApprovalStatus = async (req, res) => {
 
       // NOTIFICATION: Approved
       if (partner.email) emailService.sendPartnerApprovedEmail(partner).catch(e => console.error(e));
-      notificationService.sendToUser(partner._id, {
+      notificationService.sendToPartner(partner._id, {
         title: 'You are approved!',
         body: 'You are approved! Start listing your properties.'
-      }, { type: 'partner_approved' }, 'partner').catch(e => console.error(e));
+      }, { type: 'partner_approved' }).catch(e => console.error(e));
 
     } else if (status === 'rejected') { // Explicit 'rejected' check or else clause
       partner.isPartner = false;
@@ -712,7 +795,12 @@ export const updatePartnerApprovalStatus = async (req, res) => {
       // NOTIFICATION: Rejected
       const reason = req.body.reason || 'Criteria not met';
       if (partner.email) emailService.sendPartnerRejectedEmail(partner, reason).catch(e => console.error(e));
-      // Optionally push? Users can't login if rejected usually, or limited access.
+
+      notificationService.sendToPartner(partner._id, {
+        title: 'Application Update',
+        body: `Your partner application has been rejected. Reason: ${reason}`
+      }, { type: 'partner_rejected', reason }).catch(e => console.error(e));
+
     } else {
       partner.isPartner = false;
     }
@@ -830,6 +918,15 @@ export const updateContactStatus = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Status updated successfully', contact: message });
+
+    // NOTIFICATION: Notify User
+    if (message.userId) {
+      const ut = message.audience === 'partner' ? 'partner' : 'user';
+      notificationService.sendToUser(message.userId, {
+        title: 'Support Update 🛠️',
+        body: `Your message "${message.subject}" is now ${status.replace('_', ' ')}.`
+      }, { type: 'support_update', messageId: message._id, status }, ut).catch(e => console.error(e));
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating contact status' });
   }

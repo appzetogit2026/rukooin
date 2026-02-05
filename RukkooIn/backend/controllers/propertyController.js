@@ -4,15 +4,24 @@ import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 import emailService from '../services/emailService.js';
-import User from '../models/User.js'; // Needed to find Admins? Or Admin model
+import notificationService from '../services/notificationService.js';
+import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 
 const notifyAdminOfNewProperty = async (property) => {
   try {
+    // 1. Email Notification
     const admin = await Admin.findOne({ role: { $in: ['admin', 'superadmin'] } });
     if (admin && admin.email) {
-      await emailService.sendAdminNewPropertyEmail(admin.email, property);
+      emailService.sendAdminNewPropertyEmail(admin.email, property).catch(e => console.error('Admin Property Email Error:', e));
     }
+
+    // 2. Push Notification to all admins
+    notificationService.sendToAdmins({
+      title: 'New Property for Review 🏨',
+      body: `${property.propertyName} (${property.propertyType}) has been submitted by a partner.`
+    }, { type: 'new_property_submission', propertyId: property._id }).catch(e => console.error('Admin Property Push Error:', e));
+
   } catch (err) {
     console.warn('Could not notify admin about property:', err.message);
   }
@@ -173,6 +182,12 @@ export const updateProperty = async (req, res) => {
       );
       property.status = 'pending';
       await property.save();
+
+      // Notify Admin of update
+      notificationService.sendToAdmins({
+        title: 'Property Updated 📝',
+        body: `${property.propertyName} has updated documents/details and is pending re-verification.`
+      }, { type: 'property_updated', propertyId: property._id }).catch(e => console.error('Admin Update Push Error:', e));
     }
 
     res.json({ success: true, property });
@@ -371,6 +386,12 @@ export const upsertDocuments = async (req, res) => {
 
     if (wasDraft) {
       notifyAdminOfNewProperty(property).catch(e => console.error(e));
+    } else {
+      // Notify Admin of document update
+      notificationService.sendToAdmins({
+        title: 'Property Docs Updated 📁',
+        body: `Partner has updated documents for "${property.propertyName}". Review needed.`
+      }, { type: 'property_docs_updated', propertyId: property._id }).catch(e => console.error('Admin Docs Update Push Error:', e));
     }
 
     res.json({ success: true, property, propertyDocument: doc });
@@ -578,7 +599,14 @@ export const deleteProperty = async (req, res) => {
     await PropertyDocument.deleteMany({ propertyId });
 
     // Delete the property
+    const deletedPropName = property.propertyName;
     await Property.findByIdAndDelete(propertyId);
+
+    // NOTIFICATION: Notify Admin of deletion
+    notificationService.sendToAdmins({
+      title: 'Property Deleted 🗑️',
+      body: `Property "${deletedPropName}" has been deleted by the partner.`
+    }, { type: 'property_deleted', propertyId }).catch(e => console.error('Admin Delete Push Error:', e));
 
     res.status(200).json({ message: 'Property deleted successfully' });
   } catch (error) {
