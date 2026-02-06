@@ -95,7 +95,7 @@ export const registerPartner = async (req, res) => {
   try {
     const {
       full_name,
-      email,
+      email: rawEmail,
       phone,
       owner_name,
       aadhaar_number,
@@ -107,7 +107,7 @@ export const registerPartner = async (req, res) => {
       termsAccepted
     } = req.body;
 
-    // Extract URLs if fields are objects (for backward and forward compatibility)
+    const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
     const getUrl = (val) => (val && typeof val === 'object' ? val.url : val);
 
     const aadhaarFrontUrl = getUrl(aadhaar_front);

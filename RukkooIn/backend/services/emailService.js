@@ -82,6 +82,7 @@ class EmailService {
    */
   async sendEmail({ to, subject, html, text }) {
     try {
+      console.log(`[EmailService] Sending to: '${to}', Subject: '${subject}'`);
       const info = await this.getTransporter().sendMail({
         from: `"${process.env.FROM_NAME || this.companyName}" <${process.env.SMTP_USER}>`,
         to,
