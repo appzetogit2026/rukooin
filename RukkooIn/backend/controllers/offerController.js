@@ -1,6 +1,8 @@
 import Offer from '../models/Offer.js';
 import Booking from '../models/Booking.js';
 
+import { uploadToCloudinary } from '../utils/cloudinary.js';
+
 /**
  * @desc    Get active offers for users
  * @route   GET /api/offers
@@ -120,9 +122,15 @@ export const createOffer = async (req, res) => {
   try {
     const offerData = { ...req.body };
 
-    // If a file was uploaded via multer/cloudinary
+    // Required fields check (specifically dates as per requirement)
+    if (!offerData.startDate || !offerData.endDate) {
+      return res.status(400).json({ message: "Start date and End date are required" });
+    }
+
+    // If a file was uploaded via multer, upload to Cloudinary
     if (req.file) {
-      offerData.image = req.file.path;
+      const result = await uploadToCloudinary(req.file.path, 'offers');
+      offerData.image = result.url;
     }
 
     const offer = new Offer(offerData);
@@ -152,8 +160,10 @@ export const getAllOffers = async (req, res) => {
 export const updateOffer = async (req, res) => {
   try {
     const offerData = { ...req.body };
+
     if (req.file) {
-      offerData.image = req.file.path;
+      const result = await uploadToCloudinary(req.file.path, 'offers');
+      offerData.image = result.url;
     }
 
     const offer = await Offer.findByIdAndUpdate(req.params.id, offerData, { new: true });
