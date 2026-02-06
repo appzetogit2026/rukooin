@@ -77,7 +77,8 @@ app.use(cors({
       'http://127.0.0.1:5173',
       'https://rukkoo.in',
       'https://www.rukkoo.in',
-      'https://rukkoo-project.vercel.app'
+      'https://rukkoo-project.vercel.app',
+      'https://rukooin-ijcelh2vj-appzetos-projects-73814664.vercel.app'
     ];
     // Add 172.16-31 range (often used by hotspots) and 10.x
     const isLocalNetwork =
