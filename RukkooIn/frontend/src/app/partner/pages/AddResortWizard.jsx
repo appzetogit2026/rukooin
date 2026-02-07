@@ -597,9 +597,8 @@ const AddResortWizard = () => {
           contactNumber: prop.contactNumber || '',
           suitability: prop.suitability || 'none',
           documents: docs.length
-            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
-              ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '', required: REQUIRED_DOCS_RESORT.find(rd => rd.type === (d.type || d.name))?.required || false }))
-              : REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
+            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '', required: REQUIRED_DOCS_RESORT.find(rd => rd.type === (d.type || d.name))?.required || false }))
+            : REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
         });
 
         if (rts.length) {
