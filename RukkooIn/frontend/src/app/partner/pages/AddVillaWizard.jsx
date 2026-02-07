@@ -12,7 +12,7 @@ const REQUIRED_DOCS_VILLA = [
   { type: "electricity_bill", name: "Electricity Bill" }
 ];
 const VILLA_AMENITIES = ["Private Pool", "Garden", "Parking", "Kitchen", "WiFi"];
-const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in"];
+const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in", "Visitors not allowed"];
 const ROOM_AMENITIES = [
   { key: 'pool', label: 'Private Pool', icon: Snowflake },
   { key: 'wifi', label: 'WiFi', icon: Wifi },
@@ -848,18 +848,17 @@ const AddVillaWizard = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Short Tagline</label>
-                  <input
-                    className="input"
-                    placeholder="e.g. Luxury 3BHK Villa with Private Pool"
-                    maxLength={60}
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</label>
+                  <textarea
+                    className="input min-h-[100px] leading-relaxed"
+                    placeholder="Brief summary (e.g. Luxury 3BHK Villa with Private Pool)"
                     value={propertyForm.shortDescription}
                     onChange={e => updatePropertyForm('shortDescription', e.target.value)}
                   />
-                  <div className="flex justify-end text-[10px] text-gray-400">{propertyForm.shortDescription.length}/60</div>
+                  <div className="flex justify-end text-[10px] text-gray-400">{propertyForm.shortDescription.length} chars</div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="hidden">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">About Property</label>
                   <textarea
                     className="input min-h-[120px] leading-relaxed"
@@ -889,6 +888,7 @@ const AddVillaWizard = () => {
                     <option value="none">None</option>
                     <option value="Couple Friendly">Couple Friendly</option>
                     <option value="Family Friendly">Family Friendly</option>
+                    <option value="Both">Both</option>
                   </select>
                 </div>
               </div>
@@ -1185,7 +1185,7 @@ const AddVillaWizard = () => {
                           onClick={(e) => { e.stopPropagation(); updatePropertyForm('coverImage', ''); }}
                           className="absolute top-3 right-3 p-2 bg-white text-red-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
                         >
-                          <Trash2 size={16} />
+                          <X size={16} />
                         </div>
                       </>
                     ) : (
@@ -1218,7 +1218,7 @@ const AddVillaWizard = () => {
                           onClick={() => updatePropertyForm('propertyImages', propertyForm.propertyImages.filter((_, x) => x !== i))}
                           className="absolute top-1 right-1 p-1.5 bg-white text-red-500 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
                         >
-                          <Trash2 size={14} />
+                          <X size={14} />
                         </button>
                       </div>
                     ))}
@@ -1357,7 +1357,7 @@ const AddVillaWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 4 && (

@@ -13,7 +13,7 @@ const REQUIRED_DOCS_HOTEL = [
   { type: "fire_safety", name: "Fire Safety Certificate" }
 ];
 const HOTEL_AMENITIES = ["Lift", "Restaurant", "Room Service", "Swimming Pool", "Parking", "Gym", "Spa", "Bar"];
-const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in"];
+const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in", "Visitors not allowed"];
 const ROOM_AMENITIES = [
   { key: 'ac', label: 'AC', icon: Snowflake },
   { key: 'wifi', label: 'WiFi', icon: Wifi },
@@ -846,40 +846,39 @@ const AddHotelWizard = () => {
                     onChange={e => updatePropertyForm('propertyName', e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Short Description</label>
-                  <textarea
-                    className="input w-full"
-                    placeholder="Brief summary for listings..."
-                    value={propertyForm.shortDescription}
-                    onChange={e => updatePropertyForm('shortDescription', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Detailed Description</label>
-                  <textarea className="input w-full h-24" placeholder="Tell guests what makes your hotel unique..." value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Contact Number (For Guest Inquiries)</label>
-                  <input
-                    className="input w-full"
-                    placeholder="e.g. +91 9876543210"
-                    value={propertyForm.contactNumber}
-                    onChange={e => updatePropertyForm('contactNumber', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Suitability</label>
-                  <select
-                    className="input w-full appearance-none"
-                    value={propertyForm.suitability}
-                    onChange={e => updatePropertyForm('suitability', e.target.value)}
-                  >
-                    <option value="none">None</option>
-                    <option value="Couple Friendly">Couple Friendly</option>
-                    <option value="Family Friendly">Family Friendly</option>
-                  </select>
-                </div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Description</label>
+                <textarea
+                  className="input w-full h-24"
+                  placeholder="Brief summary for listings..."
+                  value={propertyForm.shortDescription}
+                  onChange={e => updatePropertyForm('shortDescription', e.target.value)}
+                />
+              </div>
+              <div className="hidden">
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Detailed Description</label>
+                <textarea className="input w-full h-24" placeholder="Tell guests what makes your hotel unique..." value={propertyForm.description} onChange={e => updatePropertyForm('description', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Contact Number (For Guest Inquiries)</label>
+                <input
+                  className="input w-full"
+                  placeholder="e.g. +91 9876543210"
+                  value={propertyForm.contactNumber}
+                  onChange={e => updatePropertyForm('contactNumber', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Suitability</label>
+                <select
+                  className="input w-full appearance-none"
+                  value={propertyForm.suitability}
+                  onChange={e => updatePropertyForm('suitability', e.target.value)}
+                >
+                  <option value="none">None</option>
+                  <option value="Couple Friendly">Couple Friendly</option>
+                  <option value="Family Friendly">Family Friendly</option>
+                  <option value="Both">Both</option>
+                </select>
               </div>
             </div>
           )}
@@ -1169,7 +1168,7 @@ const AddHotelWizard = () => {
                           }}
                           className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors shadow-lg"
                         >
-                          <Trash2 size={20} />
+                          <X size={20} />
                         </button>
                       </div>
                     </div>
@@ -1203,7 +1202,7 @@ const AddHotelWizard = () => {
                         onClick={() => handleRemoveImage(img, 'gallery', i)}
                         className="absolute top-1 right-1 bg-white/90 text-red-500 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <Trash2 size={14} />
+                        <X size={14} />
                       </button>
                     </div>
                   ))}
@@ -1352,8 +1351,8 @@ const AddHotelWizard = () => {
                         {(editingRoomType.images || []).filter(Boolean).map((img, i) => (
                           <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
                             <img src={img} alt="" className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-0.5 right-0.5 bg-white/90 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Trash2 size={12} />
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                              <X size={12} />
                             </button>
                           </div>
                         ))}
@@ -1600,7 +1599,7 @@ const AddHotelWizard = () => {
             </div>
           )}
         </div>
-      </main>
+      </main >
 
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 md:px-6 z-40 bg-white/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
@@ -1635,7 +1634,7 @@ const AddHotelWizard = () => {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-    </div>
+    </div >
   );
 };
 

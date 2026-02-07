@@ -40,7 +40,7 @@ export const createProperty = async (req, res) => {
       propertyName,
       contactNumber,
       propertyType: lowerType,
-      description,
+      propertyType: lowerType,
       shortDescription,
       partnerId: req.user._id,
       address,
@@ -129,7 +129,6 @@ export const updateProperty = async (req, res) => {
 
     const updatableFields = [
       'propertyName',
-      'description',
       'shortDescription',
       'address',
       'location',

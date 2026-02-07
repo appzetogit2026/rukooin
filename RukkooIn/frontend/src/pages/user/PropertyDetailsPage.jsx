@@ -136,7 +136,7 @@ const PropertyDetailsPage = () => {
           ...p,
           _id: p._id,
           name: p.propertyName,
-          description: p.description,
+          description: p.shortDescription || p.description,
           address: p.address,
           avgRating: p.avgRating || 0,
           images: { cover: p.coverImage, gallery: p.propertyImages || [] },

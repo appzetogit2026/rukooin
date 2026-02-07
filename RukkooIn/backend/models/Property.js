@@ -34,7 +34,7 @@ const propertySchema = new mongoose.Schema({
   hostLivesOnProperty: { type: Boolean, default: false },
   suitability: {
     type: String,
-    enum: ["Couple Friendly", "Family Friendly", "none"],
+    enum: ["Couple Friendly", "Family Friendly", "Both", "none"],
     default: "none"
   },
 
@@ -55,7 +55,6 @@ const propertySchema = new mongoose.Schema({
 
   activities: [String],
 
-  description: String,
   shortDescription: String,
 
   // OWNER

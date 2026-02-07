@@ -860,16 +860,18 @@ const AddHostelWizard = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500">Short Description</label>
+                  <label className="text-xs font-semibold text-gray-500">Description</label>
                   <textarea
-                    className="input w-full"
+                    className="input w-full h-24"
                     placeholder="Brief summary (e.g. Affordable student accommodation near campus...)"
                     value={propertyForm.shortDescription}
                     onChange={e => updatePropertyForm('shortDescription', e.target.value)}
                   />
                 </div>
 
-                <div className="space-y-1">
+
+
+                <div className="hidden">
                   <label className="text-xs font-semibold text-gray-500">Detailed Description</label>
                   <textarea
                     className="input w-full min-h-[100px]"
@@ -899,6 +901,7 @@ const AddHostelWizard = () => {
                     <option value="none">None</option>
                     <option value="Couple Friendly">Couple Friendly</option>
                     <option value="Family Friendly">Family Friendly</option>
+                    <option value="Both">Both</option>
                   </select>
                 </div>
               </div>
@@ -1345,7 +1348,7 @@ const AddHostelWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (

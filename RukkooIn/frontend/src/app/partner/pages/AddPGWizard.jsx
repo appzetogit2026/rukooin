@@ -863,19 +863,17 @@ const AddPGWizard = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Short Tagline</label>
-                  <input
-                    className="input"
-                    placeholder="e.g. Premium student housing near North Campus"
-                    maxLength={60}
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</label>
+                  <textarea
+                    className="input w-full h-24"
+                    placeholder="Brief summary (e.g. Premium student housing near North Campus...)"
                     value={propertyForm.shortDescription}
                     onChange={e => updatePropertyForm('shortDescription', e.target.value)}
                   />
-                  <div className="flex justify-end text-[10px] text-gray-400">{propertyForm.shortDescription.length}/60</div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">About Property</label>
+                <div className="hidden">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Detailed Description</label>
                   <textarea
                     className="input min-h-[120px] leading-relaxed"
                     placeholder="Describe the vibe, facilities, and what makes your PG unique..."
@@ -904,6 +902,7 @@ const AddPGWizard = () => {
                     <option value="none">None</option>
                     <option value="Couple Friendly">Couple Friendly</option>
                     <option value="Family Friendly">Family Friendly</option>
+                    <option value="Both">Both</option>
                   </select>
                 </div>
               </div>
@@ -1208,7 +1207,7 @@ const AddPGWizard = () => {
                     <div key={i} className="relative aspect-square rounded-xl overflow-hidden group bg-gray-100">
                       <img src={img} className="w-full h-full object-cover" />
                       <button type="button" onClick={() => handleRemoveImage(img, 'gallery', i)} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm transform scale-90 group-hover:scale-100">
-                        <Trash2 size={12} />
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
@@ -1347,7 +1346,7 @@ const AddPGWizard = () => {
                         {(editingRoomType.images || []).map((img, i) => (
                           <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-xl border border-gray-200 overflow-hidden group">
                             <img src={img} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>
+                            <button type="button" onClick={() => handleRemoveImage(img, 'room', i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white text-red-500 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                           </div>
                         ))}
                         {(editingRoomType.images || []).length < 3 && (

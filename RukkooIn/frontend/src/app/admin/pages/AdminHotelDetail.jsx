@@ -89,7 +89,7 @@ const OverviewTab = ({ hotel }) => (
         <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h3 className="font-bold text-[10px] uppercase tracking-wider text-gray-500 mb-3">About Property</h3>
             <p className="text-sm font-bold text-gray-600 leading-relaxed uppercase tracking-tight">
-                {hotel.description || 'No description provided for this property.'}
+                {hotel.shortDescription || 'No description provided for this property.'}
             </p>
         </div>
 
