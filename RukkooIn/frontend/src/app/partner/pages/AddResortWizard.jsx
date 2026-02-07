@@ -11,10 +11,8 @@ import logo from '../../../assets/rokologin-removebg-preview.png';
 import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_RESORT = [
-  { type: "trade_license", name: "Trade License" },
-  { type: "gst_certificate", name: "GST Certificate" },
-  { type: "fssai_license", name: "FSSAI License" },
-  { type: "fire_safety", name: "Fire Safety Certificate" }
+  { type: "trade_license", name: "Trade License", required: true },
+  { type: "electricity_bill", name: "Electricity Bill", required: false }
 ];
 
 const RESORT_AMENITIES = ["Swimming Pool", "Restaurant", "Bar", "Parking"];
@@ -86,7 +84,7 @@ const AddResortWizard = () => {
     cancellationPolicy: '',
     suitability: 'none',
     houseRules: [],
-    documents: REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+    documents: REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
   });
 
   const [roomTypes, setRoomTypes] = useState([]);
@@ -600,7 +598,8 @@ const AddResortWizard = () => {
           suitability: prop.suitability || 'none',
           documents: docs.length
             ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
-            : REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+              ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '', required: REQUIRED_DOCS_RESORT.find(rd => rd.type === (d.type || d.name))?.required || false }))
+              : REQUIRED_DOCS_RESORT.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
         });
 
         if (rts.length) {
@@ -697,7 +696,11 @@ const AddResortWizard = () => {
   };
   const nextFromDocs = () => {
     setError('');
-    // Optional
+    const missing = propertyForm.documents.filter(d => d.required && !d.fileUrl);
+    if (missing.length > 0) {
+      setError(`Please upload required documents: ${missing.map(d => d.name).join(', ')}`);
+      return;
+    }
     setStep(9);
   };
 
@@ -848,7 +851,7 @@ const AddResortWizard = () => {
         setStep(8);
         break;
       case 8:
-        setStep(9);
+        nextFromDocs();
         break;
       case 9:
         submitAll();
@@ -1537,7 +1540,9 @@ const AddResortWizard = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="font-bold text-gray-900">{doc.name}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">Optional document</div>
+                          <div className={`text-xs mt-0.5 ${doc.required ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                            {doc.required ? 'Required *' : 'Optional'}
+                          </div>
                         </div>
                         {doc.fileUrl ? (
                           <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>

@@ -7,9 +7,8 @@ import logo from '../../../assets/rokologin-removebg-preview.png';
 import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_VILLA = [
-  { type: "ownership_proof", name: "Ownership Proof" },
-  { type: "government_id", name: "Government ID" },
-  { type: "electricity_bill", name: "Electricity Bill" }
+  { type: "trade_license", name: "Trade License", required: true },
+  { type: "electricity_bill", name: "Electricity Bill", required: false }
 ];
 const VILLA_AMENITIES = ["Private Pool", "Garden", "Parking", "Kitchen", "WiFi"];
 const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in", "Visitors not allowed"];
@@ -65,7 +64,7 @@ const AddVillaWizard = () => {
     cancellationPolicy: '',
     suitability: 'none',
     houseRules: [],
-    documents: REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+    documents: REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
   });
 
   const [roomTypes, setRoomTypes] = useState([]);
@@ -165,8 +164,8 @@ const AddVillaWizard = () => {
           contactNumber: prop.contactNumber || '',
           suitability: prop.suitability || 'none',
           documents: docs.length
-            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
-            : REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '', required: REQUIRED_DOCS_VILLA.find(rd => rd.type === (d.type || d.name))?.required || false }))
+            : REQUIRED_DOCS_VILLA.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
         });
         if (rts.length) {
           setRoomTypes(
@@ -645,7 +644,11 @@ const AddVillaWizard = () => {
 
   const nextFromDocuments = () => {
     setError('');
-    // Optional
+    const missing = propertyForm.documents.filter(d => d.required && !d.fileUrl);
+    if (missing.length > 0) {
+      setError(`Please upload required documents: ${missing.map(d => d.name).join(', ')}`);
+      return;
+    }
     setStep(9);
   };
 
@@ -1483,7 +1486,9 @@ const AddVillaWizard = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="font-bold text-gray-900">{doc.name}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">Optional document</div>
+                          <div className={`text-xs mt-0.5 ${doc.required ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                            {doc.required ? 'Required *' : 'Optional'}
+                          </div>
                         </div>
                         {doc.fileUrl ? (
                           <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>

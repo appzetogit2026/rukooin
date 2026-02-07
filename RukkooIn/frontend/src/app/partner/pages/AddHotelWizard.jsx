@@ -7,10 +7,7 @@ import logo from '../../../assets/rokologin-removebg-preview.png';
 import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_HOTEL = [
-  { type: "trade_license", name: "Trade License" },
-  { type: "gst_certificate", name: "GST Certificate" },
-  { type: "fssai_license", name: "FSSAI License" },
-  { type: "fire_safety", name: "Fire Safety Certificate" }
+  { type: "trade_license", name: "Trade License", required: true }
 ];
 const HOTEL_AMENITIES = ["Lift", "Restaurant", "Room Service", "Swimming Pool", "Parking", "Gym", "Spa", "Bar"];
 const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in", "Visitors not allowed"];
@@ -67,7 +64,7 @@ const AddHotelWizard = () => {
     cancellationPolicy: '',
     suitability: 'none',
     houseRules: [],
-    documents: REQUIRED_DOCS_HOTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+    documents: REQUIRED_DOCS_HOTEL.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
   });
 
   const [roomTypes, setRoomTypes] = useState([]);
@@ -546,8 +543,8 @@ const AddHotelWizard = () => {
           contactNumber: prop.contactNumber || '',
           suitability: prop.suitability || 'none',
           documents: docs.length
-            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '' }))
-            : REQUIRED_DOCS_HOTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' }))
+            ? docs.map(d => ({ type: d.type || d.name, name: d.name, fileUrl: d.fileUrl || '', required: REQUIRED_DOCS_HOTEL.find(rd => rd.type === (d.type || d.name))?.required || false }))
+            : REQUIRED_DOCS_HOTEL.map(d => ({ type: d.type, name: d.name, required: d.required, fileUrl: '' }))
         });
         if (rts.length) {
           setRoomTypes(
@@ -620,6 +617,16 @@ const AddHotelWizard = () => {
       }
     }
     setStep(7);
+  };
+
+  const nextFromDocs = () => {
+    setError('');
+    const missing = propertyForm.documents.filter(d => d.required && !d.fileUrl);
+    if (missing.length > 0) {
+      setError(`Please upload required documents: ${missing.map(d => d.name).join(', ')}`);
+      return;
+    }
+    setStep(9);
   };
 
   const submitAll = async () => {
@@ -773,7 +780,7 @@ const AddHotelWizard = () => {
         setStep(8); // Rules next
         break;
       case 8:
-        setStep(9); // Docs next - validation removed/optional
+        nextFromDocs();
         break;
       case 9:
         submitAll();
@@ -1462,7 +1469,9 @@ const AddHotelWizard = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="font-bold text-gray-900">{doc.name}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">Optional document</div>
+                          <div className={`text-xs mt-0.5 ${doc.required ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                            {doc.required ? 'Required *' : 'Optional'}
+                          </div>
                         </div>
                         {doc.fileUrl ? (
                           <div className="bg-emerald-50 text-emerald-700 p-1.5 rounded-full"><CheckCircle size={18} /></div>
