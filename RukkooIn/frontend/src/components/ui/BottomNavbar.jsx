@@ -10,7 +10,6 @@ const BottomNavbar = () => {
     const navItems = [
         { name: 'Home', icon: Home, route: '/' },
         { name: 'Bookings', icon: Briefcase, route: '/bookings' },
-        { name: 'Search', icon: Search, route: '/search' },
         { name: 'Wallet', icon: Wallet, route: '/wallet' },
         { name: 'Profile', icon: User, route: '/profile/edit' },
     ];
@@ -18,7 +17,6 @@ const BottomNavbar = () => {
     const getActiveTab = (path) => {
         if (path === '/') return 'Home';
         if (path.includes('bookings')) return 'Bookings';
-        if (path.includes('listings') || path.includes('search')) return 'Search';
         if (path.includes('wallet')) return 'Wallet';
         if (path.includes('profile')) return 'Profile';
         return 'Home';
