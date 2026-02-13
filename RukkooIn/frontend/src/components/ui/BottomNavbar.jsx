@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Briefcase, Search, Wallet, User } from 'lucide-react';
+import { Home, Briefcase, Wallet, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 
