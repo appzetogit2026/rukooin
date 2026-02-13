@@ -171,11 +171,13 @@ const PropertyDetailsPage = () => {
           }
         };
         setProperty(adapted);
-        // Only set selected room on first load if not set
-        // REMOVED: Do NOT auto select room, so Property Images show first by default.
-        // if (!selectedRoom && adapted.inventory && adapted.inventory.length > 0) {
-        //   setSelectedRoom(adapted.inventory[0]);
-        // }
+
+        // Auto-select room for 'Whole Unit' properties (Villa, etc.) 
+        // because the selection UI is hidden for them.
+        const isWholeUnitType = p.propertyType === 'villa' || (['homestay', 'apartment'].includes(p.propertyType) && rts.length === 1);
+        if (isWholeUnitType && adapted.inventory && adapted.inventory.length > 0) {
+          setSelectedRoom(adapted.inventory[0]);
+        }
       } else {
         setProperty(response);
       }
@@ -411,7 +413,9 @@ const PropertyDetailsPage = () => {
   };
 
   const getGalleryImages = () => {
-    if (selectedRoom && selectedRoom.images && selectedRoom.images.length > 0) {
+    // For whole units (Villa/Homestay entire), we prefer the Property-level gallery 
+    // by default to match the intended design of showing property images first.
+    if (selectedRoom && !isWholeUnit && selectedRoom.images && selectedRoom.images.length > 0) {
       return selectedRoom.images
         .map((img) => (typeof img === 'string' ? img : img.url))
         .filter(Boolean);
