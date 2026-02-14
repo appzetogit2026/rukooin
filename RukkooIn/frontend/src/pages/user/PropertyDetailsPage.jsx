@@ -609,12 +609,27 @@ const PropertyDetailsPage = () => {
     <div className="bg-gray-50 min-h-screen pb-24">
       {/* Header Image */}
       <div className="relative h-[40vh] md:h-[50vh] cursor-zoom-in group">
-        <img
-          src={mainImage}
-          alt={name}
+        <motion.div
+          className="w-full h-full relative"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={(e, info) => {
+            const swipeThreshold = 50;
+            if (info.offset.x < -swipeThreshold) {
+              handleNextImage();
+            } else if (info.offset.x > swipeThreshold) {
+              handlePrevImage();
+            }
+          }}
           onClick={() => setShowImageModal(true)}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+        >
+          <img
+            src={mainImage}
+            alt={name}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+          />
+        </motion.div>
         {galleryImages.length > 1 && (
           <>
             <button
@@ -876,43 +891,71 @@ const PropertyDetailsPage = () => {
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 {inventory.map((room) => (
-                  <div
+                  <motion.div
                     key={room._id}
+                    whileHover={{ scale: 1.01, translateY: -2 }}
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => {
                       setSelectedRoom(room);
-                      // Force scroll to top using multiple methods for reliability
-                      window.scrollTo(0, 0);
-                      document.documentElement.scrollTop = 0;
-                      document.body.scrollTop = 0;
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className={`
-                      border rounded-xl p-4 cursor-pointer transition-all relative overflow-hidden
-                      ${selectedRoom?._id === room._id ? 'border-surface bg-surface/5 ring-1 ring-surface' : 'border-gray-200 hover:border-surface/50'}
+                      border-2 rounded-xl p-5 cursor-pointer transition-all relative overflow-hidden flex flex-col justify-between
+                      ${selectedRoom?._id === room._id
+                        ? 'border-surface bg-surface/5 shadow-md shadow-surface/10'
+                        : 'border-gray-200 hover:border-surface/40 hover:shadow-lg'}
                     `}
                   >
                     {selectedRoom?._id === room._id && (
-                      <div className="absolute top-0 right-0 bg-surface text-white text-[10px] px-2 py-1 rounded-bl-lg">
-                        Selected
+                      <div className="absolute top-0 right-0 bg-surface text-white p-1.5 rounded-bl-xl shadow-sm">
+                        <CheckCircle size={16} />
                       </div>
                     )}
-                    <div className={`flex justify-between items-start mb-2 ${selectedRoom?._id === room._id ? 'pr-14' : ''}`}>
-                      <h4 className="font-bold text-textDark">{room.type}</h4>
-                      <span className="font-bold text-surface">₹{getRoomPrice(room) || 'N/A'}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">{room.description || `Comfortable ${room.type}`}</p>
-                    {getExtraPricingLabels(room).length > 0 && (
-                      <div className="text-[11px] text-gray-600 mb-2 space-y-0.5">
-                        {getExtraPricingLabels(room).map((label, index) => (
-                          <div key={index}>{label}</div>
+
+                    <div>
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="font-bold text-lg text-textDark mb-1">{room.type}</h4>
+                          <p className="text-xs text-gray-500 line-clamp-2">{room.description || `Comfortable ${room.type}`}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="block font-bold text-xl text-surface">₹{getRoomPrice(room) || 'N/A'}</span>
+                          <span className="text-[10px] text-gray-400 font-medium">per night</span>
+                        </div>
+                      </div>
+
+                      {getExtraPricingLabels(room).length > 0 && (
+                        <div className="text-[11px] text-gray-600 mb-4 bg-gray-50 p-2 rounded-lg space-y-1">
+                          {getExtraPricingLabels(room).map((label, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                              {label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 flex-wrap mb-4">
+                        {room.amenities?.filter(a => a && typeof a === 'string' && a.trim()).slice(0, 4).map((am, i) => (
+                          <span key={i} className="text-[10px] bg-gray-100 px-2.5 py-1 rounded-full text-gray-600 font-medium">{am}</span>
                         ))}
                       </div>
-                    )}
-                    <div className="flex gap-2 flex-wrap">
-                      {room.amenities?.filter(a => a && typeof a === 'string' && a.trim()).slice(0, 3).map((am, i) => (
-                        <span key={i} className="text-[10px] bg-gray-100 px-2 py-1 rounded-full text-gray-600">{am}</span>
-                      ))}
                     </div>
-                  </div>
+
+                    <div className={`
+                      w-full py-2.5 rounded-lg text-sm font-bold border-2 transition-all flex items-center justify-center gap-2
+                      ${selectedRoom?._id === room._id
+                        ? 'bg-surface text-white border-surface'
+                        : 'bg-white text-surface border-surface/20 group-hover:border-surface'}
+                    `}>
+                      {selectedRoom?._id === room._id ? (
+                        <>
+                          <CheckCircle size={16} />
+                          Selected
+                        </>
+                      ) : 'Select Room'}
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
