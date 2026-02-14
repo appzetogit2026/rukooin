@@ -711,11 +711,10 @@ export const updateAdminProfile = async (req, res) => {
  */
 export const updateFcmToken = async (req, res) => {
   try {
-    const { fcmToken } = req.body;
+    const { fcmToken, platform = 'web' } = req.body;
     if (!fcmToken) return res.status(400).json({ message: 'fcmToken is required' });
 
     const user = req.user; // From middleware (User, Partner, or Admin)
-
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // Ensure fcmTokens object exists
@@ -723,16 +722,17 @@ export const updateFcmToken = async (req, res) => {
       user.fcmTokens = {};
     }
 
-    // Defaulting to web for now, can be extended to 'app'
-    user.fcmTokens.web = fcmToken;
+    // Support for both 'app' (Flutter) and 'web' (Browser)
+    if (platform === 'app') {
+      user.fcmTokens.app = fcmToken;
+    } else {
+      user.fcmTokens.web = fcmToken;
+    }
 
-    // For backward compatibility if schema uses single field, but our models have fcmTokens object now
-    // If Admin doesn't have fcmTokens object in schema yet, we might need to check. 
-    // Assuming Admin schema is similar or we just save to the document.
-
+    // Save to the document
     await user.save();
 
-    res.json({ success: true, message: 'FCM Token updated successfully' });
+    res.json({ success: true, message: `FCM Token updated successfully for ${platform}` });
   } catch (error) {
     console.error('Update FCM Token Error:', error);
     res.status(500).json({ message: 'Server error updating FCM token' });
