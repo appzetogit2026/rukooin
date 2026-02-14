@@ -2,28 +2,34 @@ import mongoose from 'mongoose';
 import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import PropertyDocument from '../models/PropertyDocument.js';
+import Partner from '../models/Partner.js';
 import { PROPERTY_DOCUMENTS } from '../config/propertyDocumentRules.js';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 
-const notifyAdminOfNewProperty = async (property) => {
+const notifySubmission = async (property) => {
   try {
-    // 1. Email Notification
+    // 1. Notify Admin (Email & Push)
     const admin = await Admin.findOne({ role: { $in: ['admin', 'superadmin'] } });
     if (admin && admin.email) {
       emailService.sendAdminNewPropertyEmail(admin.email, property).catch(e => console.error('Admin Property Email Error:', e));
     }
 
-    // 2. Push Notification to all admins
     notificationService.sendToAdmins({
       title: 'New Property for Review 🏨',
       body: `${property.propertyName} (${property.propertyType}) has been submitted by a partner.`
     }, { type: 'new_property_submission', propertyId: property._id }).catch(e => console.error('Admin Property Push Error:', e));
 
+    // 2. Notify Partner (Email Confirmation)
+    const partner = await Partner.findById(property.partnerId);
+    if (partner && partner.email) {
+      emailService.sendPartnerPropertyAddedEmail(partner, property).catch(e => console.error('Partner Property Email Error:', e));
+    }
+
   } catch (err) {
-    console.warn('Could not notify admin about property:', err.message);
+    console.warn('Could not notify about property submission:', err.message);
   }
 };
 
@@ -107,7 +113,7 @@ export const createProperty = async (req, res) => {
 
     // NOTIFICATION: Notify Admin only if pending
     if (doc.status === 'pending') {
-      notifyAdminOfNewProperty(doc).catch(e => console.error(e));
+      notifySubmission(doc).catch(e => console.error(e));
     }
 
     res.status(201).json({ success: true, property: doc });
@@ -384,7 +390,7 @@ export const upsertDocuments = async (req, res) => {
     await property.save();
 
     if (wasDraft) {
-      notifyAdminOfNewProperty(property).catch(e => console.error(e));
+      notifySubmission(property).catch(e => console.error(e));
     } else {
       // Notify Admin of document update
       notificationService.sendToAdmins({
@@ -606,6 +612,13 @@ export const deleteProperty = async (req, res) => {
       title: 'Property Deleted 🗑️',
       body: `Property "${deletedPropName}" has been deleted by the partner.`
     }, { type: 'property_deleted', propertyId }).catch(e => console.error('Admin Delete Push Error:', e));
+
+    // NOTIFICATION: Notify Partner of deletion
+    Partner.findById(req.user._id).then(partner => {
+      if (partner && partner.email) {
+        emailService.sendPartnerPropertyDeletedEmail(partner, property, 'Partner (Self)').catch(e => console.error(e));
+      }
+    });
 
     res.status(200).json({ message: 'Property deleted successfully' });
   } catch (error) {

@@ -103,6 +103,13 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     enum: ["user", "admin"],
     default: "user"
+  },
+
+  // NOTIFICATION FLAGS
+  notificationsSent: {
+    checkInReminder: { type: Boolean, default: false },
+    checkOutReviewRequest: { type: Boolean, default: false },
+    paymentExpiryWarning: { type: Boolean, default: false }
   }
 
 }, { timestamps: true });

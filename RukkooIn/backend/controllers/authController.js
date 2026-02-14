@@ -301,6 +301,11 @@ export const verifyOtp = async (req, res) => {
 
     await user.save();
 
+    // NOTIFICATION: New Login Alert
+    if (!isRegistration) {
+      emailService.sendLoginAlertEmail(user, req.headers['user-agent'] || 'Rukkoin App/Web').catch(e => console.error(e));
+    }
+
     // NOTIFICATION & EMAIL TRIGGERS (USER REGISTRATION)
     if (isRegistration && role === 'user') {
       // Send Welcome Email
@@ -482,6 +487,9 @@ export const adminLogin = async (req, res) => {
     admin.lastLogin = new Date();
     await admin.save();
 
+    // NOTIFICATION: Admin Login Alert
+    emailService.sendLoginAlertEmail(admin, req.headers['user-agent'] || 'Admin Dashboard').catch(e => console.error(e));
+
     const token = generateToken(admin._id, admin.role);
 
     res.status(200).json({
@@ -604,6 +612,11 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
 
+    // NOTIFICATION: Security alert for profile update
+    if (user.email) {
+      emailService.sendSecurityAlertEmail(user, 'Profile Details').catch(e => console.error(e));
+    }
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -667,6 +680,11 @@ export const updateAdminProfile = async (req, res) => {
     }
 
     await admin.save();
+
+    // NOTIFICATION: Security alert for Admin
+    if (admin.email) {
+      emailService.sendSecurityAlertEmail(admin, 'Admin Profile Details').catch(e => console.error(e));
+    }
 
     res.status(200).json({
       success: true,

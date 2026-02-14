@@ -10,6 +10,9 @@ import morgan from 'morgan';
 // Initialize Firebase
 initializeFirebase();
 
+// Initialize Cron Jobs
+import './services/cronService.js';
+
 
 
 const app = express();

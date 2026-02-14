@@ -408,6 +408,13 @@ export const updateHotelStatus = async (req, res) => {
         status: hotel.status,
         isLive: hotel.isLive
       }).catch(e => console.error('Partner status update push failed:', e));
+
+      // EMAIL: Property Status Change (Suspended / Unsuspended)
+      Partner.findById(hotel.partnerId).then(partner => {
+        if (partner && partner.email) {
+          emailService.sendPartnerPropertyStatusUpdateEmail(partner, hotel, status || hotel.status, hotel.isLive).catch(e => console.error(e));
+        }
+      });
     }
 
     res.status(200).json({ success: true, hotel });
@@ -437,6 +444,13 @@ export const verifyPropertyDocuments = async (req, res) => {
         body: `Your property ${property.propertyName} is LIVE now!`
       }, { type: 'property_verified', propertyId: property._id }).catch(e => console.error(e));
 
+      // EMAIL: Property Approved
+      Partner.findById(property.partnerId).then(partner => {
+        if (partner && partner.email) {
+          emailService.sendPartnerPropertyApprovedEmail(partner, property).catch(e => console.error(e));
+        }
+      });
+
     } else if (action === 'reject') {
       docs.verificationStatus = 'rejected';
       docs.adminRemark = adminRemark;
@@ -449,6 +463,13 @@ export const verifyPropertyDocuments = async (req, res) => {
         title: 'Property Documents Rejected',
         body: `Your property ${property.propertyName} documents were rejected. reason: ${adminRemark || 'Review needed'}`
       }, { type: 'property_rejected', propertyId: property._id }).catch(e => console.error(e));
+
+      // EMAIL: Property Rejected
+      Partner.findById(property.partnerId).then(partner => {
+        if (partner && partner.email) {
+          emailService.sendPartnerPropertyRejectedEmail(partner, property, adminRemark).catch(e => console.error(e));
+        }
+      });
 
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' });
@@ -501,18 +522,41 @@ export const deleteReview = async (req, res) => {
 export const updateReviewStatus = async (req, res) => {
   try {
     const { reviewId, status } = req.body;
-    const review = await Review.findByIdAndUpdate(reviewId, { status }, { new: true });
+    const review = await Review.findById(reviewId).populate('userId').populate('propertyId');
     if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
+
+    review.status = status;
+    await review.save();
+
     const agg = await Review.aggregate([
-      { $match: { propertyId: review.propertyId, status: 'approved' } },
+      { $match: { propertyId: review.propertyId._id, status: 'approved' } },
       { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } }
     ]);
     const stats = agg[0];
     if (stats) {
-      await Property.findByIdAndUpdate(review.propertyId, { avgRating: stats.avg, totalReviews: stats.count });
+      await Property.findByIdAndUpdate(review.propertyId._id, { avgRating: stats.avg, totalReviews: stats.count });
     } else {
-      await Property.findByIdAndUpdate(review.propertyId, { avgRating: 0, totalReviews: 0 });
+      await Property.findByIdAndUpdate(review.propertyId._id, { avgRating: 0, totalReviews: 0 });
     }
+
+    // NOTIFICATION: Notify User (Push + Email)
+    if (review.userId) {
+      const user = review.userId;
+      const property = review.propertyId;
+      const reason = req.body.reason || (status === 'rejected' ? 'Did not meet community guidelines.' : '');
+
+      // Push
+      notificationService.sendToUser(user._id, {
+        title: `Review ${status === 'approved' ? 'Approved ✅' : 'Rejected ❌'}`,
+        body: `Your review for "${property.propertyName}" has been ${status}.`
+      }, { type: 'review_moderation', status, reviewId: review._id }, 'user').catch(e => console.error(e));
+
+      // Email
+      if (user.email) {
+        emailService.sendReviewStatusEmail(user, review, property, status, reason).catch(e => console.error(e));
+      }
+    }
+
     res.status(200).json({ success: true, message: `Review status updated to ${status}`, review });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error updating review status' });
@@ -532,6 +576,11 @@ export const updatePartnerStatus = async (req, res) => {
         ? 'Your partner account has been blocked by administration.'
         : 'Your partner account has been unblocked. You can now access your dashboard.'
     }, { type: 'partner_status_update', isBlocked }).catch(e => console.error('Partner status update push failed:', e));
+
+    // EMAIL: Notify Partner of block/unblock
+    if (partner.email) {
+      emailService.sendPartnerAccountStatusEmail(partner, isBlocked).catch(e => console.error(e));
+    }
 
     // NOTIFICATION: Notify Admin for audit log
     notificationService.sendToAdmins({
@@ -556,6 +605,11 @@ export const deletePartner = async (req, res) => {
       title: 'Partner Account Deleted 🗑️',
       body: `Partner account for ${partner.name} has been permanently deleted.`
     }, { type: 'partner_deleted', partnerId: userId }).catch(console.error);
+
+    // EMAIL: Notify Partner
+    if (partner.email) {
+      emailService.sendPartnerAccountDeletedEmail(partner).catch(e => console.error(e));
+    }
 
     res.status(200).json({ success: true, message: 'Partner deleted successfully' });
   } catch (error) {
@@ -583,6 +637,11 @@ export const updateUserStatus = async (req, res) => {
       body: `User ${user.name} (${user.phone}) has been ${isBlocked ? 'suspended' : 'activated'} by admin.`
     }, { type: 'user_status_change', userId: user._id, isBlocked }).catch(console.error);
 
+    // EMAIL: Notify User
+    if (user.email) {
+      emailService.sendUserAccountStatusEmail(user, isBlocked).catch(e => console.error(e));
+    }
+
     res.status(200).json({ success: true, message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error updating user status' });
@@ -601,6 +660,11 @@ export const deleteUser = async (req, res) => {
       body: `User account for ${user.name} has been deleted.`
     }, { type: 'user_deleted', userId }).catch(console.error);
 
+    // EMAIL: Notify User
+    if (user.email) {
+      emailService.sendUserAccountDeletedEmail(user).catch(e => console.error(e));
+    }
+
     res.status(200).json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error deleting user' });
@@ -616,11 +680,21 @@ export const deleteHotel = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Property id is required' });
     }
 
+    const hotel = await Property.findById(id);
+    if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
+
+    const partner = await Partner.findById(hotel.partnerId);
+
     const del = await Property.findByIdAndDelete(id);
     if (!del) return res.status(404).json({ success: false, message: 'Property not found' });
 
     await PropertyDocument.deleteMany({ propertyId: id });
     await RoomType.deleteMany({ propertyId: id });
+
+    // EMAIL: Notify Partner of deletion
+    if (partner && partner.email) {
+      emailService.sendPartnerPropertyDeletedEmail(partner, hotel, 'SuperAdmin').catch(e => console.error(e));
+    }
 
     res.status(200).json({ success: true });
   } catch (e) {
@@ -1076,7 +1150,7 @@ export const getAdminNotifications = async (req, res) => {
 
 export const createBroadcastNotification = async (req, res) => {
   try {
-    const { title, body, targetAudience, type = 'general' } = req.body; // targetAudience: 'users', 'partners', 'all' || 'everyone'
+    const { title, body, targetAudience, type = 'general', sendEmail = false } = req.body; // targetAudience: 'users', 'partners', 'all' || 'everyone'
 
     if (!title || !body || !targetAudience) {
       return res.status(400).json({ message: 'Title, Body and Target Audience are required' });
@@ -1086,15 +1160,14 @@ export const createBroadcastNotification = async (req, res) => {
 
     // 1. Fetch Users
     if (targetAudience === 'users' || targetAudience === 'everyone' || targetAudience === 'all') {
-      const users = await User.find({ isBlocked: { $ne: true } }).select('_id');
-      recipients.push(...users.map(u => ({ id: u._id, type: 'user' })));
+      const users = await User.find({ isBlocked: { $ne: true } }).select('_id email');
+      recipients.push(...users.map(u => ({ id: u._id, type: 'user', email: u.email })));
     }
 
     // 2. Fetch Partners
     if (targetAudience === 'partners' || targetAudience === 'everyone' || targetAudience === 'all') {
-      // Typically approved partners only? Or all? Let's say all active ones.
-      const partners = await Partner.find({ isBlocked: { $ne: true } }).select('_id');
-      recipients.push(...partners.map(p => ({ id: p._id, type: 'partner' })));
+      const partners = await Partner.find({ isBlocked: { $ne: true } }).select('_id email');
+      recipients.push(...partners.map(p => ({ id: p._id, type: 'partner', email: p.email })));
     }
 
     if (recipients.length === 0) {
@@ -1113,12 +1186,18 @@ export const createBroadcastNotification = async (req, res) => {
       const chunk = recipients.slice(i, i + chunkSize);
       await Promise.all(chunk.map(async (recipient) => {
         try {
+          // Push
           await notificationService.sendToUser(
             recipient.id,
             { title, body },
             { type: 'broadcast', broadcastId: Date.now().toString() },
             recipient.type
           );
+
+          // Email (if requested)
+          if (sendEmail && recipient.email) {
+            emailService.sendBroadcastEmail(recipient.email, title, body).catch(e => console.error(e));
+          }
           sentCount++;
         } catch (err) {
           console.error(`Failed to send broadcast to ${recipient.type} ${recipient.id}:`, err);

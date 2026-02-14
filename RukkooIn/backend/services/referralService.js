@@ -182,7 +182,23 @@ class ReferralService {
             await notificationService.sendToUser(referral.referredUserId, {
                 title: 'Welcome Bonus Unlocked! 🎉',
                 body: `You earned ₹${referral.rewardAmount} for completing your first stay!`
-            }, { type: 'referral_reward' }, 'user');
+            }, { type: 'referral_reward' }, 'user').catch(e => console.error(e));
+
+            // EMAIL: Notify Referrer
+            try {
+                const User = mongoose.model('User');
+                const Partner = mongoose.model('Partner');
+                let referrer = await User.findById(referral.referrerId);
+                if (!referrer) referrer = await Partner.findById(referral.referrerId);
+
+                const friend = await User.findById(referral.referredUserId);
+
+                if (referrer && referrer.email && friend) {
+                    emailService.sendReferralEarnedEmail(referrer, friend.name, referral.rewardAmount).catch(e => console.error(e));
+                }
+            } catch (err) {
+                console.error('Referral Email trigger failed:', err);
+            }
 
         } catch (error) {
             console.error("Process Booking Completion Error:", error);

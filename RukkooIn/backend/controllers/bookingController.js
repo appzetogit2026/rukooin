@@ -22,6 +22,8 @@ const triggerBookingNotifications = async (booking) => {
       .populate('propertyId');
 
     const userType = fullBooking.userModel ? fullBooking.userModel.toLowerCase() : 'user';
+    const user = fullBooking.userId;
+    const property = fullBooking.propertyId;
 
     // 1. User Email
     if (user && user.email) {

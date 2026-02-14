@@ -398,11 +398,24 @@ export const requestWithdrawal = async (req, res) => {
     withdrawal.transactionId = transaction._id;
     await withdrawal.save();
 
-    // NOTIFICATION: Notify Partner
+    // NOTIFICATION: Notify Partner (Push)
     notificationService.sendToPartner(req.user._id, {
       title: 'Withdrawal Initiated 💸',
       body: `Your withdrawal request of ₹${amount} is being processed. ID: ${withdrawal.withdrawalId}`
     }, { type: 'withdrawal_initiated', withdrawalId: withdrawal._id }).catch(e => console.error(e));
+
+    // NOTIFICATION: Payout Settlement (Email)
+    if (withdrawal.status === 'completed' && partner.email) {
+      emailService.sendWithdrawalSettledEmail(partner, withdrawal).catch(e => console.error(e));
+    }
+
+    // NOTIFICATION: Low Balance Warning
+    if (wallet.balance < 500) {
+      notificationService.sendToPartner(req.user._id, {
+        title: 'Low Balance Warning! ⚠️',
+        body: `Your wallet balance is ₹${wallet.balance.toFixed(2)}. Top up now to avoid disruptions.`
+      }, { type: 'low_balance', balance: wallet.balance }).catch(e => console.error(e));
+    }
 
     // NOTIFICATION: Notify Admin
     notificationService.sendToAdmins({

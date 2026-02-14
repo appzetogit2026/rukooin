@@ -153,7 +153,7 @@ export const replyToReview = async (req, res) => {
 
     if (!reply) return res.status(400).json({ message: 'Reply content is required' });
 
-    const review = await Review.findById(reviewId).populate('propertyId');
+    const review = await Review.findById(reviewId).populate('propertyId').populate('userId');
     if (!review) return res.status(404).json({ message: 'Review not found' });
 
     // Verify ownership
@@ -165,12 +165,20 @@ export const replyToReview = async (req, res) => {
     review.replyAt = new Date();
     await review.save();
 
-    // NOTIFICATION: Notify User
+    // NOTIFICATION: Notify User (Push + Email)
     if (review.userId) {
-      notificationService.sendToUser(review.userId, {
+      const user = review.userId;
+
+      // Push
+      notificationService.sendToUser(user._id, {
         title: 'New Reply to Your Review 💬',
         body: `The manager of "${review.propertyId.propertyName}" has replied to your review.`
       }, { type: 'review_reply', reviewId: review._id }, 'user').catch(e => console.error(e));
+
+      // Email
+      if (user.email) {
+        emailService.sendReviewReplyEmail(user, review, review.propertyId, reply).catch(e => console.error(e));
+      }
     }
 
     res.json({ success: true, review });

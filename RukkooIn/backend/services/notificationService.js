@@ -239,6 +239,42 @@ class NotificationService {
       console.error('[NotificationService] Error in sendToAdmins:', error);
     }
   }
+
+  /**
+   * Broadcast notification to all users or partners
+   * @param {string} target - 'all_users', 'all_partners'
+   * @param {Object} notification - { title, body }
+   * @param {Object} data - payload
+   */
+  async broadcastToAll(target, notification, data = {}) {
+    try {
+      console.log(`[NotificationService] 📢 BROADCASTING to ${target}`);
+      let targetUsers = [];
+      let userType = 'user';
+
+      if (target === 'all_partners') {
+        const Partner = (await import('../models/Partner.js')).default;
+        targetUsers = await Partner.find({ isVerified: true, partnerApprovalStatus: 'approved' }).select('_id name email fcmTokens');
+        userType = 'partner';
+      } else {
+        targetUsers = await User.find({ isVerified: true }).select('_id name email fcmTokens');
+        userType = 'user';
+      }
+
+      console.log(`[NotificationService] Found ${targetUsers.length} recipients for broadcast.`);
+
+      // Send to each user
+      // Note: For massive scale, we'd use FCM topics or batch, but for now we iterate
+      const promises = targetUsers.map(u =>
+        this.sendToUser(u._id, notification, data, userType)
+          .catch(e => console.error(`Failed broadcast for ${u._id}:`, e))
+      );
+
+      return Promise.all(promises);
+    } catch (error) {
+      console.error('[NotificationService] Broadcast failed:', error);
+    }
+  }
 }
 
 export default new NotificationService();
