@@ -469,11 +469,11 @@ const AddVillaWizard = () => {
 
   const handleCameraUpload = async (type, onDone) => {
     try {
-      setUploading(type);
       setError('');
       console.log('[Camera] Opening Flutter camera...');
 
       const result = await openFlutterCamera();
+      setUploading(type);
 
       if (!result.success || !result.base64) {
         throw new Error('Camera capture failed');
