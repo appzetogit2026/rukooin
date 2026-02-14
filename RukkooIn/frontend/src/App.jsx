@@ -12,7 +12,7 @@ import ScrollToTop from './components/ui/ScrollToTop';
 
 // Hooks & Services
 import { useLenis } from './app/shared/hooks/useLenis';
-import { legalService, userService } from './services/apiService';
+import { legalService, userService, hotelService } from './services/apiService';
 import adminService from './services/adminService';
 import { requestNotificationPermission, onMessageListener } from './utils/firebase';
 import logo from './assets/rokologin-removebg-preview.png';
@@ -304,8 +304,14 @@ function App() {
               await adminService.updateFcmToken(appToken, 'app');
             } else {
               const tokenAuth = localStorage.getItem('token');
-              if (tokenAuth) {
-                await userService.updateFcmToken(appToken, 'app');
+              const userStr = localStorage.getItem('user');
+              if (tokenAuth && userStr) {
+                const user = JSON.parse(userStr);
+                if (user.role === 'partner') {
+                  await hotelService.updateFcmToken(appToken, 'app');
+                } else {
+                  await userService.updateFcmToken(appToken, 'app');
+                }
               }
             }
             return;
@@ -323,8 +329,17 @@ function App() {
           const adminToken = localStorage.getItem('adminToken');
           if (adminToken) {
             await adminService.updateFcmToken(appToken, 'app');
-          } else if (localStorage.getItem('token')) {
-            await userService.updateFcmToken(appToken, 'app');
+          } else {
+            const tokenAuth = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            if (tokenAuth && userStr) {
+              const user = JSON.parse(userStr);
+              if (user.role === 'partner') {
+                await hotelService.updateFcmToken(appToken, 'app');
+              } else {
+                await userService.updateFcmToken(appToken, 'app');
+              }
+            }
           }
         }
       });
@@ -347,7 +362,11 @@ function App() {
           if (tokenAuth && userStr) {
             const user = JSON.parse(userStr);
             console.log('FCM Token received, updating backend for role:', user.role);
-            await userService.updateFcmToken(token, 'web');
+            if (user.role === 'partner') {
+              await hotelService.updateFcmToken(token, 'web');
+            } else {
+              await userService.updateFcmToken(token, 'web');
+            }
           }
         }
       } catch (error) {

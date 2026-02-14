@@ -451,6 +451,16 @@ export const hotelService = {
     } catch (error) {
       throw error.response?.data || error.message;
     }
+  },
+  // Update FCM Token for Partner
+  updateFcmToken: async (fcmToken, platform = 'web') => {
+    try {
+      const response = await api.put('/partners/fcm-token', { fcmToken, platform });
+      return response.data;
+    } catch (error) {
+      console.warn('Partner FCM Token Update Failed:', error);
+      return null;
+    }
   }
 };
 

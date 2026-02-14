@@ -1,4 +1,52 @@
 import Notification from '../models/Notification.js';
+import Partner from '../models/Partner.js';
+
+/**
+ * @desc    Update FCM Token for Partner
+ * @route   PUT /api/partners/fcm-token
+ * @access  Private (Partner)
+ */
+export const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken, platform } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({ success: false, message: 'Please provide FCM token' });
+    }
+
+    const targetPlatform = platform === 'app' ? 'app' : 'web';
+
+    const partner = await Partner.findById(req.user._id);
+
+    if (!partner) {
+      return res.status(404).json({ message: 'Partner not found' });
+    }
+
+    if (!partner.fcmTokens) {
+      partner.fcmTokens = {
+        app: null,
+        web: null
+      };
+    }
+
+    // Update the token for the specific platform
+    partner.fcmTokens[targetPlatform] = fcmToken;
+    await partner.save();
+
+    res.json({
+      success: true,
+      message: `Partner FCM token updated successfully for ${targetPlatform} platform`,
+      data: {
+        platform: targetPlatform,
+        tokenUpdated: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Update Partner FCM Token Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 /**
  * @desc    Get partner notifications

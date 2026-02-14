@@ -4,7 +4,8 @@ import {
   getPartnerNotifications,
   markNotificationRead,
   markAllNotificationsRead,
-  deleteNotifications
+  deleteNotifications,
+  updateFcmToken
 } from '../controllers/partnerController.js';
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.get('/notifications', getPartnerNotifications);
 router.put('/notifications/read-all', markAllNotificationsRead);
 router.put('/notifications/:id/read', markNotificationRead);
 router.delete('/notifications', deleteNotifications);
+router.put('/fcm-token', updateFcmToken);
 
 export default router;

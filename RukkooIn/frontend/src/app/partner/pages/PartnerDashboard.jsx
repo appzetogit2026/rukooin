@@ -20,11 +20,11 @@ const PartnerDashboard = () => {
             try {
                 // Import dynamically to avoid circular deps if any, or just standard import
                 const { requestNotificationPermission } = await import('../../../utils/firebase');
-                const { userService } = await import('../../../services/apiService');
+                const { hotelService } = await import('../../../services/apiService');
 
                 const token = await requestNotificationPermission();
                 if (token) {
-                    await userService.updateFcmToken(token, 'web');
+                    await hotelService.updateFcmToken(token, 'web');
                 }
             } catch (error) {
                 console.error("Partner Notification Init Failed:", error);
