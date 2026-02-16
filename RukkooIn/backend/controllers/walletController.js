@@ -188,7 +188,7 @@ export const getTransactions = async (req, res) => {
       };
 
       const bookings = await Booking.find(bookingQuery)
-        .populate('propertyId', 'name')
+        .populate('propertyId', 'propertyName')
         .sort({ createdAt: -1 })
         .limit(100)
         .lean();
@@ -199,7 +199,7 @@ export const getTransactions = async (req, res) => {
         bookingId: b.bookingId, // Add Booking ID
         type: b.paymentStatus === 'refunded' ? 'credit' : 'debit',
         amount: b.totalAmount,
-        description: `Booking: ${b.propertyId?.propertyName || b.propertyId?.name || 'Hotel Stay'}`,
+        description: `Booking: ${b.propertyId?.propertyName || 'Hotel Stay'}`,
         status: b.bookingStatus,
         paymentStatus: b.paymentStatus,
         isBooking: true,
@@ -833,9 +833,9 @@ export const verifyAddMoneyPayment = async (req, res) => {
       'topup'
     );
 
-    // NOTIFICATION: Notify User/Partner
+    // NOTIFICATION: Notify User/Partner/Admin
     const notificationTargetId = targetUserId;
-    const notificationRole = role === 'partner' ? 'partner' : 'user';
+    const notificationRole = role; // Use wallet role (user/partner/admin) directly for consistency
 
     notificationService.sendToUser(notificationTargetId, {
       title: 'Wallet Topped Up! 💰',

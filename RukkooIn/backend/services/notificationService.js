@@ -25,9 +25,10 @@ class NotificationService {
    * @param {string} fcmToken - FCM token of the device
    * @param {Object} notification - Notification payload
    * @param {Object} data - Additional data payload
+   * @param {Object} cleanupMeta - Meta info for token pruning { userId, userType }
    * @returns {Promise<Object>} - Result of sending notification
    */
-  async sendToToken(fcmToken, notification, data = {}) {
+  async sendToToken(fcmToken, notification, data = {}, cleanupMeta = null) {
     try {
       const admin = getFirebaseAdmin();
 
@@ -85,19 +86,81 @@ class NotificationService {
         messageId: response,
       };
     } catch (error) {
-      console.error('Error sending notification to token:', error);
+      console.error('Error sending notification to token:', error.message || error);
 
       // Handle invalid token
       if (error.code === 'messaging/invalid-registration-token' ||
-        error.code === 'messaging/registration-token-not-registered') {
+        error.code === 'messaging/registration-token-not-registered' ||
+        error.message?.includes('NotRegistered')) {
+
+        // Auto-cleanup stale tokens if meta is provided
+        if (cleanupMeta?.userId && cleanupMeta?.userType) {
+          this.cleanupInvalidToken(cleanupMeta.userId, cleanupMeta.userType, fcmToken)
+            .catch(e => console.error('[NotificationService] Pruning failed:', e.message));
+        }
+
         return {
           success: false,
           error: 'Invalid or unregistered token',
-          code: error.code,
+          code: error.code || 'NotRegistered',
         };
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * Removes an invalid FCM token from a user's record
+   */
+  async cleanupInvalidToken(userId, userType, token) {
+    try {
+      console.log(`[NotificationService] Pruning invalid token for ${userType} ${userId}...`);
+      let Model;
+      if (userType === 'admin') {
+        Model = (await import('../models/Admin.js')).default;
+      } else if (userType === 'partner') {
+        Model = (await import('../models/Partner.js')).default;
+      } else {
+        Model = (await import('../models/User.js')).default;
+      }
+
+      // Check if token matches app or web field and unset it
+      await Model.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            ...(true && { // Dynamic keys
+              'fcmTokens.app': null,
+              'fcmTokens.web': null
+            })
+          }
+        },
+        {
+          // Only unset if the token actually matches to avoid clearing valid tokens
+          arrayFilters: [] // UpdateOne doesn't need filters for simple objects, we'll just check existence
+        }
+      );
+
+      // Better selective update:
+      const user = await Model.findById(userId);
+      if (user && user.fcmTokens) {
+        let changed = false;
+        if (user.fcmTokens.app === token) {
+          user.fcmTokens.app = null;
+          changed = true;
+        }
+        if (user.fcmTokens.web === token) {
+          user.fcmTokens.web = null;
+          changed = true;
+        }
+        if (changed) {
+          await user.save();
+          console.log(`[NotificationService] Successfully pruned dead ${userType} token.`);
+        }
+      }
+    } catch (e) {
+      console.error('[NotificationService] Cleanup Error:', e.message);
     }
   }
 
@@ -168,7 +231,7 @@ class NotificationService {
       for (const token of fcmTokens) {
         try {
           console.log(`[NotificationService] Sending to token: ${token.substring(0, 10)}...`);
-          const result = await this.sendToToken(token, notification, data);
+          const result = await this.sendToToken(token, notification, data, { userId, userType });
           if (result.success) {
             console.log('[NotificationService] Push Sent Successfully.');
             successCount++;
@@ -177,7 +240,7 @@ class NotificationService {
             console.warn('[NotificationService] Push Failed:', result.error);
           }
         } catch (err) {
-          console.error('[NotificationService] FCM send exception:', err);
+          console.error('[NotificationService] FCM send exception:', err.message || err);
         }
       }
 
