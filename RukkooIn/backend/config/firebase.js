@@ -10,28 +10,32 @@ let firebaseAdmin = null;
 
 export const initializeFirebase = () => {
   try {
-    // Path to service account key - assuming it's in the root backend folder
-    const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
-
-    // Check if service account file exists
-    if (!fs.existsSync(serviceAccountPath)) {
-      throw new Error(`serviceAccountKey.json file not found at ${serviceAccountPath}`);
-    }
-
-    // Read service account key
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-
     // AESTHETICS & ROBUSTNESS: Handle Time Drift (Common on some hosting/Windows envs)
-    // If the server time is ahead of Google's time, JWT tokens are rejected.
-    // We apply a small negative offset to 'Date.now' for the Firebase SDK.
     const originalNow = Date.now;
     Date.now = function () {
       return originalNow() - 300000; // Offset by -5 minutes to stay within Google's sync window
     };
 
-    // Sanitize private_key
-    if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    let serviceAccount;
+
+    if (process.env.FIREBASE_PRIVATE_KEY) {
+      // Preference: Environment Variables
+      serviceAccount = {
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      };
+    } else {
+      // Fallback: serviceAccountKey.json file
+      const serviceAccountPath = path.join(__dirname, '../serviceAccountKey.json');
+      if (fs.existsSync(serviceAccountPath)) {
+        serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+      } else {
+        throw new Error('Firebase credentials missing (neither .env nor serviceAccountKey.json found)');
+      }
     }
 
     // Initialize Firebase Admin
