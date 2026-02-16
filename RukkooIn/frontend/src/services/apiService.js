@@ -11,10 +11,15 @@ export const api = axios.create({
 // Interceptor to add Token and Log
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const adminToken = localStorage.getItem('adminToken');
+
+  // Preference to adminToken if on /admin path, else normal token
+  const effectiveToken = window.location.pathname.startsWith('/admin') ? (adminToken || token) : (token || adminToken);
+
+  if (effectiveToken) {
+    config.headers.Authorization = `Bearer ${effectiveToken}`;
   }
-  console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`, config.data || '');
+  console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
   return config;
 }, (error) => Promise.reject(error));
 
@@ -26,15 +31,26 @@ api.interceptors.response.use(
     const isBlocked = error.response?.data?.isBlocked;
 
     if (status === 401 || (status === 403 && isBlocked)) {
-      // Clear invalid token and redirect if not already on auth pages
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
-        console.warn("Session expired or account blocked. Redirecting to login...");
-        if (window.location.pathname.includes('/hotel/')) {
-          window.location.href = '/hotel/login';
-        } else {
-          window.location.href = '/';
+      const isAdminPath = window.location.pathname.startsWith('/admin');
+
+      if (isAdminPath) {
+        // Handle Admin auth failure
+        localStorage.removeItem('adminToken');
+        if (!window.location.pathname.includes('/login')) {
+          console.warn("Admin session expired. Redirecting to admin login...");
+          window.location.href = '/admin/login';
+        }
+      } else {
+        // Handle User/Partner auth failure
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
+          console.warn("Session expired or account blocked. Redirecting to login...");
+          if (window.location.pathname.includes('/hotel/')) {
+            window.location.href = '/hotel/login';
+          } else {
+            window.location.href = '/';
+          }
         }
       }
     }

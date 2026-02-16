@@ -4,10 +4,10 @@
 
 The backend provides specific endpoints to update the FCM (Firebase Cloud Messaging) token for a user. This token is used to send push notifications. We support distinguishing between `web` and `app` platforms.
 
-### **A. User & Partner Endpoint**
+### **A. User Endpoint**
 *   **URL**: `/api/users/fcm-token`
 *   **Method**: `PUT`
-*   **Auth**: Required (Bearer Token of User/Partner)
+*   **Auth**: Required (Bearer Token of User)
 *   **Body**:
     ```json
     {
@@ -17,7 +17,20 @@ The backend provides specific endpoints to update the FCM (Firebase Cloud Messag
     ```
 *   **Response**: `200 OK`
 
-### **B. Admin Endpoint**
+### **B. Partner Endpoint**
+*   **URL**: `/api/partners/fcm-token`
+*   **Method**: `PUT`
+*   **Auth**: Required (Bearer Token of Partner)
+*   **Body**:
+    ```json
+    {
+      "fcmToken": "YOUR_FCM_TOKEN_HERE",
+      "platform": "app" // or "web"
+    }
+    ```
+*   **Response**: `200 OK`
+
+### **C. Admin Endpoint**
 *   **URL**: `/api/admin/fcm-token`
 *   **Method**: `PUT`
 *   **Auth**: Required (Bearer Token of Admin)
@@ -85,7 +98,10 @@ if (window.NativeApp && window.NativeApp.getFcmToken) {
 
 1.  **User Logs in via App**: The WebView loads the login page.
 2.  **Token Injection**: The Native App (Flutter) gets the FCM token and sends it to the WebView using `postMessage`.
-3.  **Backend Update**: The React frontend receives the message and calls `/api/users/fcm-token` with `platform: 'app'`.
+3.  **Backend Update**: The React frontend receives the message and calls the appropriate endpoint based on the user's role:
+    *   **User**: `/api/users/fcm-token`
+    *   **Partner**: `/api/partners/fcm-token`
+    *   Sent with `platform: 'app'`.
 4.  **Sending Notification**:
     *   When the backend sends a notification, it sees the `app` token.
     *   It sends the payload to FCM.

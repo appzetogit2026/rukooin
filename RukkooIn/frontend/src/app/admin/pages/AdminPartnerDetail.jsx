@@ -126,6 +126,11 @@ const PartnerTransactionsTab = ({ partnerId }) => {
         const fetchWalletData = async () => {
             try {
                 setLoading(true);
+                // Reset states to prevent data leakage from previous partner view
+                setWallet(null);
+                setStats(null);
+                setTransactions([]);
+
                 const [wRes, sRes, tRes] = await Promise.all([
                     walletService.getWallet({ ownerId: partnerId, viewAs: 'partner' }),
                     walletService.getWalletStats({ ownerId: partnerId, viewAs: 'partner' }),

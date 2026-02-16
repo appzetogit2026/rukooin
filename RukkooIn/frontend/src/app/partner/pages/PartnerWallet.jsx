@@ -93,6 +93,8 @@ const PartnerWallet = () => {
 
     const handleTransaction = async () => {
         try {
+            const amount = parseFloat(amountInput);
+
             if (activeModal === 'withdraw') {
                 // Check if bank details exist
                 if (!wallet?.bankDetails?.accountNumber) {
@@ -123,7 +125,6 @@ const PartnerWallet = () => {
                     return;
                 }
 
-                const amount = parseFloat(amountInput);
                 if (!amount || amount <= 0) {
                     toast.error('Please enter a valid amount');
                     return;
@@ -138,6 +139,11 @@ const PartnerWallet = () => {
                 setAmountInput('');
                 fetchWalletData();
             } else if (activeModal === 'add_money') {
+                if (!amount || amount <= 0) {
+                    toast.error('Please enter a valid amount');
+                    return;
+                }
+
                 // 1. Create Order
                 const { order } = await walletService.addMoney(amount);
 
@@ -154,7 +160,8 @@ const PartnerWallet = () => {
                             // 3. Verify Payment
                             await walletService.verifyAddMoney({
                                 ...response,
-                                amount // Pass amount for reference
+                                amount, // Pass amount for reference
+                                viewAs: 'partner'
                             });
                             toast.success('Money added successfully!');
                             setActiveModal(null);

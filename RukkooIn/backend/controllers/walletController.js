@@ -64,13 +64,15 @@ try {
  * @access  Private (Partner/User)
  */
 // Helper to get wallet role based on user role and query preference
-const getWalletRole = (userRole, viewAs) => {
-  // If viewAs is provided explicitly, use it (Admins and Partners can switch)
+const getWalletRole = (req, viewAs) => {
+  // 1. Explicit preference from query (Admins/Partners can switch)
   if (viewAs === 'user') return 'user';
   if (viewAs === 'partner') return 'partner';
   if (viewAs === 'admin') return 'admin';
 
-  // Default based on current authenticated user role
+  // 2. Default based on authenticated user role
+  const userRole = req.user?.role?.toLowerCase();
+  if (userRole === 'admin' || userRole === 'superadmin') return 'admin';
   return userRole || 'user';
 };
 
@@ -82,10 +84,18 @@ const getWalletRole = (userRole, viewAs) => {
 export const getWallet = async (req, res) => {
   try {
     const { viewAs, ownerId } = req.query;
-    const role = getWalletRole(req.user.role, viewAs);
+    const role = getWalletRole(req, viewAs);
 
-    // Determine whose wallet to fetch: ownerId (if admin) or current user
-    const targetUserId = (req.user.role === 'admin' && ownerId) ? ownerId : req.user._id;
+    const userQueryId = req.query.ownerId || req.query.partnerId || req.query.userId;
+    const userRoleStr = req.user.role?.toLowerCase();
+    const isAdmin = userRoleStr === 'admin' || userRoleStr === 'superadmin';
+    const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
+
+    console.log(`[getWallet] AuthUser: ${req.user.name}, AuthRole: ${req.user.role}, isAdmin: ${isAdmin}, queryId: ${userQueryId}, target: ${targetUserId}, viewAs: ${viewAs}`);
+
+    if (isAdmin && userQueryId) {
+      console.log(`[getWallet] Admin viewing specific wallet for user: ${userQueryId}`);
+    }
 
     let wallet = await Wallet.findOne({ partnerId: targetUserId, role });
 
@@ -138,15 +148,22 @@ export const getWallet = async (req, res) => {
  */
 export const getTransactions = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, viewAs, ownerId } = req.query;
+    const { page = 1, limit = 20, type, viewAs } = req.query;
     const skip = (page - 1) * limit;
-    const role = getWalletRole(req.user.role, viewAs);
+    const role = getWalletRole(req, viewAs);
 
     // Determine whose transactions to fetch
-    const targetUserId = (req.user.role === 'admin' && ownerId) ? ownerId : req.user._id;
+    const userQueryId = req.query.ownerId || req.query.partnerId || req.query.userId;
+    const userRoleStr = req.user.role?.toLowerCase();
+    const isAdmin = userRoleStr === 'admin' || userRoleStr === 'superadmin';
+    const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
+
+    console.log(`[getTransactions] AuthRole: ${userRoleStr}, isAdmin: ${isAdmin}, queryId: ${userQueryId}, target: ${targetUserId}`);
 
     // Find the specific wallet first to get its ID
     const wallet = await Wallet.findOne({ partnerId: targetUserId, role });
+
+    console.log(`[getTransactions] Found Wallet: ${wallet?._id || 'NONE'} for TargetUser: ${targetUserId} with Role: ${role}`);
 
     // 1. Fetch Wallet Transactions (Top-ups, etc) linked to this specific WALLET
     const txQuery = { walletId: wallet?._id };
@@ -154,6 +171,7 @@ export const getTransactions = async (req, res) => {
 
     let walletTransactions = [];
     if (wallet) {
+      console.log(`[getTransactions] Querying transactions for walletId: ${wallet._id}`);
       walletTransactions = await Transaction.find(txQuery)
         .sort({ createdAt: -1 })
         .limit(100)
@@ -223,7 +241,7 @@ export const getTransactions = async (req, res) => {
 export const requestWithdrawal = async (req, res) => {
   try {
     const { amount } = req.body;
-    const role = getWalletRole(req.user.role, 'partner'); // Withdrawals only for partners generally
+    const role = getWalletRole(req, 'partner'); // Withdrawals only for partners generally
 
     // Validation
     if (!amount || amount < PaymentConfig.minWithdrawalAmount) {
@@ -447,11 +465,15 @@ export const requestWithdrawal = async (req, res) => {
  */
 export const getWithdrawals = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status } = req.query;
+    const { page = 1, limit = 20, status, viewAs } = req.query;
 
-    // Withdrawals are tied to partnerId directly in Withdrawal schema usually
-    // But logically only partners withdraw.
-    const query = { partnerId: req.user._id };
+    // Determine whose withdrawals to fetch
+    const userRoleStr = req.user.role?.toLowerCase();
+    const isAdmin = userRoleStr === 'admin' || userRoleStr === 'superadmin';
+    const userQueryId = req.query.ownerId || req.query.partnerId || req.query.userId;
+    const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
+
+    const query = { partnerId: targetUserId };
     if (status) query.status = status;
 
     const withdrawals = await Withdrawal.find(query)
@@ -485,7 +507,7 @@ export const getWithdrawals = async (req, res) => {
  */
 export const updateBankDetails = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role, 'partner');
+    const role = getWalletRole(req, 'partner');
 
     // Validation Schema
     const bankSchema = Joi.object({
@@ -559,7 +581,7 @@ export const updateBankDetails = async (req, res) => {
  */
 export const deleteBankDetails = async (req, res) => {
   try {
-    const role = getWalletRole(req.user.role, 'partner');
+    const role = getWalletRole(req, 'partner');
     const wallet = await Wallet.findOne({ partnerId: req.user._id, role });
 
     if (!wallet) {
@@ -590,11 +612,16 @@ export const deleteBankDetails = async (req, res) => {
  */
 export const getWalletStats = async (req, res) => {
   try {
-    const { viewAs, ownerId } = req.query;
-    const role = getWalletRole(req.user.role, viewAs);
+    const { viewAs } = req.query;
+    const role = getWalletRole(req, viewAs);
 
     // Determine whose stats to fetch
-    const targetUserId = (req.user.role === 'admin' && ownerId) ? ownerId : req.user._id;
+    const userQueryId = req.query.ownerId || req.query.partnerId || req.query.userId;
+    const userRoleStr = req.user.role?.toLowerCase();
+    const isAdmin = userRoleStr === 'admin' || userRoleStr === 'superadmin';
+    const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
+
+    console.log(`[getWalletStats] AuthRole: ${userRoleStr}, isAdmin: ${isAdmin}, queryId: ${userQueryId}, target: ${targetUserId}`);
 
     console.log(`[getWalletStats] Target User ID: ${targetUserId}, Role: ${role}, ViewAs: ${req.query.viewAs}`);
 
@@ -770,8 +797,8 @@ export const createAddMoneyOrder = async (req, res) => {
  */
 export const verifyAddMoneyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
-    const role = getWalletRole(req.user.role);
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, viewAs } = req.body;
+    const role = getWalletRole(req, viewAs);
 
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
@@ -783,11 +810,16 @@ export const verifyAddMoneyPayment = async (req, res) => {
       return res.status(400).json({ message: 'Invalid payment signature' });
     }
 
+    // Determine whose wallet to credit: ownerId (if admin) or current user
+    const userRole = req.user.role?.toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+    const targetUserId = (isAdmin && req.body.ownerId) ? req.body.ownerId : req.user._id;
+
     // Find correct wallet based on ROLE
-    let wallet = await Wallet.findOne({ partnerId: req.user._id, role });
+    let wallet = await Wallet.findOne({ partnerId: targetUserId, role });
     if (!wallet) {
       wallet = await Wallet.create({
-        partnerId: req.user._id,
+        partnerId: targetUserId,
         role,
         balance: 0
       });
@@ -802,11 +834,13 @@ export const verifyAddMoneyPayment = async (req, res) => {
     );
 
     // NOTIFICATION: Notify User/Partner
-    const ut = req.user.role === 'partner' ? 'partner' : 'user';
-    notificationService.sendToUser(req.user._id, {
+    const notificationTargetId = targetUserId;
+    const notificationRole = role === 'partner' ? 'partner' : 'user';
+
+    notificationService.sendToUser(notificationTargetId, {
       title: 'Wallet Topped Up! 💰',
       body: `₹${amount} has been added to your wallet successfully.`
-    }, { type: 'wallet_topup', amount }, ut).catch(e => console.error('Topup push failed:', e));
+    }, { type: 'wallet_topup', amount }, notificationRole).catch(e => console.error('Topup push failed:', e));
 
     res.json({
       success: true,
