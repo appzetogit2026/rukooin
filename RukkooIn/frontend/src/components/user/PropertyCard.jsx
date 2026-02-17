@@ -175,7 +175,15 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
         <div className="flex items-start gap-1 text-gray-500 text-[10px] mb-2 min-h-[2em]">
           <MapPin size={12} className="mt-0.3 shrink-0" />
           <span className="leading-tight line-clamp-2">
-            {address?.city || item.city}, {address?.state || item.state || 'India'}
+            {(() => {
+              const area = address?.area || item.area;
+              const city = address?.city || item.city;
+              
+              if (area && area.trim()) {
+                return `${area}, ${city}`;
+              }
+              return city || 'Location not available';
+            })()}
           </span>
         </div>
 

@@ -345,7 +345,7 @@ class ReferralService {
 
             return {
                 code: myCode ? myCode.code : '',
-                link: myCode ? `${process.env.FRONTEND_URL || 'https://rukkoo.in'}/r/${myCode.code.toLowerCase()}` : '',
+                link: myCode ? `https://play.google.com/store/apps/details?id=com.rukkoin.user&referral=${myCode.code}` : '',
                 stats,
                 history: formattedHistory,
                 earningsTotal: wallet ? wallet.totalEarnings : 0,

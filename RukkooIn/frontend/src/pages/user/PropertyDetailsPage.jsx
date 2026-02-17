@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { propertyService, legalService, reviewService, offerService, availabilityService, userService } from '../../services/apiService';
 import {
@@ -611,11 +611,26 @@ const PropertyDetailsPage = () => {
       <div className="relative h-[40vh] md:h-[50vh] cursor-zoom-in group">
         <motion.div
           className="w-full h-full relative"
+          style={{ touchAction: 'pan-x' }}
           drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
+          dragConstraints={{ left: -100, right: 100 }}
+          dragElastic={0.5}
+          dragMomentum={false}
           onDragEnd={(e, info) => {
-            const swipeThreshold = 50;
+            const swipeThreshold = 30;
+            const velocityThreshold = 500;
+            
+            // Fast swipe detection (velocity-based)
+            if (Math.abs(info.velocity.x) > velocityThreshold) {
+              if (info.velocity.x < 0) {
+                handleNextImage();
+              } else {
+                handlePrevImage();
+              }
+              return;
+            }
+            
+            // Distance-based swipe detection
             if (info.offset.x < -swipeThreshold) {
               handleNextImage();
             } else if (info.offset.x > swipeThreshold) {
@@ -624,11 +639,18 @@ const PropertyDetailsPage = () => {
           }}
           onClick={() => setShowImageModal(true)}
         >
-          <img
-            src={mainImage}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
-          />
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={currentImageIndex}
+              initial={{ opacity: 0.8, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0.8, x: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              src={mainImage}
+              alt={name}
+              className="w-full h-full object-cover pointer-events-none"
+            />
+          </AnimatePresence>
         </motion.div>
         {galleryImages.length > 1 && (
           <>

@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Menu, Bell, Wallet } from 'lucide-react';
+import { Search, Menu, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
-import walletService from '../../services/walletService';
+import { propertyService } from '../../services/propertyService';
+import { toast } from 'react-hot-toast';
 
 const HeroSection = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
-    const [walletBalance, setWalletBalance] = useState(0);
 
     const placeholders = [
         "Search in Bucharest...",
@@ -20,23 +20,6 @@ const HeroSection = () => {
         "Couple friendly stays...",
         "Search near Red Square..."
     ];
-
-    useEffect(() => {
-        const fetchWallet = async () => {
-            try {
-                const user = JSON.parse(localStorage.getItem('user'));
-                if (user) {
-                    const walletData = await walletService.getWallet();
-                    if (walletData.success && walletData.wallet) {
-                        setWalletBalance(walletData.wallet.balance);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch wallet', error);
-            }
-        };
-        fetchWallet();
-    }, []);
 
     // Placeholder Rotation
     useEffect(() => {
@@ -58,6 +41,18 @@ const HeroSection = () => {
 
     const handleSearchClick = () => {
         navigate('/search');
+    };
+
+    const handleNearBy = async () => {
+        try {
+            toast.loading('Getting your location...');
+            const location = await propertyService.getCurrentLocation();
+            toast.dismiss();
+            navigate(`/search?lat=${location.lat}&lng=${location.lng}&radius=50&sort=distance`);
+        } catch (error) {
+            toast.dismiss();
+            toast.error('Could not get location. Please enable permissions.');
+        }
     };
 
     return (
@@ -82,24 +77,17 @@ const HeroSection = () => {
                     />
                 </div>
 
-                {/* Wallet Balance Display */}
+                {/* Near By Button */}
                 <button
-                    onClick={() => navigate('/wallet')}
+                    onClick={handleNearBy}
                     className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/50 backdrop-blur-sm border border-white/40 shadow-sm active:scale-95 transition-transform"
                 >
                     <div className="w-5 h-5 bg-surface rounded-full flex items-center justify-center">
-                        <Wallet size={10} className="text-white" />
+                        <Navigation size={10} className="text-white" />
                     </div>
                     <div className="flex flex-col items-start leading-none mr-0.5">
-                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide">Wallet</span>
-                        <span className="text-[10px] font-bold text-surface">
-                            {new Intl.NumberFormat('en-IN', {
-                                style: 'currency',
-                                currency: 'INR',
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 0
-                            }).format(walletBalance)}
-                        </span>
+                        <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wide">Near By</span>
+                        <span className="text-[10px] font-bold text-surface">Hotels</span>
                     </div>
                 </button>
             </div>
