@@ -25,8 +25,10 @@ const ReferAndEarnPage = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            console.log(`[REFERRAL_DEBUG] Fetching referral stats...`);
             try {
                 const res = await referralService.getMyStats();
+                console.log(`[REFERRAL_DEBUG] Stats API Response:`, res);
                 if (res.success) {
                     const data = res.data;
                     setReferralData({
@@ -34,15 +36,15 @@ const ReferAndEarnPage = () => {
                         link: data.link,
                         earnings: {
                             total: data.earningsTotal || 0,
-                            pending: 0, // Backend needs to separate this if needed
-                            thisMonth: 0 // Backend needing separate aggregation
+                            pending: data.earningsPending || 0,
+                            thisMonth: data.earningsThisMonth || 0
                         },
                         stats: data.stats,
                         history: data.history
                     });
                 }
             } catch (err) {
-                console.error("Failed to load referral data", err);
+                console.error("[REFERRAL_DEBUG] Failed to load referral data", err);
             } finally {
                 setLoading(false);
             }
@@ -359,15 +361,6 @@ const ReferAndEarnPage = () => {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Withdraw CTA */}
-                                <button
-                                    onClick={() => navigate('/wallet')}
-                                    className="w-full bg-surface text-white font-bold py-4 rounded-xl shadow-lg shadow-surface/30 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-                                >
-                                    <Wallet size={20} />
-                                    Withdraw to Wallet
-                                </button>
                             </motion.div>
                         )}
 
@@ -423,11 +416,11 @@ const ReferAndEarnPage = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {/* Floating Share Button */}
-            <motion.button
+            < motion.button
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
                 className="fixed bottom-6 left-5 right-5 bg-gradient-to-r from-surface to-accent text-white font-bold py-4 rounded-2xl shadow-2xl shadow-surface/40 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform z-30"
@@ -435,8 +428,8 @@ const ReferAndEarnPage = () => {
             >
                 <Share2 size={20} />
                 Invite Friends & Earn ₹200
-            </motion.button>
-        </div>
+            </motion.button >
+        </div >
     );
 };
 

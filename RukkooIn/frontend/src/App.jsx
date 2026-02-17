@@ -44,6 +44,7 @@ const ReviewsPage = React.lazy(() => import('./pages/user/ReviewsPage'));
 const OffersPage = React.lazy(() => import('./pages/user/OffersPage'));
 const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
+const ReferralHandler = React.lazy(() => import('./pages/auth/ReferralHandler'));
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -405,6 +406,7 @@ function App() {
             {/* User Auth Routes (Public Only) */}
             <Route path="/login" element={<PublicRoute><UserLogin /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><UserSignup /></PublicRoute>} />
+            <Route path="/r/:referralCode" element={<ReferralHandler />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

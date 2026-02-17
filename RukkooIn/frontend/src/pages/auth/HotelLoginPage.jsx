@@ -56,7 +56,11 @@ const HotelLoginPage = () => {
             setCanResend(false);
             setStep(2);
         } catch (err) {
-            setError(err.message || 'Failed to send OTP');
+            if (err.isBlocked || err.response?.data?.isBlocked || err.status === 403) {
+                setError(err.message || 'Your account has been blocked by admin. Please contact support.');
+            } else {
+                setError(err.message || 'Failed to send OTP');
+            }
         } finally {
             setLoading(false);
         }
@@ -124,7 +128,11 @@ const HotelLoginPage = () => {
 
             navigate('/hotel/dashboard');
         } catch (err) {
-            setError(err.message || 'Invalid OTP');
+            if (err.isBlocked || err.response?.data?.isBlocked || err.status === 403) {
+                setError(err.message || 'Your account has been blocked by admin. Please contact support.');
+            } else {
+                setError(err.message || 'Invalid OTP');
+            }
         } finally {
             setLoading(false);
         }

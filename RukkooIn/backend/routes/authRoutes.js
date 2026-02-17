@@ -1,10 +1,11 @@
-import express from 'express';
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64 } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64, checkExists } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
+import express from "express";
 
 const router = express.Router();
 
+router.post('/validate-exists', checkExists);
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/partner/register', registerPartner);

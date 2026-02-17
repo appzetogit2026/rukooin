@@ -16,7 +16,7 @@ const generateToken = (id, role) => {
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Bypassed numbers and default OTP
-const BYPASS_NUMBERS = ['9685974247', '9009925021', '6261096283', '9752275626'];
+const BYPASS_NUMBERS = ['9685974247', '9009925021', '6261096283', '9752275626', '8889948896'];
 const DEFAULT_OTP = '123456';
 
 /**

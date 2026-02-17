@@ -60,10 +60,20 @@ api.interceptors.response.use(
 
 // User Auth Services
 export const authService = {
-  // Send OTP
-  sendOtp: async (phone, type = 'login', role = 'user') => {
+  // Check if phone or email exists
+  checkExists: async (phone, email, role = 'user') => {
     try {
-      const response = await api.post('/auth/send-otp', { phone, type, role });
+      const response = await api.post('/auth/validate-exists', { phone, email, role });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Send OTP
+  sendOtp: async (phone, type = 'login', role = 'user', email = '') => {
+    try {
+      const response = await api.post('/auth/send-otp', { phone, type, role, email });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -73,7 +83,9 @@ export const authService = {
   // Verify OTP & Login/Register
   verifyOtp: async (data) => {
     try {
-      const response = await api.post('/auth/verify-otp', data);
+      const { verifyOnly, ...payload } = data;
+      const url = verifyOnly ? '/auth/verify-otp?verifyOnly=true' : '/auth/verify-otp';
+      const response = await api.post(url, payload);
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));

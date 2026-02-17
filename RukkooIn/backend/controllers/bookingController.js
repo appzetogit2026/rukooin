@@ -1031,7 +1031,8 @@ export const markCheckOut = async (req, res) => {
 
     // Referral Trigger (if not already done)
     if (booking.userId && booking.paymentStatus === 'paid') {
-      referralService.processBookingCompletion(booking.userId, booking._id).catch(e => console.error('Referral Trigger Error:', e));
+      console.log(`[REFERRAL_DEBUG] Triggering booking completion for user: ${booking.userId}, Booking: ${booking._id}`);
+      referralService.processBookingCompletion(booking.userId, booking._id).catch(e => console.error('[REFERRAL_DEBUG] Referral Trigger Error:', e));
     }
 
     res.json({ success: true, message: 'Checked Out Successfully', booking });

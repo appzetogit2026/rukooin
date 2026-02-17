@@ -16,9 +16,43 @@ const generateToken = (id, role) => {
   });
 };
 
+export const checkExists = async (req, res) => {
+  try {
+    const { phone, email, role = 'user' } = req.body;
+    let Model = role === 'partner' ? Partner : User;
+
+    if (phone) {
+      const existingByPhone = await Model.findOne({ phone });
+      if (existingByPhone) {
+        return res.status(409).json({
+          message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this phone number already exists.`,
+          requiresLogin: true
+        });
+      }
+    }
+
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const existingByEmail = await Model.findOne({ email: normalizedEmail });
+      if (existingByEmail) {
+        return res.status(409).json({
+          message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this email address already registered.`,
+          requiresLogin: true
+        });
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Details available' });
+  } catch (error) {
+    console.error('Check Exists Error:', error);
+    res.status(500).json({ message: 'Server error during validation' });
+  }
+};
+
 export const sendOtp = async (req, res) => {
   try {
-    const { phone, type, role = 'user' } = req.body; // type: 'login' or 'register'
+    const { phone, type, role = 'user', email: rawEmail } = req.body; // type: 'login' or 'register'
+    const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
 
     if (!phone) {
       return res.status(400).json({ message: 'Phone number is required' });
@@ -27,11 +61,10 @@ export const sendOtp = async (req, res) => {
     let user;
     let Model = role === 'partner' ? Partner : User;
 
-    // FOR LOGIN: Check if user exists BEFORE sending OTP
+    // FOR LOGIN: Check if user exists & is not blocked BEFORE sending OTP
     if (type === 'login') {
       user = await Model.findOne({ phone });
       if (!user) {
-        // User doesn't exist - don't send OTP
         if (role === 'partner') {
           return res.status(404).json({ message: 'Partner account not found. Please register first.' });
         }
@@ -40,21 +73,52 @@ export const sendOtp = async (req, res) => {
           requiresRegistration: true
         });
       }
-    }
 
-    // FOR REGISTER: Check if user already exists
-    if (type === 'register') {
-      user = await Model.findOne({ phone });
-      if (user) {
-        return res.status(409).json({
-          message: 'Account already exists. Please login instead.',
-          requiresLogin: true
+      if (user.isBlocked) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been blocked by admin. Please contact support.',
+          isBlocked: true
         });
       }
     }
 
+    // FOR REGISTER: Check if phone or email already exists
+    if (type === 'register') {
+      // Basic formatting check
+      if (!phone || phone.length !== 10) {
+        return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
+      }
+
+      // 1. Check Phone
+      const existingByPhone = await Model.findOne({ phone });
+      if (existingByPhone) {
+        return res.status(409).json({
+          message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this phone number already exists. Please login instead.`,
+          requiresLogin: true
+        });
+      }
+
+      // 2. Check Email (if provided)
+      if (email) {
+        // Basic email format check
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return res.status(400).json({ message: 'Invalid email format' });
+        }
+
+        const existingByEmail = await Model.findOne({ email });
+        if (existingByEmail) {
+          return res.status(409).json({
+            message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this email address already registered. Please use another email or login.`,
+            requiresLogin: true
+          });
+        }
+      }
+    }
+
     // TEST NUMBERS - Bypass OTP with default 123456
-    const testNumbers = ['9685974247', '6261096283', '9752275626'];
+    const testNumbers = ['9685974247', '9009925021', '6261096283', '9752275626', '8889948896'];
     const isTestNumber = testNumbers.includes(phone);
 
     // Generate OTP - Use 123456 for test numbers, random for others
@@ -97,15 +161,16 @@ export const registerPartner = async (req, res) => {
       full_name,
       email: rawEmail,
       phone,
-      owner_name,
       aadhaar_number,
       aadhaar_front,
       aadhaar_back,
       pan_number,
       pan_card_image,
-      owner_address,
-      termsAccepted
+      termsAccepted,
+      referralCode
     } = req.body;
+
+    console.log(`[REFERRAL_DEBUG] Partner Registration payload:`, { phone, email: rawEmail, referralCode });
 
     const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
     const getUrl = (val) => (val && typeof val === 'object' ? val.url : val);
@@ -119,16 +184,12 @@ export const registerPartner = async (req, res) => {
       return res.status(400).json({ message: 'Name, email, and phone are required' });
     }
 
-    if (!owner_name || !aadhaar_number || !aadhaarFrontUrl || !aadhaarBackUrl) {
-      return res.status(400).json({ message: 'Owner details and Aadhaar documents are required' });
+    if (!aadhaar_number || !aadhaarFrontUrl || !aadhaarBackUrl) {
+      return res.status(400).json({ message: 'Aadhaar details and documents are required' });
     }
 
     if (!pan_number || !panImageUrl) {
       return res.status(400).json({ message: 'PAN details are required' });
-    }
-
-    if (!owner_address || !owner_address.street || !owner_address.city || !owner_address.state || !owner_address.zipCode) {
-      return res.status(400).json({ message: 'Complete address is required' });
     }
 
     if (!termsAccepted) {
@@ -155,24 +216,26 @@ export const registerPartner = async (req, res) => {
       isPartner: true,
       partnerApprovalStatus: 'pending',
       isVerified: false,
-      ownerName: owner_name,
+      ownerName: full_name,
       aadhaarNumber: aadhaar_number,
       aadhaarFront: aadhaarFrontUrl,
       aadhaarBack: aadhaarBackUrl,
       panNumber: pan_number,
       panCardImage: panImageUrl,
-      address: {
-        street: owner_address.street,
-        city: owner_address.city,
-        state: owner_address.state,
-        zipCode: owner_address.zipCode,
-        country: owner_address.country || 'India',
-        coordinates: owner_address.coordinates || {}
-      },
+      address: {},
       termsAccepted
     });
 
     await newPartner.save();
+
+    // REFERRAL: Process Signup Referral if code exists
+    if (referralCode) {
+      console.log(`[REFERRAL_DEBUG] Partner signup with code: ${referralCode}`);
+      referralService.processReferralSignup(newPartner, referralCode).catch(err => console.error('[REFERRAL_DEBUG] Partner Referral Error:', err));
+    }
+
+    // REFERRAL: Generate code for partner
+    referralService.generateCodeForUser(newPartner).catch(err => console.error('Partner Code Gen Error:', err));
 
     // Send notification to admins
     notificationService.sendToAdmins({
@@ -224,10 +287,13 @@ export const verifyOtp = async (req, res) => {
     if (user) {
       if (user.isBlocked) {
         return res.status(403).json({
+          success: false,
           message: 'Your account has been blocked by admin. Please contact support.',
           isBlocked: true
         });
       }
+      // OTP Verification
+      // ... (existing logic)
       // ... (existing login logic)
       if (user.otp !== otp) {
         return res.status(400).json({ message: 'Invalid OTP' });
@@ -238,10 +304,7 @@ export const verifyOtp = async (req, res) => {
       user.otp = undefined;
       user.otpExpires = undefined;
     } else {
-      // ... (existing registration logic)
-      if (role === 'partner') {
-        return res.status(404).json({ message: 'Partner not found. Please use partner registration.' });
-      }
+      // 2. Registration Flow (User/Partner not created yet)
       const otpRecord = await Otp.findOne({ phone });
       if (!otpRecord) {
         return res.status(400).json({ message: 'Invalid request or OTP expired. Please request OTP again.' });
@@ -251,6 +314,12 @@ export const verifyOtp = async (req, res) => {
       }
       if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
         return res.status(400).json({ message: 'Invalid role context.' });
+      }
+
+      // If it's just a verification call (e.g. for Partner Wizard), return success
+      // We don't create the user/partner yet if they are in a multi-step wizard
+      if (req.query.verifyOnly === 'true') {
+        return res.status(200).json({ success: true, message: 'OTP verified successfully' });
       }
 
       // Check if this was a LOGIN attempt but user doesn't exist
@@ -321,8 +390,8 @@ export const verifyOtp = async (req, res) => {
 
       // REFERRAL: Process Signup Referral
       if (referralCode) {
-        // Run in background to not block response
-        referralService.processReferralSignup(user, referralCode).catch(err => console.error('Referral Signup Error:', err));
+        console.log(`[REFERRAL_DEBUG] User signup with code: ${referralCode}`);
+        referralService.processReferralSignup(user, referralCode).catch(err => console.error('[REFERRAL_DEBUG] Referral Signup Error:', err));
       }
 
       // REFERRAL: Auto-generate code for new user
@@ -354,7 +423,9 @@ export const verifyOtp = async (req, res) => {
         aadhaarNumber: user.aadhaarNumber,
         panNumber: user.panNumber,
         createdAt: user.createdAt,
-        partnerSince: user.partnerSince
+        partnerSince: user.partnerSince,
+        isBlocked: user.isBlocked,
+        registrationStep: user.registrationStep
       }
     });
 
@@ -397,6 +468,7 @@ export const verifyPartnerOtp = async (req, res) => {
 
     if (partner.isBlocked) {
       return res.status(403).json({
+        success: false,
         message: 'Your account has been blocked by admin. Please contact support.',
         isBlocked: true
       });
