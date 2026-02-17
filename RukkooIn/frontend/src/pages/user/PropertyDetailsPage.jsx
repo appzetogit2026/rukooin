@@ -1211,7 +1211,12 @@ const PropertyDetailsPage = () => {
                       else if (rule.value === false || rule.value === 'No' || rule.value === 'Not Allowed') displayValue = 'No';
                       else displayValue = rule.value; // Fallback
                     } else {
-                      displayValue = typeof rule.value === 'boolean' ? (rule.value ? 'Yes' : 'No') : rule.value;
+                      // Special handling for Suitability field
+                      if (rule.label === 'Suitability' && rule.value === 'Both') {
+                        displayValue = 'Family Friendly, Couple Friendly';
+                      } else {
+                        displayValue = typeof rule.value === 'boolean' ? (rule.value ? 'Yes' : 'No') : rule.value;
+                      }
                     }
 
                     if (!displayValue) return null;

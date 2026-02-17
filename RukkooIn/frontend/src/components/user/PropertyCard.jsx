@@ -162,7 +162,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
         {item.suitability && item.suitability !== 'none' && (
           <div className="absolute bottom-2 left-2 bg-emerald-500/90 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm z-10">
-            {item.suitability}
+            {item.suitability === 'Both' ? 'Family Friendly, Couple Friendly' : item.suitability}
           </div>
         )}
       </div>
