@@ -1,4 +1,4 @@
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64, checkExists } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, updateAdminPassword, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64, checkExists } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 import express from "express";
@@ -20,5 +20,6 @@ router.post('/admin/login', adminLogin);
 router.get('/me', protect, getMe);
 router.put('/update-profile', protect, updateProfile);
 router.put('/admin/update-profile', protect, updateAdminProfile);
+router.put('/admin/update-password', protect, updateAdminPassword);
 
 export default router;

@@ -211,7 +211,7 @@ const AdminDashboard = () => {
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Booking Status</h3>
                     <p className="text-sm text-gray-500 mb-6">Distribution of booking outcomes</p>
 
-                    <div className="flex-1 min-h-[250px] relative">
+                    <div className="flex-1 min-h-[320px] relative">
                         {loading ? (
                             <div className="h-full w-full bg-gray-50 animate-pulse rounded-full" />
                         ) : (
@@ -230,18 +230,40 @@ const AdminDashboard = () => {
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip />
-                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                    <Tooltip
+                                        wrapperStyle={{ zIndex: 100 }}
+                                        contentStyle={{
+                                            borderRadius: '12px',
+                                            border: 'none',
+                                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                            fontSize: '12px',
+                                            fontWeight: '600'
+                                        }}
+                                        formatter={(value, name) => [value, name.replace(/_/g, ' ')]}
+                                    />
+                                    <Legend
+                                        verticalAlign="bottom"
+                                        align="center"
+                                        iconType="circle"
+                                        iconSize={8}
+                                        formatter={(value) => (
+                                            <span className="text-[11px] font-medium text-gray-600 capitalize">
+                                                {value.replace(/_/g, ' ')}
+                                            </span>
+                                        )}
+                                        wrapperStyle={{
+                                            paddingTop: '30px',
+                                            bottom: -10
+                                        }}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         )}
                         {/* Center Label */}
                         {!loading && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
-                                <div className="text-center">
-                                    <span className="block text-3xl font-bold text-gray-900">{stats.totalBookings}</span>
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
-                                </div>
+                            <div className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                <span className="block text-3xl font-bold text-gray-900 tracking-tight">{stats.totalBookings}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total</span>
                             </div>
                         )}
                     </div>
