@@ -33,9 +33,12 @@ import {
   createBroadcastNotification,
   markAllAdminNotificationsRead,
   deleteAdminNotifications,
-  getFinanceStats
+  getFinanceStats,
+  adminUpdateProperty,
+  uploadPropertyImage
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
+import { uploadDocuments } from '../utils/multer.js';
 
 const router = express.Router();
 
@@ -70,6 +73,7 @@ router.delete('/delete-hotel', deleteHotel);
 router.get('/user-details/:id', getUserDetails);
 router.get('/partner-details/:id', getPartnerDetails);
 router.put('/verify-documents', verifyPropertyDocuments);
+router.put('/update-property/:id', adminUpdateProperty);
 router.get('/hotel-details/:id', getHotelDetails);
 router.get('/booking-details/:id', getBookingDetails);
 router.put('/booking-status', updateBookingStatus);
@@ -80,5 +84,6 @@ router.get('/contact-messages', getContactMessages);
 router.put('/contact-messages/:id/status', updateContactStatus);
 router.get('/platform-settings', getPlatformSettings);
 router.put('/platform-settings', updatePlatformSettings);
+router.post('/upload-image', uploadDocuments.single('image'), uploadPropertyImage);
 
 export default router;

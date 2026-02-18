@@ -192,17 +192,31 @@ const AdminBookingDetail = () => {
                                 <span className="text-gray-900">Included</span>
                             </div>
                             <div className="flex justify-between text-xs font-bold uppercase">
-                                <span className="text-emerald-600">Payment Status</span>
-                                <span className="text-emerald-700">PAID</span>
+                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-600' : booking.paymentStatus === 'refunded' ? 'text-gray-500' : 'text-amber-600'}>
+                                    Payment Status
+                                </span>
+                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-700' : booking.paymentStatus === 'refunded' ? 'text-gray-600' : 'text-amber-700'}>
+                                    {booking.paymentStatus?.toUpperCase() || 'PENDING'}
+                                </span>
                             </div>
                             <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                                 <span className="font-bold text-gray-900 uppercase text-xs">Total Amount</span>
                                 <span className="text-xl font-bold text-gray-900">₹{booking.totalAmount?.toLocaleString()}</span>
                             </div>
                             <div className="pt-2">
-                                <span className="flex items-center justify-center w-full py-1.5 bg-green-50 text-green-700 text-[10px] font-bold rounded border border-green-100 uppercase">
-                                    <ShieldCheck size={12} className="mr-1" /> Payment Verified
-                                </span>
+                                {booking.paymentStatus === 'paid' ? (
+                                    <span className="flex items-center justify-center w-full py-1.5 bg-green-50 text-green-700 text-[10px] font-bold rounded border border-green-100 uppercase">
+                                        <ShieldCheck size={12} className="mr-1" /> Payment Verified
+                                    </span>
+                                ) : booking.paymentStatus === 'refunded' ? (
+                                    <span className="flex items-center justify-center w-full py-1.5 bg-gray-50 text-gray-700 text-[10px] font-bold rounded border border-gray-100 uppercase">
+                                        <ArrowRight size={12} className="mr-1" /> Amount Refunded
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center justify-center w-full py-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded border border-amber-100 uppercase">
+                                        <Clock size={12} className="mr-1" /> Awaiting Payment
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>

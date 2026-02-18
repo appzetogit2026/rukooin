@@ -145,6 +145,11 @@ const adminService = {
     return response.data;
   },
 
+  updateAdminPassword: async (payload) => {
+    const response = await axiosInstance.put('/auth/admin/update-password', payload);
+    return response.data;
+  },
+
   updateFcmToken: async (fcmToken, platform = 'web') => {
     try {
       const response = await axiosInstance.put('/admin/fcm-token', { fcmToken, platform });
@@ -199,6 +204,18 @@ const adminService = {
 
   getFinanceStats: async () => {
     const response = await axiosInstance.get('/admin/finance');
+    return response.data;
+  },
+  updateProperty: async (id, payload) => {
+    const response = await axiosInstance.put(`/admin/update-property/${id}`, payload);
+    return response.data;
+  },
+  uploadImage: async (formData) => {
+    const response = await axiosInstance.post('/admin/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   }
 };
