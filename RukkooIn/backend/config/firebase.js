@@ -10,11 +10,7 @@ let firebaseAdmin = null;
 
 export const initializeFirebase = () => {
   try {
-    // AESTHETICS & ROBUSTNESS: Handle Time Drift (Common on some hosting/Windows envs)
-    const originalNow = Date.now;
-    Date.now = function () {
-      return originalNow() - 300000; // Offset by -5 minutes to stay within Google's sync window
-    };
+    // ROBUSTNESS: Rely on system time. Global Date.now overrides cause significant logical issues elsewhere.
 
     let serviceAccount;
 
