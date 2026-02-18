@@ -209,10 +209,18 @@ export const verifyPayment = async (req, res) => {
       paymentMeta.taxes = booking.taxes;
     }
 
-    // --- PARTNER WALLET CREDIT LOGIC (Common) ---
+    // --- PARTNER & ADMIN WALLET SETTLEMENT (Common) ---
     try {
       const fullBooking = await Booking.findById(booking._id).populate('propertyId');
       const partnerId = fullBooking.propertyId?.partnerId;
+
+      const payout = paymentMeta.partnerPayout || 0;
+      const commission = paymentMeta.adminCommission || 0;
+      const taxes = paymentMeta.taxes || 0;
+
+      // Amount without tax (Base + Extra - Discount)
+      const taxableAmount = (paymentMeta.partnerPayout || 0) + (paymentMeta.adminCommission || 0);
+      const totalAdminCredit = commission + taxes;
 
       if (partnerId) {
         let partnerWallet = await Wallet.findOne({ partnerId: partnerId, role: 'partner' });
@@ -224,25 +232,22 @@ export const verifyPayment = async (req, res) => {
           });
         }
 
-        const payout = paymentMeta.partnerPayout || 0;
+        // A. Credit Partner the amount WITHOUT tax
+        if (taxableAmount > 0) {
+          await partnerWallet.credit(taxableAmount, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
+          console.log(`[Payment] Credited Taxable Amount ₹${taxableAmount} to Partner ${partnerId}`);
 
-        if (payout > 0) {
-          await partnerWallet.credit(payout, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
-          console.log(`[Payment] Credited ₹${payout} to Partner ${partnerId}`);
+          // B. Debit Partner ONLY the Commission (Tax is already handled by not crediting it)
+          if (commission > 0) {
+            await partnerWallet.debit(commission, `Platform Commission for Booking #${booking.bookingId}`, booking.bookingId, 'commission_deduction');
+            console.log(`[Payment] Deducted Commission ₹${commission} from Partner ${partnerId}`);
+          }
         }
       }
-    } catch (err) { console.error("Wallet Credit Failed", err); }
 
-    // --- ADMIN WALLET CREDIT LOGIC ---
-    try {
-      const commission = paymentMeta.adminCommission || 0;
-      const taxes = paymentMeta.taxes || 0;
-      const totalAdminCredit = commission + taxes;
-
+      // --- ADMIN WALLET CREDIT ---
       if (totalAdminCredit > 0) {
         const AdminUser = mongoose.model('User');
-        // Find *any* admin to associate the system wallet with (since Wallet requires a partnerId/userId)
-        // In a real system, you'd have a specific "System User" or "Super Admin".
         const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
 
         if (adminUser) {
@@ -259,11 +264,9 @@ export const verifyPayment = async (req, res) => {
           // Credit the wallet (Commission + Tax)
           await adminWallet.credit(totalAdminCredit, `Commission (₹${commission}) & Tax (₹${taxes}) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_tax');
           console.log(`[Payment] Credited ₹${totalAdminCredit} (Comm: ${commission}, Tax: ${taxes}) to Admin Wallet`);
-        } else {
-          console.warn("⚠️ No Admin user found. Cannot credit commission/tax.");
         }
       }
-    } catch (err) { console.error("Admin Wallet Credit Failed", err); }
+    } catch (err) { console.error("Wallet Settlement Logic Failed", err); }
 
     // Return full populated booking for confirmation page
     const populatedBooking = await Booking.findById(booking._id)

@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import Joi from 'joi';
 import notificationService from '../services/notificationService.js';
+import emailService from '../services/emailService.js';
 
 // Initialize Razorpay
 let razorpay;

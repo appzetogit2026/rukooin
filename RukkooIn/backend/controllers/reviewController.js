@@ -2,6 +2,7 @@ import Review from '../models/Review.js';
 import Property from '../models/Property.js';
 import mongoose from 'mongoose';
 import notificationService from '../services/notificationService.js';
+import emailService from '../services/emailService.js';
 
 export const getPropertyReviews = async (req, res) => {
   try {

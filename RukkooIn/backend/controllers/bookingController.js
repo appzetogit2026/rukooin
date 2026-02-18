@@ -247,13 +247,12 @@ export const createBooking = async (req, res) => {
       if (paymentMethod === 'wallet' || (['online', 'razorpay'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
         booking.paymentStatus = 'paid';
 
-        // --- DISTRIBUTE TO PARTNER & ADMIN (Immediate Settlement for Wallet Payment) ---
+        // --- DISTRIBUTE TO PARTNER & ADMIN (Settlement) ---
 
-        // 1. Credit Partner
-        if (partnerPayout > 0 && property.partnerId) {
+        // 1. Process Partner Transactions (Hiding Tax)
+        if (property.partnerId) {
           let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
           if (!partnerWallet) {
-            // Auto-create if missing (Safe-guard)
             partnerWallet = await Wallet.create({
               partnerId: property.partnerId,
               role: 'partner',
@@ -261,22 +260,26 @@ export const createBooking = async (req, res) => {
             });
           }
 
-          await partnerWallet.credit(partnerPayout, `Payment for Booking #${bookingId}`, bookingId, 'booking_payment');
+          // A. Credit Partner the Taxable Amount (Booking Price - Discount, excluding Tax)
+          // taxableAmount is (grossAmount - discountAmount)
+          await partnerWallet.credit(taxableAmount, `Payment for Booking #${bookingId}`, bookingId, 'booking_payment');
 
-          // NOTIFICATION: Wallet Credit
+          // B. Debit Partner the Admin Commission only
+          if (adminCommission > 0) {
+            await partnerWallet.debit(adminCommission, `Platform Commission for Booking #${bookingId}`, bookingId, 'commission_deduction');
+          }
+
+          // NOTIFICATION: Wallet Update
           notificationService.sendToPartner(property.partnerId, {
-            title: 'Wallet Credited',
-            body: `Wallet Credited: ₹${partnerPayout} for Booking #${bookingId}`
-          }, { type: 'wallet_credit', bookingId: booking._id }).catch(e => console.error(e));
+            title: 'New Booking Settlement',
+            body: `Booking #${bookingId} settled. Payout: ₹${booking.partnerPayout}`
+          }, { type: 'wallet_update', bookingId: booking._id }).catch(e => console.error(e));
         }
 
         // 2. Credit Admin (Commission + Tax)
         const totalAdminCredit = (adminCommission || 0) + (taxes || 0);
         if (totalAdminCredit > 0) {
-          // Find Admin Wallet (assuming single admin wallet or specific logic)
           let adminWallet = await Wallet.findOne({ role: 'admin' });
-
-          // If no admin wallet exists, we might need to find an admin user to create one
           if (!adminWallet) {
             const AdminUser = mongoose.model('User');
             const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
@@ -359,52 +362,9 @@ export const createBooking = async (req, res) => {
       }
     }
 
-    // Handle Pay at Hotel (Partner Deduction)
+    // Handle Pay at Hotel (No immediate deduction, settlement happens when marked as paid)
     if (paymentMethod === 'pay_at_hotel') {
-      const deductionAmount = (taxes || 0) + (adminCommission || 0);
-
-      if (deductionAmount > 0 && property.partnerId) {
-        // 1. Debit Partner
-        let partnerWallet = await Wallet.findOne({ partnerId: property.partnerId, role: 'partner' });
-        if (!partnerWallet) {
-          partnerWallet = await Wallet.create({
-            partnerId: property.partnerId,
-            role: 'partner',
-            balance: 0
-          });
-        }
-
-        // Check balance (Optional: enforce positive balance?)
-        // We will proceed with debit, which might throw if insufficient balance 
-        // depending on Wallet implementation. 
-        // If we want to allow overdraft, we should check Wallet.js.
-        // Assuming standard debit for now.
-        try {
-          await partnerWallet.debit(deductionAmount, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_deduction');
-
-          // 2. Credit Admin
-          let adminWallet = await Wallet.findOne({ role: 'admin' });
-          if (!adminWallet) {
-            const AdminUser = mongoose.model('User');
-            const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
-            if (adminUser) {
-              adminWallet = await Wallet.create({
-                partnerId: adminUser._id,
-                role: 'admin',
-                balance: 0
-              });
-            }
-          }
-
-          if (adminWallet) {
-            await adminWallet.credit(deductionAmount, `Commission & Tax for Booking #${bookingId}`, bookingId, 'commission_tax');
-          }
-        } catch (err) {
-          console.error("Pay at Hotel Wallet Deduction Failed:", err.message);
-          // Optionally: revert booking? Or just log? 
-          // For now, we log.
-        }
-      }
+      console.log(`[Booking] Pay at Hotel selected for #${bookingId}. Settlement deferred.`);
     }
 
     await booking.save();
@@ -775,6 +735,59 @@ export const markBookingAsPaid = async (req, res) => {
     booking.paymentStatus = 'paid';
     await booking.save();
 
+    // --- WALLET SETTLEMENT (Pay at Hotel) ---
+    // The partner collected totalAmount (including tax) at the hotel.
+    // However, as per requirements, we hide the tax from their payout view.
+    // They keep the tax which we then deduct along with commission.
+
+    const adminCommission = booking.adminCommission || 0;
+    const taxes = booking.taxes || 0;
+    const totalDeduction = adminCommission + taxes;
+
+    if (totalDeduction > 0 && booking.propertyId.partnerId) {
+      try {
+        let partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+        if (!partnerWallet) {
+          partnerWallet = await Wallet.create({
+            partnerId: booking.propertyId.partnerId,
+            role: 'partner',
+            balance: 0
+          });
+        }
+
+        // Debit Partner for the Platform's cut (Commission + the Tax they collected but doesn't belong to them)
+        // Description only mentions Commission to keep things simple for partner
+        const amountWithoutTax = booking.totalAmount - booking.taxes;
+        await partnerWallet.debit(
+          totalDeduction,
+          `Platform Commission for Booking #${booking.bookingId} (Booking Amount: ₹${amountWithoutTax})`,
+          booking.bookingId,
+          'commission_deduction'
+        );
+
+        // Credit Admin (Both commission and tax collected by partner are now in system)
+        let adminWallet = await Wallet.findOne({ role: 'admin' });
+        if (!adminWallet) {
+          const AdminUser = mongoose.model('User');
+          const adminUser = await AdminUser.findOne({ role: { $in: ['admin', 'superadmin'] } }).sort({ createdAt: 1 });
+          if (adminUser) {
+            adminWallet = await Wallet.create({
+              partnerId: adminUser._id,
+              role: 'admin',
+              balance: 0
+            });
+          }
+        }
+
+        if (adminWallet) {
+          await adminWallet.credit(totalDeduction, `Comm & Tax (PayAtHotel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_tax');
+        }
+
+      } catch (err) {
+        console.error("Wallet Settlement Failed during Mark as Paid:", err.message);
+      }
+    }
+
     // Trigger Notification
     if (booking.userId) {
       const ut = booking.userModel ? booking.userModel.toLowerCase() : 'user';
@@ -831,9 +844,8 @@ export const markBookingNoShow = async (req, res) => {
     // Usually No Show means they didn't come.
     await booking.save();
 
-    // REVERSE DEDUCTION (Pay At Hotel)
-    // "partner ke wallet se tax and fees plus admin commission deduct hua h voh uske wallet me vps se credit ho jayega"
-    if (booking.paymentMethod === 'pay_at_hotel') {
+    // REVERSE DEDUCTION (Pay At Hotel - Only if previously marked as Paid)
+    if (booking.paymentMethod === 'pay_at_hotel' && booking.paymentStatus === 'paid') {
       const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
 
       if (refundAmount > 0 && booking.propertyId.partnerId) {
@@ -842,10 +854,10 @@ export const markBookingNoShow = async (req, res) => {
 
         if (partnerWallet && adminWallet) {
           // Credit Partner
-          await partnerWallet.credit(refundAmount, `Refund (No Show) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+          await partnerWallet.credit(refundAmount, `Refund (No Show reversal) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
 
           // Debit Admin
-          await adminWallet.debit(refundAmount, `Refund (No Show) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+          await adminWallet.debit(refundAmount, `Refund (No Show reversal) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
         }
       }
     }

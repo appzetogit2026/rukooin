@@ -202,14 +202,22 @@ const PartnerBookingDetail = () => {
           <h3 className="font-bold text-gray-900 mb-3 text-sm flex items-center gap-2">
             <CreditCard size={16} className="text-gray-400" /> Payment & Payout
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600">Total Amount (Collect)</span>
-              <span className="font-bold text-gray-900 text-base">₹{booking.totalAmount}</span>
+              <span className="text-gray-600">Booking Amount</span>
+              <span className="font-bold text-gray-900">₹{booking.totalAmount - booking.taxes}</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-600">Partner Payout (Earnings)</span>
-              <span className="font-bold text-green-700 text-sm">₹{booking.partnerPayout}</span>
+
+            <div className="space-y-1.5 pl-3 border-l-2 border-gray-100">
+              <div className="flex justify-between items-center text-[10px] text-gray-400 font-medium">
+                <span>Platform Commission</span>
+                <span>- ₹{booking.adminCommission}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+              <span className="text-xs font-bold text-gray-700">Net Payout (Earnings)</span>
+              <span className="font-black text-green-700 text-base">₹{booking.partnerPayout}</span>
             </div>
             <div className="flex justify-between items-center text-xs pt-1">
               <span className="text-gray-600">Status</span>
