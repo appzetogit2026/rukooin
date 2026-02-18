@@ -96,7 +96,7 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
 
     try {
       const formData = new FormData();
-      formData.append('files', file);
+      formData.append('images', file);
 
       console.log('Uploading file...', file.name);
 
