@@ -725,23 +725,41 @@ export const updateBookingStatus = async (req, res) => {
       });
 
       // --- 2. FINANCIAL REVERSALS ---
+      console.log(`[AdminController] Processing cancellation financials for Booking: ${booking.bookingId} (${booking.paymentMethod})`);
 
       // Case A: Pay at Hotel (Reverse Commission Deduction)
       if (booking.paymentMethod === 'pay_at_hotel') {
         const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
-        if (refundAmount > 0 && booking.propertyId && booking.propertyId.partnerId) {
+        console.log(`[AdminController] Pay at Hotel Refund Calculation: ₹${refundAmount} (Tax: ${booking.taxes}, Commission: ${booking.adminCommission})`);
+
+        if (refundAmount > 0 && booking.propertyId?.partnerId) {
           const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
-          const adminWallet = await Wallet.findOne({ role: 'admin' });
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+
+          // Fallback for Admin Wallet: Find any admin if no specific wallet found
+          if (!adminWallet) {
+            console.log('[AdminController] No admin wallet found with role:admin, attempting fallback...');
+            const firstAdmin = await Admin.findOne({ isActive: true });
+            if (firstAdmin) {
+              adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
+            }
+          }
 
           if (partnerWallet && adminWallet) {
+            console.log(`[AdminController] Refunding Partner: ${partnerWallet.partnerId} and Debiting Admin: ${adminWallet._id}`);
             await partnerWallet.credit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
             await adminWallet.debit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+            console.log(`[AdminController] Financial reversal complete for Pay at Hotel.`);
+          } else {
+            console.warn(`[AdminController] Required wallets missing for reversal. Partner: ${!!partnerWallet}, Admin: ${!!adminWallet}`);
           }
         }
       }
 
       // Case B: Paid Bookings (Wallet/Online - Refund User & Reverse Payouts)
       if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'partial') {
+        console.log(`[AdminController] Processing Case B (Paid/Partial) refund for ${booking.totalAmount}`);
+
         // Refund User
         let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
         if (!userWallet) {
@@ -750,7 +768,7 @@ export const updateBookingStatus = async (req, res) => {
         await userWallet.credit(booking.totalAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
 
         // Reverse Partner Payout
-        if (booking.partnerPayout > 0 && booking.propertyId.partnerId) {
+        if (booking.partnerPayout > 0 && booking.propertyId?.partnerId) {
           const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
           if (partnerWallet) {
             await partnerWallet.debit(booking.partnerPayout, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
@@ -760,13 +778,22 @@ export const updateBookingStatus = async (req, res) => {
         // Reverse Admin Commission & Tax
         const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
         if (adminDeduction > 0) {
-          const adminWallet = await Wallet.findOne({ role: 'admin' });
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+
+          if (!adminWallet) {
+            const firstAdmin = await Admin.findOne({ isActive: true });
+            if (firstAdmin) {
+              adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
+            }
+          }
+
           if (adminWallet) {
             await adminWallet.debit(adminDeduction, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
           }
         }
 
         booking.paymentStatus = 'refunded';
+        console.log(`[AdminController] Case B Financials complete.`);
       }
     }
 
@@ -1127,19 +1154,22 @@ export const updateFcmToken = async (req, res) => {
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
 
+    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner/admin
+    const User = (await import('../models/User.js')).default;
+    const Partner = (await import('../models/Partner.js')).default;
+
+    await Promise.all([
+      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
+    ]);
+
+    // 2. Update the token for the current admin
     const admin = await Admin.findById(req.user._id);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
-    }
+    if (!admin) return res.status(404).json({ message: 'Admin not found' });
 
-    // Initialize fcmTokens object if it doesn't exist
-    if (!admin.fcmTokens) {
-      admin.fcmTokens = { app: null, web: null };
-    }
-
-    // Update the specific platform token
+    if (!admin.fcmTokens) admin.fcmTokens = { app: null, web: null };
     admin.fcmTokens[targetPlatform] = fcmToken;
-
     await admin.save();
 
     res.json({
@@ -1481,7 +1511,9 @@ export const adminUpdateProperty = async (req, res) => {
 
 export const uploadPropertyImage = async (req, res) => {
   try {
-    if (!req.file) {
+    const filesToUpload = req.files || (req.file ? [req.file] : []);
+
+    if (!filesToUpload || filesToUpload.length === 0) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
@@ -1492,12 +1524,22 @@ export const uploadPropertyImage = async (req, res) => {
       folder = 'documents';
     }
 
-    const result = await uploadToCloudinary(req.file.path, folder);
+    const uploadPromises = filesToUpload.map(file =>
+      uploadToCloudinary(file.path, folder)
+    );
+
+    const results = await Promise.all(uploadPromises);
+
+    const files = results.map(result => ({
+      url: result.url,
+      publicId: result.publicId
+    }));
 
     res.status(200).json({
       success: true,
-      url: result.url,
-      message: `${req.body.type === 'document' ? 'Document' : 'Image'} uploaded successfully`
+      files,
+      url: files[0].url, // Backwards compatibility for single upload
+      message: `${req.body.type === 'document' ? 'Document' : 'Image'}(s) uploaded successfully`
     });
   } catch (error) {
     console.error('Admin Image Upload Error:', error);

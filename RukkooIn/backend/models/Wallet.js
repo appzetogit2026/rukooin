@@ -96,8 +96,8 @@ walletSchema.methods.credit = async function (amount, description, reference, ty
 };
 
 walletSchema.methods.debit = async function (amount, description, reference, type = 'withdrawal') {
-  // Allow overdraft for commission deductions or penalties
-  const allowOverdraft = ['commission_deduction', 'no_show_penalty', 'refund_deduction'].includes(type);
+  // Allow overdraft for commission deductions, penalties, or refunds
+  const allowOverdraft = ['commission_deduction', 'no_show_penalty', 'refund_deduction', 'commission_refund'].includes(type);
 
   if (!allowOverdraft && this.balance < amount) {
     throw new Error('Insufficient balance');

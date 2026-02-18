@@ -84,6 +84,6 @@ router.get('/contact-messages', getContactMessages);
 router.put('/contact-messages/:id/status', updateContactStatus);
 router.get('/platform-settings', getPlatformSettings);
 router.put('/platform-settings', updatePlatformSettings);
-router.post('/upload-image', uploadDocuments.single('image'), uploadPropertyImage);
+router.post('/upload-image', uploadDocuments.array('images', 20), uploadPropertyImage);
 
 export default router;

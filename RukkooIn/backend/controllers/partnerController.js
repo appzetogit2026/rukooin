@@ -16,20 +16,21 @@ export const updateFcmToken = async (req, res) => {
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
 
+    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner/admin
+    const User = (await import('../models/User.js')).default;
+    const Admin = (await import('../models/Admin.js')).default;
+
+    await Promise.all([
+      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
+    ]);
+
+    // 2. Update the token for the current partner
     const partner = await Partner.findById(req.user._id);
+    if (!partner) return res.status(404).json({ message: 'Partner not found' });
 
-    if (!partner) {
-      return res.status(404).json({ message: 'Partner not found' });
-    }
-
-    if (!partner.fcmTokens) {
-      partner.fcmTokens = {
-        app: null,
-        web: null
-      };
-    }
-
-    // Update the token for the specific platform
+    if (!partner.fcmTokens) partner.fcmTokens = { app: null, web: null };
     partner.fcmTokens[targetPlatform] = fcmToken;
     await partner.save();
 

@@ -192,6 +192,18 @@ const AdminBookingDetail = () => {
                                 <span className="text-gray-900">Included</span>
                             </div>
                             <div className="flex justify-between text-xs font-bold uppercase">
+                                <span className="text-gray-400">Payment Method</span>
+                                <span className="text-gray-900">{booking.paymentMethod?.replace(/_/g, ' ') || 'N/A'}</span>
+                            </div>
+
+                            {booking.paymentMethod === 'pay_at_hotel' && (
+                                <div className="flex justify-between text-xs font-bold uppercase">
+                                    <span className="text-gray-400">Platform Commission</span>
+                                    <span className="text-amber-600">₹{((booking.adminCommission || 0) + (booking.taxes || 0)).toLocaleString()}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between text-xs font-bold uppercase">
                                 <span className={booking.paymentStatus === 'paid' ? 'text-emerald-600' : booking.paymentStatus === 'refunded' ? 'text-gray-500' : 'text-amber-600'}>
                                     Payment Status
                                 </span>

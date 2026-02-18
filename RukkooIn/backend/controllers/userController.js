@@ -199,21 +199,21 @@ export const updateFcmToken = async (req, res) => {
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
 
-    // ONLY check User model as requested
+    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner
+    const Admin = (await import('../models/Admin.js')).default;
+    const Partner = (await import('../models/Partner.js')).default;
+
+    await Promise.all([
+      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
+      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
+    ]);
+
+    // 2. Update the token for the current user
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found in User collection' });
-    }
-
-    if (!user.fcmTokens) {
-      user.fcmTokens = {
-        app: null,
-        web: null
-      };
-    }
-
-    // Update the token for the specific platform
+    if (!user.fcmTokens) user.fcmTokens = { app: null, web: null };
     user.fcmTokens[targetPlatform] = fcmToken;
     await user.save();
 

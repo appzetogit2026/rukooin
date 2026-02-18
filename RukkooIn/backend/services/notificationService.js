@@ -24,10 +24,98 @@ class NotificationService {
    * Send notification to a single FCM token (Internal)
    */
   async sendToToken(fcmToken, notification, data = {}, cleanupMeta = null) {
-    // ... same content as before ...
+    try {
+      const admin = getFirebaseAdmin();
+      if (!admin) throw new Error('Firebase Admin not initialized');
+
+      const stringifiedData = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          stringifiedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        }
+      }
+
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: notification.title || 'Rukkoin',
+          body: notification.body || '',
+        },
+        data: {
+          ...stringifiedData,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+        android: {
+          priority: 'high',
+          notification: { channelId: 'rukkoin_channel' },
+        },
+        apns: {
+          payload: { aps: { sound: 'default', badge: 1 } },
+        },
+        webpush: {
+          notification: {
+            icon: '/icon-192x192.png',
+            badge: '/badge-72x72.png',
+          },
+          fcmOptions: { link: data.url || '/' },
+        },
+      };
+
+      const response = await admin.messaging().send(message);
+      return { success: true, messageId: response };
+    } catch (error) {
+      console.error('Error sending notification to token:', error.message || error);
+
+      if (error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered' ||
+        error.message?.includes('NotRegistered')) {
+
+        if (cleanupMeta?.userId && cleanupMeta?.userType) {
+          this.cleanupInvalidToken(cleanupMeta.userId, cleanupMeta.userType, fcmToken)
+            .catch(e => console.error('[NotificationService] Pruning failed:', e.message));
+        }
+
+        return { success: false, error: 'Invalid or unregistered token', code: error.code || 'NotRegistered' };
+      }
+      throw error;
+    }
   }
 
-  // ... (keeping cleanupInvalidToken as is) ...
+  /**
+   * Removes an invalid FCM token from a user's record
+   */
+  async cleanupInvalidToken(userId, userType, token) {
+    try {
+      console.log(`[NotificationService] Pruning invalid token for ${userType} ${userId}...`);
+      let Model;
+      if (userType === 'admin') {
+        Model = (await import('../models/Admin.js')).default;
+      } else if (userType === 'partner') {
+        Model = (await import('../models/Partner.js')).default;
+      } else {
+        Model = (await import('../models/User.js')).default;
+      }
+
+      const user = await Model.findById(userId);
+      if (user && user.fcmTokens) {
+        let changed = false;
+        if (user.fcmTokens.app === token) {
+          user.fcmTokens.app = null;
+          changed = true;
+        }
+        if (user.fcmTokens.web === token) {
+          user.fcmTokens.web = null;
+          changed = true;
+        }
+        if (changed) {
+          await user.save();
+          console.log(`[NotificationService] Successfully pruned dead ${userType} token.`);
+        }
+      }
+    } catch (e) {
+      console.error('[NotificationService] Cleanup Error:', e.message);
+    }
+  }
 
   /**
    * Send notification to a user, admin or partner by ID

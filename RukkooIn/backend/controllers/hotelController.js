@@ -21,13 +21,16 @@ const mapAddressComponents = (components) => {
  */
 export const uploadImages = async (req, res) => {
   try {
-    console.log(`[Upload Images] Received ${req.files ? req.files.length : 0} files`);
+    // Handle both single file (req.file) and multiple files (req.files)
+    const filesToUpload = req.files || (req.file ? [req.file] : []);
 
-    if (!req.files || !req.files.length) {
+    console.log(`[Upload Images] Received ${filesToUpload.length} files`);
+
+    if (!filesToUpload || filesToUpload.length === 0) {
       return res.status(400).json({ message: 'No images provided' });
     }
 
-    const uploadPromises = req.files.map(file =>
+    const uploadPromises = filesToUpload.map(file =>
       uploadToCloudinary(file.path, 'properties')
     );
 
@@ -56,24 +59,34 @@ export const uploadImages = async (req, res) => {
  */
 export const uploadImagesBase64 = async (req, res) => {
   try {
-    const { images } = req.body; // Array of {base64, mimeType, fileName}
+    let { images } = req.body;
 
-    console.log(`[Upload Images Base64] Received ${images ? images.length : 0} images`);
+    // Handle single image sent not in an array (Flutter bridge compatibility)
+    if (images && !Array.isArray(images)) {
+      images = [images];
+    }
 
-    if (!images || !Array.isArray(images) || images.length === 0) {
+    console.log(`[Upload Images Base64] Received ${images ? images.length : 0} image items`);
+
+    if (!images || images.length === 0) {
       return res.status(400).json({ message: 'No images provided' });
     }
 
     const uploadPromises = images.map(async (img, index) => {
-      if (!img.base64) {
+      // Support both {base64: '...'} object and raw '...' base64 string
+      const base64Data = typeof img === 'object' ? img.base64 : img;
+      const fileName = typeof img === 'object' ? img.fileName : null;
+
+      if (!base64Data) {
         throw new Error(`Image ${index + 1} missing base64 data`);
       }
 
-      const publicId = img.fileName
-        ? `${Date.now()}-${img.fileName.replace(/\.[^/.]+$/, '')}`
-        : null;
+      // Generate unique publicId
+      const publicId = fileName
+        ? `${Date.now()}-${fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')}`
+        : `${Date.now()}-img-${index}`;
 
-      return uploadBase64ToCloudinary(img.base64, 'properties', publicId);
+      return uploadBase64ToCloudinary(base64Data, 'properties', publicId);
     });
 
     const results = await Promise.all(uploadPromises);
@@ -90,7 +103,7 @@ export const uploadImagesBase64 = async (req, res) => {
     res.json({ success: true, files, urls });
   } catch (error) {
     console.error('Upload Images Base64 Error:', error);
-    res.status(500).json({ message: error.message || 'Upload failed' });
+    res.status(500).json({ message: error.message || 'Base64 upload failed' });
   }
 };
 
