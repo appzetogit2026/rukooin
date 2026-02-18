@@ -81,10 +81,11 @@ export const uploadImagesBase64 = async (req, res) => {
         throw new Error(`Image ${index + 1} missing base64 data`);
       }
 
-      // Generate unique publicId
+      // Generate unique publicId with random suffix to prevent collisions during batch uploads
+      const randomSuffix = Math.random().toString(36).substring(2, 7);
       const publicId = fileName
-        ? `${Date.now()}-${fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')}`
-        : `${Date.now()}-img-${index}`;
+        ? `${Date.now()}-${randomSuffix}-${fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')}`
+        : `${Date.now()}-${randomSuffix}-img-${index}`;
 
       return uploadBase64ToCloudinary(base64Data, 'properties', publicId);
     });

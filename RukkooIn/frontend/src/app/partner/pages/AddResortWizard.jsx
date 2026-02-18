@@ -450,14 +450,16 @@ const AddResortWizard = () => {
 
       const isSingle = type === 'cover' || type === 'room' || type.startsWith('doc');
 
-      const res = await hotelService.uploadImagesBase64([result]);
+      const res = await hotelService.uploadImagesBase64(result.images || [result]);
       console.log('[Camera] Upload success:', res);
 
       if (res && res.success && res.files && res.files.length > 0) {
         if (isSingle) {
           onDone(res.files[0].url);
         } else {
-          onDone([res.files[0].url]);
+          // Pass all uploaded URLs
+          const urls = res.files.map(f => f.url);
+          onDone(urls);
         }
       } else {
         throw new Error('Upload failed');
