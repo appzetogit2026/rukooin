@@ -125,15 +125,13 @@ export const pickImage = async (onSuccess, onError) => {
         const uploadResult = await uploadBase64Image(result.images);
 
         if (uploadResult.success && uploadResult.files && uploadResult.files.length > 0) {
-          // If only 1 file, return as normal (url, publicId)
-          // If multiple, return the whole array to the success handler
-          if (uploadResult.files.length === 1) {
-            const file = uploadResult.files[0];
+          // Process each file
+          uploadResult.files.forEach(file => {
             onSuccess && onSuccess(file.url, file.publicId);
-          } else {
-            // Special case for components that can handle multiple returns
-            onSuccess && onSuccess(uploadResult.files);
-          }
+          });
+
+          // If the caller explicitly wants the whole array, they can check if the first arg is array
+          // But for compatibility, we trigger onSuccess for each one to update UI lists
         } else {
           throw new Error('Upload failed');
         }
