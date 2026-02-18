@@ -707,48 +707,108 @@ export const deleteHotel = async (req, res) => {
 
 export const updateBookingStatus = async (req, res) => {
   try {
-    const { bookingId, status } = req.body;
-    const booking = await Booking.findById(bookingId);
+    const { bookingId, status, reason = 'Cancelled by Administrator' } = req.body;
+    const booking = await Booking.findById(bookingId).populate('propertyId');
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
+    const previousStatus = booking.bookingStatus;
     booking.bookingStatus = status;
-    await booking.save();
 
-    if (status === 'cancelled') {
+    if (status === 'cancelled' && previousStatus !== 'cancelled') {
+      booking.cancelledAt = new Date();
+      booking.cancellationReason = reason;
+
+      // 1. Release Inventory
       await AvailabilityLedger.deleteMany({
         source: 'platform',
         referenceId: booking._id
       });
+
+      // --- 2. FINANCIAL REVERSALS ---
+
+      // Case A: Pay at Hotel (Reverse Commission Deduction)
+      if (booking.paymentMethod === 'pay_at_hotel') {
+        const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
+        if (refundAmount > 0 && booking.propertyId && booking.propertyId.partnerId) {
+          const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+          const adminWallet = await Wallet.findOne({ role: 'admin' });
+
+          if (partnerWallet && adminWallet) {
+            await partnerWallet.credit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+            await adminWallet.debit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+          }
+        }
+      }
+
+      // Case B: Paid Bookings (Wallet/Online - Refund User & Reverse Payouts)
+      if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'partial') {
+        // Refund User
+        let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
+        if (!userWallet) {
+          userWallet = await Wallet.create({ partnerId: booking.userId, role: 'user', balance: 0 });
+        }
+        await userWallet.credit(booking.totalAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
+
+        // Reverse Partner Payout
+        if (booking.partnerPayout > 0 && booking.propertyId.partnerId) {
+          const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+          if (partnerWallet) {
+            await partnerWallet.debit(booking.partnerPayout, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
+          }
+        }
+
+        // Reverse Admin Commission & Tax
+        const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
+        if (adminDeduction > 0) {
+          const adminWallet = await Wallet.findOne({ role: 'admin' });
+          if (adminWallet) {
+            await adminWallet.debit(adminDeduction, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
+          }
+        }
+
+        booking.paymentStatus = 'refunded';
+      }
     }
 
+    await booking.save();
+
     // Trigger Notifications
-    const fullBooking = await Booking.findById(booking._id).populate('propertyId');
     const ut = booking.userModel ? booking.userModel.toLowerCase() : 'user';
 
     // 1. Notify User
     if (booking.userId) {
       notificationService.sendToUser(booking.userId, {
-        title: `Booking Status Update`,
-        body: `Your booking #${booking.bookingId} at ${fullBooking?.propertyId?.propertyName || 'Hotel'} has been updated to ${status}.`
-      }, { type: 'booking_update', bookingId: booking._id }, ut).catch(console.error);
+        title: `Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        body: `Your booking #${booking.bookingId} at ${booking.propertyId?.propertyName || 'Hotel'} has been ${status}.`
+      }, { type: 'booking_update', bookingId: booking._id, status }, ut).catch(console.error);
+
+      // Email for cancellation
+      if (status === 'cancelled') {
+        User.findById(booking.userId).then(user => {
+          if (user && user.email) {
+            emailService.sendBookingCancellationEmail(user, booking, booking.paymentStatus === 'refunded' ? booking.totalAmount : 0).catch(console.error);
+          }
+        });
+      }
     }
 
     // 2. Notify Partner
-    if (fullBooking?.propertyId?.partnerId) {
-      notificationService.sendToPartner(fullBooking.propertyId.partnerId, {
+    if (booking.propertyId?.partnerId) {
+      notificationService.sendToPartner(booking.propertyId.partnerId, {
         title: `Booking Update Alert`,
         body: `Booking #${booking.bookingId} status updated to ${status} by Administrator.`
-      }, { type: 'booking_update', bookingId: booking._id }).catch(console.error);
+      }, { type: 'booking_update', bookingId: booking._id, status }).catch(console.error);
     }
 
     // 3. Notify Admins
     notificationService.sendToAdmins({
       title: 'Booking Status Updated',
-      body: `Booking #${booking.bookingId} status changed to ${status} by Admin.`
+      body: `Booking #${booking.bookingId} status changed to ${status} by ${req.user.name || 'Admin'}.`
     }, { type: 'booking_update', bookingId: booking._id }).catch(console.error);
 
     res.status(200).json({ success: true, booking });
   } catch (e) {
+    console.error('Update Booking Status Error:', e);
     res.status(500).json({ success: false, message: 'Server error updating booking status' });
   }
 };
