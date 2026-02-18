@@ -29,6 +29,36 @@ const SearchPage = () => {
 
     const [location, setLocation] = useState(null); // { lat, lng }
 
+    // Read location from URL params on mount
+    useEffect(() => {
+        const latParam = searchParams.get('lat');
+        const lngParam = searchParams.get('lng');
+        const radiusParam = searchParams.get('radius');
+        const sortParam = searchParams.get('sort');
+        
+        if (latParam && lngParam) {
+            const urlLocation = {
+                lat: parseFloat(latParam),
+                lng: parseFloat(lngParam)
+            };
+            
+            // Only set if different from current location
+            if (!location || location.lat !== urlLocation.lat || location.lng !== urlLocation.lng) {
+                setLocation(urlLocation);
+            }
+            
+            // Update radius if provided
+            if (radiusParam) {
+                setFilters(prev => ({ ...prev, radius: Number(radiusParam) }));
+            }
+            
+            // Update sort if provided
+            if (sortParam) {
+                setFilters(prev => ({ ...prev, sort: sortParam }));
+            }
+        }
+    }, [searchParams]);
+
     useEffect(() => {
         fetchProperties();
     }, [searchParams, location]);
