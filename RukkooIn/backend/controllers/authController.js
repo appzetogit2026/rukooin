@@ -118,7 +118,7 @@ export const sendOtp = async (req, res) => {
     }
 
     // TEST NUMBERS - Bypass OTP with default 123456
-    const testNumbers = ['9685974247', '9009925021', '6261096283', '9752275626', '8889948896','7047716600','6263322405'];
+    const testNumbers = ['9685974247', '9009925021', '6261096283', '9752275626', '8889948896', '7047716600', '6263322405'];
     const isTestNumber = testNumbers.includes(phone);
 
     // Generate OTP - Use 123456 for test numbers, random for others
@@ -166,11 +166,10 @@ export const registerPartner = async (req, res) => {
       aadhaar_back,
       pan_number,
       pan_card_image,
-      termsAccepted,
-      referralCode
+      termsAccepted
     } = req.body;
 
-    console.log(`[REFERRAL_DEBUG] Partner Registration payload:`, { phone, email: rawEmail, referralCode });
+    console.log(`[AUTH] Partner Registration payload:`, { phone, email: rawEmail });
 
     const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
     const getUrl = (val) => (val && typeof val === 'object' ? val.url : val);
@@ -228,14 +227,9 @@ export const registerPartner = async (req, res) => {
 
     await newPartner.save();
 
-    // REFERRAL: Process Signup Referral if code exists
-    if (referralCode) {
-      console.log(`[REFERRAL_DEBUG] Partner signup with code: ${referralCode}`);
-      referralService.processReferralSignup(newPartner, referralCode).catch(err => console.error('[REFERRAL_DEBUG] Partner Referral Error:', err));
-    }
+    // Referral processing removed for partners
 
-    // REFERRAL: Generate code for partner
-    referralService.generateCodeForUser(newPartner).catch(err => console.error('Partner Code Gen Error:', err));
+    // Partner referral code generation removed
 
     // Send notification to admins
     notificationService.sendToAdmins({

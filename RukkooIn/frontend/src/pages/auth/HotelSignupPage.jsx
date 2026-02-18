@@ -82,7 +82,7 @@ const HotelSignup = () => {
             // SUBMIT REGISTRATION TO BACKEND
             setLoading(true);
             try {
-                // Prepare clean payload with only required fields
+                // Prepare clean payload with only required fields (Referral removed for partners)
                 const payload = {
                     full_name: formData.full_name,
                     email: formData.email,
@@ -93,7 +93,6 @@ const HotelSignup = () => {
                     pan_number: formData.pan_number,
                     pan_card_image: formData.pan_card_image,
                     termsAccepted: formData.termsAccepted,
-                    referralCode: formData.referralCode || undefined,
                     role: 'partner'
                 };
 
@@ -101,9 +100,7 @@ const HotelSignup = () => {
                 const response = await authService.registerPartner(payload);
                 setLoading(false);
 
-                // Clear referral code from storage
-                console.log(`[REFERRAL_DEBUG] Partner registration successful, clearing localStorage referralCode`);
-                localStorage.removeItem('referralCode');
+                // Removed referral handling for partners
 
                 // Show success message
                 alert(response.message || 'Registration successful! Your account is pending admin approval. You can login once approved.');

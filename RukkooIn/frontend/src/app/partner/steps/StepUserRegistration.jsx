@@ -1,18 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import usePartnerStore from '../store/partnerStore';
 import { Link } from 'react-router-dom';
 
 const StepUserRegistration = () => {
   const { formData, updateFormData } = usePartnerStore();
-
-  // Capture referral code on mount
-  useEffect(() => {
-    const storedCode = localStorage.getItem('referralCode');
-    if (storedCode && !formData.referralCode) {
-      console.log(`[REFERRAL_DEBUG] Partner Onboarding: Found stored code in localStorage: ${storedCode}`);
-      updateFormData({ referralCode: storedCode });
-    }
-  }, []);
 
   const handleChange = (field, value) => {
     updateFormData({ [field]: value });
@@ -55,20 +46,6 @@ const StepUserRegistration = () => {
         </div>
       </div>
 
-      <div className="bg-emerald-50/30 p-3 rounded-xl border border-emerald-100/50">
-        <label className="block text-[10px] font-black text-emerald-800 uppercase tracking-wider mb-1">
-          Referral Code <span className="text-emerald-400 font-medium">(Optional)</span>
-        </label>
-        <input
-          type="text"
-          className="w-full bg-white border border-emerald-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold tracking-widest text-[#004F4D] placeholder:text-emerald-200"
-          placeholder="FRIEND200"
-          value={formData.referralCode}
-          onChange={e => handleChange('referralCode', e.target.value.toUpperCase())}
-        />
-        <p className="text-[10px] text-emerald-600/70 mt-1.5 font-medium italic">Join via referral to unlock your welcome bonus!</p>
-      </div>
-
       <div className="flex items-start gap-2 mt-2">
         <input
           id="terms"
@@ -86,4 +63,3 @@ const StepUserRegistration = () => {
 };
 
 export default StepUserRegistration;
-

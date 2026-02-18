@@ -225,10 +225,18 @@ const Layout = ({ children }) => {
 // Simple Protected Route for Users
 const UserProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
+  const userRaw = localStorage.getItem('user');
+  const user = userRaw ? JSON.parse(userRaw) : null;
   const location = useLocation();
 
   if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If partner is logged in but tries to access user routes, redirect to partner dashboard
+  if (user?.role === 'partner') {
+    console.warn(`[AUTH] Partner ${user._id} attempted to access user route: ${location.pathname}. Redirecting to /hotel/dashboard.`);
+    return <Navigate to="/hotel/dashboard" replace />;
   }
 
   return children ? children : <Outlet />;

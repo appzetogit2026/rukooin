@@ -39,15 +39,20 @@ class ReferralService {
      */
     async generateCodeForUser(user) {
         try {
+            // Check if user is partner - Partners don't have referral codes now
+            if (user.role === 'partner') {
+                return null;
+            }
+
             // Check if already exists
             const existing = await ReferralCode.findOne({
                 ownerId: user._id,
-                ownerType: user.role === 'partner' ? 'Partner' : 'User'
+                ownerType: 'User'
             });
             if (existing) return existing;
 
             // Find active program
-            const program = await this.getOrCreateActiveProgram(user.role);
+            const program = await this.getOrCreateActiveProgram('user');
 
             // Sanitized name prefix (first 4 chars of name or 'USER')
             const prefix = (user.name || 'USER').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4);
@@ -74,7 +79,7 @@ class ReferralService {
             const newCode = await ReferralCode.create({
                 code: uniqueCode,
                 ownerId: user._id,
-                ownerType: user.role === 'partner' ? 'Partner' : 'User',
+                ownerType: 'User',
                 referralProgramId: program?._id
             });
 
@@ -101,9 +106,15 @@ class ReferralService {
             }
             console.log(`[REFERRAL_DEBUG] Found valid code: ${code.code}, Owner: ${code.ownerId}`);
 
-            // Self-referral check
+            // self-referral check
             if (code.ownerId.toString() === newUser._id.toString()) {
                 console.warn(`Self-referral attempted by ${newUser._id}`);
+                return null;
+            }
+
+            // Partner Referral Restriction: Partners cannot be referred
+            if (newUser.role === 'partner') {
+                console.warn(`[REFERRAL_DEBUG] Partner signup attempted with referral code. Skipping referral logic for partner.`);
                 return null;
             }
 
