@@ -133,47 +133,9 @@ export const pickImage = async (onSuccess, onError) => {
   }
 };
 
-/**
- * Helper to pick multiple images (Gallery) in Flutter
- * Falls back to onError if not in Flutter
- */
-export const pickMultipleImages = async (onSuccess, onError) => {
-  try {
-    if (isFlutterApp()) {
-      console.log('[Multi Picker] Opening Flutter Gallery...');
-
-      const result = await openFlutterGallery();
-
-      if (result.success && result.images && result.images.length > 0) {
-        console.log(`[Multi Picker] Uploading ${result.images.length} images...`);
-
-        const uploadResult = await uploadBase64Images(result.images);
-
-        if (uploadResult.success && uploadResult.files) {
-          const urls = uploadResult.files.map(f => f.url);
-          onSuccess && onSuccess(urls);
-        } else {
-          throw new Error('Upload failed');
-        }
-      } else {
-        throw new Error('No images selected');
-      }
-    } else {
-      onError && onError(new Error('Use browser file input'));
-    }
-  } catch (error) {
-    console.error('[Multi Picker] Error:', error);
-    onError && onError(error);
-  }
-};
-
 export default {
   isFlutterApp,
   openFlutterCamera,
   uploadBase64Image,
-  uploadBase64Image,
-  pickImage,
-  openFlutterGallery,
-  uploadBase64Images,
-  pickMultipleImages
+  pickImage
 };

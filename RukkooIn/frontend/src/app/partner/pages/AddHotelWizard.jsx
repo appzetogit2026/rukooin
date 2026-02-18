@@ -4,7 +4,7 @@ import { propertyService, hotelService } from '../../../services/apiService';
 // Compression removed - Cloudinary handles optimization
 import { CheckCircle, FileText, Home, Image, Plus, Trash2, MapPin, Search, BedDouble, Wifi, Tv, Snowflake, Coffee, ShowerHead, ArrowLeft, ArrowRight, Clock, Loader2, Camera, X } from 'lucide-react';
 import logo from '../../../assets/rokologin-removebg-preview.png';
-import { isFlutterApp, openFlutterCamera, pickMultipleImages } from '../../../utils/flutterBridge';
+import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 
 const REQUIRED_DOCS_HOTEL = [
   { type: "trade_license", name: "Trade License", required: true }
@@ -398,10 +398,6 @@ const AddHotelWizard = () => {
 
       // For single image upload (cover image, room, or documents)
       const isSingle = type === 'cover' || type === 'room' || type.startsWith('doc');
-
-      // NEW: If trying to upload to gallery/room images via Flutter but we want multiple?
-      // Actually handleCameraUpload is specifically for "Camera" (Single).
-      // We need to use pickMultipleImages for Gallery button.
 
       const res = await hotelService.uploadImagesBase64([result]);
       console.log('[Camera] Upload success:', res);
@@ -1219,7 +1215,7 @@ const AddHotelWizard = () => {
                   ))}
                   <button
                     type="button"
-                    onClick={() => isFlutter ? pickMultipleImages(urls => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...urls]), err => setError(err.message)) : propertyImagesFileInputRef.current?.click()}
+                    onClick={() => isFlutter ? handleCameraUpload('gallery', urls => updatePropertyForm('propertyImages', [...propertyForm.propertyImages, ...urls])) : propertyImagesFileInputRef.current?.click()}
                     disabled={!!uploading}
                     className="aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-white hover:border-emerald-400 flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all"
                   >
@@ -1367,7 +1363,7 @@ const AddHotelWizard = () => {
                             </button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => isFlutter ? pickMultipleImages(urls => setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), ...urls] })), err => setError(err.message)) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
+                        <button type="button" onClick={() => isFlutter ? handleCameraUpload('room', url => setEditingRoomType(prev => ({ ...prev, images: [...(prev.images || []), url] }))) : roomImagesFileInputRef.current?.click()} disabled={!!uploading} className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-all">
                           {uploading === 'room' ? <Loader2 size={20} className="animate-spin text-emerald-600" /> : <Plus size={20} />}
                         </button>
                         <input ref={roomImagesFileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={e => {
