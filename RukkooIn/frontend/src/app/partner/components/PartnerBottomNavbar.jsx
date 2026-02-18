@@ -25,19 +25,8 @@ const PartnerBottomNavbar = () => {
     { name: 'Profile', icon: UserCircle, route: '/hotel/profile' },
   ];
 
-  const handleInventoryClick = async () => {
-    try {
-      const res = await propertyService.getMy();
-      const properties = res.properties || [];
-      
-      if (properties.length > 0) {
-        navigate(`/hotel/inventory/${properties[0]._id}`);
-      } else {
-        navigate('/hotel/inventory-properties');
-      }
-    } catch (error) {
-      navigate('/hotel/inventory-properties');
-    }
+  const handleInventoryClick = () => {
+    navigate('/hotel/inventory-properties');
   };
 
   const handleNavClick = (item) => {
