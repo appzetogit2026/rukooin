@@ -121,7 +121,8 @@ const PartnerWallet = () => {
                     }
                     await walletService.updateBankDetails(bankDetailsInput);
                     toast.success("Bank details saved!");
-                    fetchWalletData();
+                    await fetchWalletData();
+                    // Don't close modal - user will see withdraw form now
                     return;
                 }
 
@@ -137,7 +138,7 @@ const PartnerWallet = () => {
                 toast.success('Withdrawal successful (Test Simulation)');
                 setActiveModal(null);
                 setAmountInput('');
-                fetchWalletData();
+                await fetchWalletData();
             } else if (activeModal === 'add_money') {
                 if (!amount || amount <= 0) {
                     toast.error('Please enter a valid amount');
@@ -168,8 +169,11 @@ const PartnerWallet = () => {
                             setAmountInput('');
                             fetchWalletData();
                         } catch (err) {
-                            toast.error('Payment verification failed');
+                            toast.error('Payment verification failed. Please try again.');
                             console.error(err);
+                            // Close modal so error message is visible (z-index fixed)
+                            setActiveModal(null);
+                            setAmountInput('');
                         }
                     },
                     prefill: {
@@ -181,16 +185,29 @@ const PartnerWallet = () => {
                     },
                 };
 
-                const razorpayInstance = new Razorpay(options);
+                const razorpayInstance = new Razorpay({
+                    ...options,
+                    modal: {
+                        ondismiss: () => {
+                            // User closed Razorpay modal without payment
+                            // Keep the add money modal open so they can try again
+                            console.log('Razorpay payment cancelled by user');
+                        }
+                    }
+                });
                 razorpayInstance.open();
                 return; // Don't close modal immediately, let handler do it
             }
 
             setActiveModal(null);
             setAmountInput('');
-            fetchWalletData();
+            await fetchWalletData();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Transaction failed');
+            // Close modal on error so user can see the error message clearly
+            // User can reopen modal if needed
+            setActiveModal(null);
+            setAmountInput('');
         }
     };
 

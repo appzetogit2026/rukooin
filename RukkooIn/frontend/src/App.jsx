@@ -407,7 +407,13 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster 
+        position="top-center" 
+        reverseOrder={false}
+        containerStyle={{
+          zIndex: 10000
+        }}
+      />
       <Layout>
         <Suspense fallback={<PageLoader />}>
           <Routes>
