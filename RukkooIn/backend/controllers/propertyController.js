@@ -37,6 +37,19 @@ export const createProperty = async (req, res) => {
   try {
     const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, resortType, activities, hotelCategory, starRating } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
+    
+    // Validate contact number if provided (Indian mobile: 10 digits, starts with 6-9)
+    if (contactNumber && contactNumber.trim() !== '') {
+      const digitsOnly = contactNumber.replace(/\D/g, '');
+      if (digitsOnly.length !== 10) {
+        return res.status(400).json({ message: 'Contact number must be exactly 10 digits' });
+      }
+      if (!/^[6-9]\d{9}$/.test(digitsOnly)) {
+        return res.status(400).json({ message: 'Contact number must be a valid Indian mobile number (starts with 6, 7, 8, or 9)' });
+      }
+      // Store only digits (remove +91, spaces, dashes if any)
+      req.body.contactNumber = digitsOnly;
+    }
     const lowerType = propertyType.toLowerCase();
     const requiredDocs = PROPERTY_DOCUMENTS[lowerType] || [];
     const nearbyPlacesArray = Array.isArray(nearbyPlaces) ? nearbyPlaces : [];
@@ -131,6 +144,19 @@ export const updateProperty = async (req, res) => {
 
     if (String(property.partnerId) !== String(req.user._id) && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Not allowed' });
+    }
+    
+    // Validate contact number if provided (Indian mobile: 10 digits, starts with 6-9)
+    if (payload.contactNumber !== undefined && payload.contactNumber !== null && String(payload.contactNumber).trim() !== '') {
+      const digitsOnly = String(payload.contactNumber).replace(/\D/g, '');
+      if (digitsOnly.length !== 10) {
+        return res.status(400).json({ message: 'Contact number must be exactly 10 digits' });
+      }
+      if (!/^[6-9]\d{9}$/.test(digitsOnly)) {
+        return res.status(400).json({ message: 'Contact number must be a valid Indian mobile number (starts with 6, 7, 8, or 9)' });
+      }
+      // Store only digits (remove +91, spaces, dashes if any)
+      payload.contactNumber = digitsOnly;
     }
 
     const updatableFields = [
