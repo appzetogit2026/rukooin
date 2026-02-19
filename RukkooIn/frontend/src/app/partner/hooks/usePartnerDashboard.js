@@ -34,7 +34,7 @@ const usePartnerDashboard = () => {
         const [propertiesData, bookingsData, walletData, reviewStats] = await Promise.all([
           hotelService.getMyHotels(),
           bookingService.getPartnerBookings(),
-          walletService.getWallet(),
+          walletService.getWallet({ viewAs: 'partner' }), // Explicitly specify partner role
           reviewService.getPartnerStats().catch(() => ({ pendingReviews: 0 })) // Handle error gracefully
         ]);
 

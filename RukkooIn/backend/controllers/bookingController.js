@@ -15,6 +15,62 @@ import notificationService from '../services/notificationService.js';
 import referralService from '../services/referralService.js';
 import User from '../models/User.js';
 
+// Initialize Razorpay instance for refunds
+let razorpayInstance;
+try {
+  if (PaymentConfig.razorpayKeyId && PaymentConfig.razorpayKeySecret) {
+    razorpayInstance = new Razorpay({
+      key_id: PaymentConfig.razorpayKeyId,
+      key_secret: PaymentConfig.razorpayKeySecret
+    });
+  }
+} catch (err) {
+  console.error("Razorpay Init Failed in bookingController:", err.message);
+}
+
+// Helper: Check if cancellation is allowed (24 hours before check-in)
+const isCancellationAllowed = (checkInDate, checkInTime) => {
+  try {
+    const now = new Date();
+    const checkIn = new Date(checkInDate);
+    
+    // Parse check-in time (format: "12:00 PM" or "12:00")
+    let hours = 12; // Default to 12 PM if not provided
+    let minutes = 0;
+    
+    if (checkInTime) {
+      const timeStr = checkInTime.trim().toUpperCase();
+      const isPM = timeStr.includes('PM');
+      const timeMatch = timeStr.match(/(\d+):(\d+)/);
+      
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        minutes = parseInt(timeMatch[2], 10);
+        
+        if (isPM && hours !== 12) {
+          hours += 12;
+        } else if (!isPM && hours === 12) {
+          hours = 0;
+        }
+      }
+    }
+    
+    // Set check-in date and time
+    checkIn.setHours(hours, minutes, 0, 0);
+    
+    // Calculate difference in milliseconds
+    const diffMs = checkIn.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    // Allow cancellation only if at least 24 hours before check-in
+    return diffHours >= 24;
+  } catch (error) {
+    console.error('Error checking cancellation policy:', error);
+    // If error parsing, allow cancellation (fail-safe)
+    return true;
+  }
+};
+
 // Helper: Trigger Notifications
 const triggerBookingNotifications = async (booking) => {
   try {
@@ -538,7 +594,7 @@ export const getPartnerBookingDetail = async (req, res) => {
 
 export const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate('propertyId');
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     // Allow user to cancel or admin/partner
@@ -551,10 +607,87 @@ export const cancelBooking = async (req, res) => {
       return res.status(400).json({ message: 'Booking already cancelled' });
     }
 
+    // --- 24-HOUR CANCELLATION POLICY CHECK ---
+    // Industry Standard: Cancellation must be at least 24 hours before check-in time
+    const property = booking.propertyId;
+    const checkInTime = property?.checkInTime || '12:00 PM'; // Default to 12 PM if not set
+    const isAllowed = isCancellationAllowed(booking.checkInDate, checkInTime);
+    
+    if (!isAllowed) {
+      const checkInDate = new Date(booking.checkInDate);
+      const checkInDateTime = new Date(checkInDate);
+      
+      // Parse check-in time
+      const timeStr = checkInTime.trim().toUpperCase();
+      const isPM = timeStr.includes('PM');
+      const timeMatch = timeStr.match(/(\d+):(\d+)/);
+      let hours = 12;
+      let minutes = 0;
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        minutes = parseInt(timeMatch[2], 10);
+        if (isPM && hours !== 12) hours += 12;
+        else if (!isPM && hours === 12) hours = 0;
+      }
+      checkInDateTime.setHours(hours, minutes, 0, 0);
+      
+      const now = new Date();
+      const diffMs = checkInDateTime.getTime() - now.getTime();
+      const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+      
+      return res.status(400).json({ 
+        message: `Cancellation is only allowed at least 24 hours before check-in. Check-in is in ${diffHours} hours.`,
+        code: 'CANCELLATION_POLICY_VIOLATION',
+        hoursRemaining: diffHours
+      });
+    }
+
     // Update Status
     booking.bookingStatus = 'cancelled';
     booking.cancellationReason = req.body.reason || 'User cancelled';
     booking.cancelledAt = new Date();
+    
+    // Will update paymentStatus after refund processing if needed
+
+    // --- PAYMENT GATEWAY REFUND (Razorpay/Online) ---
+    // Process Razorpay refund FIRST before wallet operations
+    let razorpayRefundProcessed = false;
+    let razorpayRefundAmount = 0;
+    
+    if ((booking.paymentMethod === 'razorpay' || booking.paymentMethod === 'online') && 
+        booking.paymentStatus === 'paid' && 
+        booking.paymentId) {
+      try {
+        if (!razorpayInstance) {
+          throw new Error('Razorpay not initialized');
+        }
+        
+        // Process full refund through Razorpay
+        const refundAmountInPaise = Math.round(booking.totalAmount * 100);
+        const refund = await razorpayInstance.payments.refund(booking.paymentId, {
+          amount: refundAmountInPaise,
+          notes: {
+            reason: booking.cancellationReason || 'User cancelled',
+            bookingId: booking.bookingId || booking._id.toString()
+          }
+        });
+        
+        razorpayRefundProcessed = true;
+        razorpayRefundAmount = refund.amount / 100; // Convert back to rupees
+        
+        // Update payment status to refunded
+        booking.paymentStatus = 'refunded';
+        
+        console.log(`[CancelBooking] Razorpay refund processed: ${refund.id}, Amount: ₹${razorpayRefundAmount}`);
+      } catch (razorpayError) {
+        console.error('[CancelBooking] Razorpay refund failed:', razorpayError.message);
+        // If Razorpay refund fails, still proceed with wallet credit as fallback
+        // This ensures user gets refunded even if gateway fails
+        // Log error but don't block cancellation
+      }
+    }
+    
+    // Save booking status update
     await booking.save();
 
     // --- WALLET REVERSAL LOGIC ---
@@ -615,26 +748,45 @@ export const cancelBooking = async (req, res) => {
       return res.json({ success: true, message: 'Booking cancelled successfully (Pay at Hotel - Commission Refunded)', booking });
     }
 
-    // 1. Refund User (If paid)
-    if (booking.paymentStatus === 'paid') {
-      let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
+    // 1. Refund User (If paid and Razorpay refund NOT processed)
+    // If Razorpay refund was successful, skip wallet credit (refund already processed)
+    // If Razorpay refund failed or payment method is wallet, credit user wallet
+    if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') {
+      // Only credit wallet if:
+      // - Payment method is wallet (always credit wallet)
+      // - OR Razorpay refund failed (fallback)
+      // - OR payment method is not Razorpay/online
+      const shouldCreditWallet = booking.paymentMethod === 'wallet' || 
+                                 !razorpayRefundProcessed || 
+                                 !['razorpay', 'online'].includes(booking.paymentMethod);
+      
+      if (shouldCreditWallet) {
+        let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
 
-      // Auto-create wallet if it doesn't exist
-      if (!userWallet) {
-        userWallet = await Wallet.create({
-          partnerId: booking.userId,
-          role: 'user',
-          balance: 0
-        });
+        // Auto-create wallet if it doesn't exist
+        if (!userWallet) {
+          userWallet = await Wallet.create({
+            partnerId: booking.userId,
+            role: 'user',
+            balance: 0
+          });
+        }
+
+        await userWallet.credit(
+          booking.totalAmount, 
+          `Refund for Booking #${booking.bookingId}${razorpayRefundProcessed ? ' (Razorpay refund failed, wallet credited as fallback)' : ''}`, 
+          booking.bookingId, 
+          'refund'
+        );
       }
-
-      await userWallet.credit(booking.totalAmount, `Refund for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
     }
 
     // 2. Deduct Partner (If payout was credited)
-    // We assume payout is credited on 'confirmed'/'paid'. 
-    // Check if Partner Payout > 0
-    if (booking.partnerPayout > 0 && booking.paymentStatus === 'paid') {
+    // Only reverse if booking was actually paid (not pay_at_hotel)
+    // Check if Partner Payout > 0 and payment was processed
+    if (booking.partnerPayout > 0 && 
+        (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') &&
+        booking.paymentMethod !== 'pay_at_hotel') {
       const fullBooking = await Booking.findById(booking._id).populate('propertyId');
       if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
         const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
@@ -648,13 +800,16 @@ export const cancelBooking = async (req, res) => {
             );
           } catch (err) {
             console.error("Partner Refund Deduction Failed:", err.message);
+            // Don't throw - log and continue
           }
         }
       }
     }
 
     // 3. Deduct Admin (Commission + Tax)
-    if (booking.paymentStatus === 'paid') {
+    // Only reverse if booking was actually paid (not pay_at_hotel)
+    if ((booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') &&
+        booking.paymentMethod !== 'pay_at_hotel') {
       const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
       if (adminDeduction > 0) {
         const adminWallet = await Wallet.findOne({ role: 'admin' });
@@ -668,6 +823,7 @@ export const cancelBooking = async (req, res) => {
             );
           } catch (err) {
             console.error("Admin Refund Deduction Failed:", err.message);
+            // Don't throw - log and continue
           }
         }
       }
@@ -679,7 +835,15 @@ export const cancelBooking = async (req, res) => {
       const ut = fullBooking.userModel ? fullBooking.userModel.toLowerCase() : 'user';
 
       if (fullBooking.userId && fullBooking.userId.email) {
-        emailService.sendBookingCancellationEmail(fullBooking.userId, fullBooking, booking.paymentStatus === 'paid' ? booking.totalAmount : 0)
+        // Determine refund amount for email
+        let refundAmount = 0;
+        if (razorpayRefundProcessed) {
+          refundAmount = razorpayRefundAmount;
+        } else if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') {
+          refundAmount = booking.totalAmount;
+        }
+        
+        emailService.sendBookingCancellationEmail(fullBooking.userId, fullBooking, refundAmount)
           .catch(e => console.error('Cancel Email failed', e));
       }
 
@@ -708,7 +872,25 @@ export const cancelBooking = async (req, res) => {
     // Release Inventory
     await AvailabilityLedger.deleteMany({ referenceId: booking._id });
 
-    res.json({ success: true, message: 'Booking cancelled successfully', booking });
+    // Prepare response message
+    let responseMessage = 'Booking cancelled successfully';
+    if (razorpayRefundProcessed) {
+      responseMessage += `. Refund of ₹${razorpayRefundAmount.toLocaleString()} processed through payment gateway.`;
+    } else if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') {
+      if (booking.paymentMethod === 'wallet') {
+        responseMessage += `. Refund of ₹${booking.totalAmount.toLocaleString()} credited to your wallet.`;
+      } else {
+        responseMessage += `. Refund of ₹${booking.totalAmount.toLocaleString()} will be processed.`;
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: responseMessage,
+      booking,
+      refundProcessed: razorpayRefundProcessed,
+      refundAmount: razorpayRefundProcessed ? razorpayRefundAmount : (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded' ? booking.totalAmount : 0)
+    });
   } catch (e) {
     console.error('Cancel Booking Error:', e);
     res.status(500).json({ message: e.message });

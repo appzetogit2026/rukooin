@@ -46,10 +46,17 @@ const AddHostelWizard = () => {
   const [uploading, setUploading] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
+  const [houseRulesDraft, setHouseRulesDraft] = useState('');
 
   useEffect(() => {
     setIsFlutter(isFlutterApp());
   }, []);
+
+  useEffect(() => {
+    if (step === 7) {
+      setHouseRulesDraft(propertyForm.houseRules.join(', '));
+    }
+  }, [step]);
 
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
@@ -612,8 +619,14 @@ const AddHostelWizard = () => {
     setStep(7);
   };
 
+  const syncHouseRulesFromDraft = () => {
+    const parsed = houseRulesDraft.split(',').map(s => s.trim()).filter(Boolean);
+    updatePropertyForm('houseRules', parsed);
+  };
+
   const nextFromRules = () => {
     setError('');
+    syncHouseRulesFromDraft();
     if (!propertyForm.checkInTime || !propertyForm.checkOutTime) {
       setError('Check-in and Check-out times are required');
       return;
@@ -735,6 +748,7 @@ const AddHostelWizard = () => {
 
   const handleBack = () => {
     if (step > 1) {
+      if (step === 7) syncHouseRulesFromDraft();
       setStep(step - 1);
     } else {
       localStorage.removeItem(STORAGE_KEY);
@@ -759,6 +773,7 @@ const AddHostelWizard = () => {
       setRoomTypes([]);
     } else if (step === 7) {
       setPropertyForm(prev => ({ ...prev, checkInTime: '12:00 PM', checkOutTime: '10:00 AM', cancellationPolicy: 'No refund after check-in', houseRules: [] }));
+      setHouseRulesDraft('');
     } else if (step === 8) {
       updatePropertyForm('documents', REQUIRED_DOCS_HOSTEL.map(d => ({ type: d.type, name: d.name, fileUrl: '' })));
     }
@@ -888,11 +903,33 @@ const AddHostelWizard = () => {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-gray-500">Contact Number (For Guest Inquiries)</label>
                   <input
+                    type="tel"
                     className="input w-full"
-                    placeholder="e.g. +91 9876543210"
+                    placeholder="9876543210"
                     value={propertyForm.contactNumber}
-                    onChange={e => updatePropertyForm('contactNumber', e.target.value)}
+                    onChange={e => {
+                      // Filter non-digits and limit to 10 digits
+                      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      updatePropertyForm('contactNumber', digitsOnly);
+                    }}
+                    maxLength={10}
                   />
+                  {propertyForm.contactNumber && propertyForm.contactNumber.length === 10 && (
+                    /^[6-9]\d{9}$/.test(propertyForm.contactNumber) ? (
+                      <p className="text-[10px] text-green-600 font-medium flex items-center gap-1 mt-1">
+                        <span>✓</span> Valid mobile number
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-red-500 font-medium flex items-center gap-1 mt-1">
+                        <span>⚠</span> Mobile number must start with 6, 7, 8, or 9
+                      </p>
+                    )
+                  )}
+                  {propertyForm.contactNumber && propertyForm.contactNumber.length > 0 && propertyForm.contactNumber.length < 10 && (
+                    <p className="text-[10px] text-gray-500 font-medium mt-1">
+                      {10 - propertyForm.contactNumber.length} more digit(s) required
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1343,6 +1380,17 @@ const AddHostelWizard = () => {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹/night)</label>
+                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraAdultPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraAdultPrice: e.target.value === '' ? '' : e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹/night)</label>
+                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraChildPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraChildPrice: e.target.value === '' ? '' : e.target.value })} />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-gray-500">Images (Max 3)</label>
@@ -1438,13 +1486,9 @@ const AddHostelWizard = () => {
                 <textarea
                   className="input w-full min-h-[100px]"
                   placeholder="No alcohol, No guests after 9 PM..."
-                  value={propertyForm.houseRules.join(', ')}
-                  onChange={e =>
-                    updatePropertyForm(
-                      'houseRules',
-                      e.target.value.split(',').map(s => s.trim())
-                    )
-                  }
+                  value={houseRulesDraft}
+                  onChange={e => setHouseRulesDraft(e.target.value)}
+                  onBlur={syncHouseRulesFromDraft}
                 />
                 <p className="text-xs text-gray-400">Separate rules with commas.</p>
               </div>
