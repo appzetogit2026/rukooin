@@ -1358,6 +1358,17 @@ const AddHostelWizard = () => {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹/night)</label>
+                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraAdultPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraAdultPrice: e.target.value === '' ? '' : e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹/night)</label>
+                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraChildPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraChildPrice: e.target.value === '' ? '' : e.target.value })} />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-gray-500">Images (Max 3)</label>
