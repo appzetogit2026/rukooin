@@ -110,14 +110,23 @@ const PartnerInventory = () => {
                 const daysInMonth = lastDay.getDate();
                 const total = selectedRoom?.totalInventory || 0;
 
+                // Helper to normalize date to local midnight for accurate date-only comparison
+                const normalizeToLocalMidnight = (date) => {
+                    const d = new Date(date);
+                    d.setHours(0, 0, 0, 0);
+                    return d;
+                };
+
                 for (let d = 1; d <= daysInMonth; d++) {
                     const dateObj = new Date(year, month, d);
+                    dateObj.setHours(0, 0, 0, 0); // Ensure local midnight
                     let blockedCount = 0;
 
                     if (ledgerRes.entries) {
                         ledgerRes.entries.forEach(entry => {
-                            const start = new Date(entry.startDate);
-                            const end = new Date(entry.endDate);
+                            // Normalize ledger entry dates to local midnight for accurate comparison
+                            const start = normalizeToLocalMidnight(entry.startDate);
+                            const end = normalizeToLocalMidnight(entry.endDate);
                             // Check overlap: simple [start, end) logic
                             // Standard hotel logic: check-in day counts, check-out day is free
                             // If block is 1st to 2nd, it blocks the 1st.

@@ -13,7 +13,8 @@ const AdminBookingDetail = () => {
     const { id } = useParams();
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: () => { } });
+    const [cancelReason, setCancelReason] = useState('');
+    const [modalConfig, setModalConfig] = useState({ isOpen: false, title: '', message: '', type: 'danger', confirmText: 'Confirm', onConfirm: () => {}, extraContent: null });
 
     const fetchBookingDetails = async () => {
         try {
@@ -43,21 +44,42 @@ const AdminBookingDetail = () => {
     };
 
     const handleCancel = () => {
+        setCancelReason('');
         setModalConfig({
             isOpen: true,
             title: 'Cancel Booking?',
             message: `Are you sure you want to cancel booking #${booking.bookingId}? This will trigger any applicable refund processes.`,
             type: 'danger',
             confirmText: 'Yes, Cancel Booking',
+            extraContent: (
+                <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-tight">Reason for cancellation (optional)</label>
+                    <textarea
+                        className="w-full min-h-[72px] px-3 py-2 border border-gray-200 rounded-lg text-sm resize-y focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="e.g. Guest request, property unavailable..."
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                    />
+                </div>
+            ),
             onConfirm: async () => {
                 try {
-                    const res = await adminService.updateBookingStatus(booking._id, 'cancelled');
+                    const res = await adminService.updateBookingStatus(booking._id, 'cancelled', cancelReason);
                     if (res.success) {
-                        toast.success('Booking cancelled successfully');
+                        let msg = 'Booking cancelled successfully.';
+                        if (res.walletStatus) {
+                            const ws = res.walletStatus;
+                            if (ws.userRefunded != null) msg += ` User refunded: ₹${Number(ws.userRefunded).toLocaleString()}.`;
+                            if (ws.partnerDeducted != null && ws.partnerDeducted > 0) msg += ` Partner wallet deducted: ₹${Number(ws.partnerDeducted).toLocaleString()}.`;
+                            if (ws.partnerRefunded != null) msg += ` Partner commission refunded: ₹${Number(ws.partnerRefunded).toLocaleString()}.`;
+                        }
+                        toast.success(msg);
+                        setCancelReason('');
                         fetchBookingDetails();
                     }
-                } catch {
-                    toast.error('Failed to cancel booking');
+                } catch (err) {
+                    const apiMsg = err?.response?.data?.message;
+                    toast.error(apiMsg || 'Failed to cancel booking');
                 }
             }
         });

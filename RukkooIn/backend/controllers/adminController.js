@@ -714,17 +714,13 @@ export const updateBookingStatus = async (req, res) => {
     const previousStatus = booking.bookingStatus;
     booking.bookingStatus = status;
 
+    let walletStatus = null;
+
     if (status === 'cancelled' && previousStatus !== 'cancelled') {
       booking.cancelledAt = new Date();
       booking.cancellationReason = reason;
 
-      // 1. Release Inventory
-      await AvailabilityLedger.deleteMany({
-        source: 'platform',
-        referenceId: booking._id
-      });
-
-      // --- 2. FINANCIAL REVERSALS ---
+      // --- FINANCIAL REVERSALS (do before releasing inventory so we can abort on failure) ---
       console.log(`[AdminController] Processing cancellation financials for Booking: ${booking.bookingId} (${booking.paymentMethod})`);
 
       // Case A: Pay at Hotel (Reverse Commission Deduction)
@@ -735,24 +731,22 @@ export const updateBookingStatus = async (req, res) => {
         if (refundAmount > 0 && booking.propertyId?.partnerId) {
           const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
           let adminWallet = await Wallet.findOne({ role: 'admin' });
-
-          // Fallback for Admin Wallet: Find any admin if no specific wallet found
           if (!adminWallet) {
-            console.log('[AdminController] No admin wallet found with role:admin, attempting fallback...');
             const firstAdmin = await Admin.findOne({ isActive: true });
-            if (firstAdmin) {
-              adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
-            }
+            if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
           }
 
-          if (partnerWallet && adminWallet) {
-            console.log(`[AdminController] Refunding Partner: ${partnerWallet.partnerId} and Debiting Admin: ${adminWallet._id}`);
-            await partnerWallet.credit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
-            await adminWallet.debit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
-            console.log(`[AdminController] Financial reversal complete for Pay at Hotel.`);
-          } else {
-            console.warn(`[AdminController] Required wallets missing for reversal. Partner: ${!!partnerWallet}, Admin: ${!!adminWallet}`);
+          if (!partnerWallet || !adminWallet) {
+            return res.status(400).json({
+              success: false,
+              message: 'Cannot process cancellation: required wallet(s) missing. Partner wallet: ' + (partnerWallet ? 'OK' : 'missing') + ', Admin wallet: ' + (adminWallet ? 'OK' : 'missing')
+            });
           }
+
+          await partnerWallet.credit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+          await adminWallet.debit(refundAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'commission_refund');
+          walletStatus = { partnerRefunded: refundAmount, adminDebited: refundAmount };
+          console.log(`[AdminController] Pay at Hotel financial reversal complete.`);
         }
       }
 
@@ -760,56 +754,79 @@ export const updateBookingStatus = async (req, res) => {
       if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'partial') {
         console.log(`[AdminController] Processing Case B (Paid/Partial) refund for ${booking.totalAmount}`);
 
-        // Refund User
         let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
         if (!userWallet) {
           userWallet = await Wallet.create({ partnerId: booking.userId, role: 'user', balance: 0 });
         }
-        await userWallet.credit(booking.totalAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
 
-        // Reverse Partner Payout
         if (booking.partnerPayout > 0 && booking.propertyId?.partnerId) {
           const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
-          if (partnerWallet) {
-            await partnerWallet.debit(booking.partnerPayout, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
+          if (!partnerWallet) {
+            return res.status(400).json({
+              success: false,
+              message: 'Cannot process cancellation: partner wallet not found. Refund to user was not applied.'
+            });
           }
         }
 
-        // Reverse Admin Commission & Tax
         const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
         if (adminDeduction > 0) {
           let adminWallet = await Wallet.findOne({ role: 'admin' });
-
           if (!adminWallet) {
             const firstAdmin = await Admin.findOne({ isActive: true });
-            if (firstAdmin) {
-              adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
-            }
+            if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
           }
-
-          if (adminWallet) {
-            await adminWallet.debit(adminDeduction, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction').catch(console.error);
+          if (!adminWallet) {
+            return res.status(400).json({
+              success: false,
+              message: 'Cannot process cancellation: admin wallet not found. Refund to user was not applied.'
+            });
           }
         }
 
+        await userWallet.credit(booking.totalAmount, `Refund (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund');
+
+        if (booking.partnerPayout > 0 && booking.propertyId?.partnerId) {
+          const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
+          await partnerWallet.debit(booking.partnerPayout, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction');
+        }
+
+        if (adminDeduction > 0) {
+          let adminWallet = await Wallet.findOne({ role: 'admin' });
+          if (!adminWallet) {
+            const firstAdmin = await Admin.findOne({ isActive: true });
+            if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
+          }
+          await adminWallet.debit(adminDeduction, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction');
+        }
+
         booking.paymentStatus = 'refunded';
-        console.log(`[AdminController] Case B Financials complete.`);
+        walletStatus = {
+          userRefunded: booking.totalAmount,
+          partnerDeducted: booking.partnerPayout || 0,
+          adminDeducted: adminDeduction
+        };
+        console.log(`[AdminController] Case B financials complete.`);
       }
+
+      // Release inventory only after wallet operations succeed
+      await AvailabilityLedger.deleteMany({
+        source: 'platform',
+        referenceId: booking._id
+      });
     }
 
     await booking.save();
 
-    // Trigger Notifications
+    // Trigger Notifications (non-blocking; do not fail response on notification errors)
     const ut = booking.userModel ? booking.userModel.toLowerCase() : 'user';
 
-    // 1. Notify User
     if (booking.userId) {
       notificationService.sendToUser(booking.userId, {
         title: `Booking ${status.charAt(0).toUpperCase() + status.slice(1)}`,
         body: `Your booking #${booking.bookingId} at ${booking.propertyId?.propertyName || 'Hotel'} has been ${status}.`
       }, { type: 'booking_update', bookingId: booking._id, status }, ut).catch(console.error);
 
-      // Email for cancellation
       if (status === 'cancelled') {
         User.findById(booking.userId).then(user => {
           if (user && user.email) {
@@ -819,7 +836,6 @@ export const updateBookingStatus = async (req, res) => {
       }
     }
 
-    // 2. Notify Partner
     if (booking.propertyId?.partnerId) {
       notificationService.sendToPartner(booking.propertyId.partnerId, {
         title: `Booking Update Alert`,
@@ -827,13 +843,12 @@ export const updateBookingStatus = async (req, res) => {
       }, { type: 'booking_update', bookingId: booking._id, status }).catch(console.error);
     }
 
-    // 3. Notify Admins
     notificationService.sendToAdmins({
       title: 'Booking Status Updated',
       body: `Booking #${booking.bookingId} status changed to ${status} by ${req.user.name || 'Admin'}.`
     }, { type: 'booking_update', bookingId: booking._id }).catch(console.error);
 
-    res.status(200).json({ success: true, booking });
+    res.status(200).json({ success: true, booking, walletStatus });
   } catch (e) {
     console.error('Update Booking Status Error:', e);
     res.status(500).json({ success: false, message: 'Server error updating booking status' });

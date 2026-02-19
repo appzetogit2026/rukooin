@@ -80,8 +80,10 @@ const adminService = {
     return response.data;
   },
 
-  updateBookingStatus: async (bookingId, status) => {
-    const response = await axiosInstance.put('/admin/update-booking-status', { bookingId, status });
+  updateBookingStatus: async (bookingId, status, reason) => {
+    const body = { bookingId, status };
+    if (reason != null && String(reason).trim() !== '') body.reason = String(reason).trim();
+    const response = await axiosInstance.put('/admin/update-booking-status', body);
     return response.data;
   },
 
