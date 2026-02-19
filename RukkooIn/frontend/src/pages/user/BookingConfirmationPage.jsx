@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-    CheckCircle, MapPin, Calendar, Users, FileText,
+    CheckCircle, XCircle, MapPin, Calendar, Users, FileText,
     Phone, Navigation, Share2, Home, Download, Printer, ChevronLeft
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -52,30 +52,36 @@ const BookingConfirmationPage = () => {
     }, [id, booking, navigate]);
 
     useEffect(() => {
+        // Only show confetti for confirmed bookings (not cancelled)
         if (booking && animate) {
-            const end = Date.now() + 3000;
-            const colors = ['#10B981', '#3B82F6', '#F59E0B'];
+            const status = (booking.bookingStatus || booking.status || 'pending').toLowerCase();
+            const cancelled = status === 'cancelled' || status === 'no_show' || status === 'rejected';
+            
+            if (!cancelled) {
+                const end = Date.now() + 3000;
+                const colors = ['#10B981', '#3B82F6', '#F59E0B'];
 
-            (function frame() {
-                confetti({
-                    particleCount: 3,
-                    angle: 60,
-                    spread: 55,
-                    origin: { x: 0 },
-                    colors: colors
-                });
-                confetti({
-                    particleCount: 3,
-                    angle: 120,
-                    spread: 55,
-                    origin: { x: 1 },
-                    colors: colors
-                });
+                (function frame() {
+                    confetti({
+                        particleCount: 3,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        colors: colors
+                    });
+                    confetti({
+                        particleCount: 3,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        colors: colors
+                    });
 
-                if (Date.now() < end) {
-                    requestAnimationFrame(frame);
-                }
-            }());
+                    if (Date.now() < end) {
+                        requestAnimationFrame(frame);
+                    }
+                }());
+            }
         }
     }, [booking, animate]);
 
@@ -96,6 +102,11 @@ const BookingConfirmationPage = () => {
     const property = booking.propertyId || {};
     const room = booking.roomTypeId || {};
     const user = booking.userId || {};
+
+    // Determine booking status for conditional rendering
+    const bookingStatus = (booking.bookingStatus || booking.status || 'pending').toLowerCase();
+    const isCancelled = bookingStatus === 'cancelled' || bookingStatus === 'no_show' || bookingStatus === 'rejected';
+    const isConfirmed = bookingStatus === 'confirmed' || bookingStatus === 'pending' || bookingStatus === 'awaiting_payment';
 
     const handleDirections = () => {
         const propAddress = property.address?.fullAddress ||
@@ -126,7 +137,9 @@ const BookingConfirmationPage = () => {
                         <ChevronLeft size={20} />
                         <span className="hidden sm:inline">Back</span>
                     </button>
-                    <h1 className="text-lg font-bold text-gray-900">Booking Confirmation</h1>
+                    <h1 className="text-lg font-bold text-gray-900">
+                        {isCancelled ? 'Booking Details' : 'Booking Confirmation'}
+                    </h1>
                     <button onClick={handlePrint} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
                         <Printer size={20} />
                     </button>
@@ -135,17 +148,37 @@ const BookingConfirmationPage = () => {
 
             <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-                {/* 1. Success Message */}
-                <div className="bg-white rounded-3xl p-8 text-center shadow-sm border border-gray-100 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-600"></div>
-                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                        <CheckCircle size={40} className="text-green-600" />
-                    </div>
-                    <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Booking Confirmed!</h1>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                        Your reservation ID is <span className="font-mono font-bold text-gray-800">#{booking.bookingId || booking._id?.slice(-8).toUpperCase()}</span>.
-                        We've sent a confirmation email to <span className="font-medium text-gray-800">{user.email}</span>.
-                    </p>
+                {/* 1. Status Message */}
+                <div className={`bg-white rounded-3xl p-8 text-center shadow-sm border border-gray-100 relative overflow-hidden ${isCancelled ? 'border-red-100' : ''}`}>
+                    {isCancelled ? (
+                        <>
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-400 to-red-600"></div>
+                            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <XCircle size={40} className="text-red-600" />
+                            </div>
+                            <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Booking Cancelled!</h1>
+                            <p className="text-gray-500 max-w-md mx-auto">
+                                Your reservation ID is <span className="font-mono font-bold text-gray-800">#{booking.bookingId || booking._id?.slice(-8).toUpperCase()}</span>.
+                                {booking.cancellationReason && (
+                                    <span className="block mt-2 text-sm text-gray-600">
+                                        Reason: <span className="font-medium">{booking.cancellationReason}</span>
+                                    </span>
+                                )}
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-600"></div>
+                            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                <CheckCircle size={40} className="text-green-600" />
+                            </div>
+                            <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-2">Booking Confirmed!</h1>
+                            <p className="text-gray-500 max-w-md mx-auto">
+                                Your reservation ID is <span className="font-mono font-bold text-gray-800">#{booking.bookingId || booking._id?.slice(-8).toUpperCase()}</span>.
+                                We've sent a confirmation email to <span className="font-medium text-gray-800">{user.email}</span>.
+                            </p>
+                        </>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -341,12 +374,6 @@ const BookingConfirmationPage = () => {
                                 </>
                             );
                         })()}
-
-                        {booking.bookingStatus === 'cancelled' && (
-                            <div className="w-full bg-red-50 border border-red-100 text-red-600 font-bold py-4 rounded-2xl text-center mt-4">
-                                This booking has been cancelled
-                            </div>
-                        )}
                     </div>
 
                 </div>
