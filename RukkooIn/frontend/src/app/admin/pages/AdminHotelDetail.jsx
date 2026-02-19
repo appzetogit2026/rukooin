@@ -22,7 +22,7 @@ const FileUpload = ({ onUpload, type = 'hotel', className = "", label = "Upload 
         try {
             setUploading(true);
             const formData = new FormData();
-            formData.append('image', file);
+            formData.append('images', file);
             formData.append('type', type);
 
             const res = await adminService.uploadImage(formData);
