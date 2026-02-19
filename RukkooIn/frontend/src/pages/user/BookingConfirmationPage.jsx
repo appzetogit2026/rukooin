@@ -333,12 +333,44 @@ const BookingConfirmationPage = () => {
 
                         {/* Cancel Booking Option */}
                         {(() => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            const checkIn = new Date(booking.checkInDate);
-                            checkIn.setHours(0, 0, 0, 0);
-                            const isCancellableTime = today < checkIn;
+                            // Industry Standard: Check if cancellation is allowed (at least 24 hours before check-in time)
+                            const now = new Date();
+                            const checkInDate = new Date(booking.checkInDate);
+                            
+                            // Get check-in time from property (default to 12:00 PM if not available)
+                            const checkInTime = property?.checkInTime || '12:00 PM';
+                            
+                            // Parse check-in time
+                            let hours = 12; // Default to 12 PM
+                            let minutes = 0;
+                            const timeStr = checkInTime.trim().toUpperCase();
+                            const isPM = timeStr.includes('PM');
+                            const timeMatch = timeStr.match(/(\d+):(\d+)/);
+                            
+                            if (timeMatch) {
+                                hours = parseInt(timeMatch[1], 10);
+                                minutes = parseInt(timeMatch[2], 10);
+                                if (isPM && hours !== 12) {
+                                    hours += 12;
+                                } else if (!isPM && hours === 12) {
+                                    hours = 0;
+                                }
+                            }
+                            
+                            // Set check-in date and time
+                            const checkInDateTime = new Date(checkInDate);
+                            checkInDateTime.setHours(hours, minutes, 0, 0);
+                            
+                            // Calculate difference in milliseconds
+                            const diffMs = checkInDateTime.getTime() - now.getTime();
+                            const diffHours = diffMs / (1000 * 60 * 60);
+                            
+                            // Allow cancellation only if at least 24 hours before check-in
+                            const isCancellableTime = diffHours >= 24;
                             const isActive = ['confirmed', 'pending'].includes(booking.bookingStatus);
+                            
+                            // Calculate remaining hours for display
+                            const hoursRemaining = Math.max(0, Math.ceil(diffHours));
 
                             if (!isActive) return null;
 
@@ -349,16 +381,32 @@ const BookingConfirmationPage = () => {
                                             onClick={async () => {
                                                 if (window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
                                                     try {
-                                                        const loadToast = toast.loading('Cancelling...');
-                                                        // Fallback ID usage: booking._id or booking.bookingId might be different depending on API
+                                                        const loadToast = toast.loading('Cancelling booking...');
                                                         const idToCancel = booking._id || booking.id;
-                                                        await bookingService.cancel(idToCancel);
+                                                        const response = await bookingService.cancel(idToCancel);
                                                         toast.dismiss(loadToast);
-                                                        toast.success('Booking cancelled successfully');
+                                                        
+                                                        // Show detailed success message
+                                                        let successMsg = 'Booking cancelled successfully';
+                                                        if (response.refundProcessed && response.refundAmount > 0) {
+                                                            successMsg += `. Refund of ₹${Number(response.refundAmount).toLocaleString()} will be processed.`;
+                                                        } else if (response.refundAmount > 0) {
+                                                            successMsg += `. Refund of ₹${Number(response.refundAmount).toLocaleString()} credited to your wallet.`;
+                                                        }
+                                                        toast.success(successMsg);
                                                         navigate('/bookings');
                                                     } catch (error) {
                                                         toast.dismiss();
-                                                        toast.error(error.response?.data?.message || 'Failed to cancel booking');
+                                                        const errorMsg = error.response?.data?.message || 'Failed to cancel booking';
+                                                        toast.error(errorMsg);
+                                                        
+                                                        // If it's a policy violation, show specific message
+                                                        if (error.response?.data?.code === 'CANCELLATION_POLICY_VIOLATION') {
+                                                            const hoursRemaining = error.response?.data?.hoursRemaining || 0;
+                                                            setTimeout(() => {
+                                                                toast.error(`Cancellation is only allowed at least 24 hours before check-in. Check-in is in ${hoursRemaining} hours.`, { duration: 5000 });
+                                                            }, 500);
+                                                        }
                                                     }
                                                 }
                                             }}
@@ -368,7 +416,7 @@ const BookingConfirmationPage = () => {
                                         </button>
                                     ) : (
                                         <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-bold py-4 rounded-2xl text-center mt-4 text-xs print:hidden">
-                                            Cancellation unavailable (Policy: Up to 1 day before Check-in)
+                                            Cancellation unavailable (Policy: Must cancel at least 24 hours before check-in. Check-in is in {hoursRemaining} hours)
                                         </div>
                                     )}
                                 </>
