@@ -46,10 +46,17 @@ const AddPGWizard = () => {
   const [uploading, setUploading] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [isFlutter, setIsFlutter] = useState(false);
+  const [houseRulesDraft, setHouseRulesDraft] = useState('');
 
   useEffect(() => {
     setIsFlutter(isFlutterApp());
   }, []);
+
+  useEffect(() => {
+    if (step === 7) {
+      setHouseRulesDraft(propertyForm.houseRules.join(', '));
+    }
+  }, [step]);
 
   const coverImageFileInputRef = useRef(null);
   const propertyImagesFileInputRef = useRef(null);
@@ -613,8 +620,14 @@ const AddPGWizard = () => {
     setStep(7);
   };
 
+  const syncHouseRulesFromDraft = () => {
+    const parsed = houseRulesDraft.split(',').map(s => s.trim()).filter(Boolean);
+    updatePropertyForm('houseRules', parsed);
+  };
+
   const nextFromRules = () => {
     setError('');
+    syncHouseRulesFromDraft();
     if (!propertyForm.checkInTime || !propertyForm.checkOutTime) {
       setError('Check-in and Check-out times are required');
       return;
@@ -741,6 +754,7 @@ const AddPGWizard = () => {
       localStorage.removeItem(STORAGE_KEY);
       navigate(-1);
     } else {
+      if (step === 7) syncHouseRulesFromDraft();
       setStep(prev => prev - 1);
     }
   };
@@ -762,6 +776,7 @@ const AddPGWizard = () => {
       setRoomTypes([]);
     } else if (step === 7) {
       setPropertyForm(prev => ({ ...prev, checkInTime: '12:00 PM', checkOutTime: '10:00 AM', cancellationPolicy: 'No refund after check-in', houseRules: [] }));
+      setHouseRulesDraft('');
     } else if (step === 8) {
       updatePropertyForm('documents', REQUIRED_DOCS_PG.map(d => ({ type: d.type, name: d.name, fileUrl: '' })));
     }
@@ -1436,13 +1451,9 @@ const AddPGWizard = () => {
                 <textarea
                   className="input w-full min-h-[100px]"
                   placeholder="No alcohol, No guests after 9 PM..."
-                  value={propertyForm.houseRules.join(', ')}
-                  onChange={e =>
-                    updatePropertyForm(
-                      'houseRules',
-                      e.target.value.split(',').map(s => s.trim())
-                    )
-                  }
+                  value={houseRulesDraft}
+                  onChange={e => setHouseRulesDraft(e.target.value)}
+                  onBlur={syncHouseRulesFromDraft}
                 />
                 <p className="text-xs text-gray-400">Separate rules with commas.</p>
               </div>
