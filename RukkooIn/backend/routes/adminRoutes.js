@@ -39,11 +39,16 @@ import {
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
+import { getWithdrawals, updateWithdrawalStatus } from '../controllers/walletController.js';
 
 const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin'));
+
+// Withdrawal Management
+router.get('/withdrawals', getWithdrawals);
+router.put('/withdrawals/:id/status', updateWithdrawalStatus);
 
 // Notifications
 router.get('/notifications', getAdminNotifications);

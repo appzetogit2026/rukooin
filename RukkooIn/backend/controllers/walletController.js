@@ -239,10 +239,15 @@ export const getTransactions = async (req, res) => {
  * @route   POST /api/wallet/withdraw
  * @access  Private (Partner)
  */
+/**
+ * @desc    Request withdrawal (Manual Approval Flow)
+ * @route   POST /api/wallet/withdraw
+ * @access  Private (Partner)
+ */
 export const requestWithdrawal = async (req, res) => {
   try {
     const { amount } = req.body;
-    const role = getWalletRole(req, 'partner'); // Withdrawals only for partners generally
+    const role = getWalletRole(req, 'partner');
 
     // Validation
     if (!amount || amount < PaymentConfig.minWithdrawalAmount) {
@@ -270,133 +275,33 @@ export const requestWithdrawal = async (req, res) => {
     // Check bank details
     if (!wallet.bankDetails?.accountNumber || !wallet.bankDetails?.ifscCode) {
       return res.status(400).json({
-        message: 'Please add your bank details first'
+        message: 'Please update your bank details before withdrawing.'
       });
     }
 
-    // --- RAZORPAY PAYOUT FLOW (Using Direct API Requests via Axios) ---
-    // Why? The razorpay-node SDK instance often lacks Payouts resources ('contacts', 'fund_accounts')
-    // depending on version/config, leading to "undefined" errors. Direct API is reliable.
-
-    // 1. Get Partner Details for Contact
-    const Partner = (await import('../models/Partner.js')).default;
-    const partner = await Partner.findById(req.user._id);
-    if (!partner) return res.status(404).json({ message: 'Partner not found' });
-
-    // Auth Header
-    const authHeader = 'Basic ' + Buffer.from(`${PaymentConfig.razorpayKeyId}:${PaymentConfig.razorpayKeySecret}`).toString('base64');
-    const razorpayBaseUrl = 'https://api.razorpay.com/v1';
-
-    // Helper for API Calls
-    const rpRequest = async (method, endpoint, data) => {
-      try {
-        // Verify Account Number is not a placeholder
-        if (endpoint === '/payouts' && data.account_number?.includes('XXXX')) {
-          throw new Error("Invalid Razorpay Account Number. Please update RAZORPAY_ACCOUNT_NUMBER in your .env file with your actual RazorpayX Virtual Account Number.");
-        }
-
-        console.log(`📡 Razorpay API Call: ${method.toUpperCase()} ${razorpayBaseUrl}${endpoint}`);
-
-        const result = await axios({
-          method,
-          url: `${razorpayBaseUrl}${endpoint}`,
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json'
-          },
-          data
-        });
-        return result.data;
-      } catch (error) {
-        const errorDesc = error.response?.data?.error?.description || error.message;
-        console.error(`❌ Razorpay API Error (${endpoint}):`, {
-          status: error.response?.status,
-          description: errorDesc,
-          details: error.response?.data
-        });
-        throw new Error(errorDesc);
-      }
-    };
-
-    let payoutId = null;
-    let payoutStatus = 'pending';
-    let rzpError = null;
-
-    // Execute Razorpay Flow but don't block wallet logic on failure (For Testing)
-    try {
-      // 2. Create/Get Razorpay Contact
-      if (!wallet.razorpayContactId) {
-        const contact = await rpRequest('post', '/contacts', {
-          name: partner.name,
-          email: partner.email,
-          contact: partner.phone,
-          type: "vendor",
-          reference_id: partner._id.toString(),
-          notes: { role: 'partner' }
-        });
-        wallet.razorpayContactId = contact.id;
-        await wallet.save();
-      }
-
-      // 3. Create/Get Razorpay Fund Account
-      if (!wallet.razorpayFundAccountId) {
-        const fundAccount = await rpRequest('post', '/fund_accounts', {
-          contact_id: wallet.razorpayContactId,
-          account_type: "bank_account",
-          bank_account: {
-            name: wallet.bankDetails.accountHolderName || partner.name,
-            ifsc: wallet.bankDetails.ifscCode,
-            account_number: wallet.bankDetails.accountNumber
-          }
-        });
-        wallet.razorpayFundAccountId = fundAccount.id;
-        await wallet.save();
-      }
-
-      // 4. Create Payout
-      const payout = await rpRequest('post', '/payouts', {
-        account_number: PaymentConfig.razorpayAccountNumber,
-        fund_account_id: wallet.razorpayFundAccountId,
-        amount: Math.round(amount * 100), // in paise
-        currency: "INR",
-        mode: "IMPS",
-        purpose: "payout",
-        queue_if_low_balance: true,
-        reference_id: `WD-${Date.now()}`,
-        narration: "Rukkoin Withdrawal"
-      });
-      payoutId = payout.id;
-      payoutStatus = payout.status;
-    } catch (errMessage) {
-      console.warn("⚠️ Razorpay Payout Step Failed (Proceeding for Test):", errMessage.message);
-      rzpError = errMessage.message;
-      payoutStatus = 'pending_payout'; // Indicate it hasn't reached Razorpay but wallet is deducted
-    }
-
-    // 5. Deduct Wallet & Create Records
+    // Generate IDs
     const withdrawalId = 'WD' + Date.now() + Math.floor(Math.random() * 1000);
 
+    // Create Withdrawal Record (Status: Pending for Admin to Approve)
     const withdrawal = await Withdrawal.create({
       withdrawalId,
       partnerId: req.user._id,
       walletId: wallet._id,
       amount,
       bankDetails: wallet.bankDetails,
-      status: (payoutStatus === 'processed' || payoutStatus === 'pending_payout') ? 'completed' : 'pending',
-      razorpayPayoutId: payoutId,
-      razorpayFundAccountId: wallet.razorpayFundAccountId,
+      status: 'pending', // Manual approval required
       processingDetails: {
-        remarks: rzpError ? `RZP Error: ${rzpError}` : 'Initiated from partner app',
-        initiatedAt: new Date()
+        initiatedAt: new Date(),
+        remarks: 'Waiting for admin approval'
       }
     });
 
-    // Deduct amount from wallet (Immediate deduction)
+    // Deduct amount from wallet immediately (Lock funds)
     wallet.balance -= amount;
-    wallet.totalWithdrawals += amount;
+    wallet.totalWithdrawals += amount; // We count it, if rejected we'll reverse
     await wallet.save();
 
-    // Create transaction
+    // Create Debit Transaction
     const transaction = await Transaction.create({
       walletId: wallet._id,
       partnerId: req.user._id,
@@ -407,36 +312,22 @@ export const requestWithdrawal = async (req, res) => {
       balanceAfter: wallet.balance,
       description: `Withdrawal Request (${withdrawal.withdrawalId})`,
       reference: withdrawal.withdrawalId,
-      status: (payoutStatus === 'processed' || payoutStatus === 'pending_payout') ? 'completed' : 'pending',
+      status: 'pending',
       metadata: {
-        withdrawalId: withdrawal.withdrawalId,
-        razorpayPayoutId: payoutId
+        withdrawalId: withdrawal.withdrawalId
       }
     });
 
     withdrawal.transactionId = transaction._id;
     await withdrawal.save();
 
-    // NOTIFICATION: Notify Partner (Push)
+    // NOTIFICATION: To Partner
     notificationService.sendToPartner(req.user._id, {
-      title: 'Withdrawal Initiated 💸',
-      body: `Your withdrawal request of ₹${amount} is being processed. ID: ${withdrawal.withdrawalId}`
-    }, { type: 'withdrawal_initiated', withdrawalId: withdrawal._id }).catch(e => console.error(e));
+      title: 'Withdrawal Requested ⏳',
+      body: `Your request for ₹${amount} is pending approval.`
+    }, { type: 'withdrawal_pending', withdrawalId: withdrawal._id }).catch(e => console.error(e));
 
-    // NOTIFICATION: Payout Settlement (Email)
-    if (withdrawal.status === 'completed' && partner.email) {
-      emailService.sendWithdrawalSettledEmail(partner, withdrawal).catch(e => console.error(e));
-    }
-
-    // NOTIFICATION: Low Balance Warning
-    if (wallet.balance < 500) {
-      notificationService.sendToPartner(req.user._id, {
-        title: 'Low Balance Warning! ⚠️',
-        body: `Your wallet balance is ₹${wallet.balance.toFixed(2)}. Top up now to avoid disruptions.`
-      }, { type: 'low_balance', balance: wallet.balance }).catch(e => console.error(e));
-    }
-
-    // NOTIFICATION: Notify Admin
+    // NOTIFICATION: To Admin
     notificationService.sendToAdmins({
       title: 'New Withdrawal Request',
       body: `Partner ${req.user.name} requested ₹${amount}.`
@@ -444,7 +335,7 @@ export const requestWithdrawal = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Withdrawal initiated successfully via Razorpay',
+      message: 'Withdrawal request submitted successfully.',
       withdrawal: {
         id: withdrawal.withdrawalId,
         amount: withdrawal.amount,
@@ -455,29 +346,41 @@ export const requestWithdrawal = async (req, res) => {
 
   } catch (error) {
     console.error('Request Withdrawal Error:', error);
-    res.status(500).json({ message: error.message || 'Failed to process withdrawal request' });
+    res.status(500).json({ message: error.message || 'Failed to process withdrawal' });
   }
 };
 
 /**
  * @desc    Get withdrawal history
  * @route   GET /api/wallet/withdrawals
- * @access  Private (Partner)
+ * @access  Private (Partner/Admin)
  */
 export const getWithdrawals = async (req, res) => {
   try {
     const { page = 1, limit = 20, status, viewAs } = req.query;
 
-    // Determine whose withdrawals to fetch
     const userRoleStr = req.user.role?.toLowerCase();
     const isAdmin = userRoleStr === 'admin' || userRoleStr === 'superadmin';
     const userQueryId = req.query.ownerId || req.query.partnerId || req.query.userId;
-    const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
 
-    const query = { partnerId: targetUserId };
-    if (status) query.status = status;
+    // Filter Logic:
+    // 1. If Admin & No specific user requested -> Show ALL (for finance dashboard)
+    // 2. If Admin & Specific user -> Show that user's withdrawals
+    // 3. If Partner -> Show only their own
+
+    let query = {};
+
+    if (isAdmin && !userQueryId) {
+      // Show all, maybe filter by status
+    } else {
+      const targetUserId = (isAdmin && userQueryId) ? userQueryId : req.user._id;
+      query.partnerId = targetUserId;
+    }
+
+    if (status && status !== 'All Status') query.status = status;
 
     const withdrawals = await Withdrawal.find(query)
+      .populate('partnerId', 'name email phone') // Populate partner details for Admin
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -498,6 +401,114 @@ export const getWithdrawals = async (req, res) => {
   } catch (error) {
     console.error('Get Withdrawals Error:', error);
     res.status(500).json({ message: 'Failed to fetch withdrawals' });
+  }
+};
+
+/**
+ * @desc    Update withdrawal status (Admin)
+ * @route   PUT /api/admin/withdrawals/:id
+ * @access  Private (Admin)
+ */
+export const updateWithdrawalStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, remarks, transactionHash } = req.body; // status: 'completed' | 'rejected'
+
+    if (!['completed', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Use "completed" or "rejected".' });
+    }
+
+    const withdrawal = await Withdrawal.findById(id).populate('partnerId');
+    if (!withdrawal) {
+      return res.status(404).json({ message: 'Withdrawal request not found' });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ message: `Withdrawal is already ${withdrawal.status}` });
+    }
+
+    const wallet = await Wallet.findById(withdrawal.walletId);
+    if (!wallet) {
+      return res.status(404).json({ message: 'Associated wallet not found' });
+    }
+
+    const transaction = await Transaction.findById(withdrawal.transactionId);
+
+    if (status === 'completed') {
+      // 1. Mark Withdrawal as Completed
+      withdrawal.status = 'completed';
+      withdrawal.processingDetails = {
+        ...withdrawal.processingDetails,
+        processedAt: new Date(),
+        completedAt: new Date(),
+        utrNumber: transactionHash,
+        remarks: remarks || 'Processed by Admin'
+      };
+      await withdrawal.save();
+
+      // 2. Update Transaction Status
+      if (transaction) {
+        transaction.status = 'completed';
+        transaction.metadata.bankTransferUTR = transactionHash;
+        await transaction.save();
+      }
+
+      // Notify Partner
+      notificationService.sendToPartner(withdrawal.partnerId._id, {
+        title: 'Withdrawal Successful ✅',
+        body: `Your withdrawal of ₹${withdrawal.amount} has been processed.`
+      }, { type: 'withdrawal_completed', withdrawalId: withdrawal._id });
+
+    } else if (status === 'rejected') {
+      // 1. Mark Withdrawal as Failed/Rejected
+      withdrawal.status = 'failed';
+      withdrawal.processingDetails = {
+        ...withdrawal.processingDetails,
+        failedAt: new Date(),
+        remarks: remarks || 'Rejected by Admin'
+      };
+      await withdrawal.save();
+
+      // 2. Mark Original Debit Transaction as Failed
+      if (transaction) {
+        transaction.status = 'failed';
+        await transaction.save();
+      }
+
+      // 3. REFUND THE AMOUNT (Create Credit Transaction)
+      wallet.balance += withdrawal.amount;
+      wallet.totalWithdrawals -= withdrawal.amount; // Adjust total withdrawals stats
+      await wallet.save();
+
+      await Transaction.create({
+        walletId: wallet._id,
+        partnerId: withdrawal.partnerId._id,
+        modelType: 'Partner',
+        type: 'credit',
+        category: 'refund',
+        amount: withdrawal.amount,
+        balanceAfter: wallet.balance,
+        description: `Refund: Withdrawal Rejected (${withdrawal.withdrawalId})`,
+        reference: withdrawal.withdrawalId,
+        status: 'completed'
+      });
+
+      // Notify Partner
+      notificationService.sendToPartner(withdrawal.partnerId._id, {
+        title: 'Withdrawal Rejected ❌',
+        body: `Your withdrawal of ₹${withdrawal.amount} was rejected. Amount refunded.`
+      }, { type: 'withdrawal_rejected', withdrawalId: withdrawal._id });
+    }
+
+    res.json({
+      success: true,
+      message: `Withdrawal ${status} successfully`,
+      withdrawal
+    });
+
+  } catch (error) {
+    console.error('Update Withdrawal Status Error:', error);
+    res.status(500).json({ message: 'Failed to update status' });
   }
 };
 

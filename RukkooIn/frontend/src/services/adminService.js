@@ -110,6 +110,13 @@ const adminService = {
     return response.data;
   },
 
+  downloadReceipt: async (bookingId) => {
+    const response = await axiosInstance.get(`/bookings/${bookingId}/receipt`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
   getLegalPages: async (params) => {
     const response = await axiosInstance.get('/admin/legal-pages', { params });
     return response.data;
@@ -216,6 +223,17 @@ const adminService = {
         'Content-Type': 'multipart/form-data'
       }
     });
+    return response.data;
+  },
+
+  // Withdrawal Management
+  getWithdrawals: async (params) => {
+    const response = await axiosInstance.get('/admin/withdrawals', { params });
+    return response.data;
+  },
+
+  updateWithdrawalStatus: async (id, payload) => {
+    const response = await axiosInstance.put(`/admin/withdrawals/${id}/status`, payload);
     return response.data;
   }
 };

@@ -342,16 +342,44 @@ export const getAllBookings = async (req, res) => {
       }
     }
 
-    const total = await Booking.countDocuments(query);
-    const bookings = await Booking.find(query)
-      .populate('userId', 'name email phone')
-      .populate('propertyId', 'propertyName address')
-      .populate('roomTypeId', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const [
+      bookings,
+      total,
+      totalAll,
+      confirmed,
+      pending,
+      cancelled,
+      completed
+    ] = await Promise.all([
+      Booking.find(query)
+        .populate('userId', 'name email phone')
+        .populate('propertyId', 'propertyName address')
+        .populate('roomTypeId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Booking.countDocuments(query),
+      Booking.countDocuments({}),
+      Booking.countDocuments({ bookingStatus: 'confirmed' }),
+      Booking.countDocuments({ bookingStatus: 'pending' }),
+      Booking.countDocuments({ bookingStatus: 'cancelled' }),
+      Booking.countDocuments({ bookingStatus: 'completed' })
+    ]);
 
-    res.status(200).json({ success: true, bookings, total, page, limit });
+    res.status(200).json({
+      success: true,
+      bookings,
+      total,
+      page,
+      limit,
+      stats: {
+        total: totalAll,
+        confirmed,
+        pending,
+        cancelled,
+        completed
+      }
+    });
   } catch (e) {
     console.error('Get All Bookings Error:', e);
     res.status(500).json({ success: false, message: 'Server error fetching bookings' });

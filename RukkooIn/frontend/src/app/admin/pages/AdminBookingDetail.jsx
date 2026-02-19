@@ -35,6 +35,25 @@ const AdminBookingDetail = () => {
     }, [id]);
 
     // Status Colors
+    const handleDownloadReceipt = async () => {
+        try {
+            const data = await adminService.downloadReceipt(id);
+            // Create a blob URL and trigger download
+            const url = window.URL.createObjectURL(new Blob([data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `receipt-${booking?.bookingId || id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            toast.success('Receipt downloaded successfully');
+        } catch (error) {
+            console.error('Download Receipt Error:', error);
+            toast.error('Failed to download receipt');
+        }
+    };
+
+    // Status Colors
     const getStatusColor = (s) => {
         if (s === 'confirmed') return 'text-green-600 bg-green-50 border-green-200 font-bold';
         if (s === 'cancelled') return 'text-red-600 bg-red-50 border-red-200 font-bold';
@@ -106,7 +125,9 @@ const AdminBookingDetail = () => {
                     <p className="text-[10px] font-bold uppercase text-gray-400 tracking-tight">Booked on {new Date(booking.createdAt).toLocaleDateString()} • {new Date(booking.createdAt).toLocaleTimeString()}</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                        onClick={handleDownloadReceipt}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors">
                         <Download size={14} /> Download Receipt
                     </button>
                     {((booking.bookingStatus || booking.status) === 'confirmed' || (booking.bookingStatus || booking.status) === 'pending') && (

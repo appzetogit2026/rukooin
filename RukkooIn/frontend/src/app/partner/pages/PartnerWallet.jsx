@@ -134,7 +134,7 @@ const PartnerWallet = () => {
                 if (amount > wallet?.balance) { toast.error('Insufficient balance'); return; }
 
                 await walletService.requestWithdrawal(amount);
-                toast.success('Withdrawal successful (Test Simulation)');
+                toast.success('Withdrawal request submitted successfully');
                 setActiveModal(null);
                 setAmountInput('');
                 fetchWalletData();
@@ -340,9 +340,9 @@ const PartnerWallet = () => {
 
                         <p className="text-xs text-gray-400 font-medium mb-8">
                             {showBankForm
-                                ? 'We need your bank details to process payouts via Razorpay.'
+                                ? 'We need your bank details to process payouts.'
                                 : (activeModal === 'withdraw'
-                                    ? 'Transfer funds directly to your verified bank account.'
+                                    ? 'Funds will be transferred to your bank account within 24-48 hours after admin approval.'
                                     : 'Add funds to your wallet using UPI or Cards.'
                                 )
                             }

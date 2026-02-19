@@ -1,6 +1,7 @@
 import Property from '../models/Property.js';
 import RoomType from '../models/RoomType.js';
 import Booking from '../models/Booking.js';
+import PDFDocument from 'pdfkit';
 import Offer from '../models/Offer.js';
 import PlatformSettings from '../models/PlatformSettings.js';
 import AvailabilityLedger from '../models/AvailabilityLedger.js';
@@ -1050,5 +1051,214 @@ export const markCheckOut = async (req, res) => {
     res.json({ success: true, message: 'Checked Out Successfully', booking });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const downloadReceipt = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate('propertyId')
+      .populate('roomTypeId')
+      .populate('userId');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Security Check
+    const userRole = req.user.role;
+    const userId = req.user._id.toString();
+    const isOwner = booking.userId?._id.toString() === userId || booking.userId.toString() === userId;
+    const isPartner = booking.propertyId?.partnerId?.toString() === userId;
+    const isAdmin = ['admin', 'superadmin'].includes(userRole);
+
+    if (!isOwner && !isPartner && !isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to download this receipt' });
+    }
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=receipt-${booking.bookingId}.pdf`);
+
+    doc.pipe(res);
+
+    // --- COLORS & STYLES ---
+    const primaryColor = '#1f2937'; // slate-800
+    const secondaryColor = '#6b7280'; // gray-500
+    const accentColor = '#3b82f6'; // blue-500
+    const boxBgColor = '#f9fafb'; // gray-50
+    const borderColor = '#e5e7eb'; // gray-200
+    const titleStart = 50;
+
+    // --- HEADER ---
+    doc.fontSize(20).font('Helvetica-Bold').fillColor(primaryColor).text('Rukkoo.in', 50, 40);
+    doc.fontSize(10).font('Helvetica').fillColor(secondaryColor).text('Booking Receipt', 50, 65);
+
+    // Draw Line
+    doc.moveTo(50, 85).lineTo(550, 85).strokeColor(borderColor).lineWidth(1).stroke();
+
+    // --- BOOKING SUMMARY CARD ---
+    const summaryY = 100;
+
+    // Booking ID Title
+    doc.fontSize(24).font('Helvetica-Bold').fillColor(primaryColor).text(`BOOKING #${booking.bookingId}`, 50, summaryY);
+
+    // Status Badge (Simulated with text color for now)
+    const status = (booking.bookingStatus || 'confirmed').toUpperCase();
+    let statusColor = '#059669'; // green-600
+    if (status === 'CANCELLED') statusColor = '#dc2626';
+    if (status === 'PENDING') statusColor = '#d97706';
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(statusColor).text(status, 450, summaryY + 8, { align: 'right', width: 100 });
+
+    // Booked On
+    doc.fontSize(9).font('Helvetica').fillColor(secondaryColor)
+      .text(`BOOKED ON ${new Date(booking.createdAt).toLocaleDateString()} • ${new Date(booking.createdAt).toLocaleTimeString()}`, 50, summaryY + 30);
+
+
+    // --- GRID LAYOUT ---
+    const col1X = 50;
+    const col2X = 350; // Right Column Start
+    let currentY = 160;
+
+    // --- LEFT COLUMN: STAY DETAILS ---
+    // Box Header
+    doc.rect(col1X, currentY, 280, 25).fill(boxBgColor);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#6b7280').text('STAY DETAILS', col1X + 10, currentY + 7);
+
+    // Box Body Border
+    doc.rect(col1X, currentY, 280, 160).stroke(borderColor);
+
+    // Content Start
+    let contentY = currentY + 40;
+
+    // Check-in / Check-out Row
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(secondaryColor).text('CHECK-IN', col1X + 15, contentY);
+    doc.text('CHECK-OUT', col1X + 150, contentY);
+
+    contentY += 15;
+    doc.fontSize(12).font('Helvetica-Bold').fillColor(primaryColor)
+      .text(new Date(booking.checkInDate).toLocaleDateString(), col1X + 15, contentY);
+    doc.text(new Date(booking.checkOutDate).toLocaleDateString(), col1X + 150, contentY);
+
+    contentY += 15;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(secondaryColor).text('AFTER 12:00 PM', col1X + 15, contentY);
+    doc.text('BEFORE 11:00 AM', col1X + 150, contentY);
+
+    // Hotel Details
+    contentY += 30;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(primaryColor)
+      .text(`HOTEL: ${(booking.propertyId?.propertyName || 'Hotel').toUpperCase()}`, col1X + 15, contentY, { width: 250 });
+
+    contentY += 15;
+    doc.fontSize(8).font('Helvetica').fillColor(secondaryColor)
+      .text((booking.propertyId?.address?.fullAddress || 'Address Not Available').toUpperCase(), col1X + 15, contentY, { width: 250 });
+
+    // --- LEFT COLUMN: GUEST DETAILS ---
+    currentY += 180; // Move down for next box
+
+    // Box Header
+    doc.rect(col1X, currentY, 280, 25).fill(boxBgColor);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#6b7280').text('GUEST INFORMATION', col1X + 10, currentY + 7);
+
+    // Box Body Border
+    doc.rect(col1X, currentY, 280, 100).stroke(borderColor);
+
+    contentY = currentY + 40;
+
+    // Guest Avatar Circle (Placeholder)
+    doc.circle(col1X + 30, contentY + 15, 20).fill('#000000');
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#ffffff')
+      .text((booking.userId?.name?.charAt(0) || 'G').toUpperCase(), col1X + 22, contentY + 8);
+
+    // Guest Info Text
+    doc.fillColor(primaryColor).fontSize(12).text((booking.userId?.name || 'Guest').toUpperCase(), col1X + 60, contentY);
+
+    contentY += 20;
+    doc.fontSize(8).font('Helvetica').fillColor(secondaryColor);
+    doc.text((booking.userId?.email || 'NO EMAIL').toUpperCase(), col1X + 60, contentY);
+    contentY += 12;
+    doc.text((booking.userId?.phone || 'N/A'), col1X + 60, contentY);
+    contentY += 12;
+    doc.text(`${booking.guests?.adults || 1} ADULTS, ${booking.guests?.children || 0} CHILDREN`, col1X + 60, contentY);
+
+
+    // --- RIGHT COLUMN: PAYMENT SUMMARY ---
+    currentY = 160; // Reset Y for right col
+
+    // Box Header
+    doc.rect(col2X, currentY, 200, 25).fill(boxBgColor);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#6b7280').text('PAYMENT SUMMARY', col2X + 10, currentY + 7);
+
+    // Box Body Border
+    doc.rect(col2X, currentY, 200, 280).stroke(borderColor);
+
+    contentY = currentY + 40;
+    const rightColWidth = 180;
+    const labelX = col2X + 15;
+    const valueX = col2X + 185; // Right aligned anchor
+
+    // Helper for rows
+    const drawRow = (label, value, isBold = false, color = primaryColor) => {
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(secondaryColor).text(label.toUpperCase(), labelX, contentY);
+      doc.fontSize(isBold ? 10 : 8).font(isBold ? 'Helvetica-Bold' : 'Helvetica').fillColor(color)
+        .text(value, col2X, contentY, { align: 'right', width: rightColWidth });
+      contentY += 25;
+    };
+
+    drawRow('Total Calculation', `Rs.${booking.totalAmount?.toLocaleString()}`, true);
+    drawRow('Taxes & Fees', 'INCLUDED');
+    drawRow('Payment Method', (booking.paymentMethod?.replace(/_/g, ' ') || 'N/A').toUpperCase());
+
+    // Platform Commission (Admin/Partner Only - but User requested "same format" so we include it visually but maybe careful)
+    // Assuming this is an admin receipt as per request context
+    drawRow('Platform Commission', `Rs.${((booking.adminCommission || 0) + (booking.taxes || 0)).toLocaleString()}`, false, '#d97706'); // amber-600
+
+    drawRow('Payment Status', (booking.paymentStatus || 'PENDING').toUpperCase(), true, booking.paymentStatus === 'paid' ? '#059669' : '#d97706');
+
+    // Divider
+    doc.moveTo(labelX, contentY).lineTo(col2X + rightColWidth, contentY).strokeColor(borderColor).stroke();
+    contentY += 15;
+
+    // Total
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(primaryColor).text('TOTAL AMOUNT', labelX, contentY + 5);
+    doc.fontSize(16).text(`Rs.${booking.totalAmount?.toLocaleString()}`, col2X, contentY, { align: 'right', width: rightColWidth });
+
+    contentY += 40;
+
+    // Payment Status Box within Payment Summary
+    let statusText = 'AWAITING PAYMENT';
+    let statusBg = '#fffbeb'; // amber-50
+    let statusFg = '#b45309'; // amber-700
+
+    if (booking.paymentStatus === 'paid') {
+      statusText = 'PAYMENT VERIFIED';
+      statusBg = '#ecfdf5'; // green-50
+      statusFg = '#047857'; // green-700
+    } else if (booking.paymentStatus === 'refunded') {
+      statusText = 'AMOUNT REFUNDED';
+      statusBg = '#f3f4f6'; // gray-50
+      statusFg = '#374151'; // gray-700
+    }
+
+    // Draw status pill background manually since fillAndStroke is tricky for rounded rects in raw pdfkit without plugin sometimes, 
+    // but we can try roundedRect
+    doc.roundedRect(col2X + 15, contentY, 170, 25, 4).fill(statusBg);
+    doc.fillColor(statusFg).fontSize(8).text(statusText, col2X + 15, contentY + 8, { align: 'center', width: 170 });
+
+
+    // --- FOOTER NOTE ---
+    const footerY = 500;
+    doc.roundedRect(50, footerY, 500, 50, 8).fill('#eff6ff'); // blue-50
+    doc.fillColor('#1e40af').fontSize(8).font('Helvetica-Bold')
+      .text('ADMIN NOTE', 65, footerY + 10);
+    doc.font('Helvetica').text('SYSTEM VERIFIED BOOKING. THIS TRANSACTION IS SECURED AND FINAL. REVIEW ANY CANCELLATION POLICIES BEFORE MANUAL INTERVENTION.', 65, footerY + 25, { width: 470 });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('Download Receipt Error:', error);
+    res.status(500).json({ message: 'Error generating receipt' });
   }
 };
