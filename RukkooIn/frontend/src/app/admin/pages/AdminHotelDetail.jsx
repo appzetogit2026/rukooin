@@ -12,25 +12,30 @@ import toast from 'react-hot-toast';
 
 // --- Helpers ---
 
-const FileUpload = ({ onUpload, type = 'hotel', className = "", label = "Upload Image", accept = "image/*", icon: Icon = ImageIcon }) => {
+const FileUpload = ({ onUpload, type = 'hotel', className = "", label = "Upload Image", accept = "image/*", icon: Icon = ImageIcon, multiple = false }) => {
     const [uploading, setUploading] = useState(false);
 
     const handleChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
         try {
             setUploading(true);
             const formData = new FormData();
-            formData.append('images', file);
+            files.forEach(file => formData.append('images', file));
             formData.append('type', type);
 
             const res = await adminService.uploadImage(formData);
             if (res.success) {
-                onUpload(res.url);
-                toast.success('File uploaded');
+                if (multiple) {
+                    onUpload(res.files.map(f => f.url));
+                } else {
+                    onUpload(res.url);
+                }
+                toast.success(files.length > 1 ? 'Files uploaded' : 'File uploaded');
             }
         } catch (error) {
+            console.error('Upload Error:', error);
             toast.error('Upload failed');
         } finally {
             setUploading(false);
@@ -41,7 +46,7 @@ const FileUpload = ({ onUpload, type = 'hotel', className = "", label = "Upload 
         <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-black text-white rounded-lg text-[10px] font-bold uppercase hover:bg-gray-800 transition-all ${uploading ? 'opacity-50 pointer-events-none' : ''} ${className}`}>
             {uploading ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
             {uploading ? 'Uploading...' : label}
-            <input type="file" className="hidden" accept={accept} onChange={handleChange} />
+            <input type="file" className="hidden" accept={accept} multiple={multiple} onChange={handleChange} />
         </label>
     );
 };
@@ -383,9 +388,14 @@ const GalleryTab = ({ hotel, isEditing, editData, onChange }) => {
         onChange('propertyImages', [...(editData.propertyImages || []), '']);
     };
 
-    const handleImageChange = (index, value) => {
+    const handleImageChange = (index, urls) => {
         const newImages = [...editData.propertyImages];
-        newImages[index] = value;
+        if (Array.isArray(urls)) {
+            // Replace the empty placeholder at index and insert new ones
+            newImages.splice(index, 1, ...urls);
+        } else {
+            newImages[index] = urls;
+        }
         onChange('propertyImages', newImages);
     };
 
@@ -444,12 +454,20 @@ const GalleryTab = ({ hotel, isEditing, editData, onChange }) => {
                         <h3 className="text-lg font-bold text-gray-900 uppercase">General Property Photos</h3>
                     </div>
                     {isEditing && (
-                        <button
-                            onClick={handleAddImage}
-                            className="px-3 py-1 bg-black text-white rounded text-[10px] font-bold uppercase hover:bg-gray-800"
-                        >
-                            Add Image
-                        </button>
+                        <div className="flex gap-2">
+                            <FileUpload
+                                label="Bulk Upload"
+                                multiple={true}
+                                onUpload={(urls) => onChange('propertyImages', [...(editData.propertyImages || []), ...urls])}
+                                type="hotel"
+                            />
+                            <button
+                                onClick={handleAddImage}
+                                className="px-3 py-1 bg-black text-white rounded text-[10px] font-bold uppercase hover:bg-gray-800"
+                            >
+                                Add Slot
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -470,7 +488,12 @@ const GalleryTab = ({ hotel, isEditing, editData, onChange }) => {
                                             </>
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center p-4">
-                                                <FileUpload onUpload={(url) => handleImageChange(i, url)} type="hotel" className="bg-transparent text-gray-400 border border-dashed border-gray-300 hover:bg-gray-50 lowercase w-full" />
+                                                <FileUpload
+                                                    onUpload={(urls) => handleImageChange(i, urls)}
+                                                    type="hotel"
+                                                    multiple={true}
+                                                    className="bg-transparent text-gray-400 border border-dashed border-gray-300 hover:bg-gray-50 lowercase w-full"
+                                                />
                                             </div>
                                         )}
                                     </div>
@@ -763,11 +786,16 @@ const RoomsTab = ({ rooms, isEditing, editData, onChange }) => {
         onChange('rooms', updatedRooms);
     };
 
-    const handleRoomImageUpload = (roomId, index, url) => {
+    const handleRoomImageUpload = (roomId, index, urls) => {
         const updatedRooms = editData.rooms.map(room => {
             if (room._id === roomId) {
                 const newImages = [...room.images];
-                newImages[index] = url;
+                if (Array.isArray(urls)) {
+                    // Replace the empty slot and add others
+                    newImages.splice(index, 1, ...urls);
+                } else {
+                    newImages[index] = urls;
+                }
                 return { ...room, images: newImages };
             }
             return room;
@@ -1047,7 +1075,12 @@ const RoomsTab = ({ rooms, isEditing, editData, onChange }) => {
                                                                 )}
                                                                 {!img && isEditing && (
                                                                     <div className="w-full h-full flex items-center justify-center">
-                                                                        <FileUpload onUpload={(url) => handleRoomImageUpload(room._id, idx, url)} type="room" className="bg-transparent text-gray-400 border border-dashed border-gray-300 hover:bg-gray-50 lowercase" />
+                                                                        <FileUpload
+                                                                            onUpload={(urls) => handleRoomImageUpload(room._id, idx, urls)}
+                                                                            type="room"
+                                                                            multiple={true}
+                                                                            className="bg-transparent text-gray-400 border border-dashed border-gray-300 hover:bg-gray-50 lowercase"
+                                                                        />
                                                                     </div>
                                                                 )}
                                                             </div>
