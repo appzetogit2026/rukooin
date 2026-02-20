@@ -611,15 +611,17 @@ const PropertyDetailsPage = () => {
       <div className="relative h-[40vh] md:h-[50vh] cursor-zoom-in group">
         <motion.div
           className="w-full h-full relative"
-          style={{ touchAction: 'pan-x' }}
+          style={{ touchAction: 'none' }}
           drag="x"
-          dragConstraints={{ left: -100, right: 100 }}
+          dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.5}
           dragMomentum={false}
+          animate={{ x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onDragEnd={(e, info) => {
             const swipeThreshold = 30;
             const velocityThreshold = 500;
-            
+
             // Fast swipe detection (velocity-based)
             if (Math.abs(info.velocity.x) > velocityThreshold) {
               if (info.velocity.x < 0) {
@@ -629,7 +631,7 @@ const PropertyDetailsPage = () => {
               }
               return;
             }
-            
+
             // Distance-based swipe detection
             if (info.offset.x < -swipeThreshold) {
               handleNextImage();
@@ -1513,15 +1515,34 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Main Image View */}
-          <div className="flex-1 relative flex items-center justify-center p-4">
-            <motion.img
-              key={currentImageIndex}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={galleryImages[currentImageIndex]}
-              alt={`Gallery ${currentImageIndex}`}
-              className="max-w-full max-h-full object-contain shadow-2xl"
-            />
+          <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+            <motion.div
+              className="w-full h-full flex items-center justify-center"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.7}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onDragEnd={(e, info) => {
+                const swipeThreshold = 50;
+                if (info.offset.x < -swipeThreshold) {
+                  handleNextImage();
+                } else if (info.offset.x > swipeThreshold) {
+                  handlePrevImage();
+                }
+              }}
+            >
+              <motion.img
+                key={currentImageIndex}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                src={galleryImages[currentImageIndex]}
+                alt={`Gallery ${currentImageIndex}`}
+                className="max-w-full max-h-full object-contain shadow-2xl pointer-events-none"
+              />
+            </motion.div>
 
             {galleryImages.length > 1 && (
               <>
