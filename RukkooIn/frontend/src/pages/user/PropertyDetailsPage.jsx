@@ -150,6 +150,8 @@ const PropertyDetailsPage = () => {
             amenities: rt.amenities || [],
             maxAdults: rt.maxAdults,
             maxChildren: rt.maxChildren,
+            baseAdults: rt.baseAdults ?? 2,
+            baseChildren: rt.baseChildren ?? 0,
             images: rt.images || [],
             pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice },
             inventoryType: rt.inventoryType || (['Hostel', 'PG'].includes(p.propertyType) ? 'bed' : 'room')
@@ -433,6 +435,11 @@ const PropertyDetailsPage = () => {
   const stayPricing = getNightBreakup(activeRoom);
   const bookingRoom = selectedRoom || activeRoom;
   const extraPricingLabels = getExtraPricingLabels(bookingRoom);
+
+  // Base Occupancy Logic for UI and pricing
+  const baseAdultsPerUnit = selectedRoom?.baseAdults ?? (selectedRoom?.maxAdults || property?.maxGuests || 2);
+  const baseChildrenPerUnit = selectedRoom?.baseChildren ?? (selectedRoom?.maxChildren !== undefined ? selectedRoom?.maxChildren : 0);
+
   const getPriceBreakdown = () => {
     if (!selectedRoom || !dates.checkIn || !dates.checkOut) return null;
 
@@ -440,15 +447,6 @@ const PropertyDetailsPage = () => {
     if (nights === 0) return null;
 
     const units = isWholeUnit ? 1 : guests.rooms;
-
-    // Base Occupancy Logic
-    // If Villa/WholeUnit -> assuming base is 2 per unit for calculation if extraAdultPrice > 0, 
-    // BUT usually 'Entire Villa' standard price covers up to a certain amount.
-    // Given the user prompt implies dynamic calculation, we assume Standard Base = 2.
-    // Ideally this should come from backend (e.g. baseAdults). Defaults to 2.
-    // Dynamic Base Capacity from Room/Property
-    const baseAdultsPerUnit = selectedRoom.maxAdults || property.maxGuests || 2;
-    const baseChildrenPerUnit = selectedRoom.maxChildren !== undefined ? selectedRoom.maxChildren : 0;
 
     // Calculate Extras
     // Total Adults - (Base * Units)
@@ -611,15 +609,17 @@ const PropertyDetailsPage = () => {
       <div className="relative h-[40vh] md:h-[50vh] cursor-zoom-in group">
         <motion.div
           className="w-full h-full relative"
-          style={{ touchAction: 'pan-x' }}
+          style={{ touchAction: 'none' }}
           drag="x"
-          dragConstraints={{ left: -100, right: 100 }}
+          dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.5}
           dragMomentum={false}
+          animate={{ x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onDragEnd={(e, info) => {
             const swipeThreshold = 30;
             const velocityThreshold = 500;
-            
+
             // Fast swipe detection (velocity-based)
             if (Math.abs(info.velocity.x) > velocityThreshold) {
               if (info.velocity.x < 0) {
@@ -629,7 +629,7 @@ const PropertyDetailsPage = () => {
               }
               return;
             }
-            
+
             // Distance-based swipe detection
             if (info.offset.x < -swipeThreshold) {
               handleNextImage();
@@ -1008,47 +1008,91 @@ const PropertyDetailsPage = () => {
               </div>
 
               {/* Dynamic Guest/Room Inputs */}
-              {!isWholeUnit && (
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500 block mb-1">{getUnitLabel()}</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                    value={guests.rooms}
-                    onChange={e => setGuests({ ...guests, rooms: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                    onBlur={() => setGuests(prev => ({ ...prev, rooms: Math.max(1, Number(prev.rooms) || 1) }))}
-                  />
-                </div>
-              )}
+              <div className="col-span-2 md:col-span-2 space-y-4">
+                {!isWholeUnit && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div>
+                      <label className="text-sm font-bold text-gray-800 block">{getUnitLabel()}</label>
+                      <p className="text-[10px] text-gray-500">Based on availability</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setGuests(prev => ({ ...prev, rooms: Math.max(1, prev.rooms - 1) }))}
+                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform"
+                      >
+                        -
+                      </button>
+                      <span className="w-4 text-center font-bold">{guests.rooms}</span>
+                      <button
+                        onClick={() => setGuests(prev => ({ ...prev, rooms: Math.min(selectedRoom?.totalInventory || 10, prev.rooms + 1) }))}
+                        className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-              <div className="col-span-1">
-                <label className="text-xs text-gray-500 block mb-1">Adults</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                  value={guests.adults}
-                  onChange={e => setGuests({ ...guests, adults: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                  onBlur={() => setGuests(prev => ({ ...prev, adults: Math.max(1, Number(prev.adults) || 1) }))}
-                  disabled={isBedBased}
-                />
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div>
+                    <label className="text-sm font-bold text-gray-800 block">Adults</label>
+                    <p className="text-[10px] text-gray-500">Ages 12+</p>
+                    {guests.adults > baseAdultsPerUnit * guests.rooms && (
+                      <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md mt-1 inline-block border border-orange-100 animate-pulse">
+                        ₹{selectedRoom?.pricing?.extraAdultPrice || 0} Extra charge
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.max(1, prev.adults - 1) }))}
+                      disabled={isBedBased}
+                      className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform disabled:opacity-50"
+                    >
+                      -
+                    </button>
+                    <span className="w-4 text-center font-bold">{guests.adults}</span>
+                    <button
+                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.min((selectedRoom?.maxAdults || 10) * guests.rooms, prev.adults + 1) }))}
+                      disabled={isBedBased}
+                      className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {!isBedBased && (
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div>
+                      <label className="text-sm font-bold text-gray-800 block">Children</label>
+                      <p className="text-[10px] text-gray-500">Ages 0-11</p>
+                      {guests.children > baseChildrenPerUnit * guests.rooms && (
+                        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md mt-1 inline-block border border-orange-100 animate-pulse">
+                          ₹{selectedRoom?.pricing?.extraChildPrice || 0} Extra charge
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setGuests(prev => ({ ...prev, children: Math.max(0, prev.children - 1) }))}
+                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform"
+                      >
+                        -
+                      </button>
+                      <span className="w-4 text-center font-bold">{guests.children}</span>
+                      <button
+                        onClick={() => setGuests(prev => ({ ...prev, children: Math.min((selectedRoom?.maxChildren || 10) * guests.rooms, prev.children + 1) }))}
+                        className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {!isBedBased && (
-                <div className="col-span-1">
-                  <label className="text-xs text-gray-500 block mb-1">Children</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-surface"
-                    value={guests.children}
-                    onChange={e => setGuests({ ...guests, children: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                    onBlur={() => setGuests(prev => ({ ...prev, children: Math.max(0, Number(prev.children) || 0) }))}
-                  />
-                </div>
-              )}
             </div>
+
 
 
             {/* --- OFFERS SECTION --- */}
@@ -1513,15 +1557,34 @@ const PropertyDetailsPage = () => {
           </div>
 
           {/* Main Image View */}
-          <div className="flex-1 relative flex items-center justify-center p-4">
-            <motion.img
-              key={currentImageIndex}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={galleryImages[currentImageIndex]}
-              alt={`Gallery ${currentImageIndex}`}
-              className="max-w-full max-h-full object-contain shadow-2xl"
-            />
+          <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+            <motion.div
+              className="w-full h-full flex items-center justify-center"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.7}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onDragEnd={(e, info) => {
+                const swipeThreshold = 50;
+                if (info.offset.x < -swipeThreshold) {
+                  handleNextImage();
+                } else if (info.offset.x > swipeThreshold) {
+                  handlePrevImage();
+                }
+              }}
+            >
+              <motion.img
+                key={currentImageIndex}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                src={galleryImages[currentImageIndex]}
+                alt={`Gallery ${currentImageIndex}`}
+                className="max-w-full max-h-full object-contain shadow-2xl pointer-events-none"
+              />
+            </motion.div>
 
             {galleryImages.length > 1 && (
               <>
