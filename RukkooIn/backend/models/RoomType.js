@@ -23,6 +23,8 @@ const roomTypeSchema = new mongoose.Schema({
   },
 
   // CAPACITY
+  baseAdults: { type: Number, default: 2 },
+  baseChildren: { type: Number, default: 0 },
   maxAdults: { type: Number, required: true },
   maxChildren: { type: Number, default: 0 },
 

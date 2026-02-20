@@ -308,6 +308,8 @@ const AddHotelWizard = () => {
       name: '',
       inventoryType: 'room',
       roomCategory: 'private',
+      baseAdults: 2,
+      baseChildren: 0,
       maxAdults: '',
       maxChildren: 0,
       totalInventory: '',
@@ -553,6 +555,8 @@ const AddHotelWizard = () => {
               name: rt.name || '',
               inventoryType: rt.inventoryType || 'room',
               roomCategory: rt.roomCategory || 'private',
+              baseAdults: rt.baseAdults ?? 2,
+              baseChildren: rt.baseChildren ?? 0,
               maxAdults: rt.maxAdults ?? '',
               maxChildren: rt.maxChildren ?? '',
               totalInventory: rt.totalInventory ?? '',
@@ -673,6 +677,8 @@ const AddHotelWizard = () => {
             name: rt.name,
             inventoryType: 'room',
             roomCategory: rt.roomCategory,
+            baseAdults: Number(rt.baseAdults || 2),
+            baseChildren: Number(rt.baseChildren || 0),
             maxAdults: Number(rt.maxAdults),
             maxChildren: Number(rt.maxChildren || 0),
             totalInventory: Number(rt.totalInventory || 0),
@@ -701,6 +707,8 @@ const AddHotelWizard = () => {
           name: rt.name,
           inventoryType: 'room',
           roomCategory: rt.roomCategory,
+          baseAdults: Number(rt.baseAdults || 2),
+          baseChildren: Number(rt.baseChildren || 0),
           maxAdults: Number(rt.maxAdults),
           maxChildren: Number(rt.maxChildren || 0),
           totalInventory: Number(rt.totalInventory || 0),
@@ -1359,14 +1367,27 @@ const AddHotelWizard = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹)</label>
-                        <input className="input w-full" type="number" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
+                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-3">
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pricing Configuration</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Base Adults Included</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.baseAdults} onChange={e => setEditingRoomType(prev => ({ ...prev, baseAdults: e.target.value }))} placeholder="e.g. 2" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Base Children Included</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.baseChildren} onChange={e => setEditingRoomType(prev => ({ ...prev, baseChildren: e.target.value }))} placeholder="e.g. 0" />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹)</label>
-                        <input className="input w-full" type="number" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹)</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.extraAdultPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹)</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.extraChildPrice} onChange={e => setEditingRoomType(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+                        </div>
                       </div>
                     </div>
 

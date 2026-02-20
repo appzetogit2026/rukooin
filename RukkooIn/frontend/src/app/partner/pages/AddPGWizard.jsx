@@ -724,6 +724,8 @@ const AddPGWizard = () => {
           name: rt.name,
           inventoryType: 'bed',
           roomCategory: rt.roomCategory,
+          baseAdults: Number(rt.baseAdults || 1),
+          baseChildren: Number(rt.baseChildren || 0),
           maxAdults: Number(rt.maxAdults),
           maxChildren: Number(rt.maxChildren || 0),
           bedsPerRoom: Number(rt.bedsPerRoom),
@@ -1378,14 +1380,27 @@ const AddPGWizard = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹/night)</label>
-                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraAdultPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraAdultPrice: e.target.value === '' ? '' : e.target.value })} />
+                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 space-y-3">
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Pricing Configuration</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Base Adults Included</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.baseAdults ?? 1} onChange={e => setEditingRoomType(prev => ({ ...prev, baseAdults: e.target.value }))} placeholder="e.g. 1" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Base Children Included</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.baseChildren ?? 0} onChange={e => setEditingRoomType(prev => ({ ...prev, baseChildren: e.target.value }))} placeholder="e.g. 0" />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹/night)</label>
-                        <input className="input" type="number" placeholder="0" min="0" value={editingRoomType.extraChildPrice ?? ''} onChange={e => setEditingRoomType({ ...editingRoomType, extraChildPrice: e.target.value === '' ? '' : e.target.value })} />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Extra Adult Price (₹)</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.extraAdultPrice ?? 0} onChange={e => setEditingRoomType(prev => ({ ...prev, extraAdultPrice: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500">Extra Child Price (₹)</label>
+                          <input className="input w-full bg-white" type="number" value={editingRoomType.extraChildPrice ?? 0} onChange={e => setEditingRoomType(prev => ({ ...prev, extraChildPrice: e.target.value }))} />
+                        </div>
                       </div>
                     </div>
 
