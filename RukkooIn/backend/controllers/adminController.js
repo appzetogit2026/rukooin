@@ -760,7 +760,8 @@ export const updateBookingStatus = async (req, res) => {
           const partnerWallet = await Wallet.findOne({ partnerId: booking.propertyId.partnerId, role: 'partner' });
           let adminWallet = await Wallet.findOne({ role: 'admin' });
           if (!adminWallet) {
-            const firstAdmin = await Admin.findOne({ isActive: true });
+            const AdminModel = (await import('../models/Admin.js')).default;
+            const firstAdmin = await AdminModel.findOne({ isActive: true });
             if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
           }
 
@@ -801,7 +802,8 @@ export const updateBookingStatus = async (req, res) => {
         if (adminDeduction > 0) {
           let adminWallet = await Wallet.findOne({ role: 'admin' });
           if (!adminWallet) {
-            const firstAdmin = await Admin.findOne({ isActive: true });
+            const AdminModel = (await import('../models/Admin.js')).default;
+            const firstAdmin = await AdminModel.findOne({ isActive: true });
             if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
           }
           if (!adminWallet) {
@@ -822,7 +824,8 @@ export const updateBookingStatus = async (req, res) => {
         if (adminDeduction > 0) {
           let adminWallet = await Wallet.findOne({ role: 'admin' });
           if (!adminWallet) {
-            const firstAdmin = await Admin.findOne({ isActive: true });
+            const AdminModel = (await import('../models/Admin.js')).default;
+            const firstAdmin = await AdminModel.findOne({ isActive: true });
             if (firstAdmin) adminWallet = await Wallet.findOne({ partnerId: firstAdmin._id, role: 'admin' });
           }
           await adminWallet.debit(adminDeduction, `Reversal (Admin Cancel) for Booking #${booking.bookingId}`, booking.bookingId, 'refund_deduction');

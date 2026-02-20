@@ -35,11 +35,14 @@ class NotificationService {
         }
       }
 
+      const appUrl = process.env.FRONTEND_URL || 'https://rukkoo.in';
+      const fallbackLink = (data.url && data.url.startsWith('http')) ? data.url : `${appUrl}${data.url || '/'}`;
+
       const message = {
         token: fcmToken,
         notification: {
           title: notification.title || 'Rukkoin',
-          body: notification.body || '',
+          body: notification.body || 'New Notification',
         },
         data: {
           ...stringifiedData,
@@ -47,7 +50,10 @@ class NotificationService {
         },
         android: {
           priority: 'high',
-          notification: { channelId: 'rukkoin_channel' },
+          notification: {
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            // Omitted channelId to prevent silent suppression on Android 13+ if channel is missing
+          },
         },
         apns: {
           payload: { aps: { sound: 'default', badge: 1 } },
@@ -57,7 +63,7 @@ class NotificationService {
             icon: '/icon-192x192.png',
             badge: '/badge-72x72.png',
           },
-          fcmOptions: { link: data.url || '/' },
+          fcmOptions: { link: fallbackLink },
         },
       };
 
