@@ -365,7 +365,7 @@ export const verifyOtp = async (req, res) => {
     await user.save();
 
     // NOTIFICATION: New Login Alert
-    if (!isRegistration) {
+    if (!isRegistration && user.email) {
       emailService.sendLoginAlertEmail(user, req.headers['user-agent'] || 'Rukkoin App/Web').catch(e => console.error(e));
     }
 

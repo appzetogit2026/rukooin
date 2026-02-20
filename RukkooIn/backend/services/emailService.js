@@ -82,6 +82,11 @@ class EmailService {
    */
   async sendEmail({ to, subject, html, text }) {
     try {
+      if (!to) {
+        console.warn(`[EmailService] Attempted to send email without a recipient for subject: '${subject}'. Email not sent.`);
+        return { success: false, error: 'No recipients defined' };
+      }
+
       console.log(`[EmailService] Sending to: '${to}', Subject: '${subject}'`);
       const info = await this.getTransporter().sendMail({
         from: `"${process.env.FROM_NAME || this.companyName}" <${process.env.SMTP_USER}>`,
