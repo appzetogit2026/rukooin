@@ -33,6 +33,20 @@ const HotelSignup = () => {
         }
     }, [error]);
 
+    // Handle auto-scroll on input focus for webview keyboard
+    useEffect(() => {
+        const handleFocusIn = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        };
+
+        window.addEventListener('focusin', handleFocusIn);
+        return () => window.removeEventListener('focusin', handleFocusIn);
+    }, []);
+
     const currentStepIndex = currentStep - 1;
     const progress = (currentStep / steps.length) * 100;
 

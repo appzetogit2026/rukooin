@@ -14,6 +14,20 @@ const HotelLogin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // Handle auto-scroll on input focus for webview keyboard
+    React.useEffect(() => {
+        const handleFocusIn = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        };
+
+        window.addEventListener('focusin', handleFocusIn);
+        return () => window.removeEventListener('focusin', handleFocusIn);
+    }, []);
+
     const handleSendOTP = async (e) => {
         e.preventDefault();
         setError('');
