@@ -124,7 +124,9 @@ const UserLogin = () => {
                 console.warn('FCM update failed', fcmError);
             }
 
-            navigate('/');
+            // Redirect back to the page the user was trying to access, or home
+            const redirectTo = location.state?.from?.pathname || '/';
+            navigate(redirectTo, { replace: true });
         } catch (err) {
             // Check if account is blocked or not found
             if (err.isBlocked || err.response?.data?.isBlocked || err.status === 403) {

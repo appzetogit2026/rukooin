@@ -59,17 +59,17 @@ const ReferAndEarnPage = () => {
     };
 
     const shareOptions = [
-        { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹200 off! ${referralData.link}`) },
-        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹200 off on your first hotel booking with Rukkoo.in! Use code: ${referralData.code}`) },
+        { icon: MessageCircle, label: "WhatsApp", color: "bg-[#25D366]", action: () => window.open(`https://wa.me/?text=Book hotels at amazing prices! Use my referral code ${referralData.code} and get ₹100 off! ${referralData.link}`) },
+        { icon: Twitter, label: "Twitter", color: "bg-[#1DA1F2]", action: () => window.open(`https://twitter.com/intent/tweet?text=Get ₹100 off on your first hotel booking with Rukkoo.in! Use code: ${referralData.code}`) },
         { icon: Facebook, label: "Facebook", color: "bg-[#4267B2]", action: () => { } },
-        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹200 off on Rukkoo.in&body=Use my code ${referralData.code} to get ₹200 off! ${referralData.link}`) },
+        { icon: Mail, label: "Email", color: "bg-gray-600", action: () => window.open(`mailto:?subject=Get ₹100 off on Rukkoo.in&body=Use my code ${referralData.code} to get ₹100 off! ${referralData.link}`) },
     ];
 
     const howItWorks = [
         { step: 1, title: "Share Your Code", desc: "Send your unique referral code to friends", icon: Share2 },
         { step: 2, title: "Friend Signs Up", desc: "They register using your referral code", icon: Users },
         { step: 3, title: "They Book a Stay", desc: "When they complete their first booking", icon: CheckCircle },
-        { step: 4, title: "You Both Earn", desc: "₹200 credited to both wallets!", icon: Gift },
+        { step: 4, title: "You Both Earn", desc: "₹100 credited to both wallets!", icon: Gift },
     ];
 
     if (loading) {
@@ -82,8 +82,8 @@ const ReferAndEarnPage = () => {
 
     const handleShare = async () => {
         const shareData = {
-            title: 'Join RukkooIn & Get ₹200!',
-            text: `Hey! Book hotels at amazing prices on RukkooIn. Use my referral code ${referralData.code} to get ₹200 OFF on your first booking!`,
+            title: 'Join RukkooIn & Get ₹100!',
+            text: `Hey! Book hotels at amazing prices on RukkooIn. Use my referral code ${referralData.code} to get ₹100 OFF on your first booking!`,
             url: referralData.link || 'https://rukko.in'
         };
 
@@ -148,7 +148,7 @@ const ReferAndEarnPage = () => {
                     transition={{ delay: 0.2 }}
                     className="text-3xl font-black text-white mb-2"
                 >
-                    Earn ₹200
+                    Earn ₹100
                 </motion.h2>
                 <motion.p
                     initial={{ opacity: 0, y: 20 }}
@@ -427,7 +427,7 @@ const ReferAndEarnPage = () => {
                 onClick={handleShare}
             >
                 <Share2 size={20} />
-                Invite Friends & Earn ₹200
+                Invite Friends & Earn ₹100
             </motion.button >
         </div >
     );

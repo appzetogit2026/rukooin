@@ -23,29 +23,28 @@ api.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Interceptor to handle 401 Unauthorized (Token invalid/expired)
+// Interceptor to handle account blocked (403 isBlocked) — tokens never expire so 401 does NOT auto-logout
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response ? error.response.status : null;
     const isBlocked = error.response?.data?.isBlocked;
 
-    if (status === 401 || (status === 403 && isBlocked)) {
+    // Only force-logout if account is explicitly blocked by admin
+    if (status === 403 && isBlocked) {
       const isAdminPath = window.location.pathname.startsWith('/admin');
 
       if (isAdminPath) {
-        // Handle Admin auth failure
         localStorage.removeItem('adminToken');
         if (!window.location.pathname.includes('/login')) {
-          console.warn("Admin session expired. Redirecting to admin login...");
+          console.warn("Admin account blocked. Redirecting to admin login...");
           window.location.href = '/admin/login';
         }
       } else {
-        // Handle User/Partner auth failure
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/otp')) {
-          console.warn("Session expired or account blocked. Redirecting to login...");
+          console.warn("Account blocked by admin. Redirecting to login...");
           if (window.location.pathname.includes('/hotel/')) {
             window.location.href = '/hotel/login';
           } else {

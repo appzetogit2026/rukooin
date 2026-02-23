@@ -11,9 +11,8 @@ import referralService from '../services/referralService.js';
 import { uploadToCloudinary, deleteFromCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
 
 const generateToken = (id, role) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: '30d',
-  });
+  // No expiresIn: tokens never expire; users only get logged out manually
+  return jwt.sign({ id, role }, process.env.JWT_SECRET);
 };
 
 export const checkExists = async (req, res) => {

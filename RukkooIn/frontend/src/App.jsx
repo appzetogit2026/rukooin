@@ -16,6 +16,10 @@ import { legalService, userService, hotelService } from './services/apiService';
 import adminService from './services/adminService';
 import { requestNotificationPermission, onMessageListener } from './utils/firebase';
 import logo from './assets/rokologin-removebg-preview.png';
+import { initAppMode, isWebView } from './utils/deviceDetect';
+
+// Init app mode from URL params on very first load
+initAppMode();
 
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
@@ -223,6 +227,8 @@ const Layout = ({ children }) => {
 };
 
 // Simple Protected Route for Users
+// In WebView (Flutter app): always require login → redirect to /login
+// In Browser: allow access; partner-logged-in users are redirected to partner dashboard
 const UserProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const userRaw = localStorage.getItem('user');
@@ -241,6 +247,58 @@ const UserProtectedRoute = ({ children }) => {
 
   return children ? children : <Outlet />;
 };
+
+/**
+ * PublicOrProtectedRoute
+ * - WebView (Flutter app): acts like UserProtectedRoute — requires login
+ * - Browser: accessible without login (public); if a partner is logged in, redirect to partner area
+ */
+const PublicOrProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userRaw = localStorage.getItem('user');
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  const location = useLocation();
+
+  // In WebView, enforce login just like UserProtectedRoute
+  if (isWebView()) {
+    if (!token) {
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    if (user?.role === 'partner') {
+      return <Navigate to="/hotel/dashboard" replace />;
+    }
+  } else {
+    // In browser: if a partner accidentally opens user routes, redirect
+    if (token && user?.role === 'partner') {
+      return <Navigate to="/hotel/dashboard" replace />;
+    }
+  }
+
+  return children ? children : <Outlet />;
+};
+
+/**
+ * UserPrivateRoute — always requires authentication (both WebView and Browser)
+ * Used for pages that require the user to be logged in: Bookings, Wallet, Checkout, etc.
+ * On redirect, preserves location so login can send you back.
+ */
+const UserPrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  const userRaw = localStorage.getItem('user');
+  const user = userRaw ? JSON.parse(userRaw) : null;
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.role === 'partner') {
+    return <Navigate to="/hotel/dashboard" replace />;
+  }
+
+  return children ? children : <Outlet />;
+};
+
 
 // Partner Protected Route
 const PartnerProtectedRoute = ({ children }) => {
@@ -407,8 +465,8 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      <Toaster 
-        position="top-center" 
+      <Toaster
+        position="top-center"
         reverseOrder={false}
         containerStyle={{
           zIndex: 10000
@@ -495,19 +553,36 @@ function App() {
               </Route>
             </Route>
 
-            {/* Protected User Pages */}
-            <Route element={<UserProtectedRoute />}>
+            {/* ──────────────────────────────────────
+                PUBLIC / SEMI-PROTECTED USER ROUTES
+                Browser: accessible without login
+                WebView: require login (same as before)
+            ────────────────────────────────────── */}
+            <Route element={<PublicOrProtectedRoute />}>
               <Route path="/" element={<Home />} />
-              <Route path="/profile/edit" element={<ProfileEdit />} />
               <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
               <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
               <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
               <Route path="/hotel/:id/offers" element={<OffersPage />} />
               <Route path="/search" element={<SearchPage />} />
-              <Route path="/bookings" element={<BookingsPage />} />
               <Route path="/listings" element={<Navigate to="/search" replace />} />
+              <Route path="/partner-landing" element={<PartnerLandingPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
+            </Route>
+
+            {/* ──────────────────────────────────────
+                PRIVATE USER ROUTES
+                Always require login (WebView + Browser)
+                After login, redirected back via location.state.from
+            ────────────────────────────────────── */}
+            <Route element={<UserPrivateRoute />}>
+              <Route path="/profile/edit" element={<ProfileEdit />} />
+              <Route path="/bookings" element={<BookingsPage />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/payment" element={<PaymentPage />} />
+              <Route path="/payment/:id" element={<PaymentPage />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/checkout" element={<BookingCheckoutPage />} />
               <Route path="/booking-confirmation" element={<BookingConfirmationPage />} />
@@ -516,10 +591,6 @@ function App() {
               <Route path="/saved-places" element={<SavedPlacesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/partner-landing" element={<PartnerLandingPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
             </Route>
           </Routes>
         </Suspense>

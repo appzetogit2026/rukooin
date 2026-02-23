@@ -16,10 +16,9 @@ class ReferralService {
         try {
             let program = await ReferralProgram.findOne({ isActive: true, eligibleRoles: role });
             if (!program) {
-                // Create a default one if none exists
                 program = await ReferralProgram.create({
                     name: `Standard Referral Program ${role.toUpperCase()}`,
-                    rewardAmount: 200,
+                    rewardAmount: 100,
                     triggerType: 'first_booking',
                     eligibleRoles: [role],
                     isActive: true,
@@ -203,7 +202,7 @@ class ReferralService {
             console.log(`[REFERRAL_DEBUG] Credited Referrer Wallet: ${referral.referrerId}, Amount: ${referral.rewardAmount}`);
 
             // ALSO Credit Referee (User who booked) - Prompt said "You Both Earn" in the UI Text
-            // The UI says "You Both Earn ₹200". So we should credit the new user too.
+            // The UI says "You Both Earn ₹100". So we should credit the new user too.
             const refereeWallet = await this.getOrCreateWallet(referral.referredUserId, referral.referredUserModel);
             await refereeWallet.credit(
                 referral.rewardAmount,

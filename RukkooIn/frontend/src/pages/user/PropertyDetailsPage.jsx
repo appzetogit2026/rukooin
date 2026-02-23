@@ -154,7 +154,9 @@ const PropertyDetailsPage = () => {
             baseChildren: rt.baseChildren ?? 0,
             images: rt.images || [],
             pricing: { basePrice: rt.pricePerNight, extraAdultPrice: rt.extraAdultPrice, extraChildPrice: rt.extraChildPrice },
-            inventoryType: rt.inventoryType || (['Hostel', 'PG'].includes(p.propertyType) ? 'bed' : 'room')
+            inventoryType: rt.inventoryType || (['Hostel', 'PG'].includes(p.propertyType) ? 'bed' : 'room'),
+            totalInventory: rt.totalInventory,
+            bedsPerRoom: rt.bedsPerRoom
           })),
           policies: {
             checkInTime: p.checkInTime,
@@ -1024,7 +1026,7 @@ const PropertyDetailsPage = () => {
                       </button>
                       <span className="w-4 text-center font-bold">{guests.rooms}</span>
                       <button
-                        onClick={() => setGuests(prev => ({ ...prev, rooms: Math.min(selectedRoom?.totalInventory || 10, prev.rooms + 1) }))}
+                        onClick={() => setGuests(prev => ({ ...prev, rooms: Math.min((selectedRoom?.inventoryType === 'bed' ? (selectedRoom?.totalInventory * (selectedRoom?.bedsPerRoom || 1)) : selectedRoom?.totalInventory) || 10, prev.rooms + 1) }))}
                         className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform"
                       >
                         +

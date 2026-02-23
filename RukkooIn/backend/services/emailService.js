@@ -155,7 +155,13 @@ class EmailService {
         <h3>Payment Information</h3>
         <div class="detail-row"><span class="label">Total Amount</span><span class="value">₹${booking.totalAmount}</span></div>
         <div class="detail-row"><span class="label">Payment Status</span><span class="value" style="color: ${booking.paymentStatus === 'paid' ? 'green' : 'orange'}">${booking.paymentStatus.toUpperCase()}</span></div>
-        ${booking.paymentMethod === 'pay_at_hotel' ? '<p style="font-size: 13px; color: #666; font-style: italic; margin-top:5px;">Please pay the total amount at the hotel during check-in.</p>' : ''}
+        <div class="detail-row"><span class="label">Payment Method</span><span class="value">${booking.paymentMethod === 'pay_at_hotel' ? 'Pay at Hotel' : 'Online Payment'}</span></div>
+        ${(booking.paymentMethod === 'pay_at_hotel' || booking.paymentStatus !== 'paid') ?
+        `<p style="font-size: 13px; color: #666; font-style: italic; margin-top:10px;">Want to finish your payment online? Securely pay via our payment portal below:</p>
+           <div style="text-align: center; margin-top: 15px; margin-bottom: 5px;">
+             <a href="https://rukkoo.in/payment/${booking._id}" style="background-color: #0F766E; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Pay Now Securely</a>
+           </div>`
+        : ''}
       </div>
 
       <p>We look forward to hosting you!</p>
@@ -758,6 +764,81 @@ class EmailService {
 
     const html = this.generateHtmlTemplate('New Support Query', body);
     return this.sendEmail({ to: adminEmail, subject, html, text: subject });
+  }
+
+  // --- PARTNER BOOKING EMAILS ---
+
+  async sendPartnerNewBookingEmail(partner, user, booking) {
+    const property = booking.propertyId || {};
+    const room = booking.roomTypeId || {};
+    const subject = `New Booking Received! #${booking.bookingId}`;
+
+    const checkIn = new Date(booking.checkInDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const checkOut = new Date(booking.checkOutDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+    const body = `
+      <p>Hi <strong>${partner.name}</strong>,</p>
+      <p>You have received a new booking for <strong>${property.propertyName || property.name}</strong>.</p>
+      
+      <div class="card">
+        <h3>Booking Details (#${booking.bookingId})</h3>
+        <div class="detail-row"><span class="label">Guest Name</span><span class="value">${user.name}</span></div>
+        <div class="detail-row"><span class="label">Check-in</span><span class="value">${checkIn}</span></div>
+        <div class="detail-row"><span class="label">Check-out</span><span class="value">${checkOut}</span></div>
+        <div class="detail-row"><span class="label">Guests</span><span class="value">${booking.guests?.adults} Adults, ${booking.guests?.children} Children</span></div>
+        <div class="detail-row"><span class="label">Rooms</span><span class="value">${booking.guests?.rooms || 1} x ${room.name || booking.bookingUnit || 'Room'}</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Payment Information</h3>
+        <div class="detail-row"><span class="label">Total Amount</span><span class="value">₹${booking.totalAmount}</span></div>
+        <div class="detail-row"><span class="label">Payment Status</span><span class="value" style="color: ${booking.paymentStatus === 'paid' ? 'green' : 'orange'}">${booking.paymentStatus.toUpperCase()}</span></div>
+        <div class="detail-row"><span class="label">Payment Method</span><span class="value">${booking.paymentMethod === 'pay_at_hotel' ? 'Pay at Hotel' : 'Online Payment'}</span></div>
+      </div>
+
+      <div style="text-align: center; margin-top: 15px;">
+        <a href="https://rukkoo.in/hotel/bookings/${booking._id}" class="btn" style="background-color: #0F766E; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Booking</a>
+      </div>
+    `;
+
+    const html = this.generateHtmlTemplate('New Booking', body, `Order #${booking.bookingId}`);
+    return this.sendEmail({ to: partner.email, subject, html, text: subject });
+  }
+
+  async sendPartnerBookingCancelledEmail(partner, booking) {
+    const subject = `Booking Cancelled: #${booking.bookingId}`;
+    const propertyName = booking.propertyId?.propertyName || booking.propertyId?.name || 'Property';
+
+    const body = `
+      <p>Hi <strong>${partner.name}</strong>,</p>
+      <p>A booking at <strong>${propertyName}</strong> has been cancelled.</p>
+
+      <div class="card">
+        <h3>Cancellation Details</h3>
+        <div class="detail-row"><span class="label">Booking ID</span><span class="value">${booking.bookingId}</span></div>
+        <div class="detail-row"><span class="label">Cancelled By</span><span class="value">Guest / System</span></div>
+      </div>
+
+      <p>Your inventory has been automatically updated.</p>
+    `;
+
+    const html = this.generateHtmlTemplate('Booking Cancelled', body, `Order #${booking.bookingId}`);
+    return this.sendEmail({ to: partner.email, subject, html, text: subject });
+  }
+
+  async sendPartnerBookingStatusUpdateEmail(partner, booking, status) {
+    const subject = `Booking Update: ${status} - #${booking.bookingId}`;
+    const propertyName = booking.propertyId?.propertyName || booking.propertyId?.name || 'Property';
+
+    const body = `
+      <p>Hi <strong>${partner.name}</strong>,</p>
+      <p>The status of booking <strong>#${booking.bookingId}</strong> at <strong>${propertyName}</strong> has been updated to <strong>${status.toUpperCase()}</strong>.</p>
+      
+      <p>If you have any questions, please contact our support team.</p>
+    `;
+
+    const html = this.generateHtmlTemplate('Booking Status Update', body, `Order #${booking.bookingId}`);
+    return this.sendEmail({ to: partner.email, subject, html, text: subject });
   }
 }
 

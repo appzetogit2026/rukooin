@@ -149,7 +149,8 @@ const UserSignup = () => {
             // Clear stored code after successful use
             console.log(`[REFERRAL_DEBUG] Registration successful, clearing localStorage referralCode`);
             localStorage.removeItem('referralCode');
-            navigate('/');
+            const redirectTo = location.state?.from?.pathname || '/';
+            navigate(redirectTo, { replace: true });
         } catch (err) {
             setError(err.message || 'Verification failed');
         } finally {

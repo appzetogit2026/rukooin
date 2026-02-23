@@ -33,20 +33,20 @@ const isCancellationAllowed = (checkInDate, checkInTime) => {
   try {
     const now = new Date();
     const checkIn = new Date(checkInDate);
-    
+
     // Parse check-in time (format: "12:00 PM" or "12:00")
     let hours = 12; // Default to 12 PM if not provided
     let minutes = 0;
-    
+
     if (checkInTime) {
       const timeStr = checkInTime.trim().toUpperCase();
       const isPM = timeStr.includes('PM');
       const timeMatch = timeStr.match(/(\d+):(\d+)/);
-      
+
       if (timeMatch) {
         hours = parseInt(timeMatch[1], 10);
         minutes = parseInt(timeMatch[2], 10);
-        
+
         if (isPM && hours !== 12) {
           hours += 12;
         } else if (!isPM && hours === 12) {
@@ -54,14 +54,14 @@ const isCancellationAllowed = (checkInDate, checkInTime) => {
         }
       }
     }
-    
+
     // Set check-in date and time
     checkIn.setHours(hours, minutes, 0, 0);
-    
+
     // Calculate difference in milliseconds
     const diffMs = checkIn.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
-    
+
     // Allow cancellation only if at least 24 hours before check-in
     return diffHours >= 24;
   } catch (error) {
@@ -101,6 +101,12 @@ const triggerBookingNotifications = async (booking) => {
         title: 'New Booking Alert! 🏨',
         body: `New booking for ${property.propertyName}. Guest: ${user?.name || 'Customer'}, ID: ${fullBooking.bookingId}`
       }, { type: 'new_booking', bookingId: fullBooking._id }).catch(err => console.error('Partner Push failed:', err));
+
+      mongoose.model('Partner').findById(property.partnerId).then(partner => {
+        if (partner && partner.email) {
+          emailService.sendPartnerNewBookingEmail(partner, user, fullBooking).catch(e => console.error('Partner Email error', e));
+        }
+      }).catch(e => console.error('Partner fetch error for email', e));
     }
 
     // 4. Admin Notifications
@@ -176,10 +182,13 @@ export const createBooking = async (req, res) => {
     ]);
 
     const blockedUnits = ledgerEntries.length > 0 ? ledgerEntries[0].blockedUnits : 0;
-    const totalInventory = roomType.totalInventory || 0;
+    let totalInventory = roomType.totalInventory || 0;
+    if (roomType.inventoryType === 'bed') {
+      totalInventory = totalInventory * (roomType.bedsPerRoom || 1);
+    }
 
     if (totalInventory - blockedUnits < requiredUnits) {
-      return res.status(400).json({ message: `Only ${Math.max(0, totalInventory - blockedUnits)} rooms available for selected dates` });
+      return res.status(400).json({ message: `Only ${Math.max(0, totalInventory - blockedUnits)} units available for selected dates` });
     }
 
     // Calculate Base Amount
@@ -612,11 +621,11 @@ export const cancelBooking = async (req, res) => {
     const property = booking.propertyId;
     const checkInTime = property?.checkInTime || '12:00 PM'; // Default to 12 PM if not set
     const isAllowed = isCancellationAllowed(booking.checkInDate, checkInTime);
-    
+
     if (!isAllowed) {
       const checkInDate = new Date(booking.checkInDate);
       const checkInDateTime = new Date(checkInDate);
-      
+
       // Parse check-in time
       const timeStr = checkInTime.trim().toUpperCase();
       const isPM = timeStr.includes('PM');
@@ -630,12 +639,12 @@ export const cancelBooking = async (req, res) => {
         else if (!isPM && hours === 12) hours = 0;
       }
       checkInDateTime.setHours(hours, minutes, 0, 0);
-      
+
       const now = new Date();
       const diffMs = checkInDateTime.getTime() - now.getTime();
       const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
-      
-      return res.status(400).json({ 
+
+      return res.status(400).json({
         message: `Cancellation is only allowed at least 24 hours before check-in. Check-in is in ${diffHours} hours.`,
         code: 'CANCELLATION_POLICY_VIOLATION',
         hoursRemaining: diffHours
@@ -646,22 +655,22 @@ export const cancelBooking = async (req, res) => {
     booking.bookingStatus = 'cancelled';
     booking.cancellationReason = req.body.reason || 'User cancelled';
     booking.cancelledAt = new Date();
-    
+
     // Will update paymentStatus after refund processing if needed
 
     // --- PAYMENT GATEWAY REFUND (Razorpay/Online) ---
     // Process Razorpay refund FIRST before wallet operations
     let razorpayRefundProcessed = false;
     let razorpayRefundAmount = 0;
-    
-    if ((booking.paymentMethod === 'razorpay' || booking.paymentMethod === 'online') && 
-        booking.paymentStatus === 'paid' && 
-        booking.paymentId) {
+
+    if ((booking.paymentMethod === 'razorpay' || booking.paymentMethod === 'online') &&
+      booking.paymentStatus === 'paid' &&
+      booking.paymentId) {
       try {
         if (!razorpayInstance) {
           throw new Error('Razorpay not initialized');
         }
-        
+
         // Process full refund through Razorpay
         const refundAmountInPaise = Math.round(booking.totalAmount * 100);
         const refund = await razorpayInstance.payments.refund(booking.paymentId, {
@@ -671,13 +680,13 @@ export const cancelBooking = async (req, res) => {
             bookingId: booking.bookingId || booking._id.toString()
           }
         });
-        
+
         razorpayRefundProcessed = true;
         razorpayRefundAmount = refund.amount / 100; // Convert back to rupees
-        
+
         // Update payment status to refunded
         booking.paymentStatus = 'refunded';
-        
+
         console.log(`[CancelBooking] Razorpay refund processed: ${refund.id}, Amount: ₹${razorpayRefundAmount}`);
       } catch (razorpayError) {
         console.error('[CancelBooking] Razorpay refund failed:', razorpayError.message);
@@ -686,7 +695,7 @@ export const cancelBooking = async (req, res) => {
         // Log error but don't block cancellation
       }
     }
-    
+
     // Save booking status update
     await booking.save();
 
@@ -736,6 +745,12 @@ export const cancelBooking = async (req, res) => {
             title: 'Booking Cancelled',
             body: `Booking #${fullBooking.bookingId} Cancelled by User. Inventory released.`
           }, { type: 'booking_cancelled', bookingId: booking._id }).catch(e => console.error('Partner Cancel Push failed', e));
+
+          mongoose.model('Partner').findById(fullBooking.propertyId.partnerId).then(partner => {
+            if (partner && partner.email) {
+              emailService.sendPartnerBookingCancelledEmail(partner, fullBooking).catch(e => console.error(e));
+            }
+          }).catch(e => console.error(e));
         }
 
         // Notify Admin
@@ -756,10 +771,10 @@ export const cancelBooking = async (req, res) => {
       // - Payment method is wallet (always credit wallet)
       // - OR Razorpay refund failed (fallback)
       // - OR payment method is not Razorpay/online
-      const shouldCreditWallet = booking.paymentMethod === 'wallet' || 
-                                 !razorpayRefundProcessed || 
-                                 !['razorpay', 'online'].includes(booking.paymentMethod);
-      
+      const shouldCreditWallet = booking.paymentMethod === 'wallet' ||
+        !razorpayRefundProcessed ||
+        !['razorpay', 'online'].includes(booking.paymentMethod);
+
       if (shouldCreditWallet) {
         let userWallet = await Wallet.findOne({ partnerId: booking.userId, role: 'user' });
 
@@ -773,9 +788,9 @@ export const cancelBooking = async (req, res) => {
         }
 
         await userWallet.credit(
-          booking.totalAmount, 
-          `Refund for Booking #${booking.bookingId}${razorpayRefundProcessed ? ' (Razorpay refund failed, wallet credited as fallback)' : ''}`, 
-          booking.bookingId, 
+          booking.totalAmount,
+          `Refund for Booking #${booking.bookingId}${razorpayRefundProcessed ? ' (Razorpay refund failed, wallet credited as fallback)' : ''}`,
+          booking.bookingId,
           'refund'
         );
       }
@@ -784,9 +799,9 @@ export const cancelBooking = async (req, res) => {
     // 2. Deduct Partner (If payout was credited)
     // Only reverse if booking was actually paid (not pay_at_hotel)
     // Check if Partner Payout > 0 and payment was processed
-    if (booking.partnerPayout > 0 && 
-        (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') &&
-        booking.paymentMethod !== 'pay_at_hotel') {
+    if (booking.partnerPayout > 0 &&
+      (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') &&
+      booking.paymentMethod !== 'pay_at_hotel') {
       const fullBooking = await Booking.findById(booking._id).populate('propertyId');
       if (fullBooking.propertyId && fullBooking.propertyId.partnerId) {
         const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
@@ -809,7 +824,7 @@ export const cancelBooking = async (req, res) => {
     // 3. Deduct Admin (Commission + Tax)
     // Only reverse if booking was actually paid (not pay_at_hotel)
     if ((booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') &&
-        booking.paymentMethod !== 'pay_at_hotel') {
+      booking.paymentMethod !== 'pay_at_hotel') {
       const adminDeduction = (booking.adminCommission || 0) + (booking.taxes || 0);
       if (adminDeduction > 0) {
         const adminWallet = await Wallet.findOne({ role: 'admin' });
@@ -842,7 +857,7 @@ export const cancelBooking = async (req, res) => {
         } else if (booking.paymentStatus === 'paid' || booking.paymentStatus === 'refunded') {
           refundAmount = booking.totalAmount;
         }
-        
+
         emailService.sendBookingCancellationEmail(fullBooking.userId, fullBooking, refundAmount)
           .catch(e => console.error('Cancel Email failed', e));
       }
@@ -884,8 +899,8 @@ export const cancelBooking = async (req, res) => {
       }
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: responseMessage,
       booking,
       refundProcessed: razorpayRefundProcessed,
@@ -1097,6 +1112,10 @@ export const markBookingNoShow = async (req, res) => {
         title: 'No Show Marked',
         body: `Booking #${booking.bookingId} has been marked as No Show. Inventory released.`
       }, { type: 'no_show', bookingId: booking._id }).catch(console.error);
+
+      mongoose.model('Partner').findById(booking.propertyId.partnerId).then(partner => {
+        if (partner && partner.email) emailService.sendPartnerBookingStatusUpdateEmail(partner, booking, 'No Show').catch(console.error);
+      }).catch(console.error);
     }
 
     notificationService.sendToAdmins({
@@ -1142,6 +1161,10 @@ export const markCheckIn = async (req, res) => {
           title: 'Guest Checked In',
           body: `Guest for Booking #${booking.bookingId} has been checked in.`
         }, { type: 'check_in', bookingId: booking._id }).catch(console.error);
+
+        mongoose.model('Partner').findById(booking.propertyId.partnerId).then(partner => {
+          if (partner && partner.email) emailService.sendPartnerBookingStatusUpdateEmail(partner, booking, 'Checked In').catch(console.error);
+        }).catch(console.error);
       }
 
       // Notify Admin
@@ -1215,6 +1238,10 @@ export const markCheckOut = async (req, res) => {
           title: 'Guest Checked Out',
           body: `Guest for Booking #${booking.bookingId} has been checked out.`
         }, { type: 'check_out', bookingId: booking._id }).catch(console.error);
+
+        mongoose.model('Partner').findById(booking.propertyId.partnerId).then(partner => {
+          if (partner && partner.email) emailService.sendPartnerBookingStatusUpdateEmail(partner, booking, 'Checked Out').catch(console.error);
+        }).catch(console.error);
       }
 
       // Notify Admin

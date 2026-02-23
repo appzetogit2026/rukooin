@@ -294,19 +294,33 @@ export const verifyPayment = async (req, res) => {
 
       // 3. Partner Notifications
       if (property && property.partnerId) {
+        const isNewBooking = !req.body.bookingId;
+
         // Push
         notificationService.sendToPartner(property.partnerId, {
-          title: 'New Booking Alert!',
-          body: `1 Night, ${populatedBooking.guests.adults} Guests. Check App.`
-        }, { type: 'new_booking', bookingId: populatedBooking._id }).catch(err => console.error('Partner Push failed:', err));
+          title: isNewBooking ? 'New Booking Alert!' : 'Payment Confirmed',
+          body: isNewBooking ? `New booking for ${populatedBooking.guests.adults} Guests. Check App.` : `Payment for Booking #${populatedBooking.bookingId} marked as received.`
+        }, { type: isNewBooking ? 'new_booking' : 'payment_confirmed', bookingId: populatedBooking._id }).catch(err => console.error('Partner Push failed:', err));
 
-        // SMS
-        // Fetch partner user to get phone
+        // Fetch partner user to get phone and email
         const PartnerModel = mongoose.model('Partner');
         const partnerUser = await PartnerModel.findById(property.partnerId);
-        if (partnerUser && partnerUser.phone) {
-          smsService.sendSMS(partnerUser.phone, `New Booking Alert! Booking #${populatedBooking.bookingId} at ${property.name}. Check App for details.`)
-            .catch(err => console.error('Partner SMS failed:', err));
+
+        if (partnerUser) {
+          // SMS
+          if (partnerUser.phone) {
+            smsService.sendSMS(partnerUser.phone, isNewBooking ? `New Booking Alert! Booking #${populatedBooking.bookingId} at ${property.name}. Check App for details.` : `Payment Received! Booking #${populatedBooking.bookingId} payment confirmed.`)
+              .catch(err => console.error('Partner SMS failed:', err));
+          }
+
+          // Email
+          if (partnerUser.email) {
+            if (isNewBooking) {
+              emailService.sendPartnerNewBookingEmail(partnerUser, user, populatedBooking).catch(e => console.error(e));
+            } else {
+              emailService.sendPartnerBookingStatusUpdateEmail(partnerUser, populatedBooking, 'Payment Received Online').catch(e => console.error(e));
+            }
+          }
         }
       }
     } catch (notifErr) {
