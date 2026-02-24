@@ -357,95 +357,97 @@ function App() {
     }
   }, []);
 
+  // One-time cleanup: remove the legacy persisted WebView flag.
+  // Old deviceDetect.js stored '__rukkoo_app_mode__ = "1"' in localStorage permanently.
+  // This caused isWebView() to return true in real browsers that share storage with the app,
+  // blocking web push registration. Safe to remove — detection is now done via live UA/URL check.
   React.useEffect(() => {
-    const initFcm = async () => {
-      // 1. Check if running in a WebView with a native bridge (e.g. Flutter)
-      if (window.NativeApp && window.NativeApp.getFcmToken) {
-        try {
-          const appToken = await window.NativeApp.getFcmToken();
-          if (appToken) {
-            console.log('Received App Token from Native Bridge:', appToken);
-            // Perform update for 'app' platform
-            const adminToken = localStorage.getItem('adminToken');
-            if (adminToken) {
-              await adminService.updateFcmToken(appToken, 'app');
-            } else {
-              const tokenAuth = localStorage.getItem('token');
-              const userStr = localStorage.getItem('user');
-              if (tokenAuth && userStr) {
-                const user = JSON.parse(userStr);
-                if (user.role === 'partner') {
-                  await hotelService.updateFcmToken(appToken, 'app');
-                } else {
-                  await userService.updateFcmToken(appToken, 'app');
-                }
-              }
-            }
-            return;
-          }
-        } catch (err) {
-          console.error('Error getting token from native bridge:', err);
-        }
+    localStorage.removeItem('__rukkoo_app_mode__');
+  }, []);
+
+
+  // ─── WEB PUSH NOTIFICATIONS (Browser only) ──────────────────────────────────
+  // Flutter WebView users: FCM tokens are managed ENTIRELY by the Flutter native
+  // code. Flutter hits /api/users/fcm-token or /api/partners/fcm-token directly
+  // with platform='app'. The React frontend has NO role in app token management.
+  //
+  // Real browser users: We request web push permission here, get a web FCM token,
+  // and register it with the backend using platform='web'.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Register the web FCM token with the correct backend endpoint based on logged-in role.
+  const registerWebToken = React.useCallback(async (fcmToken) => {
+    try {
+      const adminToken = localStorage.getItem('adminToken');
+      if (adminToken) {
+        await adminService.updateFcmToken(fcmToken, 'web');
+        console.log('[FCM] ✓ Admin web token registered.');
+        return;
       }
-
-      // 2. Also listen for window message events from the native app
-      window.addEventListener('message', async (event) => {
-        if (event.data && event.data.type === 'FCM_TOKEN_UPDATE') {
-          const appToken = event.data.token;
-          console.log('Received App Token via postMessage:', appToken);
-          const adminToken = localStorage.getItem('adminToken');
-          if (adminToken) {
-            await adminService.updateFcmToken(appToken, 'app');
-          } else {
-            const tokenAuth = localStorage.getItem('token');
-            const userStr = localStorage.getItem('user');
-            if (tokenAuth && userStr) {
-              const user = JSON.parse(userStr);
-              if (user.role === 'partner') {
-                await hotelService.updateFcmToken(appToken, 'app');
-              } else {
-                await userService.updateFcmToken(appToken, 'app');
-              }
-            }
-          }
+      const tokenAuth = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      if (tokenAuth && userStr) {
+        const user = JSON.parse(userStr);
+        if (user.role === 'partner') {
+          await hotelService.updateFcmToken(fcmToken, 'web');
+          console.log('[FCM] ✓ Partner web token registered.');
+        } else {
+          await userService.updateFcmToken(fcmToken, 'web');
+          console.log('[FCM] ✓ User web token registered.');
         }
-      });
+      } else {
+        console.log('[FCM] No logged-in session — web token will be registered on login.');
+      }
+    } catch (err) {
+      console.warn('[FCM] Failed to register web token:', err);
+    }
+  }, []);
 
-      try {
-        const token = await requestNotificationPermission();
-        if (token) {
-          // Check for Admin Token first
-          const adminToken = localStorage.getItem('adminToken');
-          if (adminToken) {
-            console.log('FCM Token received, updating for Admin');
-            await adminService.updateFcmToken(token, 'web');
-            return;
-          }
+  React.useEffect(() => {
+    let cachedWebToken = null;
 
-          // Check for User/Partner Token
-          const tokenAuth = localStorage.getItem('token');
-          const userStr = localStorage.getItem('user');
-
-          if (tokenAuth && userStr) {
-            const user = JSON.parse(userStr);
-            console.log('FCM Token received, updating backend for role:', user.role);
-            if (user.role === 'partner') {
-              await hotelService.updateFcmToken(token, 'web');
-            } else {
-              await userService.updateFcmToken(token, 'web');
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error initializing FCM:", error);
+    const initWebFcm = async () => {
+      // requestNotificationPermission() returns null in WebView (handled in firebase.js).
+      // Only proceeds in real browser environments.
+      const token = await requestNotificationPermission();
+      if (token) {
+        cachedWebToken = token;
+        await registerWebToken(token);
       }
     };
 
-    initFcm();
+    initWebFcm();
 
-    // Listen for foreground messages
+    // Re-register web token after login/signup.
+    // Dispatched from: UserLogin.jsx, HotelLoginPage.jsx, AdminLogin.jsx, UserSignup.jsx
+    const handleLoginEvent = async () => {
+      console.log('[FCM] Login event — re-registering web token.');
+      if (cachedWebToken) {
+        await registerWebToken(cachedWebToken);
+      } else {
+        // Permission not yet obtained — try now (user may have enabled it after loading)
+        const token = await requestNotificationPermission();
+        if (token) {
+          cachedWebToken = token;
+          await registerWebToken(token);
+        }
+      }
+    };
+
+    window.addEventListener('fcm:register', handleLoginEvent);
+
+    // Cross-tab login sync
+    const handleStorage = (e) => {
+      if ((e.key === 'token' || e.key === 'adminToken') && e.newValue) {
+        handleLoginEvent();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Foreground messages — shows in-app toast in browser.
+    // In Flutter WebView, onMessageListener is a no-op (firebase.js checks isWebView()).
     onMessageListener((payload) => {
-      console.log('Foreground Message:', payload);
+      console.log('[FCM] Foreground message:', payload);
       toast((t) => (
         <div className="flex flex-col">
           <span className="font-bold">{payload.notification?.title || 'Notification'}</span>
@@ -454,13 +456,16 @@ function App() {
       ), {
         duration: 5000,
         position: 'top-right',
-        style: {
-          background: '#333',
-          color: '#fff',
-        },
+        style: { background: '#333', color: '#fff' },
       });
     });
-  }, []);
+
+    return () => {
+      window.removeEventListener('fcm:register', handleLoginEvent);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [registerWebToken]);
+
 
   return (
     <Router>

@@ -146,7 +146,14 @@ const UserSignup = () => {
             console.log(`[REFERRAL_DEBUG] Verifying OTP with payload:`, payload);
             await authService.verifyOtp(payload);
 
-            // Clear stored code after successful use
+            // Register FCM token for newly created user
+            try {
+                window.dispatchEvent(new CustomEvent('fcm:register'));
+            } catch (fcmErr) {
+                console.warn('[FCM] Could not dispatch register event after signup', fcmErr);
+            }
+
+            // Clear stored referral code after successful use
             console.log(`[REFERRAL_DEBUG] Registration successful, clearing localStorage referralCode`);
             localStorage.removeItem('referralCode');
             const redirectTo = location.state?.from?.pathname || '/';

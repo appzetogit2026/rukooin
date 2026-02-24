@@ -1,4 +1,4 @@
-import apiService from './apiService';
+import { api as apiService } from './apiService';
 
 class WalletService {
   /**

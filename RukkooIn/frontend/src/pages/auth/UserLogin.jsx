@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Mail, ArrowRight, Loader2, Shield } from 'lucide-react';
+import { Phone, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/rokologin-removebg-preview.png';
-import { authService, userService } from '../../services/apiService';
-import { requestNotificationPermission } from '../../utils/firebase';
+import { authService } from '../../services/apiService';
 import toast from 'react-hot-toast';
 
 const UserLogin = () => {
@@ -114,14 +113,12 @@ const UserLogin = () => {
             setLoading(true);
             await authService.verifyOtp({ phone, otp: otpString });
 
-            // Update FCM Token
+            // Trigger FCM token re-registration in App.jsx using the cached token
+            // This avoids requesting permission again and ensures the token is saved for the now-logged-in user
             try {
-                const token = await requestNotificationPermission();
-                if (token) {
-                    await userService.updateFcmToken(token, 'web');
-                }
+                window.dispatchEvent(new CustomEvent('fcm:register'));
             } catch (fcmError) {
-                console.warn('FCM update failed', fcmError);
+                console.warn('[FCM] Could not dispatch register event', fcmError);
             }
 
             // Redirect back to the page the user was trying to access, or home

@@ -1199,16 +1199,15 @@ export const updateFcmToken = async (req, res) => {
     }
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const tokenField = `fcmTokens.${targetPlatform}`;
 
-    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner/admin
-    const User = (await import('../models/User.js')).default;
-    const Partner = (await import('../models/Partner.js')).default;
-
-    await Promise.all([
-      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
-    ]);
+    // 1. DEDUPLICATION: Clear this token from any OTHER Admin document only.
+    // Admins, Users, and Partners are separate auth systems.
+    // A token registered on the admin panel can never legitimately exist in the User/Partner collections.
+    await Admin.updateMany(
+      { [tokenField]: fcmToken, _id: { $ne: req.user._id } },
+      { $set: { [tokenField]: null } }
+    );
 
     // 2. Update the token for the current admin
     const admin = await Admin.findById(req.user._id);
@@ -1218,13 +1217,12 @@ export const updateFcmToken = async (req, res) => {
     admin.fcmTokens[targetPlatform] = fcmToken;
     await admin.save();
 
+    console.log(`[FCM] Admin ${admin._id} ${targetPlatform} token updated.`);
+
     res.json({
       success: true,
       message: `FCM token updated successfully for ${targetPlatform} platform`,
-      data: {
-        platform: targetPlatform,
-        tokenUpdated: true
-      }
+      data: { platform: targetPlatform, tokenUpdated: true }
     });
 
   } catch (error) {

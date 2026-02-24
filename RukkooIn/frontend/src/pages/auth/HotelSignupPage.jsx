@@ -5,7 +5,6 @@ import StepWrapper from '../../app/partner/components/StepWrapper';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useLenis } from '../../app/shared/hooks/useLenis';
 import { authService, userService } from '../../services/apiService';
-import { requestNotificationPermission } from '../../utils/firebase';
 
 // Updated Steps Components
 import StepUserRegistration from '../../app/partner/steps/StepUserRegistration';

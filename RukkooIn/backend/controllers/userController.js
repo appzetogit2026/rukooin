@@ -188,7 +188,7 @@ export const toggleSavedHotel = async (req, res) => {
 
 // @desc    Update FCM Token
 // @route   PUT /api/users/fcm-token
-// @access  Private
+// @access  Private (Users only — this endpoint is ONLY for the User model)
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken, platform } = req.body;
@@ -198,16 +198,15 @@ export const updateFcmToken = async (req, res) => {
     }
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const tokenField = `fcmTokens.${targetPlatform}`;
 
-    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner
-    const Admin = (await import('../models/Admin.js')).default;
-    const Partner = (await import('../models/Partner.js')).default;
-
-    await Promise.all([
-      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
-    ]);
+    // 1. DEDUPLICATION: Clear this token from any OTHER User document
+    // NOTE: We ONLY clear within the User model. Users, Partners, and Admins are
+    // separate auth systems — a user token should never exist in Partner/Admin collections.
+    await User.updateMany(
+      { [tokenField]: fcmToken, _id: { $ne: req.user._id } },
+      { $set: { [tokenField]: null } }
+    );
 
     // 2. Update the token for the current user
     const user = await User.findById(req.user._id);
@@ -217,13 +216,12 @@ export const updateFcmToken = async (req, res) => {
     user.fcmTokens[targetPlatform] = fcmToken;
     await user.save();
 
+    console.log(`[FCM] User ${user._id} ${targetPlatform} token updated.`);
+
     res.json({
       success: true,
       message: `User FCM token updated successfully for ${targetPlatform} platform`,
-      data: {
-        platform: targetPlatform,
-        tokenUpdated: true
-      }
+      data: { platform: targetPlatform, tokenUpdated: true }
     });
 
   } catch (error) {

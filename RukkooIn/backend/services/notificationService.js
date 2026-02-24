@@ -4,24 +4,35 @@ import Notification from '../models/Notification.js';
 
 class NotificationService {
   /**
-   * Helper function to get all FCM tokens from a user (app + web)
-   * @param {Object} user - User document
-   * @returns {Array<string>} - Array of FCM tokens (Unique)
+   * Get all FCM tokens for a user (app + web).
+   *
+   * We send to ALL available tokens so the user gets notified on every device/platform:
+   *  - `fcmTokens.app`  → notification delivered to their Flutter mobile app
+   *  - `fcmTokens.web`  → notification delivered to their browser (desktop/laptop)
+   *
+   * WHY this no longer causes double notifications on the same device:
+   *  1. Flutter WebViews no longer set a `web` token (firebase.js blocks web push
+   *     registration when isWebView() is true). So a Flutter app user has ONLY an
+   *     `app` token — no web duplicate.
+   *  2. Real browser users only set a `web` token — no app token. So browser-only
+   *     users get exactly one notification.
+   *  3. A user who genuinely has both (mobile app + desktop browser) should receive
+   *     the notification on BOTH devices — that is the correct behaviour.
+   *  4. The service worker uses `notificationId` as the OS-level dedup `tag` to
+   *     prevent the same browser notification showing twice if FCM delivers twice.
    */
   getUserFcmTokens(user) {
+    if (!user.fcmTokens) return [];
     const tokens = new Set();
-
-    // Get platform-based tokens (app and web)
-    if (user.fcmTokens) {
-      if (user.fcmTokens.app) tokens.add(user.fcmTokens.app);
-      if (user.fcmTokens.web) tokens.add(user.fcmTokens.web);
-    }
-
-    return Array.from(tokens).filter(Boolean); // Remove null/undefined and ensure unique
+    if (user.fcmTokens.app) tokens.add(user.fcmTokens.app);
+    if (user.fcmTokens.web) tokens.add(user.fcmTokens.web);
+    return Array.from(tokens);
   }
 
+
   /**
-   * Send notification to a single FCM token (Internal)
+   * Send notification to a single FCM token (Internal).
+   * cleanupMeta: { userId, userType, notificationId? }
    */
   async sendToToken(fcmToken, notification, data = {}, cleanupMeta = null) {
     try {
@@ -33,6 +44,13 @@ class NotificationService {
         if (value !== null && value !== undefined) {
           stringifiedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
         }
+      }
+
+      // Include notificationId in data payload.
+      // - Web service worker uses it as the notification `tag` to deduplicate at OS level.
+      // - Flutter can use it to avoid showing the same notification twice.
+      if (cleanupMeta?.notificationId) {
+        stringifiedData.notificationId = String(cleanupMeta.notificationId);
       }
 
       const appUrl = process.env.FRONTEND_URL || 'https://rukkoo.in';
@@ -52,7 +70,6 @@ class NotificationService {
           priority: 'high',
           notification: {
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-            // Omitted channelId to prevent silent suppression on Android 13+ if channel is missing
           },
         },
         apns: {
@@ -62,6 +79,7 @@ class NotificationService {
           notification: {
             icon: '/icon-192x192.png',
             badge: '/badge-72x72.png',
+            // tag is set via data.notificationId in the service worker
           },
           fcmOptions: { link: fallbackLink },
         },
@@ -86,6 +104,7 @@ class NotificationService {
       throw error;
     }
   }
+
 
   /**
    * Removes an invalid FCM token from a user's record
@@ -149,23 +168,28 @@ class NotificationService {
       // 1. DEDUPLICATION: Save unique notification to DB
       let savedNotification;
       try {
-        // Simple check: Don't save if same message to same user exists in last 2 seconds (debounce)
-        const recentMatch = await Notification.findOne({
+        // Simple check: Don't save if same non-broadcast message to same user exists in last 2 seconds (debounce)
+        const notifType = data.type || 'general';
+        // Skip dedup for broadcast types — each call to sendToUser is for a unique recipient
+        const recentMatch = notifType !== 'broadcast' && notifType !== 'broadcast_log' ? await Notification.findOne({
           userId: user._id,
           title: notification.title,
           body: notification.body,
-          type: data.type || 'general',
+          type: notifType,
           createdAt: { $gte: new Date(Date.now() - 2000) }
-        });
+        }) : null;
 
         if (recentMatch) {
           console.log('[NotificationService] (DEDUPLICATION) Skipping duplicate notification call.');
           return { success: true, duplicated: true };
         }
 
+        // Determine userModel from userType for the refPath to work
+        const userModelMap = { admin: 'Admin', partner: 'Partner', user: 'User' };
         savedNotification = await Notification.create({
           userId: user._id,
           userType: userType,
+          userModel: userModelMap[userType] || 'User',
           title: notification.title || 'Rukkoin',
           body: notification.body || '',
           data: data || {},
@@ -183,13 +207,17 @@ class NotificationService {
         return { success: false, error: 'No tokens', notificationId: savedNotification?._id };
       }
 
-      // 3. Send to tokens
+      // 3. Send to token (getUserFcmTokens returns max 1 token — app preferred over web)
       let successCount = 0;
       let lastResult = null;
 
       for (const token of fcmTokens) {
         try {
-          const result = await this.sendToToken(token, notification, data, { userId, userType });
+          const result = await this.sendToToken(token, notification, data, {
+            userId,
+            userType,
+            notificationId: savedNotification?._id  // Used by service worker as dedup tag
+          });
           if (result.success) {
             successCount++;
             lastResult = result;
@@ -253,38 +281,196 @@ class NotificationService {
   }
 
   /**
-   * Broadcast notification to all users or partners
-   * @param {string} target - 'all_users', 'all_partners'
+   * Broadcast notification to all users, all partners, or both — using FCM multicast batch.
+   *
+   * Instead of looping per user (N FCM API calls), this method:
+   *  1. Fetches all recipients from DB in one query
+   *  2. Bulk-inserts Notification records (one insertMany)
+   *  3. Chunks all FCM tokens into batches of 500 (FCM hard limit per multicast call)
+   *  4. Calls sendEachForMulticast once per chunk → max ceil(N/500) FCM API calls total
+   *  5. Auto-cleans invalid/expired tokens identified in the FCM response
+   *
+   * @param {string} target - 'all_users' | 'all_partners' | 'all' (both)
    * @param {Object} notification - { title, body }
-   * @param {Object} data - payload
+   * @param {Object} data - extra payload (url, type, etc.)
    */
   async broadcastToAll(target, notification, data = {}) {
     try {
-      console.log(`[NotificationService] 📢 BROADCASTING to ${target}`);
-      let targetUsers = [];
-      let userType = 'user';
+      console.log(`[NotificationService] 📢 BROADCAST START — target: ${target}`);
 
-      if (target === 'all_partners') {
-        const Partner = (await import('../models/Partner.js')).default;
-        targetUsers = await Partner.find({ isVerified: true, partnerApprovalStatus: 'approved' }).select('_id name email fcmTokens');
-        userType = 'partner';
-      } else {
-        targetUsers = await User.find({ isVerified: true }).select('_id name email fcmTokens');
-        userType = 'user';
+      const adminLib = getFirebaseAdmin();
+      if (!adminLib) throw new Error('Firebase Admin not initialized');
+
+      // ── 1. Fetch recipients ────────────────────────────────────────────────
+      let recipients = []; // [{ userId, userType, fcmTokens }]
+
+      const Partner = (await import('../models/Partner.js')).default;
+
+      if (target === 'all_users' || target === 'all') {
+        const users = await User.find({ isBlocked: { $ne: true } })
+          .select('_id fcmTokens').lean();
+        users.forEach(u => recipients.push({ userId: u._id, userType: 'user', fcmTokens: u.fcmTokens }));
       }
 
-      console.log(`[NotificationService] Found ${targetUsers.length} recipients for broadcast.`);
+      if (target === 'all_partners' || target === 'all') {
+        const partners = await Partner.find({ isBlocked: { $ne: true }, partnerApprovalStatus: 'approved' })
+          .select('_id fcmTokens').lean();
+        partners.forEach(p => recipients.push({ userId: p._id, userType: 'partner', fcmTokens: p.fcmTokens }));
+      }
 
-      // Send to each user
-      // Note: For massive scale, we'd use FCM topics or batch, but for now we iterate
-      const promises = targetUsers.map(u =>
-        this.sendToUser(u._id, notification, data, userType)
-          .catch(e => console.error(`Failed broadcast for ${u._id}:`, e))
-      );
+      console.log(`[NotificationService] 📢 Total recipients fetched: ${recipients.length}`);
 
-      return Promise.all(promises);
+      if (recipients.length === 0) {
+        console.warn('[NotificationService] Broadcast: no eligible recipients found.');
+        return { success: false, error: 'No recipients' };
+      }
+
+      // ── 2. Build token list with metadata ─────────────────────────────────
+      // Each entry maps a token → recipient so we can cleanup invalid ones later.
+      // We collect app + web tokens following getUserFcmTokens priority.
+      const tokenEntries = []; // [{ token, userId, userType }]
+
+      for (const r of recipients) {
+        const tokens = this.getUserFcmTokens(r); // returns [app?, web?] up to 2 tokens
+        for (const token of tokens) {
+          tokenEntries.push({ token, userId: r.userId, userType: r.userType });
+        }
+      }
+
+      const totalTokens = tokenEntries.length;
+      console.log(`[NotificationService] 📢 Total FCM tokens to send: ${totalTokens}`);
+
+      if (totalTokens === 0) {
+        console.warn('[NotificationService] Broadcast: no FCM tokens available across all recipients.');
+        return { success: false, error: 'No tokens' };
+      }
+
+      // ── 3. Bulk-save Notification records (one DB call) ───────────────────
+      const userModelMap = { admin: 'Admin', partner: 'Partner', user: 'User' };
+      const notifType = data.type || 'broadcast';
+      const notifTitle = notification.title || 'Rukkoin';
+      const notifBody = notification.body || '';
+
+      try {
+        const notifDocs = recipients.map(r => ({
+          userId: r.userId,
+          userType: r.userType,
+          userModel: userModelMap[r.userType] || 'User',
+          title: notifTitle,
+          body: notifBody,
+          data: data || {},
+          type: notifType,
+        }));
+        await Notification.insertMany(notifDocs, { ordered: false });
+        console.log(`[NotificationService] 📢 Saved ${notifDocs.length} Notification records to DB.`);
+      } catch (dbErr) {
+        // Non-fatal — still attempt FCM send even if DB save partially fails
+        console.error('[NotificationService] Broadcast DB insertMany error (non-fatal):', dbErr.message);
+      }
+
+      // ── 4. Build FCM multicast message template ────────────────────────────
+      const appUrl = process.env.FRONTEND_URL || 'https://rukkoo.in';
+      const fallbackLink = (data.url && data.url.startsWith('http')) ? data.url : `${appUrl}${data.url || '/'}`;
+
+      const stringifiedData = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          stringifiedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        }
+      }
+
+      const buildMulticastMessage = (tokens) => ({
+        tokens,
+        notification: { title: notifTitle, body: notifBody },
+        data: { ...stringifiedData, click_action: 'FLUTTER_NOTIFICATION_CLICK', broadcast: 'true' },
+        android: {
+          priority: 'high',
+          notification: { clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
+        },
+        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        webpush: {
+          notification: { icon: '/icon-192x192.png', badge: '/badge-72x72.png' },
+          fcmOptions: { link: fallbackLink },
+        },
+      });
+
+      // ── 5. Chunk into batches of 500 & sendEachForMulticast ───────────────
+      const BATCH_SIZE = 500; // FCM hard limit per multicast call
+      const chunks = [];
+      for (let i = 0; i < tokenEntries.length; i += BATCH_SIZE) {
+        chunks.push(tokenEntries.slice(i, i + BATCH_SIZE));
+      }
+
+      console.log(`[NotificationService] 📢 Sending in ${chunks.length} FCM batch(es) of up to ${BATCH_SIZE} tokens each.`);
+
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      const invalidTokens = []; // [{ token, userId, userType }]
+
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const chunk = chunks[ci];
+        const tokens = chunk.map(e => e.token);
+
+        try {
+          const response = await adminLib.messaging().sendEachForMulticast(buildMulticastMessage(tokens));
+
+          totalSuccess += response.successCount;
+          totalFailed += response.failureCount;
+
+          console.log(`[NotificationService] 📢 Batch ${ci + 1}/${chunks.length}: ` +
+            `${response.successCount} sent, ${response.failureCount} failed.`);
+
+          // ── 6. Identify invalid tokens from response ──────────────────────
+          if (response.failureCount > 0) {
+            response.responses.forEach((res, idx) => {
+              if (!res.success) {
+                const errorCode = res.error?.code || '';
+                const isInvalid = errorCode.includes('invalid-registration-token') ||
+                  errorCode.includes('registration-token-not-registered') ||
+                  errorCode.includes('NotRegistered');
+
+                if (isInvalid) {
+                  invalidTokens.push(chunk[idx]);
+                } else {
+                  console.warn(`[NotificationService] FCM send failed for token index ${idx}:`, res.error?.message);
+                }
+              }
+            });
+          }
+        } catch (batchErr) {
+          console.error(`[NotificationService] Batch ${ci + 1} FCM error:`, batchErr.message);
+          totalFailed += chunk.length;
+        }
+      }
+
+      console.log(`[NotificationService] 📢 BROADCAST COMPLETE — ✓ ${totalSuccess} sent, ✗ ${totalFailed} failed.`);
+
+      // ── 7. Async cleanup of invalid tokens (non-blocking) ─────────────────
+      if (invalidTokens.length > 0) {
+        console.log(`[NotificationService] 📢 Cleaning up ${invalidTokens.length} invalid token(s)...`);
+        // Fire and forget — don't block the response
+        Promise.allSettled(
+          invalidTokens.map(({ token, userId, userType }) =>
+            this.cleanupInvalidToken(userId, userType, token)
+          )
+        ).then(results => {
+          const cleaned = results.filter(r => r.status === 'fulfilled').length;
+          console.log(`[NotificationService] 📢 Cleaned up ${cleaned}/${invalidTokens.length} invalid tokens.`);
+        });
+      }
+
+      return {
+        success: totalSuccess > 0,
+        totalRecipients: recipients.length,
+        totalTokens,
+        successCount: totalSuccess,
+        failureCount: totalFailed,
+        batchesUsed: chunks.length,
+      };
+
     } catch (error) {
       console.error('[NotificationService] Broadcast failed:', error);
+      throw error;
     }
   }
 }

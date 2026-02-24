@@ -71,6 +71,8 @@ const UserLoginPage = () => {
 
         try {
             await authService.verifyOtp({ phone, otp: otpValue });
+            // Re-register FCM token now that user is logged in
+            try { window.dispatchEvent(new CustomEvent('fcm:register')); } catch (_) { }
             const redirectTo = location.state?.from?.pathname || '/';
             navigate(redirectTo, { replace: true });
         } catch (err) {

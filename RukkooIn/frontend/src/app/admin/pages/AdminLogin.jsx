@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import logo from '../../../assets/rokologin-removebg-preview.png';
 import useAdminStore from '../store/adminStore';
 import toast from 'react-hot-toast';
-import adminService from '../../../services/adminService';
-import { requestNotificationPermission } from '../../../utils/firebase';
 
 const AdminLogin = () => {
     // ...
@@ -57,14 +55,11 @@ const AdminLogin = () => {
         if (result.success) {
             toast.success('Admin login successful!');
 
-            // Update FCM Token
+            // Trigger FCM token re-registration using the cached token from App.jsx
             try {
-                const token = await requestNotificationPermission();
-                if (token) {
-                    await adminService.updateFcmToken(token, 'web');
-                }
+                window.dispatchEvent(new CustomEvent('fcm:register'));
             } catch (fcmError) {
-                console.warn('FCM update failed', fcmError);
+                console.warn('[FCM] Could not dispatch register event', fcmError);
             }
 
             navigate('/admin/dashboard');

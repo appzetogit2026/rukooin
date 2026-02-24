@@ -14,24 +14,16 @@ const PartnerDashboard = () => {
     const navigate = useNavigate();
     const { stats, recentBookings, actionItems, loading, user } = usePartnerDashboard();
 
-    // Init Notifications
+    // Init Notifications — fire when user data is available (partner is logged in)
     React.useEffect(() => {
-        const initNotifications = async () => {
-            try {
-                // Import dynamically to avoid circular deps if any, or just standard import
-                const { requestNotificationPermission } = await import('../../../utils/firebase');
-                const { hotelService } = await import('../../../services/apiService');
-
-                const token = await requestNotificationPermission();
-                if (token) {
-                    await hotelService.updateFcmToken(token, 'web');
-                }
-            } catch (error) {
-                console.error("Partner Notification Init Failed:", error);
-            }
-        };
         if (user) {
-            initNotifications();
+            // Dispatch the FCM register event so App.jsx can handle registration centrally
+            // This is a backup for when: partner was already logged in when the page first loaded
+            try {
+                window.dispatchEvent(new CustomEvent('fcm:register'));
+            } catch (error) {
+                console.warn('[FCM] Could not dispatch register event from PartnerDashboard:', error);
+            }
         }
     }, [user]);
 

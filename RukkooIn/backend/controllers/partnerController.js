@@ -4,7 +4,12 @@ import Partner from '../models/Partner.js';
 /**
  * @desc    Update FCM Token for Partner
  * @route   PUT /api/partners/fcm-token
- * @access  Private (Partner)
+ * @access  Private (Partners only — this endpoint is ONLY for the Partner model)
+ *
+ * The partner Flutter app wraps the partner web URL and sends the FCM token here.
+ * We ONLY touch the Partner model. Users and Admins have their own separate endpoints
+ * and their own models. Cross-model deduplication is incorrect because tokens are
+ * generated per-app (user app vs partner app) and will never conflict.
  */
 export const updateFcmToken = async (req, res) => {
   try {
@@ -15,16 +20,14 @@ export const updateFcmToken = async (req, res) => {
     }
 
     const targetPlatform = platform === 'app' ? 'app' : 'web';
+    const tokenField = `fcmTokens.${targetPlatform}`;
 
-    // 1. DEDUPLICATION: Clear this token if it exists on any other user/partner/admin
-    const User = (await import('../models/User.js')).default;
-    const Admin = (await import('../models/Admin.js')).default;
-
-    await Promise.all([
-      User.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Partner.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } }),
-      Admin.updateMany({ $or: [{ 'fcmTokens.app': fcmToken }, { 'fcmTokens.web': fcmToken }] }, { $set: { 'fcmTokens.app': null, 'fcmTokens.web': null } })
-    ]);
+    // 1. DEDUPLICATION: Clear this token from any OTHER Partner document only.
+    // We exclude the current partner's ID so we don't accidentally wipe the same doc we're about to write.
+    await Partner.updateMany(
+      { [tokenField]: fcmToken, _id: { $ne: req.user._id } },
+      { $set: { [tokenField]: null } }
+    );
 
     // 2. Update the token for the current partner
     const partner = await Partner.findById(req.user._id);
@@ -34,13 +37,12 @@ export const updateFcmToken = async (req, res) => {
     partner.fcmTokens[targetPlatform] = fcmToken;
     await partner.save();
 
+    console.log(`[FCM] Partner ${partner._id} ${targetPlatform} token updated.`);
+
     res.json({
       success: true,
       message: `Partner FCM token updated successfully for ${targetPlatform} platform`,
-      data: {
-        platform: targetPlatform,
-        tokenUpdated: true
-      }
+      data: { platform: targetPlatform, tokenUpdated: true }
     });
 
   } catch (error) {

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { authService, userService, hotelService } from '../../services/apiService';
-import { requestNotificationPermission } from '../../utils/firebase';
+import { authService } from '../../services/apiService';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import toast from 'react-hot-toast';
 
@@ -116,14 +115,11 @@ const HotelLoginPage = () => {
                 role: 'partner'
             });
 
-            // Update FCM Token for Partner
+            // Trigger FCM token re-registration using the cached token from App.jsx
             try {
-                const token = await requestNotificationPermission();
-                if (token) {
-                    await hotelService.updateFcmToken(token, 'web');
-                }
+                window.dispatchEvent(new CustomEvent('fcm:register'));
             } catch (fcmError) {
-                console.warn('FCM update failed', fcmError);
+                console.warn('[FCM] Could not dispatch register event', fcmError);
             }
 
             navigate('/hotel/dashboard');
