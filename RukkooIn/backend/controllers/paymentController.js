@@ -268,9 +268,9 @@ export const verifyPayment = async (req, res) => {
       }
     } catch (err) { console.error("Wallet Settlement Logic Failed", err); }
 
-    // Return full populated booking for confirmation page
+    // Return full populated booking for confirmation page (partnerId.phone for Contact Property)
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('propertyId')
+      .populate({ path: 'propertyId', populate: { path: 'partnerId', select: 'phone' } })
       .populate('roomTypeId')
       .populate('userId', 'name email phone');
 

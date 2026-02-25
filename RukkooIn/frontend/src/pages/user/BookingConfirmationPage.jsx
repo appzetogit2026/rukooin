@@ -128,6 +128,9 @@ const BookingConfirmationPage = () => {
         window.print();
     };
 
+    // Single contact number: property (partner-entered) first, else partner account phone
+    const contactPhone = (property.contactNumber || property.partnerId?.phone || '').replace(/\D/g, '') || null;
+
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             {/* Header */}
@@ -216,18 +219,20 @@ const BookingConfirmationPage = () => {
                                         >
                                             <Navigation size={14} /> Directions
                                         </button>
-                                        {property.contactNumber ? (
+                                        {contactPhone ? (
                                             <a
-                                                href={`tel:${property.contactNumber}`}
-                                                className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                                                href={`tel:${contactPhone}`}
+                                                className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 no-underline"
                                             >
                                                 <Phone size={14} /> Contact Property
                                             </a>
                                         ) : (
                                             <button
-                                                className="flex-1 border border-gray-200 hover:border-black text-gray-700 hover:text-black text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+                                                type="button"
+                                                disabled
+                                                className="flex-1 border border-gray-100 text-gray-400 text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
                                             >
-                                                <Phone size={14} /> Contact Property
+                                                <Phone size={14} /> Number not available
                                             </button>
                                         )}
                                     </div>

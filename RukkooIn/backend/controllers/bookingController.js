@@ -460,9 +460,9 @@ export const createBooking = async (req, res) => {
       triggerBookingNotifications(booking);
     }
 
-    // Populate booking details for frontend confirmation page
+    // Populate booking details for frontend confirmation page (partnerId.phone for Contact Property)
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('propertyId')
+      .populate({ path: 'propertyId', populate: { path: 'partnerId', select: 'phone' } })
       .populate('roomTypeId');
 
     res.status(201).json({
@@ -499,7 +499,7 @@ export const getMyBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('propertyId', 'propertyName address location coverImage avgRating')
+      .populate({ path: 'propertyId', select: 'propertyName address location coverImage avgRating contactNumber', populate: { path: 'partnerId', select: 'phone' } })
       .populate('roomTypeId', 'name')
       .sort({ createdAt: -1 });
 
@@ -513,7 +513,7 @@ export const getMyBookings = async (req, res) => {
 export const getBookingDetail = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
-      .populate('propertyId')
+      .populate({ path: 'propertyId', populate: { path: 'partnerId', select: 'phone' } })
       .populate('roomTypeId');
 
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
