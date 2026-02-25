@@ -13,6 +13,7 @@ const BookingConfirmationPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+//rfdhfdh
     // Initialize with state if available, else null
     const [booking, setBooking] = useState(location.state?.booking || null);
     const [loading, setLoading] = useState(!location.state?.booking);
