@@ -65,7 +65,10 @@ const ContactPage = () => {
 
       <div className="px-5 -mt-6 relative z-10 pb-28 space-y-4">
         <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+          <a
+            href="mailto:support@rukko.in"
+            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 no-underline text-inherit hover:border-gray-200 active:scale-[0.98] transition-all cursor-pointer"
+          >
             <div className="w-9 h-9 rounded-full bg-surface/5 flex items-center justify-center text-surface">
               <Mail size={18} />
             </div>
@@ -73,8 +76,11 @@ const ContactPage = () => {
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Email</p>
               <p className="text-xs text-gray-500">support@rukko.in</p>
             </div>
-          </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+          </a>
+          <a
+            href="tel:+916232314147"
+            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 no-underline text-inherit hover:border-gray-200 active:scale-[0.98] transition-all cursor-pointer"
+          >
             <div className="w-9 h-9 rounded-full bg-surface/5 flex items-center justify-center text-surface">
               <Phone size={18} />
             </div>
@@ -82,7 +88,7 @@ const ContactPage = () => {
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
               <p className="text-xs text-gray-500">+91-6232314147</p>
             </div>
-          </div>
+          </a>
         </div>
 
         {error && (
