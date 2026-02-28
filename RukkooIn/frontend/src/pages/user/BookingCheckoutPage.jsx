@@ -33,7 +33,7 @@ const BookingCheckoutPage = () => {
   } = location.state || {};
 
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('pay_at_hotel');
+  const [paymentMethod, setPaymentMethod] = useState('online');
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
