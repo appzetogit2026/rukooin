@@ -7,7 +7,9 @@ import { Clock, Loader2 } from 'lucide-react';
 // Eager Imports (Critical UI)
 import BottomNavbar from './components/ui/BottomNavbar';
 import TopNavbar from './components/ui/TopNavbar';
+import Footer from './components/ui/Footer';
 import PartnerBottomNavbar from './app/partner/components/PartnerBottomNavbar';
+
 import ScrollToTop from './components/ui/ScrollToTop';
 
 // Hooks & Services
@@ -48,7 +50,10 @@ const ReviewsPage = React.lazy(() => import('./pages/user/ReviewsPage'));
 const OffersPage = React.lazy(() => import('./pages/user/OffersPage'));
 const ProfileEdit = React.lazy(() => import('./pages/user/ProfileEdit'));
 const BookingCheckoutPage = React.lazy(() => import('./pages/user/BookingCheckoutPage'));
+const CareersPage = React.lazy(() => import('./pages/user/CareersPage'));
+const CancellationPage = React.lazy(() => import('./pages/user/CancellationPage'));
 const ReferralHandler = React.lazy(() => import('./pages/auth/ReferralHandler'));
+
 
 // Lazy Imports - Admin Pages
 const AdminLogin = React.lazy(() => import('./app/admin/pages/AdminLogin'));
@@ -222,7 +227,9 @@ const Layout = ({ children }) => {
 
       {showUserBottomNav && <BottomNavbar />}
       {showPartnerBottomNav && <PartnerBottomNavbar />}
+      {showUserNavs && <Footer />}
     </>
+
   );
 };
 
@@ -487,6 +494,9 @@ function App() {
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/cancellation" element={<CancellationPage />} />
+            <Route path="/careers" element={<CareersPage />} />
+
 
             {/* Hotel/Partner Module Routes */}
             <Route path="/hotel/login" element={<HotelLogin />} />
