@@ -75,15 +75,23 @@ const Footer = () => {
                     <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Contact Us</h3>
                     <div className="space-y-4">
                         <div className="flex flex-col">
+                            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Office Address:</span>
+                            <p className="text-sm text-gray-300 leading-relaxed">
+                                Flat No. 68, Chotti Gwal Toli,<br />
+                                Sarwate Bus Stand, Indore,<br />
+                                Madhya Pradesh - 452001
+                            </p>
+                        </div>
+                        <div className="flex flex-col">
                             <span className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Email:</span>
-                            <a href="mailto:support@rukko.in" className="text-sm text-gray-300 hover:text-teal-400 transition-colors break-all">
-                                support@rukko.in
+                            <a href="mailto:rajnishpanchal.fr@gmail.com" className="text-sm text-gray-300 hover:text-teal-400 transition-colors break-all">
+                                rajnishpanchal.fr@gmail.com
                             </a>
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Phone:</span>
-                            <a href="tel:+916232314147" className="text-sm text-gray-300 hover:text-teal-400 transition-colors">
-                                +91-6232314147
+                            <a href="tel:+919111384541" className="text-sm text-gray-300 hover:text-teal-400 transition-colors">
+                                +91-9111384541
                             </a>
                         </div>
                     </div>

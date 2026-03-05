@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
 
 const ContactPage = () => {
   const navigate = useNavigate();
@@ -18,14 +18,28 @@ const ContactPage = () => {
           <h1 className="text-xl font-bold">Contact Us</h1>
         </div>
         <p className="text-sm text-white/80 max-w-xs">
-          We're here to help you. Reach out to us via email or phone for any queries or support.
+          We're here to help you. Reach out to us for any queries or support.
         </p>
       </div>
 
       <div className="px-5 -mt-6 relative z-10 space-y-4 pb-24">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-start gap-5 transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-surface/5 flex items-center justify-center text-surface shrink-0">
+              <MapPin size={24} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Office Address</p>
+              <p className="text-sm font-bold text-gray-800 leading-relaxed">
+                Flat No. 68, Chotti Gwal Toli,<br />
+                Sarwate Bus Stand, Indore,<br />
+                Madhya Pradesh - 452001
+              </p>
+            </div>
+          </div>
+
           <a
-            href="mailto:support@rukko.in"
+            href="mailto:rajnishpanchal.fr@gmail.com"
             className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-5 no-underline text-inherit hover:border-surface hover:shadow-md transition-all group"
           >
             <div className="w-12 h-12 rounded-2xl bg-surface/5 flex items-center justify-center text-surface group-hover:bg-surface group-hover:text-white transition-colors">
@@ -33,12 +47,12 @@ const ContactPage = () => {
             </div>
             <div>
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Email Support</p>
-              <p className="text-lg font-bold text-gray-800">support@rukko.in</p>
+              <p className="text-sm font-bold text-gray-800 break-all">rajnishpanchal.fr@gmail.com</p>
             </div>
           </a>
 
           <a
-            href="tel:+916232314147"
+            href="tel:+919111384541"
             className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-5 no-underline text-inherit hover:border-surface hover:shadow-md transition-all group"
           >
             <div className="w-12 h-12 rounded-2xl bg-surface/5 flex items-center justify-center text-surface group-hover:bg-surface group-hover:text-white transition-colors">
@@ -46,7 +60,7 @@ const ContactPage = () => {
             </div>
             <div>
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Call Us</p>
-              <p className="text-lg font-bold text-gray-800">+91-6232314147</p>
+              <p className="text-lg font-bold text-gray-800">+91-9111384541</p>
             </div>
           </a>
         </div>
