@@ -45,6 +45,7 @@ const TermsPage = React.lazy(() => import('./pages/user/TermsPage'));
 const PrivacyPage = React.lazy(() => import('./pages/user/PrivacyPage'));
 const AboutPage = React.lazy(() => import('./pages/user/AboutPage'));
 const ContactPage = React.lazy(() => import('./pages/user/ContactPage'));
+const BlogsPage = React.lazy(() => import('./pages/user/BlogsPage'));
 const AmenitiesPage = React.lazy(() => import('./pages/user/AmenitiesPage'));
 const ReviewsPage = React.lazy(() => import('./pages/user/ReviewsPage'));
 const OffersPage = React.lazy(() => import('./pages/user/OffersPage'));
@@ -255,30 +256,15 @@ const UserProtectedRoute = ({ children }) => {
   return children ? children : <Outlet />;
 };
 
-/**
- * PublicOrProtectedRoute
- * - WebView (Flutter app): acts like UserProtectedRoute — requires login
- * - Browser: accessible without login (public); if a partner is logged in, redirect to partner area
- */
 const PublicOrProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const userRaw = localStorage.getItem('user');
   const user = userRaw ? JSON.parse(userRaw) : null;
-  const location = useLocation();
-
-  // In WebView, enforce login just like UserProtectedRoute
-  if (isWebView()) {
-    if (!token) {
-      return <Navigate to="/login" state={{ from: location }} replace />;
-    }
-    if (user?.role === 'partner') {
-      return <Navigate to="/hotel/dashboard" replace />;
-    }
-  } else {
-    // In browser: if a partner accidentally opens user routes, redirect
-    if (token && user?.role === 'partner') {
-      return <Navigate to="/hotel/dashboard" replace />;
-    }
+  // For both Browser and WebView:
+  // If a partner is logged in and tries to access user-facing public routes,
+  // redirect them to the partner dashboard. Otherwise allow access.
+  if (token && user?.role === 'partner') {
+    return <Navigate to="/hotel/dashboard" replace />;
   }
 
   return children ? children : <Outlet />;
@@ -584,6 +570,7 @@ function App() {
               <Route path="/partner-landing" element={<PartnerLandingPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/blogs" element={<BlogsPage />} />
               <Route path="/serviced" element={<div className="pt-20 text-center text-surface font-bold">Serviced Page</div>} />
             </Route>
 

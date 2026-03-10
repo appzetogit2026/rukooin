@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Wallet, Heart, Gift, HelpCircle, FileText, Shield, ChevronRight, LogOut, Settings, BookOpen, Building, Briefcase, Bell, Edit3 } from 'lucide-react';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import { userService } from '../../services/apiService';
+import { isWebView } from '../../utils/deviceDetect';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -81,6 +82,7 @@ const MobileMenu = ({ isOpen, onClose }) => {
 
     const growthItems = [
         { icon: Gift, label: 'Refer & Earn', path: '/refer' },
+        ...(!isWebView() ? [{ icon: BookOpen, label: 'Blogs', path: '/blogs' }] : []),
     ];
 
     const settingItems = [

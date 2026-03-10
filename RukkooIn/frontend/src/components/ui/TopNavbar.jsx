@@ -4,6 +4,7 @@ import logo from '../../assets/rokologin-removebg-preview.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
 import { toast } from 'react-hot-toast';
+import { isWebView } from '../../utils/deviceDetect';
 
 const TopNavbar = () => {
     const navigate = useNavigate();
@@ -53,6 +54,11 @@ const TopNavbar = () => {
                 <Link to="/refer" className="text-gray-600 font-bold text-sm hover:text-surface transition">
                     Refer & Earn
                 </Link>
+                {!isWebView() && (
+                    <Link to="/blogs" className="text-gray-600 font-bold text-sm hover:text-surface transition">
+                        Blogs
+                    </Link>
+                )}
             </div>
 
             {/* User Actions */}
