@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Youtube, Mail, Phone } from 'lucide-react';
+import { isWebView } from '../../utils/deviceDetect';
 
 const Footer = () => {
     return (
@@ -47,6 +48,9 @@ const Footer = () => {
                     <ul className="flex flex-col gap-3 text-sm font-medium text-gray-300">
                         <li><Link to="/" className="hover:text-teal-400 transition-colors">Home</Link></li>
                         <li><Link to="/about" className="hover:text-teal-400 transition-colors">About Us</Link></li>
+                        {!isWebView() && (
+                            <li><Link to="/blogs" className="hover:text-teal-400 transition-colors">Blogs</Link></li>
+                        )}
                         <li><Link to="/careers" className="hover:text-teal-400 transition-colors">Careers</Link></li>
                         <li><Link to="/contact" className="hover:text-teal-400 transition-colors">Contact Us</Link></li>
                         <li><Link to="/terms" className="hover:text-teal-400 transition-colors">Terms & Conditions</Link></li>
