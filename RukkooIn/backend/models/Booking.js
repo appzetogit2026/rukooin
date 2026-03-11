@@ -87,6 +87,11 @@ const bookingSchema = new mongoose.Schema({
 
   paymentId: String,
   paymentMethod: String,
+  
+  // PREPAID FEATURE
+  prepaidDiscount: { type: Number, default: 0 },
+  amountPaid: { type: Number, default: 0 },
+  remainingAmount: { type: Number, default: 0 },
 
   // BOOKING STATUS
   bookingStatus: {

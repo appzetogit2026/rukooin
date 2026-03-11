@@ -249,7 +249,19 @@ export const createBooking = async (req, res) => {
     // Calculate Total Amount (User Pays)
     // User Pays = (Gross - Discount) + Tax
     const taxableAmount = grossAmount - discountAmount;
-    const totalAmount = taxableAmount + taxes;
+    let totalAmount = taxableAmount + taxes;
+    
+    // Calculate Prepaid Discount
+    let prepaidDiscountAmount = 0;
+    let advanceAmount = 0;
+    let remainingAmount = 0;
+    
+    if (paymentMethod === 'prepaid') {
+      prepaidDiscountAmount = Math.floor(totalAmount * 0.05);
+      totalAmount = totalAmount - prepaidDiscountAmount;
+      advanceAmount = Math.floor(totalAmount * 0.30);
+      remainingAmount = totalAmount - advanceAmount;
+    }
 
     // Calculate Commission (On Gross Amount)
     let adminCommission = Math.round((grossAmount * commissionRate) / 100);
@@ -294,6 +306,9 @@ export const createBooking = async (req, res) => {
       discount: discountAmount,
       couponCode: appliedCoupon,
       totalAmount,
+      prepaidDiscount: prepaidDiscountAmount,
+      amountPaid: paymentMethod === 'prepaid' ? advanceAmount : 0,
+      remainingAmount: paymentMethod === 'prepaid' ? remainingAmount : 0,
       paymentMethod,
       bookingStatus: 'confirmed', // Default confirmed for pay_at_hotel/wallet, pending for razorpay
       paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid'
@@ -310,8 +325,11 @@ export const createBooking = async (req, res) => {
 
       await wallet.debit(deductionAmount, `Booking #${bookingId}`, bookingId, 'booking');
 
-      if (paymentMethod === 'wallet' || (['online', 'razorpay'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
-        booking.paymentStatus = 'paid';
+      if (paymentMethod === 'wallet' || (['online', 'razorpay', 'prepaid'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
+        booking.paymentStatus = 'paid'; // If prepaid is fully paid by wallet, there is still remaining amount for hotel.
+        if (paymentMethod === 'prepaid') {
+           booking.paymentStatus = 'partial';
+        }
 
         // --- DISTRIBUTE TO PARTNER & ADMIN (Settlement) ---
 
@@ -370,10 +388,10 @@ export const createBooking = async (req, res) => {
 
     // Handle Online Payment (Razorpay)
     let razorpayOrder = null;
-    if (paymentMethod === 'razorpay' || paymentMethod === 'online') {
+    if (['razorpay', 'online', 'prepaid'].includes(paymentMethod)) {
       if (paymentDetails && paymentDetails.paymentId) {
         // Already paid (Legacy check)
-        booking.paymentStatus = 'paid';
+        booking.paymentStatus = paymentMethod === 'prepaid' ? 'partial' : 'paid';
         booking.paymentId = paymentDetails.paymentId;
       } else {
         // Initiate New Payment
@@ -381,7 +399,8 @@ export const createBooking = async (req, res) => {
         booking.paymentStatus = 'pending';
 
         // Calculate amount to pay via Gateway
-        const amountToPay = totalAmount - (useWallet ? (walletDeduction || 0) : 0);
+        let payableViaGateway = paymentMethod === 'prepaid' ? advanceAmount : totalAmount;
+        const amountToPay = payableViaGateway - (useWallet ? (walletDeduction || 0) : 0);
 
         if (amountToPay > 0) {
           try {
@@ -407,6 +426,10 @@ export const createBooking = async (req, res) => {
                 taxes: taxes.toString(),
                 discount: discountAmount.toString(),
                 totalAmount: totalAmount.toString(),
+                prepaidDiscountAmount: prepaidDiscountAmount.toString(),
+                advanceAmount: advanceAmount.toString(),
+                remainingAmount: remainingAmount.toString(),
+                paymentMethod: paymentMethod, // Pass method to safely handle in verify
                 type: 'booking_init'
               }
             };
@@ -422,7 +445,7 @@ export const createBooking = async (req, res) => {
           }
         } else {
           // Fully paid by wallet (Covered by loop above, but double check status)
-          booking.paymentStatus = 'paid';
+          booking.paymentStatus = paymentMethod === 'prepaid' ? 'partial' : 'paid';
           booking.bookingStatus = 'confirmed';
         }
       }

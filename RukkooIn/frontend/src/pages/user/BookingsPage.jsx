@@ -48,6 +48,9 @@ const BookingsPage = () => {
             if (paymentStatus === 'paid') {
                 return <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Paid</span>;
             }
+            if (paymentStatus === 'partial') {
+                return <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle size={10} /> Partially Paid</span>;
+            }
             return <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><AlertCircle size={10} /> Pay at Hotel</span>;
         }
         if (s === 'pending_payment') {
@@ -221,9 +224,16 @@ const BookingsPage = () => {
                                             <p className="text-[10px] text-gray-400 font-medium">
                                                 Total Amount
                                             </p>
-                                            <p className="text-sm font-black text-surface">
-                                                ₹{booking.totalAmount?.toLocaleString()}
-                                            </p>
+                                            <div className="text-right">
+                                                <p className="text-sm font-black text-surface leading-none">
+                                                    ₹{booking.totalAmount?.toLocaleString()}
+                                                </p>
+                                                {(booking.paymentMethod === 'prepaid' && booking.remainingAmount > 0) && (
+                                                    <p className="text-[9px] font-bold text-orange-600 mt-0.5">
+                                                        To Pay at Hotel: ₹{booking.remainingAmount?.toLocaleString()}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </motion.div>
                                 );

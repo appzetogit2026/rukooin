@@ -247,13 +247,26 @@ const AdminBookingDetail = () => {
                             )}
 
                             <div className="flex justify-between text-xs font-bold uppercase">
-                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-600' : booking.paymentStatus === 'refunded' ? 'text-gray-500' : 'text-amber-600'}>
+                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-600' : booking.paymentStatus === 'refunded' ? 'text-gray-500' : booking.paymentStatus === 'partial' ? 'text-orange-600' : 'text-amber-600'}>
                                     Payment Status
                                 </span>
-                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-700' : booking.paymentStatus === 'refunded' ? 'text-gray-600' : 'text-amber-700'}>
-                                    {booking.paymentStatus?.toUpperCase() || 'PENDING'}
+                                <span className={booking.paymentStatus === 'paid' ? 'text-emerald-700' : booking.paymentStatus === 'refunded' ? 'text-gray-600' : booking.paymentStatus === 'partial' ? 'text-orange-700' : 'text-amber-700'}>
+                                    {booking.paymentStatus === 'partial' ? 'PARTIAL (PREPAID)' : (booking.paymentStatus?.toUpperCase() || 'PENDING')}
                                 </span>
                             </div>
+
+                            {booking.paymentMethod === 'prepaid' && (
+                                <>
+                                    <div className="flex justify-between text-xs font-bold uppercase mt-2 pt-2 border-t border-gray-50">
+                                        <span className="text-gray-500">Advance Paid (30%)</span>
+                                        <span className="text-green-600 font-extrabold">₹{booking.amountPaid?.toLocaleString() || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs font-bold uppercase pb-2">
+                                        <span className="text-gray-500">Pending Balance (Hotel)</span>
+                                        <span className="text-orange-600 font-extrabold">₹{booking.remainingAmount?.toLocaleString() || 0}</span>
+                                    </div>
+                                </>
+                            )}
                             <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                                 <span className="font-bold text-gray-900 uppercase text-xs">Total Amount</span>
                                 <span className="text-xl font-bold text-gray-900">₹{booking.totalAmount?.toLocaleString()}</span>

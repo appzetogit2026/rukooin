@@ -315,16 +315,28 @@ const BookingConfirmationPage = () => {
                                     <span className="font-bold text-gray-900">Total Amount</span>
                                     <span className="text-xl font-black text-gray-900">₹{booking.totalAmount?.toLocaleString()}</span>
                                 </div>
+                                {(booking.paymentMethod === 'prepaid' && booking.remainingAmount > 0) && (
+                                    <div className="bg-orange-50 -mx-6 px-6 py-3 border-b border-orange-100 flex flex-col gap-1">
+                                        <div className="flex justify-between text-sm text-gray-700">
+                                            <span>Advance Paid Now</span>
+                                            <span className="font-bold">₹{booking.amountPaid?.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-orange-700 font-bold">
+                                            <span>To Pay at Hotel</span>
+                                            <span>₹{booking.remainingAmount?.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className={`p-4 rounded-xl flex items-center gap-3 ${booking.paymentStatus === 'paid' ? 'bg-green-50' : 'bg-yellow-50'}`}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                            <div className={`p-4 rounded-xl flex items-center gap-3 ${booking.paymentStatus === 'paid' ? 'bg-green-50' : booking.paymentStatus === 'partial' ? 'bg-orange-50' : 'bg-yellow-50'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-600' : booking.paymentStatus === 'partial' ? 'bg-orange-100 text-orange-600' : 'bg-yellow-100 text-yellow-600'}`}>
                                     {booking.paymentStatus === 'paid' ? <CheckCircle size={20} /> : <FileText size={20} />}
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold uppercase text-gray-500">Payment Status</p>
-                                    <p className={`font-bold ${booking.paymentStatus === 'paid' ? 'text-green-700' : 'text-yellow-700'}`}>
-                                        {booking.paymentStatus === 'paid' ? 'Paid Completely' : 'Pay at Hotel'}
+                                    <p className={`font-bold ${booking.paymentStatus === 'paid' ? 'text-green-700' : booking.paymentStatus === 'partial' ? 'text-orange-700' : 'text-yellow-700'}`}>
+                                        {booking.paymentStatus === 'paid' ? 'Paid Completely' : booking.paymentStatus === 'partial' ? 'Partially Paid (Prepaid)' : 'Pay at Hotel'}
                                     </p>
                                 </div>
                             </div>

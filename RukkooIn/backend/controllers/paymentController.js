@@ -126,10 +126,14 @@ export const verifyPayment = async (req, res) => {
       booking = await Booking.findById(bookingId);
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-      booking.paymentStatus = 'paid';
+      if (booking.paymentMethod !== 'prepaid') {
+        booking.paymentStatus = 'paid';
+        booking.paymentMethod = 'razorpay'; // Only overwrite if not prepaid
+      } else {
+        booking.paymentStatus = 'partial';
+      }
       booking.bookingStatus = 'confirmed';
       booking.paymentId = razorpay_payment_id;
-      booking.paymentMethod = 'razorpay';
       await booking.save();
 
     } else {
@@ -170,12 +174,13 @@ export const verifyPayment = async (req, res) => {
         adminCommission: Number(notes.adminCommission),
         partnerPayout: Number(notes.partnerPayout),
         totalAmount: Number(notes.totalAmount),
-        paymentStatus: 'paid', // Immediately Paid
+        prepaidDiscount: Number(notes.prepaidDiscountAmount) || 0,
+        amountPaid: Number(notes.advanceAmount) || Number(notes.totalAmount),
+        remainingAmount: Number(notes.remainingAmount) || 0,
+        paymentStatus: notes.paymentMethod === 'prepaid' ? 'partial' : 'paid',
         bookingStatus: 'confirmed',
-        paymentMethod: 'online', // or 'razorpay'
-        paymentId: razorpay_payment_id,
-        amountPaid: Number(notes.totalAmount), // Full amount paid
-        remainingAmount: 0 // Full amount paid
+        paymentMethod: notes.paymentMethod || 'online',
+        paymentId: razorpay_payment_id
       });
 
       const walletUsedAmount = Number(notes.walletUsedAmount) || 0;
@@ -203,10 +208,12 @@ export const verifyPayment = async (req, res) => {
       paymentMeta.partnerPayout = Number(notes.partnerPayout);
       paymentMeta.adminCommission = Number(notes.adminCommission);
       paymentMeta.taxes = Number(notes.taxes);
+      paymentMeta.advanceAmount = Number(notes.advanceAmount);
     } else if (booking) {
       paymentMeta.partnerPayout = booking.partnerPayout;
       paymentMeta.adminCommission = booking.adminCommission;
       paymentMeta.taxes = booking.taxes;
+      paymentMeta.advanceAmount = booking.amountPaid;
     }
 
     // --- PARTNER & ADMIN WALLET SETTLEMENT (Common) ---
@@ -217,9 +224,6 @@ export const verifyPayment = async (req, res) => {
       const payout = paymentMeta.partnerPayout || 0;
       const commission = paymentMeta.adminCommission || 0;
       const taxes = paymentMeta.taxes || 0;
-
-      // Amount without tax (Base + Extra - Discount)
-      const taxableAmount = (paymentMeta.partnerPayout || 0) + (paymentMeta.adminCommission || 0);
       const totalAdminCredit = commission + taxes;
 
       if (partnerId) {
@@ -231,16 +235,38 @@ export const verifyPayment = async (req, res) => {
             balance: 0
           });
         }
+        
+        let paymentMethodCheck = booking ? booking.paymentMethod : (notes?.paymentMethod);
 
-        // A. Credit Partner the amount WITHOUT tax
-        if (taxableAmount > 0) {
-          await partnerWallet.credit(taxableAmount, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
-          console.log(`[Payment] Credited Taxable Amount ₹${taxableAmount} to Partner ${partnerId}`);
-
-          // B. Debit Partner ONLY the Commission (Tax is already handled by not crediting it)
-          if (commission > 0) {
-            await partnerWallet.debit(commission, `Platform Commission for Booking #${booking.bookingId}`, booking.bookingId, 'commission_deduction');
-            console.log(`[Payment] Deducted Commission ₹${commission} from Partner ${partnerId}`);
+        if (paymentMethodCheck === 'prepaid') {
+          // Prepaid Logic: Platform collected only advanceAmount
+          const advanceAmount = paymentMeta.advanceAmount || 0;
+          const partnerShareOfAdvance = advanceAmount - totalAdminCredit;
+          
+          if (partnerShareOfAdvance > 0) {
+            await partnerWallet.credit(partnerShareOfAdvance, `Advance Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
+            console.log(`[Payment] Credited Prepaid Advance Share ₹${partnerShareOfAdvance} to Partner ${partnerId}`);
+          } else if (partnerShareOfAdvance < 0) {
+            // Admin commission + taxes is more than the 30% advance, so partner owes platform from the remaining amount they will collect at hotel.
+            const shortfall = Math.abs(partnerShareOfAdvance);
+            await partnerWallet.debit(shortfall, `Commission Shortfall for Prepaid Booking #${booking.bookingId}`, booking.bookingId, 'commission_deduction');
+            console.log(`[Payment] Deducted Commission Shortfall ₹${shortfall} from Partner ${partnerId}`);
+          }
+        } else {
+          // Standard Logic: Platform collected full amount
+          // Amount without tax (Base + Extra - Discount)
+          const taxableAmount = (paymentMeta.partnerPayout || 0) + (paymentMeta.adminCommission || 0);
+          
+          // A. Credit Partner the amount WITHOUT tax
+          if (taxableAmount > 0) {
+            await partnerWallet.credit(taxableAmount, `Payment for Booking #${booking.bookingId}`, booking.bookingId, 'booking_payment');
+            console.log(`[Payment] Credited Taxable Amount ₹${taxableAmount} to Partner ${partnerId}`);
+  
+            // B. Debit Partner ONLY the Commission (Tax is already handled by not crediting it)
+            if (commission > 0) {
+              await partnerWallet.debit(commission, `Platform Commission for Booking #${booking.bookingId}`, booking.bookingId, 'commission_deduction');
+              console.log(`[Payment] Deducted Commission ₹${commission} from Partner ${partnerId}`);
+            }
           }
         }
       }
