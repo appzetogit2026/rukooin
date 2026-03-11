@@ -4,7 +4,7 @@ class EmailService {
   constructor() {
     this.transporter = null;
     this.brandColor = '#0F766E'; // Teal-700 based on standard UI
-    this.companyName = 'RukkooIn';
+    this.companyName = 'Rukkoo.in';
     this.logoUrl = 'https://res.cloudinary.com/dqowbjoxb/image/upload/v1738411000/rukkooin-logo-placeholder.png'; // Placeholder or Text fallback
   }
 
