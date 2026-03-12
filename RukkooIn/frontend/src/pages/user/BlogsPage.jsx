@@ -1,11 +1,14 @@
 import React from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Clock, ArrowRight } from 'lucide-react';
+import axios from 'axios';
 import { isWebView } from '../../utils/deviceDetect';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const mockBlogs = [
   {
-    id: '1',
+    _id: '1',
     title: 'Escape the City: 7 Hidden Hill Stations Near You',
     category: 'Travel Guides',
     readTime: '6 min read',
@@ -17,7 +20,7 @@ const mockBlogs = [
     date: 'March 2026'
   },
   {
-    id: '2',
+    _id: '2',
     title: 'Couple-Friendly Stays: What To Check Before You Book',
     category: 'Stay Tips',
     readTime: '4 min read',
@@ -29,7 +32,7 @@ const mockBlogs = [
     date: 'March 2026'
   },
   {
-    id: '3',
+    _id: '3',
     title: 'How To Get Real Discounts (Beyond Flash Sales)',
     category: 'Smart Booking',
     readTime: '5 min read',
@@ -44,6 +47,27 @@ const mockBlogs = [
 
 const BlogsPage = () => {
   const navigate = useNavigate();
+  const [blogs, setBlogs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/blogs`);
+        if (response.data.success && response.data.data.length > 0) {
+          setBlogs(response.data.data);
+        } else {
+          setBlogs(mockBlogs);
+        }
+      } catch (error) {
+        console.error('Error fetching blogs:', error);
+        setBlogs(mockBlogs);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBlogs();
+  }, []);
 
   // In WebView / Flutter wrapper, blogs should not be visible at all
   if (isWebView()) {
@@ -99,9 +123,9 @@ const BlogsPage = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-2 p-3">
-                {mockBlogs.slice(0, 3).map((blog) => (
+                {blogs.slice(0, 3).map((blog) => (
                   <div
-                    key={blog.id}
+                    key={blog._id}
                     className="relative h-28 rounded-2xl overflow-hidden group border border-slate-800/80 bg-slate-900/80"
                   >
                     <img
@@ -137,11 +161,16 @@ const BlogsPage = () => {
         </div>
 
         <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-          {mockBlogs.map((blog) => (
-            <article
-              key={blog.id}
-              className="group rounded-3xl border border-slate-800/80 bg-linear-to-b from-slate-900/90 to-slate-950/90 overflow-hidden shadow-[0_16px_50px_rgba(0,0,0,0.7)] hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.85)] transition-transform duration-300"
-            >
+          {loading ? (
+            [1, 2, 3].map(n => (
+              <div key={n} className="h-80 bg-slate-900/50 rounded-3xl animate-pulse border border-slate-800" />
+            ))
+          ) : (
+            blogs.map((blog) => (
+              <article
+                key={blog._id}
+                className="group rounded-3xl border border-slate-800/80 bg-linear-to-b from-slate-900/90 to-slate-950/90 overflow-hidden shadow-[0_16px_50px_rgba(0,0,0,0.7)] hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.85)] transition-transform duration-300"
+              >
               <div className="relative h-44 overflow-hidden">
                 <img
                   src={blog.image}
@@ -180,7 +209,7 @@ const BlogsPage = () => {
                 </div>
               </div>
             </article>
-          ))}
+          )))}
         </div>
       </section>
     </main>
