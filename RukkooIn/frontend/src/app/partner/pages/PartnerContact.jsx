@@ -56,8 +56,8 @@ const PartnerContact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <PartnerHeader title="Contact Partner Support" subtitle="Reach the Rukko team" />
+    <div className="min-h-screen bg-gray-50">
+      <PartnerHeader title="Contact Partner Support" subtitle="Reach the Rukko team" showMenu={false} />
 
       <main ref={contentRef} className="max-w-3xl mx-auto px-4 pt-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
