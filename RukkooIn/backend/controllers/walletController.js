@@ -865,3 +865,69 @@ export const verifyAddMoneyPayment = async (req, res) => {
     res.status(500).json({ message: 'Payment verification failed' });
   }
 };
+
+/**
+ * @desc    Adjust wallet (Admin only)
+ * @route   POST /api/admin/wallet/adjust
+ * @access  Private (Admin)
+ */
+export const adminAdjustWallet = async (req, res) => {
+  try {
+    const { targetUserId, action, amount, reason, viewAs } = req.body; // action: 'credit' | 'debit'
+
+    // 1. Validation
+    if (!targetUserId || !action || !amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Missing or invalid parameters' });
+    }
+
+    if (!['credit', 'debit'].includes(action)) {
+      return res.status(400).json({ message: 'Action must be "credit" or "debit"' });
+    }
+
+    const role = viewAs === 'partner' ? 'partner' : 'user';
+    const amountNum = parseFloat(amount);
+
+    // 2. Find Wallet
+    let wallet = await Wallet.findOne({ partnerId: targetUserId, role });
+    if (!wallet) {
+      // Create wallet if it doesn't exist for adjustments
+      wallet = await Wallet.create({
+        partnerId: targetUserId,
+        role,
+        balance: 0
+      });
+    }
+
+    // 3. Perform Adjustment using existing model methods
+    const description = `Admin Adjustment: ${reason || 'No reason provided'}`;
+    const reference = `ADJ-${Date.now()}`;
+
+    if (action === 'credit') {
+      await wallet.credit(amountNum, description, reference, 'admin_adjustment');
+    } else {
+      await wallet.debit(amountNum, description, reference, 'admin_adjustment');
+    }
+
+    // 4. Notifications
+    const notificationPayload = {
+      title: action === 'credit' ? 'Wallet Credited 💰' : 'Wallet Debited 💸',
+      body: `${action === 'credit' ? '₹' + amountNum + ' added to' : '₹' + amountNum + ' deducted from'} your wallet. Reason: ${reason || 'Admin adjustment'}.`
+    };
+
+    if (role === 'partner') {
+      notificationService.sendToPartner(targetUserId, notificationPayload, { type: 'admin_wallet_adjustment', action }).catch(e => console.error(e));
+    } else {
+      notificationService.sendToUser(targetUserId, notificationPayload, { type: 'admin_wallet_adjustment', action }).catch(e => console.error(e));
+    }
+
+    res.json({
+      success: true,
+      message: `Wallet ${action}ed successfully`,
+      newBalance: wallet.balance
+    });
+
+  } catch (error) {
+    console.error('Admin Adjust Wallet Error:', error);
+    res.status(500).json({ message: error.message || 'Failed to adjust wallet balance' });
+  }
+};

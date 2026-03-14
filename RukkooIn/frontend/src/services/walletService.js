@@ -84,6 +84,20 @@ class WalletService {
   }
 
   /**
+   * Admin Adjust Wallet (Credit/Debit)
+   */
+  async adminAdjustWallet({ targetUserId, action, amount, reason, viewAs }) {
+    const response = await apiService.post('/admin/wallet/adjust', {
+      targetUserId,
+      action,
+      amount,
+      reason,
+      viewAs
+    });
+    return response.data;
+  }
+
+  /**
    * Format amount to INR currency
    */
   formatAmount(amount) {

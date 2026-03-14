@@ -39,7 +39,7 @@ import {
 } from '../controllers/adminController.js';
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
-import { getWithdrawals, updateWithdrawalStatus } from '../controllers/walletController.js';
+import { getWithdrawals, updateWithdrawalStatus, adminAdjustWallet } from '../controllers/walletController.js';
 
 const router = express.Router();
 
@@ -49,6 +49,7 @@ router.use(authorizedRoles('admin', 'superadmin'));
 // Withdrawal Management
 router.get('/withdrawals', getWithdrawals);
 router.put('/withdrawals/:id/status', updateWithdrawalStatus);
+router.post('/wallet/adjust', adminAdjustWallet);
 
 // Notifications
 router.get('/notifications', getAdminNotifications);
