@@ -95,18 +95,20 @@ const BookingCard = ({ booking }) => {
                 </div>
             </div>
 
-            {/* Earning & Collection Section */}
-            <div className="pt-3 border-t border-dashed border-gray-200 mb-4 space-y-1">
-                <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Your Earnings</span>
-                    <span className="font-black text-[#004F4D] text-base">₹{booking.partnerPayout?.toLocaleString('en-IN') || 0}</span>
+            {/* Earning & Collection Section (Swapped Priority) */}
+            <div className="pt-3 border-t border-dashed border-gray-200 mb-4 space-y-1 text-right">
+                <div className="flex items-center justify-between opacity-60">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Expected Earnings</span>
+                    <span className="font-bold text-gray-600 text-xs">₹{booking.partnerPayout?.toLocaleString('en-IN') || 0}</span>
                 </div>
-                {booking.remainingAmount > 0 && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Collect at Hotel</span>
-                        <span className="font-black text-red-600 text-sm">₹{booking.remainingAmount?.toLocaleString('en-IN')}</span>
-                    </div>
-                )}
+                <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${booking.remainingAmount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {booking.remainingAmount > 0 ? 'Collect at Hotel' : 'Total Paid'}
+                    </span>
+                    <span className={`font-black text-xl ${booking.remainingAmount > 0 ? 'text-red-600' : 'text-[#004F4D]'}`}>
+                        ₹{booking.remainingAmount?.toLocaleString('en-IN') || booking.totalAmount?.toLocaleString('en-IN')}
+                    </span>
+                </div>
             </div>
 
             {/* Actions */}

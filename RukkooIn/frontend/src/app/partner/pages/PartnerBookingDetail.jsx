@@ -246,21 +246,23 @@ const PartnerBookingDetail = () => {
               <span className="text-gray-900 font-medium">- ₹{booking.adminCommission.toLocaleString()}</span>
             </div>
 
-            {/* 6. Partner Earnings */}
-            <div className="flex justify-between items-center pt-2 border-t border-teal-50">
-              <span className="text-xs font-bold text-teal-800">Your Net Earnings (Payout)</span>
-              <span className="font-black text-teal-600 text-base">₹{booking.partnerPayout.toLocaleString()}</span>
+            {/* 6. Partner Earnings (Demoted Visual Priority) */}
+            <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-tight text-[10px]">Your Net Earnings (Payout)</span>
+              <span className="font-bold text-gray-700">₹{booking.partnerPayout.toLocaleString()}</span>
             </div>
 
-            {/* 7. Collection Status (CRITICAL FOR PREPAID) */}
-            <div className="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100 space-y-2">
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-blue-700 font-bold">Paid to Platform (Advance)</span>
-                <span className="text-blue-800 font-black">₹{booking.amountPaid.toLocaleString()}</span>
+            {/* 7. Collection Status (CRITICAL - HIGH VISIBILITY) */}
+            <div className="mt-4 p-4 bg-red-50 rounded-2xl border-2 border-red-100 space-y-2 shadow-sm">
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-gray-500 font-bold uppercase">Already Paid Online</span>
+                <span className="text-gray-900 font-bold">₹{booking.amountPaid.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center text-sm pt-1 border-t border-blue-100/50">
-                <span className="text-gray-900 font-black">Collect at Hotel</span>
-                <span className="text-red-600 font-black text-base">₹{booking.remainingAmount.toLocaleString()}</span>
+              <div className="flex justify-between items-center pt-2 border-t border-red-200/50">
+                <span className="text-red-800 font-black text-sm uppercase tracking-tight">COLLECT AT HOTEL</span>
+                <span className="text-red-600 font-black text-2xl animate-pulse-subtle">
+                  ₹{booking.remainingAmount.toLocaleString()}
+                </span>
               </div>
             </div>
 
