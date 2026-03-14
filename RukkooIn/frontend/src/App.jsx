@@ -141,6 +141,16 @@ const Layout = ({ children }) => {
   const isCmsRoute = location.pathname.startsWith('/admin');
   useLenis(isCmsRoute);
 
+  const [hideNavsDueToSlider, setHideNavsDueToSlider] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleSliderChange = (e) => {
+      setHideNavsDueToSlider(!!e.detail);
+    };
+    window.addEventListener('rukkoo:slider', handleSliderChange);
+    return () => window.removeEventListener('rukkoo:slider', handleSliderChange);
+  }, []);
+
   React.useEffect(() => {
     let isMounted = true;
     const fetchStatus = async () => {
@@ -182,11 +192,11 @@ const Layout = ({ children }) => {
 
   // Specific user pages where BottomNav is hidden
   const hideUserBottomNavOn = ['/booking-confirmation', '/payment', '/support', '/refer', '/hotel/', '/legal', '/terms', '/privacy'];
-  const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r));
+  const showUserBottomNav = showUserNavs && !hideUserBottomNavOn.some(r => location.pathname.includes(r)) && !hideNavsDueToSlider;
 
   // Partner Bottom Nav should show in Partner App (authenticated pages)
   const isPartnerPublic = location.pathname === '/hotel/privacy' || location.pathname === '/hotel/contact';
-  const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel' && !isPartnerPublic;
+  const showPartnerBottomNav = isPartnerApp && location.pathname !== '/hotel' && !isPartnerPublic && !hideNavsDueToSlider;
 
   const isAuthRoute = ['/login', '/signup', '/hotel/login', '/hotel/register'].some(route =>
     location.pathname.startsWith(route)

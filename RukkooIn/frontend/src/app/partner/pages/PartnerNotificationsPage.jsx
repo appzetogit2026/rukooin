@@ -29,6 +29,11 @@ const PartnerNotificationsPage = () => {
   const [selectedNotif, setSelectedNotif] = useState(null);
 
   useEffect(() => {
+    const event = new CustomEvent('rukkoo:slider', { detail: !!selectedNotif });
+    window.dispatchEvent(event);
+  }, [selectedNotif]);
+
+  useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
