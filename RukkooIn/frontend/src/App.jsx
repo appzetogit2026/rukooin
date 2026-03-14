@@ -301,8 +301,8 @@ const PartnerProtectedRoute = ({ children }) => {
   const user = userRaw ? JSON.parse(userRaw) : null;
   const location = useLocation();
 
-  // Allow access to login/register/join
-  const publicPartnerPaths = ['/hotel/login', '/hotel/register'];
+  // Allow access to login/register/join/privacy/contact
+  const publicPartnerPaths = ['/hotel/login', '/hotel/register', '/hotel/privacy', '/hotel/contact'];
   if (publicPartnerPaths.some(p => location.pathname.startsWith(p))) {
     return children ? children : <Outlet />;
   }
@@ -519,12 +519,14 @@ function App() {
                 <Route path="support" element={<PartnerSupport />} />
                 <Route path="terms" element={<PartnerTerms />} />
                 <Route path="about" element={<PartnerAbout />} />
-                <Route path="privacy" element={<PartnerPrivacy />} />
-                <Route path="contact" element={<PartnerContact />} />
                 <Route path="settings" element={<PartnerSettings />} />
                 <Route path="bank-details" element={<PartnerBankDetails />} />
                 <Route path="profile" element={<PartnerProfile />} />
               </Route>
+
+              {/* Public Partner Pages — accessible without login */}
+              <Route path="privacy" element={<PartnerPrivacy />} />
+              <Route path="contact" element={<PartnerContact />} />
             </Route>
 
             {/* Admin Auth Routes */}
