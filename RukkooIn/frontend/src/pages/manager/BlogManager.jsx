@@ -293,9 +293,24 @@ const BlogManager = () => {
                   name="excerpt"
                   value={formData.excerpt}
                   onChange={handleInputChange}
-                  rows={4}
-                  placeholder="Brief summary of the blog post..."
+                  rows={3}
+                  placeholder="Brief summary of the blog post (shows on listing page)..."
                   className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 transition text-sm resize-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block flex items-center gap-2">
+                  <AlignLeft size={14} /> Full Blog Content
+                </label>
+                <textarea
+                  name="content"
+                  value={formData.content}
+                  onChange={handleInputChange}
+                  rows={8}
+                  placeholder="Write the full story here. No character limits..."
+                  className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 transition text-sm resize-y"
                   required
                 />
               </div>

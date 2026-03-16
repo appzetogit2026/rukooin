@@ -126,7 +126,8 @@ const BlogsPage = () => {
                 {blogs.slice(0, 3).map((blog) => (
                   <div
                     key={blog._id}
-                    className="relative h-28 rounded-2xl overflow-hidden group border border-slate-800/80 bg-slate-900/80"
+                    onClick={() => navigate(`/blogs/${blog._id}`)}
+                    className="relative h-28 rounded-2xl overflow-hidden group border border-slate-800/80 bg-slate-900/80 cursor-pointer"
                   >
                     <img
                       src={blog.image}
@@ -169,7 +170,8 @@ const BlogsPage = () => {
             blogs.map((blog) => (
               <article
                 key={blog._id}
-                className="group rounded-3xl border border-slate-800/80 bg-linear-to-b from-slate-900/90 to-slate-950/90 overflow-hidden shadow-[0_16px_50px_rgba(0,0,0,0.7)] hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.85)] transition-transform duration-300"
+                onClick={() => navigate(`/blogs/${blog._id}`)}
+                className="group rounded-3xl border border-slate-800/80 bg-linear-to-b from-slate-900/90 to-slate-950/90 overflow-hidden shadow-[0_16px_50px_rgba(0,0,0,0.7)] hover:-translate-y-1 hover:shadow-[0_24px_80px_rgba(0,0,0,0.85)] transition-all duration-300 cursor-pointer"
               >
               <div className="relative h-44 overflow-hidden">
                 <img
@@ -199,7 +201,10 @@ const BlogsPage = () => {
                     <Clock size={13} className="text-slate-400" />
                     {blog.readTime}
                   </span>
-                  <button className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300 group-hover:text-emerald-200">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); navigate(`/blogs/${blog._id}`); }}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300 group-hover:text-emerald-200"
+                  >
                     Read story
                     <ArrowRight
                       size={14}
