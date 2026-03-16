@@ -129,8 +129,11 @@ export const verifyPayment = async (req, res) => {
       if (booking.paymentMethod !== 'prepaid') {
         booking.paymentStatus = 'paid';
         booking.paymentMethod = 'razorpay'; // Only overwrite if not prepaid
+        booking.amountPaid = booking.totalAmount;
+        booking.remainingAmount = 0;
       } else {
         booking.paymentStatus = 'partial';
+        // For prepaid, amountPaid and remainingAmount are already set correctly in createBooking
       }
       booking.bookingStatus = 'confirmed';
       booking.paymentId = razorpay_payment_id;

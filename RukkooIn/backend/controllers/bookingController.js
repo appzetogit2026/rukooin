@@ -307,8 +307,8 @@ export const createBooking = async (req, res) => {
       couponCode: appliedCoupon,
       totalAmount,
       prepaidDiscount: prepaidDiscountAmount,
-      amountPaid: paymentMethod === 'prepaid' ? advanceAmount : 0,
-      remainingAmount: paymentMethod === 'prepaid' ? remainingAmount : 0,
+      amountPaid: paymentMethod === 'wallet' ? totalAmount : (paymentMethod === 'prepaid' ? advanceAmount : 0),
+      remainingAmount: (paymentMethod === 'pay_at_hotel' || paymentMethod === 'razorpay' || paymentMethod === 'online') ? totalAmount : (paymentMethod === 'prepaid' ? remainingAmount : 0),
       paymentMethod,
       bookingStatus: 'confirmed', // Default confirmed for pay_at_hotel/wallet, pending for razorpay
       paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid'
@@ -324,6 +324,10 @@ export const createBooking = async (req, res) => {
       }
 
       await wallet.debit(deductionAmount, `Booking #${bookingId}`, bookingId, 'booking');
+
+      // Update booking paid amount since wallet was used
+      booking.amountPaid = (booking.amountPaid || 0) + deductionAmount;
+      booking.remainingAmount = Math.max(0, booking.remainingAmount - deductionAmount);
 
       if (paymentMethod === 'wallet' || (['online', 'razorpay', 'prepaid'].includes(paymentMethod) && (totalAmount - (walletDeduction || 0) <= 0))) {
         booking.paymentStatus = 'paid'; // If prepaid is fully paid by wallet, there is still remaining amount for hotel.
@@ -952,8 +956,10 @@ export const markBookingAsPaid = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Booking is already marked as paid.', booking });
     }
 
-    // Update Status
+    // Update Status and Payment tracking
     booking.paymentStatus = 'paid';
+    booking.amountPaid = booking.totalAmount;
+    booking.remainingAmount = 0;
     await booking.save();
 
     // --- WALLET SETTLEMENT (Pay at Hotel) ---
