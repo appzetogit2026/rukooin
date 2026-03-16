@@ -308,7 +308,7 @@ export const createBooking = async (req, res) => {
       totalAmount,
       prepaidDiscount: prepaidDiscountAmount,
       amountPaid: paymentMethod === 'wallet' ? totalAmount : (paymentMethod === 'prepaid' ? advanceAmount : 0),
-      remainingAmount: (paymentMethod === 'pay_at_hotel' || paymentMethod === 'razorpay' || paymentMethod === 'online') ? totalAmount : (paymentMethod === 'prepaid' ? remainingAmount : 0),
+      remainingAmount: (['pay_at_hotel', 'razorpay', 'online'].includes(paymentMethod)) ? totalAmount : (paymentMethod === 'prepaid' ? remainingAmount : 0),
       paymentMethod,
       bookingStatus: 'confirmed', // Default confirmed for pay_at_hotel/wallet, pending for razorpay
       paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid'

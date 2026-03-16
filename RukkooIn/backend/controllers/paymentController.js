@@ -179,7 +179,7 @@ export const verifyPayment = async (req, res) => {
         totalAmount: Number(notes.totalAmount),
         prepaidDiscount: Number(notes.prepaidDiscountAmount) || 0,
         amountPaid: Number(notes.advanceAmount) || Number(notes.totalAmount),
-        remainingAmount: Number(notes.remainingAmount) || 0,
+        remainingAmount: Number(notes.remainingAmount) || (Number(notes.totalAmount) - (Number(notes.amountPaid) || 0)) || 0,
         paymentStatus: notes.paymentMethod === 'prepaid' ? 'partial' : 'paid',
         bookingStatus: 'confirmed',
         paymentMethod: notes.paymentMethod || 'online',

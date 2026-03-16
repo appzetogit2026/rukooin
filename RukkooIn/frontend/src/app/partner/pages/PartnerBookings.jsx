@@ -102,11 +102,15 @@ const BookingCard = ({ booking }) => {
                     <span className="font-bold text-gray-600 text-xs">₹{booking.partnerPayout?.toLocaleString('en-IN') || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${booking.remainingAmount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {booking.remainingAmount > 0 ? 'Collect at Hotel' : 'Total Paid'}
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${(booking.remainingAmount > 0 || booking.paymentStatus === 'pending') ? 'text-red-500' : 'text-gray-400'}`}>
+                        {(booking.remainingAmount > 0 || booking.paymentStatus === 'pending') ? 'Collect at Hotel' : 'Total Paid'}
                     </span>
-                    <span className={`font-black text-xl ${booking.remainingAmount > 0 ? 'text-red-600' : 'text-[#004F4D]'}`}>
-                        ₹{booking.remainingAmount?.toLocaleString('en-IN') || booking.totalAmount?.toLocaleString('en-IN')}
+                    <span className={`font-black text-xl ${(booking.remainingAmount > 0 || booking.paymentStatus === 'pending') ? 'text-red-600' : 'text-[#004F4D]'}`}>
+                        ₹{booking.remainingAmount > 0 
+                            ? booking.remainingAmount.toLocaleString('en-IN') 
+                            : (booking.paymentStatus === 'pending' 
+                                ? booking.totalAmount?.toLocaleString('en-IN') 
+                                : (booking.amountPaid?.toLocaleString('en-IN') || booking.totalAmount?.toLocaleString('en-IN')))}
                     </span>
                 </div>
             </div>

@@ -253,15 +253,17 @@ const PartnerBookingDetail = () => {
             </div>
 
             {/* 7. Collection Status (CRITICAL - HIGH VISIBILITY) */}
-            <div className="mt-4 p-4 bg-red-50 rounded-2xl border-2 border-red-100 space-y-2 shadow-sm">
+            <div className={`mt-4 p-4 rounded-2xl border-2 space-y-2 shadow-sm ${booking.remainingAmount > 0 || booking.paymentStatus === 'pending' ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
               <div className="flex justify-between items-center text-[10px]">
-                <span className="text-gray-500 font-bold uppercase">Already Paid Online</span>
-                <span className="text-gray-900 font-bold">₹{booking.amountPaid.toLocaleString()}</span>
+                <span className="text-gray-500 font-bold uppercase tracking-wider">{booking.remainingAmount === 0 && booking.paymentStatus === 'paid' ? 'Total Paid Online' : 'Already Paid Online'}</span>
+                <span className="text-gray-900 font-bold">₹{(booking.amountPaid > 0 ? booking.amountPaid : (booking.paymentStatus === 'paid' ? booking.totalAmount : 0)).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-red-200/50">
-                <span className="text-red-800 font-black text-sm uppercase tracking-tight">COLLECT AT HOTEL</span>
-                <span className="text-red-600 font-black text-2xl animate-pulse-subtle">
-                  ₹{booking.remainingAmount.toLocaleString()}
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200/50">
+                <span className={`${booking.remainingAmount > 0 || booking.paymentStatus === 'pending' ? 'text-red-800' : 'text-green-800'} font-black text-sm uppercase tracking-tight`}>
+                  {booking.remainingAmount > 0 || booking.paymentStatus === 'pending' ? 'COLLECT AT HOTEL' : 'BALANCED / PAID'}
+                </span>
+                <span className={`${booking.remainingAmount > 0 || booking.paymentStatus === 'pending' ? 'text-red-600' : 'text-green-600'} font-black text-2xl`}>
+                  ₹{(booking.remainingAmount > 0 ? booking.remainingAmount : (booking.paymentStatus === 'pending' ? booking.totalAmount : 0)).toLocaleString()}
                 </span>
               </div>
             </div>
