@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import smsService from '../utils/smsService.js';
+import whatsappService from '../utils/whatsappService.js';
 import referralService from '../services/referralService.js';
 
 // Initialize Razorpay
@@ -319,6 +320,11 @@ export const verifyPayment = async (req, res) => {
           title: 'Booking Confirmed!',
           body: `You are going to ${property.name || 'Hotel'}.`
         }, { type: 'booking', bookingId: populatedBooking._id }, 'user').catch(err => console.error('User Push failed:', err));
+      }
+
+      // WhatsApp Notification
+      if (populatedBooking.bookingStatus === 'confirmed') {
+        whatsappService.sendBookingConfirmation(populatedBooking).catch(err => console.error('WhatsApp trigger failed:', err));
       }
 
       // 3. Partner Notifications

@@ -488,6 +488,14 @@ export const hotelService = {
       console.warn('Partner FCM Token Update Failed:', error);
       return null;
     }
+  },
+  deletePartnerAccount: async () => {
+    try {
+      const response = await api.delete('/partners/profile');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
   }
 };
 
@@ -563,6 +571,14 @@ export const userService = {
   markAllNotificationsRead: async () => {
     try {
       const response = await api.put('/users/notifications/read-all');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+  deleteAccount: async () => {
+    try {
+      const response = await api.delete('/users/profile');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

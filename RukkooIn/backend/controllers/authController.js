@@ -80,6 +80,14 @@ export const sendOtp = async (req, res) => {
           isBlocked: true
         });
       }
+
+      if (user.isDeleted) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deleted. Please contact support for restoration.',
+          isDeleted: true
+        });
+      }
     }
 
     // FOR REGISTER: Check if phone or email already exists
@@ -283,6 +291,14 @@ export const verifyOtp = async (req, res) => {
           success: false,
           message: 'Your account has been blocked by admin. Please contact support.',
           isBlocked: true
+        });
+      }
+
+      if (user.isDeleted) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deleted. Please contact support for restoration.',
+          isDeleted: true
         });
       }
       // OTP Verification

@@ -1,5 +1,6 @@
 import Notification from '../models/Notification.js';
 import Partner from '../models/Partner.js';
+import Property from '../models/Property.js';
 
 /**
  * @desc    Update FCM Token for Partner
@@ -163,6 +164,32 @@ export const deleteNotifications = async (req, res) => {
     res.json({ success: true, message: 'Notifications deleted' });
   } catch (error) {
     console.error('Delete Notifications Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+/**
+ * @desc    Delete partner account (Soft Delete)
+ * @route   DELETE /api/partners/profile
+ * @access  Private
+ */
+export const deletePartnerAccount = async (req, res) => {
+  try {
+    const partner = await Partner.findById(req.user._id);
+    if (!partner) return res.status(404).json({ message: 'Partner not found' });
+
+    partner.isDeleted = true;
+    partner.fcmTokens = { app: null, web: null };
+    await partner.save();
+
+    // Deactivate all properties linked to this partner
+    await Property.updateMany(
+      { partnerId: req.user._id },
+      { $set: { status: 'cancelled', isLive: false } }
+    );
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete Partner Account Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

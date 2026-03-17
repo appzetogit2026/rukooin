@@ -362,3 +362,23 @@ export const markAllNotificationsRead = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+/**
+ * @desc    Delete user account (Soft Delete)
+ * @route   DELETE /api/users/profile
+ * @access  Private
+ */
+export const deleteUserAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.isDeleted = true;
+    user.fcmTokens = { app: null, web: null };
+    await user.save();
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete User Account Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

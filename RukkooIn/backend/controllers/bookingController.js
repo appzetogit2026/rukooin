@@ -14,6 +14,7 @@ import emailService from '../services/emailService.js';
 import notificationService from '../services/notificationService.js';
 import referralService from '../services/referralService.js';
 import User from '../models/User.js';
+import whatsappService from '../utils/whatsappService.js';
 
 // Initialize Razorpay instance for refunds
 let razorpayInstance;
@@ -114,6 +115,11 @@ const triggerBookingNotifications = async (booking) => {
       title: 'New Booking Confirmed 💰',
       body: `Booking #${fullBooking.bookingId} at ${property?.propertyName || 'Property'}. Amount: ₹${fullBooking.totalAmount}.`
     }, { type: 'new_booking', bookingId: fullBooking._id }).catch(err => console.error('Admin Push failed:', err));
+
+    // 5. WhatsApp Notification (User)
+    if (fullBooking.bookingStatus === 'confirmed') {
+      whatsappService.sendBookingConfirmation(fullBooking).catch(err => console.error('WhatsApp trigger failed:', err));
+    }
 
   } catch (err) {
     console.error('Trigger Notification Error:', err);

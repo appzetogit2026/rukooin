@@ -29,6 +29,7 @@ const partnerSchema = new mongoose.Schema({
   },
   isPartner: { type: Boolean, default: true },
   isBlocked: { type: Boolean, default: false },
+  isDeleted: { type: Boolean, default: false },
   partnerApprovalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   partnerSince: {
     type: Date,
