@@ -21,7 +21,7 @@ export const checkExists = async (req, res) => {
     let Model = role === 'partner' ? Partner : User;
 
     if (phone) {
-      const existingByPhone = await Model.findOne({ phone });
+      const existingByPhone = await Model.findOne({ phone, isDeleted: false });
       if (existingByPhone) {
         return res.status(409).json({
           message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this phone number already exists.`,
@@ -32,7 +32,7 @@ export const checkExists = async (req, res) => {
 
     if (email) {
       const normalizedEmail = email.trim().toLowerCase();
-      const existingByEmail = await Model.findOne({ email: normalizedEmail });
+      const existingByEmail = await Model.findOne({ email: normalizedEmail, isDeleted: false });
       if (existingByEmail) {
         return res.status(409).json({
           message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this email address already registered.`,
@@ -82,11 +82,8 @@ export const sendOtp = async (req, res) => {
       }
 
       if (user.isDeleted) {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account has been deleted. Please contact support for restoration.',
-          isDeleted: true
-        });
+        // We allow them to request OTP. Re-activation happens in verifyOtp.
+        console.log(`[AUTH] Deleted account ${phone} requesting OTP for re-activation.`);
       }
     }
 
@@ -98,7 +95,7 @@ export const sendOtp = async (req, res) => {
       }
 
       // 1. Check Phone
-      const existingByPhone = await Model.findOne({ phone });
+      const existingByPhone = await Model.findOne({ phone, isDeleted: false });
       if (existingByPhone) {
         return res.status(409).json({
           message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this phone number already exists. Please login instead.`,
@@ -114,7 +111,7 @@ export const sendOtp = async (req, res) => {
           return res.status(400).json({ message: 'Invalid email format' });
         }
 
-        const existingByEmail = await Model.findOne({ email });
+        const existingByEmail = await Model.findOne({ email, isDeleted: false });
         if (existingByEmail) {
           return res.status(409).json({
             message: `${role.charAt(0).toUpperCase() + role.slice(1)} with this email address already registered. Please use another email or login.`,
@@ -203,36 +200,59 @@ export const registerPartner = async (req, res) => {
     }
 
     // Check if partner already exists
-    const existingPartner = await Partner.findOne({ $or: [{ email }, { phone }] });
-    if (existingPartner) {
+    let partner = await Partner.findOne({ $or: [{ email }, { phone }] });
+    if (partner && !partner.isDeleted) {
       return res.status(409).json({ message: 'Partner with this email or phone already exists' });
     }
 
-    // Generate random password for partner (they'll login via OTP)
+    const isRestoration = !!(partner && partner.isDeleted);
+
+    // Generate random password for partner
     const randomPassword = Math.random().toString(36).slice(-8);
     const passwordHash = await bcrypt.hash(randomPassword, 10);
 
-    // Create Partner directly with pending approval
-    const newPartner = new Partner({
-      name: full_name,
-      email,
-      phone,
-      password: passwordHash,
-      role: 'partner',
-      isPartner: true,
-      partnerApprovalStatus: 'pending',
-      isVerified: false,
-      ownerName: full_name,
-      aadhaarNumber: aadhaar_number,
-      aadhaarFront: aadhaarFrontUrl,
-      aadhaarBack: aadhaarBackUrl,
-      panNumber: pan_number,
-      panCardImage: panImageUrl,
-      address: {},
-      termsAccepted
-    });
+    if (isRestoration) {
+      // Re-fill the deleted record
+      partner.isDeleted = false;
+      partner.name = full_name;
+      partner.email = email;
+      partner.password = passwordHash;
+      partner.role = 'partner';
+      partner.isPartner = true;
+      partner.partnerApprovalStatus = 'pending';
+      partner.isVerified = false;
+      partner.ownerName = full_name;
+      partner.aadhaarNumber = aadhaar_number;
+      partner.aadhaarFront = aadhaarFrontUrl;
+      partner.aadhaarBack = aadhaarBackUrl;
+      partner.panNumber = pan_number;
+      partner.panCardImage = panImageUrl;
+      partner.address = {};
+      partner.termsAccepted = termsAccepted;
+      console.log(`[AUTH] Deleted partner account ${partner._id} restored during registration.`);
+    } else {
+      // Create fresh record
+      partner = new Partner({
+        name: full_name,
+        email,
+        phone,
+        password: passwordHash,
+        role: 'partner',
+        isPartner: true,
+        partnerApprovalStatus: 'pending',
+        isVerified: false,
+        ownerName: full_name,
+        aadhaarNumber: aadhaar_number,
+        aadhaarFront: aadhaarFrontUrl,
+        aadhaarBack: aadhaarBackUrl,
+        panNumber: pan_number,
+        panCardImage: panImageUrl,
+        address: {},
+        termsAccepted
+      });
+    }
 
-    await newPartner.save();
+    await partner.save();
 
     // Referral processing removed for partners
 
@@ -242,11 +262,11 @@ export const registerPartner = async (req, res) => {
     notificationService.sendToAdmins({
       title: 'New Partner Registration',
       body: `${full_name} has registered as a partner and is pending approval.`
-    }, { type: 'partner_registration', partnerId: newPartner._id }).catch(err => console.error('Failed to notify admins:', err));
+    }, { type: 'partner_registration', partnerId: partner._id }).catch(err => console.error('Failed to notify admins:', err));
 
     // Send welcome email to partner
     if (email) {
-      emailService.sendPartnerRegistrationEmail(newPartner).catch(err =>
+      emailService.sendPartnerRegistrationEmail(partner).catch(err =>
         console.error('Failed to send partner registration email:', err)
       );
     }
@@ -255,11 +275,11 @@ export const registerPartner = async (req, res) => {
       success: true,
       message: 'Registration successful! Your account is pending admin approval. You can login once approved.',
       partner: {
-        id: newPartner._id,
-        name: newPartner.name,
-        email: newPartner.email,
-        phone: newPartner.phone,
-        partnerApprovalStatus: newPartner.partnerApprovalStatus
+        id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        partnerApprovalStatus: partner.partnerApprovalStatus
       }
     });
 
@@ -281,9 +301,51 @@ export const verifyOtp = async (req, res) => {
     // Select Model based on Role
     let Model = role === 'partner' ? Partner : User;
 
-    // 1. Check if it's an existing user (Login Flow)
+    // 1. Find User (if any)
     let user = await Model.findOne({ phone }).select('+otp +otpExpires');
+    
+    // 2. Find registration-flow OTP Record (if any)
+    const otpRecord = await Otp.findOne({ phone });
+
     let isRegistration = false;
+    let verified = false;
+
+    // Try verifying with User OTP (Existing User/Login Flow)
+    if (user && user.otp && user.otp === otp && user.otpExpires >= Date.now()) {
+      verified = true;
+      user.otp = undefined;
+      user.otpExpires = undefined;
+      
+      // If found but deleted, this is a direct login-based re-activation
+      if (user.isDeleted) {
+        user.isDeleted = false;
+        console.log(`[AUTH] Account ${user._id} re-activated via Login flow.`);
+      }
+    } 
+    // Try verifying with Otp Record (Registration Flow / Deleted Account Recovery)
+    else if (otpRecord && otpRecord.otp === otp && otpRecord.expiresAt >= Date.now()) {
+      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
+        return res.status(400).json({ message: 'Invalid role context.' });
+      }
+      verified = true;
+      
+      if (user) {
+        // Exists but was deleted (handled via registration path)
+        if (user.isDeleted) {
+           user.isDeleted = false;
+           console.log(`[AUTH] Account ${user._id} re-activated via Registration flow.`);
+        }
+      } else {
+        // Truly a new user
+        isRegistration = true;
+      }
+      
+      await Otp.deleteOne({ phone });
+    }
+
+    if (!verified) {
+      return res.status(400).json({ message: 'Invalid OTP or OTP has expired. Please request OTP again.' });
+    }
 
     if (user) {
       if (user.isBlocked) {
@@ -293,40 +355,8 @@ export const verifyOtp = async (req, res) => {
           isBlocked: true
         });
       }
-
-      if (user.isDeleted) {
-        return res.status(403).json({
-          success: false,
-          message: 'Your account has been deleted. Please contact support for restoration.',
-          isDeleted: true
-        });
-      }
-      // OTP Verification
-      // ... (existing logic)
-      // ... (existing login logic)
-      if (user.otp !== otp) {
-        return res.status(400).json({ message: 'Invalid OTP' });
-      }
-      if (user.otpExpires < Date.now()) {
-        return res.status(400).json({ message: 'OTP has expired' });
-      }
-      user.otp = undefined;
-      user.otpExpires = undefined;
     } else {
-      // 2. Registration Flow (User/Partner not created yet)
-      const otpRecord = await Otp.findOne({ phone });
-      if (!otpRecord) {
-        return res.status(400).json({ message: 'Invalid request or OTP expired. Please request OTP again.' });
-      }
-      if (otpRecord.otp !== otp) {
-        return res.status(400).json({ message: 'Invalid OTP' });
-      }
-      if (otpRecord.tempData && otpRecord.tempData.role && otpRecord.tempData.role !== role) {
-        return res.status(400).json({ message: 'Invalid role context.' });
-      }
-
-      // If it's just a verification call (e.g. for Partner Wizard), return success
-      // We don't create the user/partner yet if they are in a multi-step wizard
+      // Create new user (Truly first time)
       if (req.query.verifyOnly === 'true') {
         return res.status(200).json({ success: true, message: 'OTP verified successfully' });
       }
