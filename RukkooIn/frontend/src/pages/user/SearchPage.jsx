@@ -63,6 +63,24 @@ const SearchPage = () => {
         fetchProperties();
     }, [searchParams, location]);
 
+    // Live Search: Debounced update of searchParams when typing
+    useEffect(() => {
+        // Don't sync if search in URL is already same as in filters
+        if (filters.search === (searchParams.get('search') || '')) return;
+
+        const timer = setTimeout(() => {
+            const params = Object.fromEntries([...searchParams]);
+            if (filters.search) {
+                params.search = filters.search;
+            } else {
+                delete params.search;
+            }
+            setSearchParams(params);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [filters.search]);
+
     const fetchProperties = async () => {
         setLoading(true);
         try {

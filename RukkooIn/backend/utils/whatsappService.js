@@ -71,13 +71,14 @@ class WhatsAppService {
         pass: this.pass,
         sender: this.sender,
         phone: normalizedPhone,
-        text: this.template,
-        priority: 'wa',
-        stype: this.stype, // Changed from hardcoded 'wa' to dynamic (utility/auth)
-       Params: variables.join(',')
+        tid: this.template,        // Template Name
+        stype: 'wa',               // Standard WhatsApp type
+        type: this.stype,          // Using category from .env (marketing)
+        priority: 'ndnd',
+        text: variables.join(',')
       };
 
-      console.log(`📨 Sending WhatsApp Template [${this.template}] to ${normalizedPhone} (SType: ${this.stype})...`);
+      console.log(`📨 Sending WhatsApp Template [${this.template}] to ${normalizedPhone} (Category: ${this.stype})...`);
       
       const response = await axios.get(this.apiUrl, { 
         params,
