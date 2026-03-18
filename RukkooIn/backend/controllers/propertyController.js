@@ -443,7 +443,8 @@ export const getPublicProperties = async (req, res) => {
       lng,
       radius = 50, // default 50km
       guests,
-      sort
+      sort,
+      suitability
     } = req.query;
 
     const pipeline = [];
@@ -490,6 +491,18 @@ export const getPublicProperties = async (req, res) => {
         matchConditions.amenities = { $all: amList };
       }
     }
+
+    // Suitability filter: Couple Friendly / Family Friendly also match "Both"
+    if (suitability && suitability !== 'all') {
+      if (suitability === 'Couple Friendly') {
+        matchConditions.suitability = { $in: ['Couple Friendly', 'Both'] };
+      } else if (suitability === 'Family Friendly') {
+        matchConditions.suitability = { $in: ['Family Friendly', 'Both'] };
+      } else if (suitability === 'Both') {
+        matchConditions.suitability = 'Both';
+      }
+    }
+
 
     if (Object.keys(matchConditions).length > 0) {
       pipeline.push({ $match: matchConditions });

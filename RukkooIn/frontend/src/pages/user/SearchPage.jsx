@@ -14,6 +14,10 @@ const SearchPage = () => {
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false); // Mobile toggle
 
+    // Unified amenities list — matches exactly with partner wizard naming
+    const AMENITIES_LIST = ['Wi-Fi', 'AC', 'TV', 'Parking', 'Swimming Pool', 'Gym', 'Spa', 'Restaurant', 'Room Service', 'Lift', 'Bar', 'Geyser', 'Power Backup', 'Kitchen'];
+    const SUITABILITY_OPTIONS = ['Couple Friendly', 'Family Friendly', 'Both'];
+
     // Filters State
     const [filters, setFilters] = useState({
         search: searchParams.get('search') || '',
@@ -24,6 +28,7 @@ const SearchPage = () => {
         maxPrice: searchParams.get('maxPrice') || '',
         sort: searchParams.get('sort') || 'newest',
         amenities: [],
+        suitability: searchParams.get('suitability') || '',
         radius: 50
     });
 
@@ -141,6 +146,7 @@ const SearchPage = () => {
         if (filters.maxPrice) params.maxPrice = filters.maxPrice;
         if (filters.sort) params.sort = filters.sort;
         if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
+        if (filters.suitability) params.suitability = filters.suitability;
 
         setSearchParams(params);
         setShowFilters(false); // Close mobile menu if open
@@ -304,6 +310,7 @@ const SearchPage = () => {
                                     maxPrice: '',
                                     sort: 'newest',
                                     amenities: [],
+                                    suitability: '',
                                     radius: 50
                                 });
                                 setLocation(null);
@@ -349,7 +356,8 @@ const SearchPage = () => {
                                         type: 'all',
                                         minPrice: '',
                                         maxPrice: '',
-                                        amenities: []
+                                        amenities: [],
+                                        suitability: ''
                                     }));
                                 }}
                                 className="text-xs font-bold text-red-500 hover:text-red-600"
@@ -432,11 +440,30 @@ const SearchPage = () => {
                             </div>
                         </div>
 
+                        {/* Suitability */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Suitable For</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {SUITABILITY_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => updateFilter('suitability', filters.suitability === opt ? '' : opt)}
+                                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all
+                                        ${filters.suitability === opt
+                                                ? 'bg-[#004F4D]/10 text-[#004F4D] border-[#004F4D]'
+                                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Amenities */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amenities</label>
                             <div className="flex flex-wrap gap-1.5">
-                                {['Wi-Fi', 'AC', 'TV', 'Parking', 'Pool', 'Kitchen', 'Geyser', 'Power Backup'].map((amenity) => (
+                                {AMENITIES_LIST.map((amenity) => (
                                     <button
                                         key={amenity}
                                         onClick={() => {

@@ -9,7 +9,7 @@ import { isFlutterApp, openFlutterCamera } from '../../../utils/flutterBridge';
 const REQUIRED_DOCS_HOTEL = [
   { type: "trade_license", name: "Trade License", required: true }
 ];
-const HOTEL_AMENITIES = ["Lift", "Restaurant", "Room Service", "Swimming Pool", "Parking", "Gym", "Spa", "Bar"];
+const HOTEL_AMENITIES = ["Wi-Fi", "AC", "TV", "Parking", "Swimming Pool", "Gym", "Spa", "Restaurant", "Room Service", "Lift", "Bar", "Geyser", "Power Backup", "Kitchen", "Laundry"];
 const HOUSE_RULES_OPTIONS = ["No smoking", "No pets", "No loud music", "ID required at check-in", "Visitors not allowed"];
 const ROOM_AMENITIES = [
   { key: 'ac', label: 'AC', icon: Snowflake },
