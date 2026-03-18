@@ -267,16 +267,16 @@ const UserSignup = () => {
                                                 type="text"
                                                 value={formData.referralCode}
                                                 onChange={(e) => setFormData({ ...formData, referralCode: e.target.value.toUpperCase() })}
-                                                placeholder="FRIEND200"
+                                                placeholder="FRIEND100"
                                                 className="w-full pl-12 pr-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder:text-emerald-200 font-bold tracking-widest text-emerald-900"
                                             />
                                             {formData.referralCode && (
                                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                                    <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-bold">₹200 OFF</span>
+                                                    <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-bold">₹100 OFF</span>
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-[10px] text-emerald-600/70 mt-2 font-medium">Use a friend's code to get ₹200 off your first stay!</p>
+                                        <p className="text-[10px] text-emerald-600/70 mt-2 font-medium">Use a friend's code to get ₹100 off your first stay!</p>
                                     </div>
 
                                     {error && (

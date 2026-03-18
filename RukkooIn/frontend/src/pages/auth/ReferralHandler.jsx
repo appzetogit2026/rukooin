@@ -26,7 +26,7 @@ const ReferralHandler = () => {
         <Loader2 size={32} className="animate-spin text-accent" />
       </div>
       <h2 className="text-xl font-bold tracking-tight">Validating Referral...</h2>
-      <p className="text-white/50 text-sm mt-2">Setting up your ₹200 discount</p>
+      <p className="text-white/50 text-sm mt-2">Setting up your ₹100 discount</p>
     </div>
   );
 };
