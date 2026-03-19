@@ -1,6 +1,13 @@
 import Blog from '../models/Blog.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 
+const generateSlug = (text) => {
+  return text.toLowerCase().trim()
+    .replace(/[^\w\s-]/g, '') // remove special chars
+    .replace(/[\s\-_]+/g, '-') // spaces to dashes
+    .replace(/^-+|-+$/g, ''); // trim dashes
+};
+
 // Get all blogs
 export const getAllBlogs = async (req, res) => {
   try {
@@ -20,7 +27,7 @@ export const getAllBlogs = async (req, res) => {
 // Create a new blog
 export const createBlog = async (req, res) => {
   try {
-    const { title, category, readTime, badge, excerpt, content } = req.body;
+    const { title, category, readTime, badge, excerpt, content, seoTitle, seoDescription, seoKeywords } = req.body;
     let imageUrl = req.body.image; // Fallback to URL if provided
 
     // If a file is uploaded, use Cloudinary
@@ -36,6 +43,13 @@ export const createBlog = async (req, res) => {
       });
     }
     
+    // Generate unique slug
+    let slug = generateSlug(title);
+    const existingBlog = await Blog.findOne({ slug });
+    if (existingBlog) {
+      slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
+    }
+
     const newBlog = new Blog({
       title,
       category,
@@ -43,7 +57,11 @@ export const createBlog = async (req, res) => {
       badge,
       image: imageUrl,
       excerpt,
-      content
+      content,
+      slug,
+      seoTitle: seoTitle || title,
+      seoDescription: seoDescription || excerpt,
+      seoKeywords: seoKeywords || ''
     });
 
     await newBlog.save();
@@ -70,6 +88,12 @@ export const updateBlog = async (req, res) => {
     if (req.file) {
       const uploadResult = await uploadToCloudinary(req.file.path, 'blogs');
       updateData.image = uploadResult.url;
+    }
+
+    // Generate slug for legacy nodes that didn't have one
+    const currentBlog = await Blog.findById(id);
+    if (currentBlog && !currentBlog.slug && req.body.title) {
+       updateData.slug = generateSlug(req.body.title);
     }
 
     const updatedBlog = await Blog.findByIdAndUpdate(id, updateData, { new: true });

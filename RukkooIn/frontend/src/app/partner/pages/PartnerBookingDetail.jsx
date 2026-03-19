@@ -189,11 +189,11 @@ const PartnerBookingDetail = () => {
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="p-2.5 bg-gray-50 rounded-xl">
               <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Check-in</p>
-              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkInDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}</p>
             </div>
             <div className="p-2.5 bg-gray-50 rounded-xl">
               <p className="text-[9px] text-gray-400 font-bold uppercase mb-0.5">Check-out</p>
-              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkOutDate).toLocaleDateString()}</p>
+              <p className="font-bold text-gray-900 text-sm">{new Date(booking.checkOutDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}</p>
             </div>
           </div>
           <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">

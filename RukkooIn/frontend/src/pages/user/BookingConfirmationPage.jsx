@@ -251,14 +251,14 @@ const BookingConfirmationPage = () => {
                                 <div className="p-4 bg-gray-50 rounded-2xl">
                                     <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-in</p>
                                     <p className="font-bold text-gray-900 text-lg">
-                                        {new Date(booking.checkInDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        {new Date(booking.checkInDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
                                     </p>
                                     <p className="text-xs text-gray-500">{property.checkInTime || '12:00 PM'}</p>
                                 </div>
                                 <div className="p-4 bg-gray-50 rounded-2xl">
                                     <p className="text-xs text-gray-400 font-bold uppercase mb-1">Check-out</p>
                                     <p className="font-bold text-gray-900 text-lg">
-                                        {new Date(booking.checkOutDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        {new Date(booking.checkOutDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
                                     </p>
                                     <p className="text-xs text-gray-500">{property.checkOutTime || '11:00 AM'}</p>
                                 </div>

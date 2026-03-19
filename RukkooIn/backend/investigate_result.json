@@ -1,0 +1,10 @@
+{
+  "bookingId": "BK-1773926725681-631",
+  "checkInDate": "2026-03-22T00:00:00.000Z",
+  "checkOutDate": "2026-03-23T00:00:00.000Z",
+  "checkInISO": "2026-03-22T00:00:00.000Z",
+  "checkOutISO": "2026-03-23T00:00:00.000Z",
+  "checkInLocal": "Sun Mar 22 2026 05:30:00 GMT+0530 (India Standard Time)",
+  "checkOutLocal": "Mon Mar 23 2026 05:30:00 GMT+0530 (India Standard Time)",
+  "createdAt": "2026-03-19T13:25:25.686Z"
+}

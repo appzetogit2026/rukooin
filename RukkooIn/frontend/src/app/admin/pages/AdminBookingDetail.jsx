@@ -174,12 +174,12 @@ const AdminBookingDetail = () => {
                         <div className="p-6 grid grid-cols-2 gap-6">
                             <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Check-in</p>
-                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkInDate || booking.checkIn).toLocaleDateString()}</p>
+                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkInDate || booking.checkIn).toLocaleDateString(undefined, { timeZone: 'UTC' })}</p>
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">After 12:00 PM</p>
                             </div>
                             <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Check-out</p>
-                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkOutDate || booking.checkOut).toLocaleDateString()}</p>
+                                <p className="text-lg font-bold text-gray-900">{new Date(booking.checkOutDate || booking.checkOut).toLocaleDateString(undefined, { timeZone: 'UTC' })}</p>
                                 <p className="text-[10px] font-bold text-gray-500 uppercase">Before 11:00 AM</p>
                             </div>
                             <div className="col-span-2 pt-4 border-t border-gray-100">

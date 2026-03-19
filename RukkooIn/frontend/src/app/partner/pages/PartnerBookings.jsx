@@ -31,7 +31,7 @@ const BookingCard = ({ booking }) => {
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
     };
 
     // Calculate nights

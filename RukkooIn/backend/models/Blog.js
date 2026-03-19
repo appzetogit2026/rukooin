@@ -35,6 +35,23 @@ const blogSchema = new mongoose.Schema({
     type: String,
     required: false // Optional for now, in case we want a full blog view later
   },
+  slug: {
+    type: String,
+    unique: true,
+    sparse: true // Ensures older records don't collide with undefined/empty strings if single item isn't filled
+  },
+  seoTitle: {
+    type: String,
+    default: ''
+  },
+  seoDescription: {
+    type: String,
+    default: ''
+  },
+  seoKeywords: {
+    type: String,
+    default: ''
+  },
   date: {
     type: String,
     default: () => {

@@ -1,0 +1,23 @@
+[
+  {
+    "title": "PARTY SPECIAL",
+    "discountValue": 500
+  },
+  {
+    "title": "WELCOME COUPLE",
+    "discountValue": 200
+  },
+  {
+    "title": "100% FREE ROOM",
+    "discountValue": 100
+  },
+  {
+    "title": "FREE ROOM",
+    "discountValue": 100
+  },
+  {
+    "title": "summer vibes",
+    "offerType": "banner",
+    "discountValue": null
+  }
+]

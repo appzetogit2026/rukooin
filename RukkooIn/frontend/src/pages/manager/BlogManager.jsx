@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Clock, Layout, BadgeCheck, Type, AlignLeft } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css'; // import styles
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -19,7 +21,10 @@ const BlogManager = () => {
     badge: 'NEW',
     image: '',
     excerpt: '',
-    content: ''
+    content: '',
+    seoTitle: '',
+    seoDescription: '',
+    seoKeywords: ''
   });
 
   useEffect(() => {
@@ -99,7 +104,10 @@ const BlogManager = () => {
       badge: blog.badge,
       image: blog.image,
       excerpt: blog.excerpt || '',
-      content: blog.content || ''
+      content: blog.content || '',
+      seoTitle: blog.seoTitle || '',
+      seoDescription: blog.seoDescription || '',
+      seoKeywords: blog.seoKeywords || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -129,7 +137,10 @@ const BlogManager = () => {
       badge: 'NEW',
       image: '',
       excerpt: '',
-      content: ''
+      content: '',
+      seoTitle: '',
+      seoDescription: '',
+      seoKeywords: ''
     });
   };
 
@@ -304,15 +315,64 @@ const BlogManager = () => {
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block flex items-center gap-2">
                   <AlignLeft size={14} /> Full Blog Content
                 </label>
-                <textarea
-                  name="content"
-                  value={formData.content}
-                  onChange={handleInputChange}
-                  rows={8}
-                  placeholder="Write the full story here. No character limits..."
-                  className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 transition text-sm resize-y"
-                  required
-                />
+                <div className="bg-slate-950/50 border border-slate-700/50 rounded-xl overflow-hidden focus-within:border-emerald-500/50">
+                  <ReactQuill
+                    theme="snow"
+                    value={formData.content}
+                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                    placeholder="Write the full story here. Headings, Links and Lists supported..."
+                    className="text-white bg-transparent"
+                  />
+                </div>
+                {/* Global styles fix for Quill in Dark Mode */}
+                <style>{`
+                  .ql-toolbar.ql-snow { border-color: #334155; background: #0f172a; }
+                  .ql-container.ql-snow { border-color: #334155; }
+                  .ql-editor { min-height: 200px; font-size: 0.875rem; color: white; }
+                  .ql-snow .ql-stroke { stroke: #94a3b8; }
+                  .ql-snow .ql-fill { fill: #94a3b8; }
+                  .ql-snow .ql-picker { color: #94a3b8; }
+                `}</style>
+              </div>
+
+              {/* SEO Settings Settings */}
+              <div className="border-t border-slate-800/50 pt-4 mt-6 space-y-4">
+                <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest">SEO Metadata Settings</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Meta Title (SEO)</label>
+                    <input
+                      type="text"
+                      name="seoTitle"
+                      value={formData.seoTitle}
+                      onChange={handleInputChange}
+                      placeholder="Better Title for Search Engines"
+                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500/50 transition text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Meta Description (SEO)</label>
+                    <textarea
+                      name="seoDescription"
+                      value={formData.seoDescription}
+                      onChange={handleInputChange}
+                      rows={2}
+                      placeholder="Snippet displayed on Google search results..."
+                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500/50 transition text-sm resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1 block">SEO Keywords (Comma items)</label>
+                    <input
+                      type="text"
+                      name="seoKeywords"
+                      value={formData.seoKeywords}
+                      onChange={handleInputChange}
+                      placeholder="e.g. travel, hotels, booking guides"
+                      className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500/50 transition text-sm"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="pt-2">

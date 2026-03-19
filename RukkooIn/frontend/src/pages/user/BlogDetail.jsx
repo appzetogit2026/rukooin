@@ -17,9 +17,17 @@ const BlogDetail = () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/blogs`);
         if (response.data.success) {
-          const foundBlog = response.data.data.find(b => b._id === id);
+          // Find by ID or by Slug for SEO URLs
+          const foundBlog = response.data.data.find(b => b._id === id || b.slug === id);
           if (foundBlog) {
             setBlog(foundBlog);
+            
+            // Set dynamic SEO tags
+            if (foundBlog.seoTitle) document.title = `${foundBlog.seoTitle} | Rukkoo In`;
+            if (foundBlog.seoDescription) {
+              const metaDesc = document.querySelector('meta[name="description"]');
+              if (metaDesc) metaDesc.setAttribute("content", foundBlog.seoDescription);
+            }
           } else {
             console.error('Blog not found');
           }
@@ -133,9 +141,10 @@ const BlogDetail = () => {
         {/* Content Body */}
         <div className="prose prose-invert prose-emerald max-w-none">
           {blog.content ? (
-            <div className="whitespace-pre-wrap text-slate-300 text-lg leading-[1.8] tracking-wide">
-              {blog.content}
-            </div>
+            <div 
+              className="text-slate-300 text-lg leading-[1.8] tracking-wide prose prose-invert prose-emerald"
+              dangerouslySetInnerHTML={{ __html: blog.content }}
+            />
           ) : (
             <div className="text-slate-400 italic py-10 text-center border-y border-slate-800/50">
               Full content for this story is currently being curated. Check back soon.

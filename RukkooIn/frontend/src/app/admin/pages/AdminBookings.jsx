@@ -164,8 +164,8 @@ const AdminBookings = () => {
                 `"${b.propertyId?.propertyName || 'Deleted Hotel'}"`,
                 `"${b.userId?.name || 'Guest Details Missing'}"`,
                 b.userId?.phone || 'N/A',
-                new Date(b.checkInDate).toLocaleDateString(),
-                new Date(b.checkOutDate).toLocaleDateString(),
+                new Date(b.checkInDate).toLocaleDateString(undefined, { timeZone: 'UTC' }),
+                new Date(b.checkOutDate).toLocaleDateString(undefined, { timeZone: 'UTC' }),
                 b.bookingStatus,
                 b.totalAmount
             ].join(','))
@@ -306,10 +306,10 @@ const AdminBookings = () => {
                                                 <td className="p-4">
                                                     <div className="text-[10px] text-gray-600 flex flex-col gap-1 font-bold uppercase">
                                                         <span className="flex items-center gap-1">
-                                                            IN: {booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A'}
+                                                            IN: {booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A'}
                                                         </span>
                                                         <span className="flex items-center gap-1">
-                                                            OUT: {booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A'}
+                                                            OUT: {booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A'}
                                                         </span>
                                                     </div>
                                                 </td>

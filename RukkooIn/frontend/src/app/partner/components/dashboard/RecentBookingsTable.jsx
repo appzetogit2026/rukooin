@@ -60,9 +60,9 @@ const RecentBookingsTable = ({ bookings }) => {
                   {booking.propertyId?.propertyName || booking.property?.name || "Property"}
                 </p>
                 <p className="text-[10px] text-gray-400 font-medium">
-                  {new Date(booking.checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {new Date(booking.checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                   {' - '}
-                  {new Date(booking.checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {new Date(booking.checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
                 </p>
               </div>
               <p className="text-sm font-black text-gray-900">
@@ -99,12 +99,12 @@ const RecentBookingsTable = ({ bookings }) => {
                 </td>
                 <td className="px-6 py-4 text-gray-600">
                   {new Date(booking.checkInDate || booking.checkIn).toLocaleDateString('en-GB', {
-                    day: '2-digit', month: 'short'
+                    day: '2-digit', month: 'short', timeZone: 'UTC'
                   })}
                 </td>
                 <td className="px-6 py-4 text-gray-600">
                   {new Date(booking.checkOutDate || booking.checkOut).toLocaleDateString('en-GB', {
-                    day: '2-digit', month: 'short'
+                    day: '2-digit', month: 'short', timeZone: 'UTC'
                   })}
                 </td>
                 <td className="px-6 py-4 font-medium text-gray-900">
