@@ -156,8 +156,8 @@ export const createBooking = async (req, res) => {
 
     // Fetch Settings
     const settings = await PlatformSettings.getSettings();
-    const gstRate = settings.taxRate || 12;
-    const commissionRate = settings.defaultCommission || 10;
+    const gstRate = settings.taxRate ?? 12;
+    const commissionRate = settings.defaultCommission ?? 10;
 
     // Calculate Nights
     const checkIn = new Date(checkInDate);
