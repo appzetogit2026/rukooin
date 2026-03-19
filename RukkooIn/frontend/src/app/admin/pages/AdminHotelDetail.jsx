@@ -1135,16 +1135,20 @@ const BookingsTab = ({ bookings }) => (
                     {bookings && bookings.length > 0 ? (
                         bookings.map((b, i) => (
                             <tr key={i} className="hover:bg-gray-50">
-                                <td className="p-4 font-mono text-xs text-gray-500">#{b.bookingId || b._id.slice(-6)}</td>
+                                <td className="p-4 font-mono text-xs text-blue-600 hover:underline">
+                                    <Link to={`/admin/bookings/${b._id}`}>
+                                        #{b.bookingId || b._id.slice(-6)}
+                                    </Link>
+                                </td>
                                 <td className="p-4 font-bold text-gray-900 uppercase text-xs">{b.userId?.name || 'Guest'}</td>
-                                <td className="p-4 text-[10px] font-bold uppercase text-gray-400">{new Date(b.checkIn).toLocaleDateString()}</td>
+                                <td className="p-4 text-[10px] font-bold uppercase text-gray-400">{new Date(b.checkInDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}</td>
                                 <td className="p-4">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${b.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                                        b.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                            b.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${b.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-700' :
+                                        b.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                            b.bookingStatus === 'completed' ? 'bg-blue-100 text-blue-700' :
                                                 'bg-amber-100 text-amber-700'
                                         }`}>
-                                        {b.status}
+                                        {b.bookingStatus}
                                     </span>
                                 </td>
                                 <td className="p-4 text-right font-bold">₹{b.totalAmount?.toLocaleString()}</td>
