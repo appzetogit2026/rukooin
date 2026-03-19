@@ -947,13 +947,18 @@ export const getHotelDetails = async (req, res) => {
     const roomTypes = await RoomType.find({ propertyId: id, isActive: true });
     const documents = await PropertyDocument.findOne({ propertyId: id });
 
+    const bookings = await Booking.find({ propertyId: id })
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .lean();
+
     res.status(200).json({
       success: true,
       hotel: {
         ...property.toObject(),
         rooms: roomTypes
       },
-      bookings: [],
+      bookings,
       documents
     });
   } catch (e) {
