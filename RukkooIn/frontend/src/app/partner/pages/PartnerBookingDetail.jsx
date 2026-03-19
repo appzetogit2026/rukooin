@@ -87,6 +87,18 @@ const PartnerBookingDetail = () => {
     }
   };
 
+  const handleCancelBooking = async () => {
+    if (!window.confirm("Are you sure you want to cancel this booking? This will release the inventory block.")) return;
+    try {
+      await bookingService.cancelBooking(id);
+      toast.success("Booking Cancelled Successfully");
+      fetchBooking();
+    } catch (error) {
+      toast.error(error.message || "Cancellation Failed");
+    }
+  };
+
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div></div>;
   if (!booking) return null;
 
@@ -99,6 +111,7 @@ const PartnerBookingDetail = () => {
   const canMarkNoShow = ['confirmed'].includes(booking.bookingStatus);
   const canCheckIn = booking.bookingStatus === 'confirmed';
   const canCheckOut = booking.bookingStatus === 'checked_in';
+  const canCancel = ['confirmed', 'awaiting_payment'].includes(booking.bookingStatus);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -322,6 +335,15 @@ const PartnerBookingDetail = () => {
             className={`bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 active:scale-95 transition-transform flex items-center justify-center gap-2 ${canCheckIn || canCheckOut ? 'col-span-1' : 'col-span-2'}`}
           >
             <AlertTriangle size={18} /> No Show
+          </button>
+        )}
+
+        {canCancel && (
+          <button
+            onClick={handleCancelBooking}
+            className={`bg-red-50 border border-red-200 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 active:scale-95 transition-transform flex items-center justify-center gap-2 ${canCheckIn || canCheckOut ? 'col-span-1' : 'col-span-2'}`}
+          >
+            <XCircle size={18} /> Cancel Booking
           </button>
         )}
       </div>

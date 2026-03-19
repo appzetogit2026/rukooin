@@ -152,7 +152,7 @@ const AdminBookingDetail = () => {
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-[10px] font-bold uppercase text-gray-700 hover:bg-gray-50 transition-colors">
                         <Download size={14} /> Download Receipt
                     </button>
-                    {((booking.bookingStatus || booking.status) === 'confirmed' || (booking.bookingStatus || booking.status) === 'pending') && (
+                    {['confirmed', 'pending', 'awaiting_payment'].includes(booking.bookingStatus || booking.status) && (
                         <button
                             onClick={handleCancel}
                             className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold uppercase hover:bg-red-100 transition-colors"

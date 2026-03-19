@@ -332,7 +332,7 @@ const AdminBookings = () => {
                                                             <Link to={`/admin/bookings/${booking._id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-[10px] font-bold uppercase text-gray-700">
                                                                 <Eye size={14} /> View Details
                                                             </Link>
-                                                            {(booking.bookingStatus === 'confirmed' || booking.bookingStatus === 'pending') && (
+                                                            {['confirmed', 'pending', 'awaiting_payment'].includes(booking.bookingStatus) && (
                                                                 <button
                                                                     onClick={() => handleAction('cancel', booking)}
                                                                     className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-600"

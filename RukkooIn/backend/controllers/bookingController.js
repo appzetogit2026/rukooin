@@ -640,9 +640,12 @@ export const cancelBooking = async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
     // Allow user to cancel or admin/partner
-    if (booking.userId.toString() !== req.user._id.toString()) {
-      // Add logic for partner/admin override if needed
-      // return res.status(403).json({ message: 'Not authorized' });
+    const isOwner = booking.userId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+    const isPartner = req.user.role === 'partner' && booking.propertyId?.partnerId?.toString() === req.user._id.toString();
+
+    if (!isOwner && !isAdmin && !isPartner) {
+      return res.status(403).json({ message: 'Not authorized to cancel this booking' });
     }
 
     if (booking.bookingStatus === 'cancelled') {
@@ -653,7 +656,9 @@ export const cancelBooking = async (req, res) => {
     // Industry Standard: Cancellation must be at least 24 hours before check-in time
     const property = booking.propertyId;
     const checkInTime = property?.checkInTime || '12:00 PM'; // Default to 12 PM if not set
-    const isAllowed = isCancellationAllowed(booking.checkInDate, checkInTime);
+    
+    // Skip policy check for admins
+    const isAllowed = isAdmin || isCancellationAllowed(booking.checkInDate, checkInTime);
 
     if (!isAllowed) {
       const checkInDate = new Date(booking.checkInDate);
