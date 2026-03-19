@@ -56,7 +56,8 @@ export const validateOffer = async (req, res) => {
 
     const offer = await Offer.findOne({
       code: code.toUpperCase(),
-      isActive: true
+      isActive: true,
+      offerType: 'coupon'
     });
 
     if (!offer) {
@@ -121,16 +122,29 @@ export const validateOffer = async (req, res) => {
 export const createOffer = async (req, res) => {
   try {
     const offerData = { ...req.body };
+    const { offerType, title, startDate, endDate, code, discountValue } = offerData;
 
-    // Required fields check (specifically dates as per requirement)
-    if (!offerData.startDate || !offerData.endDate) {
-      return res.status(400).json({ message: "Start date and End date are required" });
+    // Common validations
+    if (!title || !startDate || !endDate) {
+      return res.status(400).json({ message: "Title, Start date and End date are required" });
+    }
+
+    // Coupon specific validations
+    if (offerType === 'coupon' || !offerType) {
+      if (!code) return res.status(400).json({ message: "Coupon code is required for promotions" });
+      if (discountValue === undefined || discountValue === null) return res.status(400).json({ message: "Discount value is required for promotions" });
+    } else if (offerType === 'banner') {
+      // For banners, we might generate a fake code or just leave it empty if uniqueness is not required
+      // But adding a random one avoids issues if our schema still has unique constraint somehow
+      offerData.code = `BANNER_${Date.now()}`;
     }
 
     // If a file was uploaded via multer, upload to Cloudinary
     if (req.file) {
       const result = await uploadToCloudinary(req.file.path, 'offers');
       offerData.image = result.url;
+    } else if (!offerData.image) {
+      return res.status(400).json({ message: "Banner/Offer image is required" });
     }
 
     const offer = new Offer(offerData);

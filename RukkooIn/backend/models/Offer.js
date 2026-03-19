@@ -6,9 +6,13 @@ const offerSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  subtitle: {
+  offerType: {
     type: String,
-    required: true
+    enum: ['coupon', 'banner'],
+    default: 'coupon'
+  },
+  subtitle: {
+    type: String
   },
   description: {
     type: String,
@@ -16,9 +20,7 @@ const offerSchema = new mongoose.Schema({
   },
   code: {
     type: String,
-    required: true,
     uppercase: true,
-    unique: true,
     trim: true
   },
   discountType: {
@@ -27,8 +29,7 @@ const offerSchema = new mongoose.Schema({
     default: 'percentage'
   },
   discountValue: {
-    type: Number,
-    required: true
+    type: Number
   },
   minBookingAmount: {
     type: Number,

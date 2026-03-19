@@ -32,7 +32,8 @@ const AdminOffers = () => {
     endDate: '',
     usageLimit: '1000',
     userLimit: '1',
-    isActive: true
+    isActive: true,
+    offerType: 'coupon'
   });
 
   useEffect(() => {
@@ -78,7 +79,8 @@ const AdminOffers = () => {
       image: offer.image || '',
       usageLimit: offer.usageLimit || '1000',
       userLimit: offer.userLimit || '1',
-      isActive: offer.isActive ?? true
+      isActive: offer.isActive ?? true,
+      offerType: offer.offerType || 'coupon'
     });
     setSelectedOfferId(offer._id);
     setIsEditing(true);
@@ -99,12 +101,17 @@ const AdminOffers = () => {
 
   const validateForm = () => {
     if (!formData.title.trim()) return "Title is required";
-    if (!formData.code.trim()) return "Coupon code is required";
-    if (formData.code.length < 3) return "Code must be at least 3 characters";
-    if (!formData.discountValue || formData.discountValue <= 0) return "Valid discount value is required";
 
-    if (formData.discountType === 'percentage' && formData.discountValue > 100) {
-      return "Percentage discount cannot exceed 100%";
+    if (formData.offerType === 'coupon') {
+      if (!formData.code.trim()) return "Coupon code is required";
+      if (formData.code.length < 3) return "Code must be at least 3 characters";
+      if (!formData.discountValue || formData.discountValue <= 0) return "Valid discount value is required";
+
+      if (formData.discountType === 'percentage' && formData.discountValue > 100) {
+        return "Percentage discount cannot exceed 100%";
+      }
+      if (formData.usageLimit < 1) return "Overall usage limit must be at least 1";
+      if (formData.userLimit < 1) return "User limit must be at least 1";
     }
 
     if (!formData.startDate) return "Start date is required";
@@ -113,9 +120,6 @@ const AdminOffers = () => {
     if (new Date(formData.endDate) < new Date(formData.startDate)) {
       return "End date cannot be before start date";
     }
-
-    if (formData.usageLimit < 1) return "Overall usage limit must be at least 1";
-    if (formData.userLimit < 1) return "User limit must be at least 1";
 
     if (!isEditing && !imageFile) return "Offer image is required";
 
@@ -262,14 +266,18 @@ const AdminOffers = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-5">
                   <div className="flex justify-between items-end">
                     <div>
-                      <span className="bg-accent text-[10px] font-black px-2 py-0.5 rounded uppercase text-white mb-2 inline-block">
-                        {offer.discountValue}{offer.discountType === 'percentage' ? '%' : ' FLAT'} OFF
-                      </span>
+                      {offer.offerType !== 'banner' && (
+                        <span className="bg-accent text-[10px] font-black px-2 py-0.5 rounded uppercase text-white mb-2 inline-block">
+                          {offer.discountValue}{offer.discountType === 'percentage' ? '%' : ' FLAT'} OFF
+                        </span>
+                      )}
                       <h3 className="text-xl font-black text-white leading-tight">{offer.title}</h3>
                     </div>
-                    <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl border border-white/30 text-white font-black text-sm">
-                      {offer.code}
-                    </div>
+                    {offer.offerType !== 'banner' && (
+                      <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl border border-white/30 text-white font-black text-sm">
+                        {offer.code}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${offer.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -280,25 +288,33 @@ const AdminOffers = () => {
               <div className="p-5">
                 <p className="text-xs text-gray-500 font-medium line-clamp-2 mb-4">{offer.subtitle}</p>
 
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-tighter mb-1">Redemptions</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-black text-surface">{offer.usageCount || 0}</span>
-                      <span className="text-[9px] text-gray-400">/ {offer.usageLimit}</span>
+                {offer.offerType !== 'banner' ? (
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-tighter mb-1">Redemptions</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black text-surface">{offer.usageCount || 0}</span>
+                        <span className="text-[9px] text-gray-400">/ {offer.usageLimit}</span>
+                      </div>
+                      <div className="w-full h-1 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                        <div
+                          className="h-full bg-accent transition-all duration-1000"
+                          style={{ width: `${Math.min(100, ((offer.usageCount || 0) / offer.usageLimit) * 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-1 bg-gray-200 rounded-full mt-2 overflow-hidden">
-                      <div
-                        className="h-full bg-accent transition-all duration-1000"
-                        style={{ width: `${Math.min(100, ((offer.usageCount || 0) / offer.usageLimit) * 100)}%` }}
-                      />
+                    <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                      <p className="text-[9px] text-gray-400 font-black uppercase tracking-tighter mb-1">Min. Booking</p>
+                      <span className="text-sm font-black text-surface">₹{offer.minBookingAmount}</span>
                     </div>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-tighter mb-1">Min. Booking</p>
-                    <span className="text-sm font-black text-surface">₹{offer.minBookingAmount}</span>
+                ) : (
+                  <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100 mb-5">
+                     <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest flex items-center gap-2">
+                        <ImageIcon size={12} /> Informational Banner
+                     </p>
                   </div>
-                </div>
+                )}
 
                 <div className="flex gap-2">
                   <button
@@ -346,25 +362,37 @@ const AdminOffers = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="bg-surface text-white px-2 py-1 rounded text-[10px] font-black tracking-widest">
-                      {offer.code}
-                    </span>
+                    {offer.offerType === 'coupon' ? (
+                      <span className="bg-surface text-white px-2 py-1 rounded text-[10px] font-black tracking-widest">
+                        {offer.code}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 font-bold text-xs uppercase tracking-widest">Banner</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm font-black text-surface">
-                      {offer.discountValue}{offer.discountType === 'percentage' ? '%' : ' FLAT'}
+                      {offer.offerType === 'coupon' ? (
+                        `${offer.discountValue}${offer.discountType === 'percentage' ? '%' : ' FLAT'}`
+                      ) : (
+                        '-'
+                      )}
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1 w-24">
-                      <div className="flex justify-between text-[9px] font-bold text-gray-400">
-                        <span>{offer.usageCount || 0}</span>
-                        <span>{offer.usageLimit}</span>
+                    {offer.offerType === 'coupon' ? (
+                      <div className="flex flex-col gap-1 w-24">
+                        <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                          <span>{offer.usageCount || 0}</span>
+                          <span>{offer.usageLimit}</span>
+                        </div>
+                        <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-accent" style={{ width: `${(offer.usageCount / offer.usageLimit) * 100}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-accent" style={{ width: `${(offer.usageCount / offer.usageLimit) * 100}%` }} />
-                      </div>
-                    </div>
+                    ) : (
+                       <span className="text-gray-300">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${offer.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
@@ -419,142 +447,181 @@ const AdminOffers = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-8 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="group">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Title</label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="e.g. Welcome Special"
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Code</label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="e.g. WELCOME100"
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-black text-surface tracking-widest transition-all outline-none uppercase"
-                        value={formData.code}
-                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Type</label>
-                        <select
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-4 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.discountType}
-                          onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                        >
-                          <option value="percentage">Percentage (%)</option>
-                          <option value="flat">Flat Cash (₹)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Value</label>
-                        <input
-                          required
-                          type="number"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.discountValue}
-                          onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    {formData.discountType === 'percentage' && (
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Max Discount Cap (₹)</label>
-                        <input
-                          type="number"
-                          placeholder="Leave empty for no limit"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.maxDiscount}
-                          onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Start Date</label>
-                        <input
-                          required
-                          type="date"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.startDate}
-                          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">End Date</label>
-                        <input
-                          required
-                          type="date"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.endDate}
-                          onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                <div className="space-y-6">
+                  {/* Type Selector */}
+                  <div className="bg-gray-50 p-1.5 rounded-2xl border border-gray-100 flex shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, offerType: 'coupon' })}
+                      className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.offerType === 'coupon' ? 'bg-white text-accent shadow-md' : 'text-gray-400 hover:text-accent'}`}
+                    >
+                      <TicketPercent size={14} className="inline mr-2" />
+                      Promotion Coupon
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, offerType: 'banner' })}
+                      className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData.offerType === 'banner' ? 'bg-white text-accent shadow-md' : 'text-gray-400 hover:text-accent'}`}
+                    >
+                      <ImageIcon size={14} className="inline mr-2" />
+                      Informational Banner
+                    </button>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Subtitle / Short Description</label>
-                      <textarea
-                        required
-                        rows="1"
-                        placeholder="Flat ₹100 Off on your first stay"
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none resize-none"
-                        value={formData.subtitle}
-                        onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Detailed Terms/Description</label>
-                      <textarea
-                        rows="2"
-                        placeholder="Enter full details about the offer..."
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none resize-none"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Min. Booking (₹)</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">
+                          {formData.offerType === 'coupon' ? 'Offer Title' : 'Banner Title'}
+                        </label>
                         <input
-                          type="number"
+                          required
+                          type="text"
+                          placeholder={formData.offerType === 'coupon' ? 'e.g. Welcome Special' : 'e.g. Summer Vibes'}
                           className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.minBookingAmount}
-                          onChange={(e) => setFormData({ ...formData, minBookingAmount: e.target.value })}
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Overall Usage Limit</label>
-                        <input
-                          type="number"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.usageLimit}
-                          onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-                        />
+
+                      {formData.offerType === 'coupon' && (
+                        <>
+                          <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Code</label>
+                            <input
+                              required
+                              type="text"
+                              placeholder="e.g. WELCOME100"
+                              className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-black text-surface tracking-widest transition-all outline-none uppercase"
+                              value={formData.code}
+                              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Type</label>
+                              <select
+                                className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-4 py-3 text-sm font-bold text-surface transition-all outline-none"
+                                value={formData.discountType}
+                                onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                              >
+                                <option value="percentage">Percentage (%)</option>
+                                <option value="flat">Flat Cash (₹)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Value</label>
+                              <input
+                                required
+                                type="number"
+                                className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                                value={formData.discountValue}
+                                onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          {formData.discountType === 'percentage' && (
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Max Discount Cap (₹)</label>
+                              <input
+                                type="number"
+                                placeholder="Leave empty for no limit"
+                                className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                                value={formData.maxDiscount}
+                                onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Start Date</label>
+                          <input
+                            required
+                            type="date"
+                            className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                            value={formData.startDate}
+                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">End Date</label>
+                          <input
+                            required
+                            type="date"
+                            className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                            value={formData.endDate}
+                            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="space-y-4">
+                      {formData.offerType === 'coupon' && (
+                        <div>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Subtitle / Short Description</label>
+                          <textarea
+                            required
+                            rows="1"
+                            placeholder="Flat ₹100 Off on your first stay"
+                            className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none resize-none"
+                            value={formData.subtitle}
+                            onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                          />
+                        </div>
+                      )}
+
                       <div>
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Limit Per User</label>
-                        <input
-                          type="number"
-                          placeholder="e.g. 1"
-                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
-                          value={formData.userLimit}
-                          onChange={(e) => setFormData({ ...formData, userLimit: e.target.value })}
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">
+                          {formData.offerType === 'coupon' ? 'Detailed Terms/Description' : 'Detailed Info / Description'}
+                        </label>
+                        <textarea
+                          rows="2"
+                          placeholder="Enter full details..."
+                          className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none resize-none"
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
                       </div>
+
+                      {formData.offerType === 'coupon' && (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Min. Booking (₹)</label>
+                              <input
+                                type="number"
+                                className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                                value={formData.minBookingAmount}
+                                onChange={(e) => setFormData({ ...formData, minBookingAmount: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Overall Usage Limit</label>
+                              <input
+                                type="number"
+                                className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                                value={formData.usageLimit}
+                                onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Limit Per User</label>
+                            <input
+                              type="number"
+                              placeholder="e.g. 1"
+                              className="w-full bg-gray-50 border-2 border-transparent focus:border-accent focus:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all outline-none"
+                              value={formData.userLimit}
+                              onChange={(e) => setFormData({ ...formData, userLimit: e.target.value })}
+                            />
+                          </div>
+                        </>
+                      )}
+
                       <div className="flex flex-col">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Status</label>
                         <div
@@ -565,28 +632,31 @@ const AdminOffers = () => {
                           <span className="text-sm font-bold uppercase tracking-widest">{formData.isActive ? 'Active' : 'Paused'}</span>
                         </div>
                       </div>
-                    </div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">Offer Image</label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border-2 border-dashed border-gray-200 group-hover:border-accent transition-colors">
-                        {imagePreview || formData.image ? (
-                          <img src={imagePreview || formData.image} className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="text-gray-300" size={24} />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <label className="cursor-pointer bg-gray-50 border-2 border-transparent hover:border-accent hover:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all flex items-center justify-center gap-2">
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleImageChange}
-                          />
-                          <Sparkles size={16} className="text-accent" />
-                          {imageFile ? imageFile.name : 'Upload Offer Image'}
-                        </label>
-                        <p className="text-[9px] text-gray-400 mt-2 ml-1">PNG, JPG or WEBP (Max 5MB)</p>
+
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block ml-1">
+                        {formData.offerType === 'coupon' ? 'Offer Image' : 'Banner Image'}
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border-2 border-dashed border-gray-200 group-hover:border-accent transition-colors">
+                          {imagePreview || formData.image ? (
+                            <img src={imagePreview || formData.image} className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="text-gray-300" size={24} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="cursor-pointer bg-gray-50 border-2 border-transparent hover:border-accent hover:bg-white rounded-2xl px-5 py-3 text-sm font-bold text-surface transition-all flex items-center justify-center gap-2">
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                            />
+                            <Sparkles size={16} className="text-accent" />
+                            {imageFile ? imageFile.name : 'Upload Image'}
+                          </label>
+                          <p className="text-[9px] text-gray-400 mt-2 ml-1">PNG, JPG or WEBP (Max 5MB)</p>
+                        </div>
                       </div>
                     </div>
                   </div>

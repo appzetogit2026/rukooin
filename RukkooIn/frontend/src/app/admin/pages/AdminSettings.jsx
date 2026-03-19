@@ -83,8 +83,8 @@ const AdminSettings = () => {
                     setBookingMessage(res.settings.bookingDisabledMessage || '');
                     setMaintenanceTitle(res.settings.maintenanceTitle || '');
                     setMaintenanceMessage(res.settings.maintenanceMessage || '');
-                    setCommission(res.settings.defaultCommission || 10);
-                    setTaxRate(res.settings.taxRate || 12);
+                    setCommission(res.settings.defaultCommission ?? 10);
+                    setTaxRate(res.settings.taxRate ?? 12);
                 }
             } catch (error) {
                 toast.error('Failed to load platform settings');

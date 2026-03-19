@@ -1180,6 +1180,14 @@ export const updatePlatformSettings = async (req, res) => {
     }
 
     await settings.save();
+    
+    // Fallback sync to ensure dynamically added schema paths persist correctly
+    await PlatformSettings.findOneAndUpdate({}, {
+      $set: {
+        defaultCommission: settings.defaultCommission,
+        taxRate: settings.taxRate
+      }
+    });
 
     res.status(200).json({ success: true, settings });
   } catch (error) {
