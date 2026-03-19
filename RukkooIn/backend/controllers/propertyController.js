@@ -431,6 +431,78 @@ export const upsertDocuments = async (req, res) => {
   }
 };
 
+export const getSearchSuggestions = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || query.length < 2) return res.json([]);
+
+    const regex = new RegExp(query, 'i');
+    const suggestions = [];
+
+    // 1. Search Cities
+    const cities = await Property.distinct("address.city", { 
+      "address.city": regex, 
+      status: 'approved', 
+      isLive: true 
+    });
+    cities.forEach(city => {
+      suggestions.push({
+        name: city,
+        subtitle: "City in " + (query.length > 3 ? "India" : "suggestions"),
+        icon: "🏙️",
+        type: 'city'
+      });
+    });
+
+    // 2. Search Properties (Hotels)
+    const properties = await Property.find({
+      propertyName: regex,
+      status: 'approved',
+      isLive: true
+    }).limit(5).select('propertyName address.city propertyType');
+
+    properties.forEach(p => {
+      suggestions.push({
+        name: p.propertyName,
+        subtitle: `${p.propertyType.charAt(0).toUpperCase() + p.propertyType.slice(1)} in ${p.address.city}`,
+        icon: "🏨",
+        type: 'hotel',
+        id: p._id
+      });
+    });
+
+    // 3. Category/Suitability Suggestions
+    const suitabilityOptions = ["Couple Friendly", "Family Friendly"];
+    suitabilityOptions.forEach(opt => {
+      if (opt.toLowerCase().includes(query.toLowerCase())) {
+        suggestions.push({
+          name: opt,
+          subtitle: "Property Category",
+          icon: "✨",
+          type: 'category'
+        });
+      }
+    });
+
+    // 4. Property Type Suggestions
+    const types = ["Hotel", "Villa", "Resort", "Hostel", "PG", "Homestay"];
+    types.forEach(t => {
+      if (t.toLowerCase().includes(query.toLowerCase())) {
+        suggestions.push({
+          name: t,
+          subtitle: "Accommodation Type",
+          icon: "🏠",
+          type: 'propertyType'
+        });
+      }
+    });
+
+    res.json(suggestions.slice(0, 10));
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const getPublicProperties = async (req, res) => {
   try {
     const {
@@ -481,7 +553,9 @@ export const getPublicProperties = async (req, res) => {
         { propertyName: regex },
         { "address.city": regex },
         { "address.area": regex },
-        { "address.fullAddress": regex }
+        { "address.fullAddress": regex },
+        { "suitability": regex },
+        { "propertyType": regex }
       ];
     }
 

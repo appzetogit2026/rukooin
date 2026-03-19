@@ -31,9 +31,8 @@ const ContactPage = () => {
             <div>
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Office Address</p>
               <p className="text-sm font-bold text-gray-800 leading-relaxed">
-                Flat No. 68, Chotti Gwal Toli,<br />
-                Sarwate Bus Stand, Indore,<br />
-                Madhya Pradesh - 452001
+                401 A Rajani bhawan high court square<br />
+                Indore, Madhya Pradesh - 452001
               </p>
             </div>
           </div>
@@ -52,7 +51,7 @@ const ContactPage = () => {
           </a>
 
           <a
-            href="tel:+919111384541"
+            href="tel:+919244554429"
             className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-5 no-underline text-inherit hover:border-surface hover:shadow-md transition-all group"
           >
             <div className="w-12 h-12 rounded-2xl bg-surface/5 flex items-center justify-center text-surface group-hover:bg-surface group-hover:text-white transition-colors">
@@ -60,7 +59,7 @@ const ContactPage = () => {
             </div>
             <div>
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Call Us</p>
-              <p className="text-lg font-bold text-gray-800">+91-9111384541</p>
+              <p className="text-lg font-bold text-gray-800">+91-9244554429</p>
             </div>
           </a>
         </div>

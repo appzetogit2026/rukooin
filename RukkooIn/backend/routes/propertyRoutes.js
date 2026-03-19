@@ -10,12 +10,14 @@ import {
   getPublicProperties,
   getPropertyDetails,
   getMyProperties,
-  deleteProperty
+  deleteProperty,
+  getSearchSuggestions
 } from '../controllers/propertyController.js';
 
 const router = express.Router();
 
 router.get('/', getPublicProperties);
+router.get('/suggestions', getSearchSuggestions);
 router.get('/my', protect, authorizedRoles('partner', 'admin'), getMyProperties);
 router.get('/:id', getPropertyDetails);
 router.post('/', protect, authorizedRoles('partner', 'admin'), createProperty);

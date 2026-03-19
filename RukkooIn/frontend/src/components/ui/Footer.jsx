@@ -81,9 +81,8 @@ const Footer = () => {
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Office Address:</span>
                             <p className="text-sm text-gray-300 leading-relaxed">
-                                Flat No. 68, Chotti Gwal Toli,<br />
-                                Sarwate Bus Stand, Indore,<br />
-                                Madhya Pradesh - 452001
+                                401 A Rajani bhawan high court square<br />
+                                Indore, Madhya Pradesh - 452001
                             </p>
                         </div>
                         <div className="flex flex-col">
@@ -94,8 +93,8 @@ const Footer = () => {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Phone:</span>
-                            <a href="tel:+919111384541" className="text-sm text-gray-300 hover:text-teal-400 transition-colors">
-                                +91-9111384541
+                            <a href="tel:+919244554429" className="text-sm text-gray-300 hover:text-teal-400 transition-colors">
+                                +91-9244554429
                             </a>
                         </div>
                     </div>

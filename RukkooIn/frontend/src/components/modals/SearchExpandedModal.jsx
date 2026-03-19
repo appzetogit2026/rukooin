@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Minus, Plus, ChevronRight } from 'lucide-react';
+import { Search, X, Minus, Plus, ChevronRight, MapPin, Hotel, Sparkles, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { propertyService } from '../../services/propertyService';
 
 const SearchExpandedModal = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
@@ -13,6 +14,8 @@ const SearchExpandedModal = ({ isOpen, onClose }) => {
     const [destination, setDestination] = useState("");
     const [dates, setDates] = useState({ checkIn: null, checkOut: null });
     const [guests, setGuests] = useState({ rooms: 1, adults: 2, children: 0 });
+    const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
     // Calendar State
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -21,6 +24,13 @@ const SearchExpandedModal = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
+            // Reset suggestions when opened
+            if (!destination) {
+                setDynamicSuggestions([
+                    { name: "Indore, Madhya Pradesh", subtitle: "Popular for food & culture", icon: "city", type: 'city' },
+                    { name: "Bhopal, Madhya Pradesh", subtitle: "City of Lakes", icon: "city", type: 'city' },
+                ]);
+            }
         } else {
             document.body.style.overflow = 'unset';
         }
@@ -28,6 +38,36 @@ const SearchExpandedModal = ({ isOpen, onClose }) => {
             document.body.style.overflow = 'unset';
         };
     }, [isOpen]);
+
+    // Fetch dynamic suggestions
+    useEffect(() => {
+        if (!destination || destination.length < 2) {
+            if (destination === "") {
+                setDynamicSuggestions([
+                    { name: "Indore, Madhya Pradesh", subtitle: "Popular for food & culture", icon: "city", type: 'city' },
+                    { name: "Bhopal, Madhya Pradesh", subtitle: "City of Lakes", icon: "city", type: 'city' },
+                ]);
+            }
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            setIsLoadingSuggestions(true);
+            try {
+                const res = await propertyService.getSuggestions(destination);
+                if (res) {
+                    setDynamicSuggestions(res);
+                }
+            } catch (error) {
+                console.error("Fetch suggestions error:", error);
+            } finally {
+                setIsLoadingSuggestions(false);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timeoutId);
+    }, [destination]);
 
     // Calendar Logic
     const getDaysInMonth = (date) => {
@@ -72,11 +112,16 @@ const SearchExpandedModal = ({ isOpen, onClose }) => {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     };
 
-    // Suggestions Data
-    const suggestions = [
-        { name: "Indore, Madhya Pradesh", subtitle: "Popular for food & culture", icon: "🏙️" },
-        { name: "Bhopal, Madhya Pradesh", subtitle: "City of Lakes", icon: "🌊" },
-    ];
+    const getIcon = (iconName) => {
+        switch (iconName) {
+            case 'city': return <MapPin size={20} className="text-blue-500" />;
+            case '🏨': return <Hotel size={20} className="text-rose-500" />;
+            case '🏙️': return <MapPin size={20} className="text-blue-500" />;
+            case '✨': return <Sparkles size={20} className="text-amber-500" />;
+            case '🏠': return <Home size={20} className="text-emerald-500" />;
+            default: return <MapPin size={20} className="text-gray-400" />;
+        }
+    };
 
     const formatDate = (date) => {
         if (!date) return "Add date";
@@ -144,20 +189,33 @@ const SearchExpandedModal = ({ isOpen, onClose }) => {
                                         </div>
 
                                         <div className="space-y-3">
-                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Suggested</h3>
-                                            {suggestions.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    onClick={() => { setDestination(item.name); setActiveStep('dates'); }}
-                                                    className="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors"
-                                                >
-                                                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-lg">{item.icon}</div>
-                                                    <div>
-                                                        <p className="font-bold text-surface text-sm">{item.name}</p>
-                                                        <p className="text-xs text-gray-500">{item.subtitle}</p>
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                                                {destination ? (isLoadingSuggestions ? "Searching..." : "Suggestions") : "Popular Destinations"}
+                                            </h3>
+                                            {dynamicSuggestions.length > 0 ? (
+                                                dynamicSuggestions.map((item, index) => (
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => {
+                                                            setDestination(item.name);
+                                                            setActiveStep('dates');
+                                                        }}
+                                                        className="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 active:bg-gray-100 cursor-pointer transition-colors"
+                                                    >
+                                                        <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                                            {getIcon(item.icon)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-surface text-sm">{item.name}</p>
+                                                            <p className="text-xs text-gray-500">{item.subtitle}</p>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))
+                                            ) : (
+                                                !isLoadingSuggestions && destination && (
+                                                    <p className="text-sm text-gray-400 italic p-3">No suggestions found for "{destination}"</p>
+                                                )
+                                            )}
                                         </div>
                                     </div>
                                 ) : (

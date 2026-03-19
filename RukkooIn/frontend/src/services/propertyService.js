@@ -19,6 +19,15 @@ export const propertyService = {
     }
   },
 
+  getSuggestions: async (query) => {
+    try {
+      const response = await api.get('/properties/suggestions', { params: { query } });
+      return handleResponse(response);
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
   // Helper to get location
   getCurrentLocation: () => {
     return new Promise((resolve, reject) => {

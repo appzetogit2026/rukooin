@@ -63,14 +63,14 @@ const PartnerSupport = () => {
                 {/* Contact Options */}
                 <div className="grid grid-cols-2 gap-3 mb-8">
                     <button
-                        onClick={() => window.open('https://wa.me/919111384535', '_blank')}
+                        onClick={() => window.open('https://wa.me/919244554429', '_blank')}
                         className="bg-[#004F4D] text-white p-5 rounded-2xl shadow-lg flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
                     >
                         <MessageSquare size={24} />
                         <span className="text-sm font-bold">WhatsApp Chat</span>
                     </button>
                     <a
-                        href="tel:9111384535"
+                        href="tel:919244554429"
                         className="bg-white border border-gray-200 text-[#003836] p-5 rounded-2xl shadow-sm flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"
                     >
                         <Phone size={24} />

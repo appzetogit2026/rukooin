@@ -60,7 +60,7 @@ const PartnerContact = () => {
       <PartnerHeader title="Contact Partner Support" subtitle="Reach the Rukko team" showMenu={false} />
 
       <main ref={contentRef} className="max-w-3xl mx-auto px-4 pt-6 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#004F4D]/10 flex items-center justify-center text-[#004F4D]">
               <Mail size={18} />
@@ -82,12 +82,25 @@ const PartnerContact = () => {
             <div>
               <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Phone</p>
               <a
-                href="tel:+916232314147"
+                href="tel:+919244554429"
                 className="text-xs text-gray-500 hover:text-[#004F4D] transition-colors"
               >
-                6232314147
+                +91-9244554429
               </a>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-[#004F4D]/10 flex items-center justify-center text-[#004F4D] shrink-0">
+            <Building2 size={18} />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wide">Office Address</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              401 A Rajani bhawan high court square<br />
+              Indore, Madhya Pradesh - 452001
+            </p>
           </div>
         </div>
 

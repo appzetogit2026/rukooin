@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../../services/propertyService';
 import { userService } from '../../services/apiService';
-import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X } from 'lucide-react';
+import { MapPin, Search, Filter, Star, IndianRupee, Navigation, X, Hotel, Sparkles, Home as HomeIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import PropertyCard from '../../components/user/PropertyCard';
+
 const SearchPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -31,6 +32,10 @@ const SearchPage = () => {
         suitability: searchParams.get('suitability') || '',
         radius: 50
     });
+
+    const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     const [location, setLocation] = useState(null); // { lat, lng }
 
@@ -85,6 +90,42 @@ const SearchPage = () => {
 
         return () => clearTimeout(timer);
     }, [filters.search]);
+
+    // Fetch suggestions
+    useEffect(() => {
+        if (!filters.search || filters.search.length < 2) {
+            setDynamicSuggestions([]);
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            setIsLoadingSuggestions(true);
+            try {
+                const res = await propertyService.getSuggestions(filters.search);
+                if (res) {
+                    setDynamicSuggestions(res);
+                }
+            } catch (error) {
+                console.error("Fetch suggestions error:", error);
+            } finally {
+                setIsLoadingSuggestions(false);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timeoutId);
+    }, [filters.search]);
+
+    const getIcon = (iconName) => {
+        switch (iconName) {
+            case 'city': return <MapPin size={16} className="text-blue-500" />;
+            case '🏨': return <Hotel size={16} className="text-rose-500" />;
+            case '🏙️': return <MapPin size={16} className="text-blue-500" />;
+            case '✨': return <Sparkles size={16} className="text-amber-500" />;
+            case '🏠': return <HomeIcon size={16} className="text-emerald-500" />;
+            default: return <MapPin size={16} className="text-gray-400" />;
+        }
+    };
 
     const fetchProperties = async () => {
         setLoading(true);
@@ -194,9 +235,38 @@ const SearchPage = () => {
                         placeholder="Search by city, hotel, or area..."
                         className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#004F4D] focus:border-[#004F4D] outline-none text-sm font-medium text-gray-700 bg-gray-50/50"
                         value={filters.search}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         onChange={(e) => updateFilter('search', e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                        onKeyDown={(e) => e.key === 'Enter' && (setShowSuggestions(false), applyFilters())}
                     />
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && dynamicSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                            {dynamicSuggestions.map((item, index) => (
+                                <div
+                                    key={index}
+                                    onClick={() => {
+                                        updateFilter('search', item.name);
+                                        setShowSuggestions(false);
+                                        // Immediately apply if it's a direct suggestion
+                                        const params = { ...Object.fromEntries([...searchParams]), search: item.name };
+                                        setSearchParams(params);
+                                    }}
+                                    className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                >
+                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                                        {getIcon(item.icon)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-gray-800 text-xs truncate">{item.name}</p>
+                                        <p className="text-[10px] text-gray-400 truncate">{item.subtitle}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Actions Row */}
