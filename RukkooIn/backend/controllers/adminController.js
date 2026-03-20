@@ -47,8 +47,8 @@ export const getDashboardStats = async (req, res) => {
       Partner.countDocuments({}),
       Property.countDocuments({}),
       Property.countDocuments({ status: 'pending' }),
-      Booking.countDocuments({}),
-      Booking.countDocuments({ createdAt: { $lt: startOfThisMonth } }), // trend base
+      Booking.countDocuments({ bookingStatus: { $ne: 'awaiting_payment' } }),
+      Booking.countDocuments({ bookingStatus: { $ne: 'awaiting_payment' }, createdAt: { $lt: startOfThisMonth } }), // trend base
       Booking.aggregate([
         { $match: { bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] }, paymentStatus: 'paid' } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
@@ -57,7 +57,7 @@ export const getDashboardStats = async (req, res) => {
         {
           $match: {
             bookingStatus: { $in: ['confirmed', 'checked_out', 'checked_in'] },
-            paymentStatus: 'paid',
+            paymentStatus: { $in: ['paid', 'partial'] },
             createdAt: { $lt: startOfThisMonth }
           }
         },
@@ -153,7 +153,7 @@ export const getDashboardStats = async (req, res) => {
     }));
 
     // 3. Lists
-    const recentBookings = await Booking.find()
+    const recentBookings = await Booking.find({ bookingStatus: { $ne: 'awaiting_payment' } })
       .populate('userId', 'name email')
       .populate('propertyId', 'propertyName address')
       .sort({ createdAt: -1 })
@@ -311,6 +311,9 @@ export const getAllBookings = async (req, res) => {
 
     if (status) {
       query.bookingStatus = status;
+    } else {
+      // By default, hide bookings that haven't completed the initial payment process
+      query.bookingStatus = { $ne: 'awaiting_payment' };
     }
 
     if (search) {
