@@ -127,15 +127,21 @@ export const verifyPayment = async (req, res) => {
       booking = await Booking.findById(bookingId);
       if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-      if (booking.paymentMethod !== 'prepaid') {
+      // Fetch the Razorpay order to get precise amounts (like advanceAmount for prepaid)
+      const order = await razorpay.orders.fetch(razorpay_order_id);
+      const notes = order?.notes || {};
+
+      if (booking.paymentMethod === 'prepaid') {
+        booking.paymentStatus = 'partial';
+        booking.amountPaid = Number(notes.advanceAmount) || Math.floor(booking.totalAmount * 0.3);
+        booking.remainingAmount = Number(notes.remainingAmount) || (booking.totalAmount - booking.amountPaid);
+      } else {
         booking.paymentStatus = 'paid';
-        booking.paymentMethod = 'razorpay'; // Only overwrite if not prepaid
+        booking.paymentMethod = notes.paymentMethod || 'razorpay';
         booking.amountPaid = booking.totalAmount;
         booking.remainingAmount = 0;
-      } else {
-        booking.paymentStatus = 'partial';
-        // For prepaid, amountPaid and remainingAmount are already set correctly in createBooking
       }
+      
       booking.bookingStatus = 'confirmed';
       booking.paymentId = razorpay_payment_id;
       await booking.save();

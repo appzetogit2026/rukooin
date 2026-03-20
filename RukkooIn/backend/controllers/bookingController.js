@@ -313,8 +313,8 @@ export const createBooking = async (req, res) => {
       couponCode: appliedCoupon,
       totalAmount,
       prepaidDiscount: prepaidDiscountAmount,
-      amountPaid: paymentMethod === 'wallet' ? totalAmount : (paymentMethod === 'prepaid' ? advanceAmount : 0),
-      remainingAmount: (['pay_at_hotel', 'razorpay', 'online'].includes(paymentMethod)) ? totalAmount : (paymentMethod === 'prepaid' ? remainingAmount : 0),
+      amountPaid: paymentMethod === 'wallet' ? totalAmount : 0,
+      remainingAmount: totalAmount, // For Online/Prepaid/PayAtHotel, the whole amount is remaining until verified/settled
       paymentMethod,
       bookingStatus: 'confirmed', // Default confirmed for pay_at_hotel/wallet, pending for razorpay
       paymentStatus: paymentMethod === 'pay_at_hotel' ? 'pending' : 'paid'
@@ -431,8 +431,15 @@ export const createBooking = async (req, res) => {
                 bookingUnit: (bookingUnit || 'room').toString(),
                 rooms: units.toString(), // Pass rooms count for ledger
                 // Store financial info for verification consistency
+                checkInDate: checkInDate.toString(),
+                checkOutDate: checkOutDate.toString(),
+                totalNights: totalNights.toString(),
+                guests: JSON.stringify({ adults: guests.adults || 1, children: guests.children || 0 }),
                 adminCommission: adminCommission.toString(),
                 partnerPayout: partnerPayout.toString(),
+                pricePerNight: pricePerNight.toString(),
+                baseAmount: baseAmount.toString(),
+                extraCharges: extraCharges.toString(),
                 taxes: taxes.toString(),
                 discount: discountAmount.toString(),
                 totalAmount: totalAmount.toString(),
