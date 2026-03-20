@@ -15,7 +15,7 @@ async function searchByPhone() {
   const mongoUrl = "mongodb+srv://rukkooin:rukkooin@cluster0.6mzfrnp.mongodb.net/?appName=Cluster0";
   await mongoose.connect(mongoUrl);
   
-  const phone = "9589814119";
+  const phone = "";
   const bookings = await Booking.find({ 
     "guestDetails.phone": phone 
   }).sort({ createdAt: -1 }).lean();
