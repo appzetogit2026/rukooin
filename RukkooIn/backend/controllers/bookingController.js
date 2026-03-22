@@ -747,12 +747,13 @@ export const cancelBooking = async (req, res) => {
     // --- WALLET REVERSAL LOGIC ---
     // Pay at Hotel: Reverse Commission Deduction (Refund Partner, Debit Admin)
     if (booking.paymentMethod === 'pay_at_hotel') {
-      const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
+      const wasPaid = booking.paymentStatus === 'paid';
+      const refundAmount = wasPaid ? ((booking.taxes || 0) + (booking.adminCommission || 0)) : 0;
 
       // Fetch full booking for partnerId
       const fullBooking = await Booking.findById(booking._id).populate('propertyId').populate('userId');
 
-      if (refundAmount > 0 && fullBooking.propertyId && fullBooking.propertyId.partnerId) {
+      if (wasPaid && refundAmount > 0 && fullBooking.propertyId && fullBooking.propertyId.partnerId) {
         const partnerWallet = await Wallet.findOne({ partnerId: fullBooking.propertyId.partnerId, role: 'partner' });
         const adminWallet = await Wallet.findOne({ role: 'admin' });
 
@@ -805,7 +806,11 @@ export const cancelBooking = async (req, res) => {
         }, { type: 'booking_cancelled', bookingId: booking._id }).catch(e => console.error('Admin Cancel Push failed', e));
       }
 
-      return res.json({ success: true, message: 'Booking cancelled successfully (Pay at Hotel - Commission Refunded)', booking });
+      return res.json({ 
+        success: true, 
+        message: `Booking cancelled successfully${wasPaid ? ' (Pay at Hotel - Commission Refunded)' : ''}`, 
+        booking 
+      });
     }
 
     // 1. Refund User (If paid and Razorpay refund NOT processed)

@@ -16,6 +16,8 @@ const BookingStatusBadge = ({ status }) => {
         pending: 'bg-amber-100 text-amber-700 border-amber-200 font-bold',
         cancelled: 'bg-red-100 text-red-700 border-red-200 font-bold',
         completed: 'bg-blue-100 text-blue-700 border-blue-200 font-bold',
+        checked_in: 'bg-orange-100 text-orange-700 border-orange-200 font-bold',
+        checked_out: 'bg-purple-100 text-purple-700 border-purple-200 font-bold',
         refunded: 'bg-gray-100 text-gray-700 border-gray-200 font-bold',
     };
 
@@ -24,6 +26,8 @@ const BookingStatusBadge = ({ status }) => {
         pending: <Clock size={10} className="mr-1" />,
         cancelled: <XCircle size={10} className="mr-1" />,
         completed: <CheckCircle size={10} className="mr-1" />,
+        checked_in: <AlertTriangle size={10} className="mr-1" />,
+        checked_out: <CheckCircle size={10} className="mr-1" />,
         refunded: <ArrowRight size={10} className="mr-1" />,
     };
 
@@ -97,7 +101,9 @@ const AdminBookings = () => {
                         confirmed: bookingsRes.stats.confirmed,
                         pending: bookingsRes.stats.pending,
                         cancelled: bookingsRes.stats.cancelled,
-                        completed: bookingsRes.stats.completed
+                        completed: bookingsRes.stats.completed,
+                        checked_in: bookingsRes.stats.checked_in || 0,
+                        checked_out: bookingsRes.stats.checked_out || 0
                     });
                 }
             }
@@ -208,9 +214,40 @@ const AdminBookings = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <MetricCard label="Total Bookings" value={globalStats.total} subLabel="GLOBAL" loading={loading} />
-                <MetricCard label="Confirmed" value={globalStats.confirmed} subLabel="LIVE" loading={loading} />
-                <MetricCard label="Pending Approval" value={globalStats.pending} subLabel="NEEDS ACTION" loading={loading} />
-                <MetricCard label="Cancelled" value={globalStats.cancelled || 0} subLabel="INACTIVE" loading={loading} />
+                <MetricCard label="In-House" value={globalStats.checked_in} subLabel="LIVE" loading={loading} />
+                <MetricCard label="Upcoming" value={globalStats.confirmed} subLabel="CONFIRMED" loading={loading} />
+                <MetricCard label="Pending" value={globalStats.pending} subLabel="NEEDS ACTION" loading={loading} />
+            </div>
+
+            {/* Tabs for quick filtering */}
+            <div className="flex overflow-x-auto gap-1 bg-gray-100 p-1.5 rounded-2xl w-fit mb-6 no-scrollbar border border-gray-200">
+                {[
+                    { id: '', label: 'All', count: globalStats.total },
+                    { id: 'pending', label: 'Pending', count: globalStats.pending },
+                    { id: 'confirmed', label: 'Confirmed', count: globalStats.confirmed },
+                    { id: 'checked_in', label: 'In-House', count: globalStats.checked_in },
+                    { id: 'checked_out', label: 'Completed', count: (globalStats.checked_out || 0) + (globalStats.completed || 0) },
+                    { id: 'cancelled', label: 'Cancelled', count: globalStats.cancelled },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => handleFilterChange('status', tab.id)}
+                        className={`
+                            px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center gap-2 whitespace-nowrap
+                            ${filters.status === tab.id 
+                                ? 'bg-white text-black shadow-sm ring-1 ring-gray-200' 
+                                : 'text-gray-500 hover:text-black hover:bg-white/50'}
+                        `}
+                    >
+                        {tab.label}
+                        <span className={`
+                            px-1.5 py-0.5 rounded-md text-[8px]
+                            ${filters.status === tab.id ? 'bg-black text-white' : 'bg-gray-200 text-gray-600'}
+                        `}>
+                            {tab.count || 0}
+                        </span>
+                    </button>
+                ))}
             </div>
 
             <div className="bg-white p-4 border border-gray-200 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-center">

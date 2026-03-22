@@ -242,7 +242,7 @@ const AdminProperties = () => {
                             <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-bold">
                                 <th className="p-4">Property Name</th>
                                 <th className="p-4">Type</th>
-                                <th className="p-4">Owner</th>
+                                <th className="p-4">Owner & Wallet</th>
                                 <th className="p-4">Status</th>
                                 <th className="p-4">Suitability</th>
                                 <th className="p-4 text-center">Actions</th>
@@ -292,9 +292,17 @@ const AdminProperties = () => {
                                                 <td className="p-4">
                                                     <p className="text-[10px] text-gray-700 font-bold uppercase">{property.propertyType || 'N/A'}</p>
                                                 </td>
-                                                <td className="p-4">
-                                                    <p className="text-[10px] text-gray-700 font-bold uppercase mb-0.5">{property.partnerId?.name || 'Unknown Partner'}</p>
-                                                    <p className="text-[10px] text-gray-500 font-medium normal-case tracking-tight">{property.partnerId?.email || 'No Email'}</p>
+                                                <td className="p-4 whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex flex-col">
+                                                            <p className="text-[10px] text-gray-900 font-black uppercase tracking-tight">{property.partnerId?.name || 'Unknown Partner'}</p>
+                                                            <p className="text-[10px] text-gray-500 font-bold tracking-tighter transition-all group-hover:text-blue-600">{property.partnerId?.phone || 'No Phone'}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 bg-green-50 text-green-700 w-fit px-2 py-0.5 rounded-md border border-green-100 shadow-sm">
+                                                            <span className="text-[8px] font-black uppercase opacity-60">Wallet:</span>
+                                                            <span className="text-[10px] font-black tracking-tight">₹{property.partnerWalletBalance?.toLocaleString() || 0}</span>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4">
                                                     <PropertyStatusBadge status={property.status} />

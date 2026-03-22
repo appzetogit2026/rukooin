@@ -288,11 +288,32 @@ export const getAllHotels = async (req, res) => {
 
     const total = await Property.countDocuments(query);
 
-    const hotels = await Property.find(query)
+    let hotels = await Property.find(query)
       .populate('partnerId', 'name email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Fetch Wallet Balances for each Partner
+    const partnerIds = hotels.map(h => h.partnerId?._id).filter(id => id != null);
+    const wallets = await Wallet.find({ 
+      partnerId: { $in: partnerIds },
+      role: 'partner'
+    }).select('balance partnerId');
+
+    const walletMap = wallets.reduce((acc, w) => {
+      acc[w.partnerId.toString()] = w.balance;
+      return acc;
+    }, {});
+
+    // Attach balance to each hotel object
+    hotels = hotels.map(h => {
+      const hotelObj = h.toObject();
+      if (hotelObj.partnerId && hotelObj.partnerId._id) {
+        hotelObj.partnerWalletBalance = walletMap[hotelObj.partnerId._id.toString()] || 0;
+      }
+      return hotelObj;
+    });
 
     res.status(200).json({ success: true, hotels, total, page, limit });
   } catch (e) {
@@ -344,7 +365,6 @@ export const getAllBookings = async (req, res) => {
         query.$or = searchConditions;
       }
     }
-
     const [
       bookings,
       total,
@@ -352,7 +372,9 @@ export const getAllBookings = async (req, res) => {
       confirmed,
       pending,
       cancelled,
-      completed
+      completed,
+      checked_in,
+      checked_out
     ] = await Promise.all([
       Booking.find(query)
         .populate('userId', 'name email phone')
@@ -366,7 +388,9 @@ export const getAllBookings = async (req, res) => {
       Booking.countDocuments({ bookingStatus: 'confirmed' }),
       Booking.countDocuments({ bookingStatus: 'pending' }),
       Booking.countDocuments({ bookingStatus: 'cancelled' }),
-      Booking.countDocuments({ bookingStatus: 'completed' })
+      Booking.countDocuments({ bookingStatus: 'completed' }),
+      Booking.countDocuments({ bookingStatus: 'checked_in' }),
+      Booking.countDocuments({ bookingStatus: 'checked_out' })
     ]);
 
     res.status(200).json({
@@ -380,7 +404,9 @@ export const getAllBookings = async (req, res) => {
         confirmed,
         pending,
         cancelled,
-        completed
+        completed,
+        checked_in,
+        checked_out
       }
     });
   } catch (e) {
@@ -755,7 +781,7 @@ export const updateBookingStatus = async (req, res) => {
       console.log(`[AdminController] Processing cancellation financials for Booking: ${booking.bookingId} (${booking.paymentMethod})`);
 
       // Case A: Pay at Hotel (Reverse Commission Deduction)
-      if (booking.paymentMethod === 'pay_at_hotel') {
+      if (booking.paymentMethod === 'pay_at_hotel' && booking.paymentStatus === 'paid') {
         const refundAmount = (booking.taxes || 0) + (booking.adminCommission || 0);
         console.log(`[AdminController] Pay at Hotel Refund Calculation: ₹${refundAmount} (Tax: ${booking.taxes}, Commission: ${booking.adminCommission})`);
 
