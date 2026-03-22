@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
     CheckCircle, XCircle, MapPin, Calendar, Users, FileText,
-    Phone, Navigation, Share2, Home, Download, Printer, ChevronLeft
+    Phone, Navigation, Share2, Home, Download, Printer, ChevronLeft, CreditCard
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
-import { bookingService } from '../../services/apiService';
+import { bookingService, paymentService } from '../../services/apiService';
 
 const BookingConfirmationPage = () => {
     const { id } = useParams();
@@ -20,6 +20,17 @@ const BookingConfirmationPage = () => {
     const [imgError, setImgError] = useState(false);
 
     const animate = location.state?.animate;
+    const [paymentLoading, setPaymentLoading] = useState(false);
+
+    const loadRazorpay = () => {
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
 
     useEffect(() => {
         const loadBooking = async () => {
@@ -127,6 +138,84 @@ const BookingConfirmationPage = () => {
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleOnlinePayment = async () => {
+        try {
+            setPaymentLoading(true);
+            
+            // 1. Load Razorpay SDK
+            const isLoaded = await loadRazorpay();
+            if (!isLoaded) {
+                toast.error("Razorpay SDK failed to load. Please check your internet connection.");
+                return;
+            }
+
+            // 2. Create Razorpay Order
+            const response = await paymentService.createOrder(booking._id);
+            if (!response.success) {
+                throw new Error(response.message || "Failed to create payment order");
+            }
+
+            const { order, razorpayKeyId } = response;
+
+            // 3. Open Razorpay Checkout
+            const options = {
+                key: razorpayKeyId,
+                amount: order.amount,
+                currency: order.currency,
+                name: "Rukkoo.in",
+                description: `Settle Payment for Booking #${booking.bookingId}`,
+                order_id: order.id,
+                handler: async function (razorpayResponse) {
+                    try {
+                        setPaymentLoading(true);
+                        const verifyPayload = {
+                            razorpay_order_id: razorpayResponse.razorpay_order_id,
+                            razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+                            razorpay_signature: razorpayResponse.razorpay_signature,
+                            bookingId: booking._id
+                        };
+
+                        const verifyRes = await paymentService.verifyPayment(verifyPayload);
+                        if (verifyRes.success) {
+                            toast.success("Payment successful! Your booking is now fully paid.");
+                            // Update local booking state instead of full reload to maintain animations/context
+                            setBooking(verifyRes.booking);
+                        } else {
+                            toast.error("Payment verification failed. Please contact support.");
+                        }
+                    } catch (err) {
+                        console.error("Payment Verification Error:", err);
+                        toast.error(err.message || "Payment verification failed.");
+                    } finally {
+                        setPaymentLoading(false);
+                    }
+                },
+                prefill: {
+                    name: user.name || '',
+                    email: user.email || '',
+                    contact: user.phone || ''
+                },
+                notes: {
+                    bookingId: booking._id
+                },
+                theme: { color: "#000000" },
+                modal: {
+                    ondismiss: function() {
+                        setPaymentLoading(false);
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+
+        } catch (error) {
+            console.error("Payment Error:", error);
+            toast.error(error.message || "Failed to initiate payment");
+            setPaymentLoading(false);
+        }
     };
 
     // Single contact number: property (partner-entered) first, else partner account phone
@@ -340,6 +429,25 @@ const BookingConfirmationPage = () => {
                                     </p>
                                 </div>
                             </div>
+                            {(booking.paymentStatus === 'pending' && !isCancelled && bookingStatus === 'confirmed') && (
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <button
+                                        onClick={handleOnlinePayment}
+                                        disabled={paymentLoading}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70"
+                                    >
+                                        {paymentLoading ? (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <CreditCard size={18} />
+                                        )}
+                                        {paymentLoading ? 'Processing...' : 'Pay Online Now'}
+                                    </button>
+                                    <p className="text-[10px] text-gray-400 text-center mt-2 px-4 italic">
+                                        Avoid check-in hassles by paying online securely now.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <button
