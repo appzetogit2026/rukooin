@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, Send, Trash2, CheckCircle,
-  Circle, Users, Building2, Globe, Search
+  Circle, Users, Building2, Globe, Search,
+  ImagePlus, X, Loader2
 } from 'lucide-react';
 import adminService from '../../../services/adminService';
 import toast from 'react-hot-toast';
@@ -16,8 +17,12 @@ const AdminNotifications = () => {
   // Broadcast Form State
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
+  const [broadcastImage, setBroadcastImage] = useState('');
+  const [broadcastUrl, setBroadcastUrl] = useState('');
   const [targetAudience, setTargetAudience] = useState('users'); // 'users', 'partners', 'all'
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -59,6 +64,36 @@ const AdminNotifications = () => {
     }
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size limit (e.g., 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('images', file);
+    formData.append('type', 'notifications'); // For folder organization
+
+    try {
+      const data = await adminService.uploadImage(formData);
+      if (data.success) {
+        setBroadcastImage(data.url);
+        toast.success('Image uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Upload Error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendBroadcast = async (e) => {
     e.preventDefault();
     if (!broadcastTitle || !broadcastBody) return;
@@ -68,11 +103,15 @@ const AdminNotifications = () => {
       await adminService.sendNotification({
         title: broadcastTitle,
         body: broadcastBody,
+        image: broadcastImage,
+        url: broadcastUrl,
         targetAudience
       });
       toast.success('Broadcast sent successfully');
       setBroadcastTitle('');
       setBroadcastBody('');
+      setBroadcastImage('');
+      setBroadcastUrl('');
       // Refresh list if on Sent tab
       if (activeTab === 'sent') fetchNotifications();
     } catch (error) {
@@ -180,15 +219,70 @@ const AdminNotifications = () => {
                   </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Title</label>
+                      <input
+                        type="text"
+                        value={broadcastTitle}
+                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                        placeholder="Notification Title"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none transition-all"
+                        required
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Notification Image (Optional)</label>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      
+                      {!broadcastImage ? (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage}
+                          className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group h-[48px]"
+                        >
+                          {uploadingImage ? (
+                            <Loader2 size={20} className="animate-spin text-blue-500" />
+                          ) : (
+                            <>
+                              <ImagePlus size={20} className="text-gray-400 group-hover:text-blue-500" />
+                              <span className="text-xs font-bold text-gray-500 group-hover:text-blue-700">Click to Upload Image</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="relative group w-fit">
+                          <img
+                            src={broadcastImage}
+                            alt="Preview"
+                            className="h-12 w-20 object-cover rounded-lg border border-gray-200 shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBroadcastImage('')}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div>
-                    <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Title</label>
+                    <label className="text-xs font-bold uppercase text-gray-500 mb-1 block">Redirect URL (e.g., /bookings)</label>
                     <input
                       type="text"
-                      value={broadcastTitle}
-                      onChange={(e) => setBroadcastTitle(e.target.value)}
-                      placeholder="Notification Title"
+                      value={broadcastUrl}
+                      onChange={(e) => setBroadcastUrl(e.target.value)}
+                      placeholder="/offers or /bookings"
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none transition-all"
-                      required
                     />
                   </div>
                   <div>

@@ -40,6 +40,7 @@ messaging.onBackgroundMessage((payload) => {
     body,
     icon: '/icon-192x192.png',
     badge: '/badge-72x72.png',
+    image: payload.notification?.image || data.image,
     tag,                       // Deduplication key at OS level
     renotify: false,           // Don't re-vibrate if replacing same tag
     requireInteraction: false,

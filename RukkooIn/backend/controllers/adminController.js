@@ -1314,7 +1314,7 @@ export const getAdminNotifications = async (req, res) => {
 
 export const createBroadcastNotification = async (req, res) => {
   try {
-    const { title, body, targetAudience, type = 'general', sendEmail = false } = req.body; // targetAudience: 'users', 'partners', 'all' || 'everyone'
+    const { title, body, targetAudience, type = 'general', sendEmail = false, image, url } = req.body; // targetAudience: 'users', 'partners', 'all' || 'everyone'
 
     if (!title || !body || !targetAudience) {
       return res.status(400).json({ message: 'Title, Body and Target Audience are required' });
@@ -1354,7 +1354,12 @@ export const createBroadcastNotification = async (req, res) => {
           await notificationService.sendToUser(
             recipient.id,
             { title, body },
-            { type: 'broadcast', broadcastId: Date.now().toString() },
+            { 
+              type: 'broadcast', 
+              broadcastId: Date.now().toString(),
+              image,
+              url
+            },
             recipient.type
           );
 
@@ -1378,7 +1383,14 @@ export const createBroadcastNotification = async (req, res) => {
       body: `Sent to ${targetAudience} (${sentCount}/${recipients.length} recipients). Content: ${body}`,
       type: 'broadcast_log',
       isRead: true,
-      data: { originalTitle: title, originalBody: body, targetAudience, recipientCount: sentCount }
+      data: { 
+        originalTitle: title, 
+        originalBody: body, 
+        targetAudience, 
+        recipientCount: sentCount,
+        image,
+        url
+      }
     });
 
     res.status(201).json({

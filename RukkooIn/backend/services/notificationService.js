@@ -61,6 +61,7 @@ class NotificationService {
         notification: {
           title: notification.title || 'Rukkoin',
           body: notification.body || 'New Notification',
+          image: data.image || null, // Mobile/Android image field
         },
         data: {
           ...stringifiedData,
@@ -70,15 +71,20 @@ class NotificationService {
           priority: 'high',
           notification: {
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            image: data.image || null,
           },
         },
         apns: {
           payload: { aps: { sound: 'default', badge: 1 } },
+          fcm_options: {
+            image: data.image || null,
+          }
         },
         webpush: {
           notification: {
             icon: '/icon-192x192.png',
             badge: '/badge-72x72.png',
+            image: data.image || null, // Web image field
             // tag is set via data.notificationId in the service worker
           },
           fcmOptions: { link: fallbackLink },
@@ -381,15 +387,29 @@ class NotificationService {
 
       const buildMulticastMessage = (tokens) => ({
         tokens,
-        notification: { title: notifTitle, body: notifBody },
+        notification: {
+          title: notifTitle,
+          body: notifBody,
+          image: data.image || null,
+        },
         data: { ...stringifiedData, click_action: 'FLUTTER_NOTIFICATION_CLICK', broadcast: 'true' },
         android: {
           priority: 'high',
-          notification: { clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
+          notification: {
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            image: data.image || null,
+          },
         },
-        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        apns: {
+          payload: { aps: { sound: 'default', badge: 1 } },
+          fcm_options: { image: data.image || null },
+        },
         webpush: {
-          notification: { icon: '/icon-192x192.png', badge: '/badge-72x72.png' },
+          notification: {
+            icon: '/icon-192x192.png',
+            badge: '/badge-72x72.png',
+            image: data.image || null,
+          },
           fcmOptions: { link: fallbackLink },
         },
       });
