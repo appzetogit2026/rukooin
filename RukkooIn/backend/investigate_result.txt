@@ -1,0 +1,18 @@
+--- SEARCHING FOR BOOKING ---
+Booking found:
+ID: 69bfc4d6e2cb24944146d6b6
+BookingId: BK-1774175446088-224
+Status: cancelled
+PropertyId: 69b51e64c7a6a54b1d7e8a65
+RoomTypeId: 69b51e65c7a6a54b1d7e8a68
+Check-In: Sat Mar 28 2026 05:30:00 GMT+0530 (India Standard Time)
+Check-Out: Sun Mar 29 2026 05:30:00 GMT+0530 (India Standard Time)
+
+--- SS VILLA DETAILS ---
+ID: 69b51e64c7a6a54b1d7e8a65
+
+--- LEDGER ENTRIES (2026-03-25 to 2026-04-05) ---
+No ledger entries found for these dates.
+
+--- OTHER ACTIVE BOOKINGS (2026-03-25 to 2026-04-05) ---
+No other active bookings found.

@@ -9,6 +9,7 @@ const ExclusiveOffers = () => {
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isPaused, setIsPaused] = useState(false);
 
     useEffect(() => {
         const fetchOffers = async () => {
@@ -71,8 +72,13 @@ const ExclusiveOffers = () => {
             <div className="flex w-full overflow-hidden">
                 <div
                     className="flex gap-3 pl-5"
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                    onTouchStart={() => setIsPaused(true)}
+                    onTouchEnd={() => setIsPaused(false)}
                     style={{
                         animation: `marquee ${offers.length * 4}s linear infinite`,
+                        animationPlayState: isPaused ? 'paused' : 'running',
                         width: 'max-content'
                     }}
                 >

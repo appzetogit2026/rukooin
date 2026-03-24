@@ -1,0 +1,7 @@
+--- INVESTIGATING NEW BOOKING BK-1774234544365-865 ---
+ID: 69c0abb0e2cb249441471372
+Status: awaiting_payment
+Payment Method: prepaid
+Amount: 10175
+Created At: Mon Mar 23 2026 08:25:44 GMT+0530 (India Standard Time)
+User: undefined (undefined)
