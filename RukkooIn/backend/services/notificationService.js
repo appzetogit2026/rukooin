@@ -75,7 +75,14 @@ class NotificationService {
           },
         },
         apns: {
-          payload: { aps: { sound: 'default', badge: 1 } },
+          payload: { 
+            aps: { 
+              sound: 'default', 
+              badge: 1, 
+              'mutable-content': 1,
+              'content-available': 1
+            } 
+          },
           fcm_options: {
             image: data.image || null,
           }
@@ -401,7 +408,14 @@ class NotificationService {
           },
         },
         apns: {
-          payload: { aps: { sound: 'default', badge: 1 } },
+          payload: { 
+            aps: { 
+              sound: 'default', 
+              badge: 1, 
+              'mutable-content': 1,
+              'content-available': 1
+            } 
+          },
           fcm_options: { image: data.image || null },
         },
         webpush: {
