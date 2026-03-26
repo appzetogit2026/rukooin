@@ -41,10 +41,7 @@ class WhatsAppService {
       });
       const totalAmount = booking.totalAmount;
       
-      // Google Maps Link (Directions)
-      // Example: https://www.google.com/maps/dir/?api=1&destination=26.2124007%2C78.1772053
       let hotelLocationLink = "https://www.google.com/maps/dir/?api=1&destination=";
-      
       if (property?.location?.coordinates && property.location.coordinates.length === 2) {
         const [lng, lat] = property.location.coordinates;
         hotelLocationLink += `${lat}%2C${lng}`;
@@ -53,40 +50,48 @@ class WhatsAppService {
         hotelLocationLink += encodeURIComponent(address);
       }
 
-      // Template Variables (6 variables for rukkoo_confirmed)
+      // Cleanup variables: Replace literal commas with encoded %2C
+      const cleanVar = (val) => val ? val.toString().replace(/,/g, '%2C') : '';
+
+      // Template Variables (6 variables for booking_2503)
       const variables = [
-        guestName,           // Dear {#var#}
-        hotelName,           // Hotel: {#var#}
-        checkInDate,         // Check-in Date: {#var#}
-        totalAmount,         // Total Payment: {#var#}
-        guestName,           // Guest Name: {#var#}
-        hotelLocationLink    // Hotel Location: {#var#}
-      ];
+        cleanVar(guestName),           // {{1}}
+        cleanVar(hotelName),           // {{2}}
+        cleanVar(checkInDate),         // {{3}}
+        cleanVar(totalAmount),         // {{4}}
+        cleanVar(guestName),           // {{5}}
+        cleanVar(hotelLocationLink)    // {{6}}
+      ].join(',');
 
       const normalizedPhone = this.normalizePhoneNumber(user.phone);
 
-      // Params matching BhashSMS Utility Template requirements
-      const params = {
-        user: this.user,
-        pass: this.pass,
-        sender: this.sender,
-        phone: normalizedPhone,
-        tid: this.template,        // Template Name
-        stype: 'wa',               // Standard WhatsApp type
-        type: this.stype,          // Using category from .env (marketing)
-        priority: 'ndnd',
-        text: variables.join(',')
-      };
+      // Create Form Data for POST (application/x-www-form-urlencoded)
+      const formData = new URLSearchParams();
+      formData.append('user', this.user);
+      formData.append('pass', this.pass);
+      formData.append('sender', this.sender);
+      formData.append('phone', normalizedPhone);
+      formData.append('text', this.template); // Template ID/Name
+      formData.append('priority', 'wa');
+      formData.append('stype', 'normal');     // Fixed as 'normal' per user snippet for POST API
+      formData.append('Params', variables);
 
-      console.log(`📨 Sending WhatsApp Template [${this.template}] to ${normalizedPhone} (Category: ${this.stype})...`);
+      console.log(`📨 Sending WhatsApp via POST [${this.template}] to ${normalizedPhone} (Priority: wa, SType: normal)...`);
       
-      const response = await axios.get(this.apiUrl, { 
-        params,
+      const response = await axios.post(this.apiUrl, formData.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         timeout: 15000 
       });
 
       console.log('✅ WhatsApp Response:', response.data);
-      return { success: true, response: response.data };
+
+      // BhashSMS success usually contains "S." (S.MessageID)
+      if (typeof response.data === 'string' && response.data.includes('S.')) {
+        return { success: true, response: response.data };
+      } else {
+        console.warn('⚠️ WhatsApp API Warning:', response.data);
+        return { success: false, response: response.data };
+      }
 
     } catch (error) {
       console.error('❌ WhatsApp Service Error:', error.message);
