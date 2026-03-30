@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Star, IndianRupee, Heart } from 'lucide-react';
+import { MapPin, Star, IndianRupee, Heart, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/apiService';
 import toast from 'react-hot-toast';
@@ -155,6 +155,12 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
           </div>
         )}
 
+        {item.customUrgencyMessage && (
+          <div className="absolute top-2 right-10 bg-red-600/90 text-white px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm z-10 animate-pulse uppercase tracking-tight flex items-center gap-1">
+            <span className="text-[11px]">🔥</span> {item.customUrgencyMessage}
+          </div>
+        )}
+
         <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-md px-1.5 py-0.5 rounded-md flex items-center gap-1 text-[10px] font-bold text-surface shadow-sm border border-gray-100 z-10">
           <Star size={10} className="fill-honey text-honey" />
           {displayRating}
@@ -169,7 +175,17 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
       <div className="px-3 py-2">
         <div className="flex justify-between items-start">
-          <h3 className="font-bold text-xs text-gray-800 line-clamp-1">{displayName}</h3>
+          <div className="flex flex-col gap-0.5 max-w-full overflow-hidden">
+            <h3 className="font-bold text-xs text-gray-800 line-clamp-1 flex items-center gap-1">
+              {displayName}
+              {item.isVerified && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[8px] font-black uppercase tracking-tight shadow-sm shrink-0 ml-1">
+                  <CheckCircle size={8} className="fill-blue-500 text-white" />
+                  Verified
+                </div>
+              )}
+            </h3>
+          </div>
         </div>
 
         <div className="flex items-start gap-1 text-gray-500 text-[10px] mb-2 min-h-[2em]">
@@ -189,11 +205,18 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
 
         <div className="flex items-end justify-between mt-auto">
           <div>
-            <p className="text-[10px] text-gray-400 font-medium">Starts from</p>
-            <div className="flex items-center gap-1 text-surface font-bold text-xs">
-              <IndianRupee size={12} />
-              {displayPrice ? displayPrice.toLocaleString() : 'Check Price'}
-              <span className="text-[10px] text-gray-400 font-normal ml-0.5">/ night</span>
+            <div className="flex flex-col">
+              {item.fakePrice > 0 && (
+                <div className="flex items-center gap-0.5 text-red-500 line-through text-[10px] opacity-70 mb-[-2px]">
+                  <IndianRupee size={8} />
+                  {item.fakePrice.toLocaleString()}
+                </div>
+              )}
+              <div className="flex items-center gap-1 text-surface font-bold text-xs">
+                <IndianRupee size={12} />
+                {displayPrice ? displayPrice.toLocaleString() : 'Check Price'}
+                <span className="text-[10px] text-gray-400 font-normal ml-0.5">/ night</span>
+              </div>
             </div>
           </div>
 

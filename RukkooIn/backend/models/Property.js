@@ -105,10 +105,14 @@ const propertySchema = new mongoose.Schema({
   },
 
   isLive: { type: Boolean, default: false },
+  isVerified: { type: Boolean, default: false },
+  customUrgencyMessage: { type: String, default: "" },
 
   // RATINGS
   avgRating: { type: Number, default: 3 },
-  totalReviews: { type: Number, default: 0 }
+  totalReviews: { type: Number, default: 0 },
+
+  fakePrice: { type: Number, default: 0 }
 
 }, { timestamps: true });
 

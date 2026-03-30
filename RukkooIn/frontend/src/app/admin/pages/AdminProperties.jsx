@@ -35,6 +35,13 @@ const PropertyStatusBadge = ({ status }) => {
     );
 };
 
+const VerifiedBadge = () => (
+    <span className="flex items-center w-fit px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[9px] font-black uppercase tracking-tight shadow-sm">
+        <CheckCircle size={10} className="mr-1 fill-blue-500 text-white" />
+        Verified
+    </span>
+);
+
 const AdminProperties = () => {
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -97,7 +104,7 @@ const AdminProperties = () => {
         setCurrentPage(1);
     };
 
-    const handleAction = (action, property) => {
+    const handleAction = async (action, property) => {
         setActiveDropdown(null);
         if (action === 'approve' || action === 'reject') {
             const newStatus = action === 'approve' ? 'approved' : 'rejected';
@@ -119,6 +126,41 @@ const AdminProperties = () => {
                     }
                 }
             });
+        } else if (action === 'toggleVerify') {
+            const isVerifying = !property.isVerified;
+            setModalConfig({
+                isOpen: true,
+                title: isVerifying ? 'Verify Property?' : 'Remove Verification?',
+                message: isVerifying 
+                    ? `Are you sure you want to verify "${property.propertyName}"? This will place it at the top of search results.`
+                    : `Are you sure you want to remove verification from "${property.propertyName}"?`,
+                type: 'warning',
+                confirmText: isVerifying ? 'Verify Property' : 'Unverify Property',
+                onConfirm: async () => {
+                    try {
+                        const res = await adminService.updateHotelStatus(property._id, { isVerified: isVerifying });
+                        if (res.success) {
+                            toast.success(`Property ${isVerifying ? 'verified' : 'unverified'} successfully`);
+                            fetchProperties(currentPage, filters);
+                        }
+                    } catch {
+                        toast.error('Failed to update verification');
+                    }
+                }
+            });
+        } else if (action === 'setUrgency') {
+            const message = window.prompt(`Enter urgency message for "${property.propertyName}" (e.g., 🔥 Only 2 rooms left!):`, property.customUrgencyMessage || '');
+            if (message !== null) {
+                try {
+                    const res = await adminService.updateHotelStatus(property._id, { customUrgencyMessage: message });
+                    if (res.success) {
+                        toast.success('Urgency message updated');
+                        fetchProperties(currentPage, filters);
+                    }
+                } catch {
+                    toast.error('Failed to update urgency message');
+                }
+            }
         } else if (action === 'delete') {
             setModalConfig({
                 isOpen: true,
@@ -286,6 +328,12 @@ const AdminProperties = () => {
                                                                 <MapPin size={10} className="mr-1" />
                                                                 {property.address?.city || 'No Address'}, {property.address?.state || ''}
                                                             </div>
+                                                            {property.isVerified && <div className="mt-1"><VerifiedBadge /></div>}
+                                                            {property.customUrgencyMessage && (
+                                                                <div className="mt-1 flex items-center gap-1 text-[8px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded border border-orange-100 uppercase font-black tracking-tight w-fit">
+                                                                    🔥 {property.customUrgencyMessage}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </Link>
                                                 </td>
@@ -333,6 +381,12 @@ const AdminProperties = () => {
                                                                     </button>
                                                                 </>
                                                             )}
+                                                            <button onClick={() => handleAction('toggleVerify', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-blue-50 text-[10px] font-bold uppercase text-blue-700">
+                                                                <CheckCircle size={14} /> {property.isVerified ? 'Unverify Property' : 'Verify Property'}
+                                                            </button>
+                                                            <button onClick={() => handleAction('setUrgency', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-orange-50 text-[10px] font-bold uppercase text-orange-700">
+                                                                <Star size={14} /> Set Urgency
+                                                            </button>
                                                             <div className="h-px bg-gray-100 my-1"></div>
                                                             <button onClick={() => handleAction('delete', property)} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-[10px] font-bold uppercase text-red-700">
                                                                 <Trash2 size={14} /> Delete Property

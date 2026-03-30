@@ -203,6 +203,30 @@ const OverviewTab = ({ hotel, isEditing, editData, onChange }) => {
                                 </span>
                             )}
                         </div>
+
+                        {/* FAKE PRICE FEATURE */}
+                        <div className="flex justify-between items-center min-h-[32px] pt-1 border-t border-gray-100 mt-1">
+                            <div className="flex flex-col">
+                                <span className="text-red-500 font-bold uppercase text-[10px]">Fake Price (UI Only)</span>
+                                <span className="text-[8px] text-gray-400 font-medium lowercase italic">Shown as slashed price to users</span>
+                            </div>
+                            {isEditing ? (
+                                <div className="relative w-1/2">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">₹</span>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        value={editData.fakePrice || ''}
+                                        onChange={(e) => onChange('fakePrice', e.target.value)}
+                                        className="w-full bg-white border border-red-100 rounded pl-5 pr-2 py-1 text-sm font-bold outline-none focus:ring-1 focus:ring-red-500 text-red-600"
+                                    />
+                                </div>
+                            ) : (
+                                <span className="font-bold text-red-500">
+                                    {hotel.fakePrice ? `₹${hotel.fakePrice.toLocaleString()}` : 'None'}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
@@ -1215,7 +1239,8 @@ const AdminHotelDetail = () => {
                     propertyImages: data.hotel.propertyImages || [],
                     coverImage: data.hotel.coverImage || '',
                     documents: data.documents?.documents || [],
-                    rooms: data.hotel.rooms || []
+                    rooms: data.hotel.rooms || [],
+                    fakePrice: data.hotel.fakePrice || 0
                 });
             }
         } catch (error) {
@@ -1289,7 +1314,8 @@ const AdminHotelDetail = () => {
                 propertyImages: hotel.propertyImages || [],
                 coverImage: hotel.coverImage || '',
                 documents: documents?.documents || [],
-                rooms: hotel.rooms || []
+                rooms: hotel.rooms || [],
+                fakePrice: hotel.fakePrice || 0
             });
         }
     };

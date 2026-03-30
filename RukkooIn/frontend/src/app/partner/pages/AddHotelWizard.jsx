@@ -463,9 +463,9 @@ const AddHotelWizard = () => {
           throw new Error(`File ${file.name} is not an image`);
         }
 
-        // Validate file size (10MB limit)
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`Image ${file.name} is too large. Maximum 10MB allowed.`);
+        // Validate file size (25MB limit)
+        if (file.size > 25 * 1024 * 1024) {
+          throw new Error(`Image ${file.name} is too large. Maximum 25MB allowed.`);
         }
 
         console.log(`Adding ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);

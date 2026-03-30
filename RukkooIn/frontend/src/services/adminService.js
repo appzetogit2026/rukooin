@@ -31,8 +31,11 @@ const adminService = {
     return response.data;
   },
 
-  updateHotelStatus: async (hotelId, status) => {
-    const response = await axiosInstance.put('/admin/update-hotel-status', { hotelId, status });
+  updateHotelStatus: async (hotelId, statusOrPayload) => {
+    const payload = typeof statusOrPayload === 'string'
+      ? { hotelId, status: statusOrPayload }
+      : { hotelId, ...statusOrPayload };
+    const response = await axiosInstance.put('/admin/update-hotel-status', payload);
     return response.data;
   },
 

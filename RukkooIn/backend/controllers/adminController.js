@@ -449,6 +449,18 @@ export const updateHotelStatus = async (req, res) => {
     if (typeof isLive === 'boolean') {
       update.isLive = isLive;
     }
+    
+    if (typeof req.body.isVerified === 'boolean') {
+      update.isVerified = req.body.isVerified;
+    }
+
+    if (req.body.customUrgencyMessage !== undefined) {
+      update.customUrgencyMessage = req.body.customUrgencyMessage;
+    }
+
+    if (req.body.fakePrice !== undefined) {
+      update.fakePrice = Number(req.body.fakePrice) || 0;
+    }
 
     const hotel = await Property.findByIdAndUpdate(id, update, { new: true });
     if (!hotel) return res.status(404).json({ success: false, message: 'Property not found' });
@@ -1527,7 +1539,7 @@ export const adminUpdateProperty = async (req, res) => {
       'starRating', 'activities', 'shortDescription', 'partnerId', 'address',
       'location', 'nearbyPlaces', 'coverImage', 'propertyImages',
       'checkInTime', 'checkOutTime', 'cancellationPolicy',
-      'status', 'isLive', 'avgRating', 'totalReviews'
+      'status', 'isLive', 'avgRating', 'totalReviews', 'fakePrice'
     ];
 
     updatableFields.forEach(field => {

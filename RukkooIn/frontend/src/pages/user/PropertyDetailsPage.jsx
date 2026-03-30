@@ -169,7 +169,8 @@ const PropertyDetailsPage = () => {
             foodType: p.foodType,
             hotelCategory: p.hotelCategory,
             starRating: p.starRating
-          }
+          },
+          fakePrice: p.fakePrice || 0
         };
         setProperty(adapted);
 
@@ -717,15 +718,35 @@ const PropertyDetailsPage = () => {
                   </div>
                 )}
               </div>
-              <h1 className="text-xl md:text-3xl font-bold text-textDark mb-1 leading-tight">{name}</h1>
+              <h1 className="text-xl md:text-3xl font-bold text-textDark mb-1 leading-tight flex items-center gap-2">
+                {name}
+                {property.isVerified && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-md text-[10px] font-black uppercase tracking-tight shadow-sm shrink-0 ml-2">
+                    <CheckCircle size={12} className="fill-blue-500 text-white" />
+                    Verified
+                  </div>
+                )}
+              </h1>
+              {property.customUrgencyMessage && (
+                <div className="flex items-center gap-1.5 w-fit mb-2 px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-black animate-pulse uppercase tracking-tight">
+                  🔥 {property.customUrgencyMessage}
+                </div>
+              )}
               <div className="flex items-start gap-1.5 text-gray-500 text-xs md:text-sm">
                 <MapPin size={14} className="mt-0.5 shrink-0" />
                 <span className="line-clamp-3 md:line-clamp-1">{address?.fullAddress}</span>
               </div>
             </div>
-            <div className="hidden md:block text-right">
+            <div className="hidden md:flex flex-col items-end">
               <p className="text-sm text-gray-500">Starting from</p>
-              <p className="text-2xl font-bold text-surface">₹{stayPricing.perNight || getRoomPrice(activeRoom) || property.minPrice || 'N/A'}</p>
+              <div className="flex flex-col items-end">
+                {property.fakePrice > 0 && (
+                  <span className="text-sm text-red-500 line-through font-bold opacity-70 mb-[-4px]">
+                    ₹{property.fakePrice.toLocaleString()}
+                  </span>
+                )}
+                <p className="text-2xl font-bold text-surface">₹{stayPricing.perNight || getRoomPrice(activeRoom) || property.minPrice || 'N/A'}</p>
+              </div>
               {stayPricing.nights > 0 && (
                 <p className="text-[11px] text-gray-400">
                   {stayPricing.nights} nights ({stayPricing.weekdayNights} weekday, {stayPricing.weekendNights} weekend)

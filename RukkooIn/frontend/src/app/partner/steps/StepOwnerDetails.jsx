@@ -85,9 +85,9 @@ const ImageUploader = ({ label, value, onChange, placeholder = "Upload Image", o
       return;
     }
 
-    // Max 10MB (Cloudinary free tier limit)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum 10MB allowed.');
+    // Max 25MB limit
+    if (file.size > 100 * 1024 * 1024) {
+      setError('File too large. Maximum 100MB allowed.');
       return;
     }
 

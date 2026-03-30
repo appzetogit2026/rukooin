@@ -445,8 +445,8 @@ const AddVillaWizard = () => {
         if (!file.type.startsWith('image/')) {
           throw new Error(`File ${file.name} is not an image`);
         }
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`Image ${file.name} is too large. Maximum 10MB allowed.`);
+        if (file.size > 25 * 1024 * 1024) {
+          throw new Error(`Image ${file.name} is too large. Maximum 25MB allowed.`);
         }
         console.log(`Adding ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`);
         fd.append('images', file);

@@ -180,7 +180,8 @@ export const updateProperty = async (req, res) => {
       'starRating',
       'contactNumber',
       'suitability',
-      'isLive'
+      'isLive',
+      'fakePrice'
     ];
 
     updatableFields.forEach(field => {
@@ -653,13 +654,13 @@ export const getPublicProperties = async (req, res) => {
     }
 
     // 7. Sorting
-    let sortStage = { createdAt: -1 }; // Default new
+    let sortStage = { isVerified: -1, createdAt: -1 }; // Default new + Verified first
     if (sort) {
-      if (sort === 'newest') sortStage = { createdAt: -1 };
-      if (sort === 'price_low') sortStage = { startingPrice: 1 };
-      if (sort === 'price_high') sortStage = { startingPrice: -1 };
-      if (sort === 'rating') sortStage = { avgRating: -1 };
-      if (sort === 'distance' && lat && lng) sortStage = { distance: 1 };
+      if (sort === 'newest') sortStage = { isVerified: -1, createdAt: -1 };
+      if (sort === 'price_low') sortStage = { isVerified: -1, startingPrice: 1 };
+      if (sort === 'price_high') sortStage = { isVerified: -1, startingPrice: -1 };
+      if (sort === 'rating') sortStage = { isVerified: -1, avgRating: -1 };
+      if (sort === 'distance' && lat && lng) sortStage = { isVerified: -1, distance: 1 };
     }
 
     pipeline.push({ $sort: sortStage });
