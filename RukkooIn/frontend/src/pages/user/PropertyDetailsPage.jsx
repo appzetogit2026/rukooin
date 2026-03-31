@@ -385,7 +385,7 @@ const PropertyDetailsPage = () => {
     if (selectedRoom) {
       // Multiply by number of units/rooms selected if applicable
       // But for 'Entire Villa' (inventoryType='entire'), usually quantity is 1 which is guests.rooms
-      return (selectedRoom.maxAdults || 12) * (isWholeUnit ? 1 : guests.rooms);
+      return (selectedRoom.maxAdults ?? 12) * (isWholeUnit ? 1 : guests.rooms);
     }
 
     if (isWholeUnit) return property.structure?.maxGuests || property.maxGuests || 12;
@@ -1065,16 +1065,16 @@ const PropertyDetailsPage = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.max(1, prev.adults - 1) }))}
-                      disabled={isBedBased}
+                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.max(getMaxAdults() === 0 ? 0 : 1, prev.adults - 1) }))}
+                      disabled={isBedBased || guests.adults <= (getMaxAdults() === 0 ? 0 : 1)}
                       className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform disabled:opacity-50"
                     >
                       -
                     </button>
                     <span className="w-4 text-center font-bold">{guests.adults}</span>
                     <button
-                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.min((selectedRoom?.maxAdults || 10) * guests.rooms, prev.adults + 1) }))}
-                      disabled={isBedBased}
+                      onClick={() => setGuests(prev => ({ ...prev, adults: Math.min(getMaxAdults(), prev.adults + 1) }))}
+                      disabled={isBedBased || guests.adults >= getMaxAdults()}
                       className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform disabled:opacity-50"
                     >
                       +
@@ -1096,14 +1096,16 @@ const PropertyDetailsPage = () => {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setGuests(prev => ({ ...prev, children: Math.max(0, prev.children - 1) }))}
-                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform"
+                        disabled={guests.children <= 0}
+                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white text-gray-600 active:scale-90 transition-transform disabled:opacity-50"
                       >
                         -
                       </button>
                       <span className="w-4 text-center font-bold">{guests.children}</span>
                       <button
-                        onClick={() => setGuests(prev => ({ ...prev, children: Math.min((selectedRoom?.maxChildren || 10) * guests.rooms, prev.children + 1) }))}
-                        className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform"
+                        onClick={() => setGuests(prev => ({ ...prev, children: Math.min(getMaxChildren(), prev.children + 1) }))}
+                        disabled={guests.children >= getMaxChildren()}
+                        className="w-8 h-8 rounded-full border border-surface flex items-center justify-center bg-white text-surface active:scale-90 transition-transform disabled:opacity-50"
                       >
                         +
                       </button>
