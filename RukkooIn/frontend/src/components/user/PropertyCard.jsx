@@ -155,11 +155,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
           </div>
         )}
 
-        {item.customUrgencyMessage && (
-          <div className="absolute top-2 right-10 bg-red-600/90 text-white px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm z-10 animate-pulse uppercase tracking-tight flex items-center gap-1">
-            <span className="text-[11px]">🔥</span> {item.customUrgencyMessage}
-          </div>
-        )}
+
 
         <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur-md px-1.5 py-0.5 rounded-md flex items-center gap-1 text-[10px] font-bold text-surface shadow-sm border border-gray-100 z-10">
           <Star size={10} className="fill-honey text-honey" />
@@ -206,12 +202,19 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
         <div className="flex items-end justify-between mt-auto">
           <div>
             <div className="flex flex-col">
-              {item.fakePrice > 0 && (
-                <div className="flex items-center gap-0.5 text-red-500 line-through text-[10px] opacity-70 mb-[-2px]">
-                  <IndianRupee size={8} />
-                  {item.fakePrice.toLocaleString()}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {item.fakePrice > 0 && (
+                  <div className="flex items-center gap-0.5 text-red-500 line-through text-[11px] opacity-70">
+                    <IndianRupee size={9} />
+                    {item.fakePrice.toLocaleString()}
+                  </div>
+                )}
+                {item.customUrgencyMessage && (
+                  <div className="text-red-600 text-[10px] font-bold uppercase tracking-tight flex items-center gap-1 animate-pulse">
+                    <span>🔥</span> {item.customUrgencyMessage}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1 text-surface font-bold text-xs">
                 <IndianRupee size={12} />
                 {displayPrice ? displayPrice.toLocaleString() : 'Check Price'}
