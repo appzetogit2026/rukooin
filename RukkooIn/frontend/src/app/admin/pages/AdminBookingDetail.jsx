@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Calendar, User, Users, MapPin, CreditCard, Clock,
     CheckCircle, XCircle, AlertTriangle, FileText,
-    Download, ShieldCheck, Phone, Mail, Loader2
+    Download, ShieldCheck, Phone, Mail, Loader2, Tag
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -254,6 +254,24 @@ const AdminBookingDetail = () => {
                                     {booking.paymentStatus === 'partial' ? 'PARTIAL (PREPAID)' : (booking.paymentStatus?.toUpperCase() || 'PENDING')}
                                 </span>
                             </div>
+
+                            {booking.couponCode && (
+                                <div className="flex items-center justify-between p-2.5 bg-green-50 rounded-xl border border-green-100 mt-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
+                                            <Tag size={14} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-bold text-green-600 uppercase leading-none mb-0.5">Applied Coupon</p>
+                                            <p className="text-[11px] font-extrabold text-green-700 uppercase leading-none">{booking.couponCode}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-bold text-green-600 uppercase leading-none mb-0.5">Discount</p>
+                                        <p className="text-[11px] font-extrabold text-green-700 leading-none">-₹{booking.discount?.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            )}
 
                             {booking.paymentMethod === 'prepaid' && (
                                 <>

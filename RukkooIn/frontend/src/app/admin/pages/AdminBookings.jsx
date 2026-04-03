@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Calendar, Search, Filter, MoreVertical,
     CheckCircle, XCircle, Clock, ArrowRight, X, AlertTriangle, Eye,
-    FileText, Download, Loader2, ChevronLeft, ChevronRight
+    FileText, Download, Loader2, ChevronLeft, ChevronRight, Tag
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -354,7 +354,15 @@ const AdminBookings = () => {
                                                     <BookingStatusBadge status={booking.bookingStatus} />
                                                 </td>
                                                 <td className="p-4 text-right font-bold text-gray-900 text-sm">
-                                                    ₹{booking.totalAmount?.toLocaleString()}
+                                                    <div className="flex flex-col items-end">
+                                                        <span>₹{booking.totalAmount?.toLocaleString()}</span>
+                                                        {booking.couponCode && (
+                                                            <span className="flex items-center gap-1 mt-0.5 px-1.5 py-0.5 bg-green-50 text-green-700 rounded-md border border-green-100 text-[8px] font-bold uppercase ring-1 ring-green-500/10 whitespace-nowrap">
+                                                                <Tag size={10} className="text-green-500" />
+                                                                {booking.couponCode}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-center relative">
                                                     <button
