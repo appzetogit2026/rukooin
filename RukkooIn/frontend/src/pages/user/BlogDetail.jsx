@@ -109,7 +109,7 @@ const BlogDetail = () => {
             </div>
           </div>
           
-          <h1 className="max-w-5xl text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white mb-8 leading-[1.05] drop-shadow-sm">
+          <h1 className="max-w-5xl text-4xl md:text-6xl lg:text-7xl font-black tracking-normal md:tracking-tight text-white mb-8 leading-[1.05] drop-shadow-sm break-normal hyphens-none">
             {blog.title}
           </h1>
 
@@ -161,7 +161,7 @@ const BlogDetail = () => {
             </div>
 
             {/* Content Body - ALIGNED LEFT */}
-            <div className="prose prose-invert prose-emerald max-w-full text-left break-words">
+            <div className="prose prose-invert prose-emerald max-w-full text-left break-normal hyphens-none">
               {blog.content ? (
                 <div 
                   className="text-slate-300 text-lg md:text-xl leading-relaxed md:leading-[1.9] tracking-wide"

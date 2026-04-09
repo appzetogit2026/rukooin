@@ -75,8 +75,8 @@
   margin-bottom: 1.25em;
   line-height: 1.8;
   overflow-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
+  word-break: normal;
+  hyphens: none;
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4 {
