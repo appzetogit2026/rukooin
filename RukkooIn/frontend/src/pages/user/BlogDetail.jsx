@@ -164,7 +164,7 @@ const BlogDetail = () => {
             <div className="prose prose-invert prose-emerald max-w-full text-left break-normal hyphens-none">
               {blog.content ? (
                 <div 
-                  className="text-slate-300 text-lg md:text-xl leading-relaxed md:leading-[1.9] tracking-wide"
+                  className="text-slate-300 text-lg md:text-xl leading-relaxed md:leading-[1.9] tracking-wide break-normal hyphens-none"
                   dangerouslySetInnerHTML={{ __html: blog.content }}
                 />
               ) : (
