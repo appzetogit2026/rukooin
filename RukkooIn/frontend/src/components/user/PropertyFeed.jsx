@@ -3,7 +3,7 @@ import { propertyService, userService } from '../../services/apiService';
 import PropertyCard from './PropertyCard';
 import { Loader2 } from 'lucide-react';
 
-const PropertyFeed = ({ selectedType, selectedCity }) => {
+const PropertyFeed = ({ selectedType, selectedCity, lat, lng }) => {
   const [properties, setProperties] = useState([]);
   const [savedHotelIds, setSavedHotelIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,29 +16,36 @@ const PropertyFeed = ({ selectedType, selectedCity }) => {
       try {
         const filters = {};
         if (selectedType && selectedType !== 'All') filters.type = selectedType;
+        
+        // City filtering
+        if (selectedCity && selectedCity !== 'All' && selectedCity !== 'Near Me') {
+          filters.search = selectedCity;
+        }
 
-        // Always fetch public properties (no auth needed)
+        // Location filtering
+        if (selectedCity === 'Near Me' && lat && lng) {
+          filters.lat = lat;
+          filters.lng = lng;
+          filters.radius = 50; // 50km
+          filters.sort = 'distance';
+        }
+
+        // Always fetch public properties
         const data = await propertyService.getPublic(filters);
 
-        // Fetch saved hotels separately only if logged in — don't let this fail the whole page
+        // Fetch saved hotels separately only if logged in
         if (localStorage.getItem('token')) {
           try {
             const savedRes = await userService.getSavedHotels();
             const list = savedRes?.savedHotels || [];
             setSavedHotelIds(list.map(h => (typeof h === 'object' ? h._id : h)));
           } catch (savedErr) {
-            // Silently ignore saved hotels error (e.g. 401 if token is invalid)
             console.warn("Could not fetch saved hotels:", savedErr);
             setSavedHotelIds([]);
           }
         }
 
-        let filteredData = data;
-        if (selectedCity && selectedCity !== 'All') {
-          filteredData = data.filter(p => p.address?.city?.toLowerCase() === selectedCity.toLowerCase());
-        }
-
-        setProperties(Array.isArray(filteredData) ? filteredData : []);
+        setProperties(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch properties:", err);
         setError("Could not load properties. Please try again.");
@@ -48,7 +55,7 @@ const PropertyFeed = ({ selectedType, selectedCity }) => {
     };
 
     fetchPropertiesAndSaved();
-  }, [selectedType, selectedCity]);
+  }, [selectedType, selectedCity, lat, lng]);
 
   if (loading) {
     return (

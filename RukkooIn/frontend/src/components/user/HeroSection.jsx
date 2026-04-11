@@ -1,24 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Menu, Wallet } from 'lucide-react';
+import { Search, Menu, Wallet, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
 import walletService from '../../services/walletService';
+import toast from 'react-hot-toast';
 
-const HeroSection = () => {
+const HeroSection = ({ selectedCity, onSelectCity }) => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
     const [walletBalance, setWalletBalance] = useState(0);
 
+    const cities = [
+        { name: 'Near Me', icon: <Navigation size={12} className="fill-current" /> },
+        { name: 'All' },
+        { name: 'Indore' },
+        { name: 'Bhopal' },
+        { name: 'Ujjain' },
+        { name: 'Dewas' },
+        { name: 'Ratlam' },
+        { name: 'Gwalior' },
+        { name: 'Jabalpur' }
+    ];
+
     const placeholders = [
-        "Search in Bucharest...",
+        "Search in Indore...",
         "Find luxury hotels...",
         "Book villas in Bali...",
         "Couple friendly stays...",
-        "Search near Red Square..."
+        "Search near Ujjain..."
     ];
 
     useEffect(() => {
@@ -61,10 +74,10 @@ const HeroSection = () => {
     };
 
     return (
-        <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-4 md:gap-6 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
+        <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-2 md:gap-4 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
 
             {/* 1. Header Row (Hides on Scroll) */}
-            <div className={`flex md:hidden items-center justify-between relative h-24 transition-all duration-300 ${isSticky ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100 mb-0'}`}>
+            <div className={`flex md:hidden items-center justify-between relative h-20 transition-all duration-300 ${isSticky ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100 mb-0'}`}>
                 {/* Menu Button */}
                 <button
                     onClick={() => setIsMenuOpen(true)}
@@ -159,6 +172,26 @@ const HeroSection = () => {
             {isSticky && (
                 <div className="h-11 w-full md:h-14"></div>
             )}
+
+            {/* 3. City Quick Filters */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1">
+                {cities.map((city) => (
+                    <button
+                        key={city.name}
+                        onClick={() => onSelectCity(city.name)}
+                        className={`
+                            flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all
+                            ${selectedCity === city.name 
+                                ? 'bg-[#004F4D] text-white shadow-md shadow-[#004F4D]/20 scale-105' 
+                                : 'bg-white text-gray-500 border border-gray-100 hover:border-accent/30'
+                            }
+                        `}
+                    >
+                        {city.icon && city.icon}
+                        {city.name}
+                    </button>
+                ))}
+            </div>
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
