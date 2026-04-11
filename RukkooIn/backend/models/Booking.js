@@ -87,6 +87,7 @@ const bookingSchema = new mongoose.Schema({
 
   paymentId: String,
   paymentMethod: String,
+  razorpayOrderId: String,
   
   // PREPAID FEATURE
   prepaidDiscount: { type: Number, default: 0 },

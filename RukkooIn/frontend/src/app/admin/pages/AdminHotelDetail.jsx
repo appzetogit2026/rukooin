@@ -3,8 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building2, MapPin, CheckCircle, XCircle, FileText,
     ChevronLeft, Star, Bed, Calendar, ShieldCheck, AlertCircle,
-    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users, X, Trash2
+    MoreVertical, Download, Search, Ban, Wifi, Phone, Mail, Tv, Coffee, Wind, Loader2, Clock, Image as ImageIcon, Users, X, Trash2, MapIcon
 } from 'lucide-react';
+import { useJsApiLoader, GoogleMap, Autocomplete, MarkerF } from '@react-google-maps/api';
+
+const GOOGLE_MAPS_LIBRARIES = ['places'];
+const MAP_CONTAINER_STYLE = {
+    width: '100%',
+    height: '250px'
+};
 import { Link, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import adminService from '../../../services/adminService';
@@ -53,7 +60,43 @@ const FileUpload = ({ onUpload, type = 'hotel', className = "", label = "Upload 
 
 // --- Tab Components ---
 
-const OverviewTab = ({ hotel, isEditing, editData, onChange }) => {
+const OverviewTab = ({ hotel, isEditing, editData, onChange, isLoaded, loadError }) => {
+    const [autocomplete, setAutocomplete] = useState(null);
+    const mapRef = useRef(null);
+
+    const onPlaceChanged = () => {
+        if (autocomplete !== null) {
+            const place = autocomplete.getPlace();
+            if (!place.geometry) return;
+
+            const addressComponents = place.address_components || [];
+            let city = '';
+            let state = '';
+            let pincode = '';
+
+            addressComponents.forEach(comp => {
+                if (comp.types.includes('locality')) city = comp.long_name;
+                if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+                if (comp.types.includes('postal_code')) pincode = comp.long_name;
+            });
+
+            onChange('address', {
+                ...editData.address,
+                fullAddress: place.formatted_address || '',
+                city: city || editData.address.city,
+                state: state || editData.address.state,
+                pincode: pincode || editData.address.pincode
+            });
+
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            onChange('location', {
+                ...editData.location,
+                coordinates: [lng, lat]
+            });
+        }
+    };
+
     // Local state for free-text fields to allow commas, spaces, and returns during editing
     const [amenitiesText, setAmenitiesText] = useState(editData.amenities?.join(', ') || '');
     const [rulesText, setRulesText] = useState(editData.houseRules?.join('\n') || '');
@@ -245,64 +288,115 @@ const OverviewTab = ({ hotel, isEditing, editData, onChange }) => {
                         <div className="pt-2">
                             <span className="text-gray-500 font-bold uppercase text-[10px] block mb-1">Full Address</span>
                             {isEditing ? (
-                                <div className="space-y-2">
-                                    <textarea
-                                        value={editData.address?.fullAddress || ''}
-                                        onChange={(e) => onChange('address', { ...editData.address, fullAddress: e.target.value })}
-                                        className="w-full bg-white border rounded px-2 py-1 text-sm font-bold outline-none focus:ring-1 focus:ring-black uppercase h-20"
-                                        placeholder="Full Address"
-                                    />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input
-                                            type="text"
-                                            value={editData.address?.city || ''}
-                                            onChange={(e) => onChange('address', { ...editData.address, city: e.target.value })}
-                                            className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
-                                            placeholder="City"
+                                <div className="space-y-4">
+                                    {isLoaded ? (
+                                        <div className="space-y-2">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Search Location (Auto-fill)</span>
+                                            <Autocomplete
+                                                onLoad={setAutocomplete}
+                                                onPlaceChanged={onPlaceChanged}
+                                            >
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search hotel/place..."
+                                                        className="w-full bg-white border rounded pl-8 pr-2 py-1.5 text-xs font-bold outline-none focus:ring-1 focus:ring-black shadow-sm"
+                                                    />
+                                                </div>
+                                            </Autocomplete>
+
+                                            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-inner mt-2">
+                                                <GoogleMap
+                                                    mapContainerStyle={MAP_CONTAINER_STYLE}
+                                                    zoom={15}
+                                                    center={{
+                                                        lat: editData.location?.coordinates[1] || 22.7196,
+                                                        lng: editData.location?.coordinates[0] || 75.8577
+                                                    }}
+                                                    options={{ disableDefaultUI: true, zoomControl: true }}
+                                                >
+                                                    <MarkerF
+                                                        position={{
+                                                            lat: editData.location?.coordinates[1] || 22.7196,
+                                                            lng: editData.location?.coordinates[0] || 75.8577
+                                                        }}
+                                                        draggable={true}
+                                                        onDragEnd={(e) => {
+                                                            onChange('location', {
+                                                                ...editData.location,
+                                                                coordinates: [e.latLng.lng(), e.latLng.lat()]
+                                                            });
+                                                        }}
+                                                    />
+                                                </GoogleMap>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="h-40 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 text-[10px] font-bold uppercase">
+                                            {loadError ? 'Map Error' : 'Loading Map...'}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2 border-t border-gray-100 pt-4">
+                                        <textarea
+                                            value={editData.address?.fullAddress || ''}
+                                            onChange={(e) => onChange('address', { ...editData.address, fullAddress: e.target.value })}
+                                            className="w-full bg-white border rounded px-2 py-1 text-sm font-bold outline-none focus:ring-1 focus:ring-black uppercase h-20"
+                                            placeholder="Full Address"
                                         />
-                                        <input
-                                            type="text"
-                                            value={editData.address?.state || ''}
-                                            onChange={(e) => onChange('address', { ...editData.address, state: e.target.value })}
-                                            className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
-                                            placeholder="State"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={editData.address?.pincode || ''}
-                                            onChange={(e) => onChange('address', { ...editData.address, pincode: e.target.value })}
-                                            className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
-                                            placeholder="Pincode"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 pt-2">
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Longitude</span>
+                                        <div className="grid grid-cols-2 gap-2">
                                             <input
-                                                type="number"
-                                                step="any"
-                                                value={editData.location?.coordinates[0] || 0}
-                                                onChange={(e) => {
-                                                    const newCoords = [...editData.location.coordinates];
-                                                    newCoords[0] = parseFloat(e.target.value);
-                                                    onChange('location', { ...editData.location, coordinates: newCoords });
-                                                }}
-                                                className="w-full bg-white border rounded px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-black"
+                                                type="text"
+                                                value={editData.address?.city || ''}
+                                                onChange={(e) => onChange('address', { ...editData.address, city: e.target.value })}
+                                                className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
+                                                placeholder="City"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={editData.address?.state || ''}
+                                                onChange={(e) => onChange('address', { ...editData.address, state: e.target.value })}
+                                                className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
+                                                placeholder="State"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={editData.address?.pincode || ''}
+                                                onChange={(e) => onChange('address', { ...editData.address, pincode: e.target.value })}
+                                                className="bg-white border rounded px-2 py-1 text-xs font-bold outline-none focus:ring-1 focus:ring-black uppercase"
+                                                placeholder="Pincode"
                                             />
                                         </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Latitude</span>
-                                            <input
-                                                type="number"
-                                                step="any"
-                                                value={editData.location?.coordinates[1] || 0}
-                                                onChange={(e) => {
-                                                    const newCoords = [...editData.location.coordinates];
-                                                    newCoords[1] = parseFloat(e.target.value);
-                                                    onChange('location', { ...editData.location, coordinates: newCoords });
-                                                }}
-                                                className="w-full bg-white border rounded px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-black"
-                                            />
+                                        <div className="grid grid-cols-2 gap-2 pt-2">
+                                            <div className="space-y-1">
+                                                <span className="text-[8px] font-bold text-gray-400 uppercase">Longitude</span>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={editData.location?.coordinates[0] || 0}
+                                                    onChange={(e) => {
+                                                        const newCoords = [...editData.location.coordinates];
+                                                        newCoords[0] = parseFloat(e.target.value);
+                                                        onChange('location', { ...editData.location, coordinates: newCoords });
+                                                    }}
+                                                    className="w-full bg-white border rounded px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-black"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[8px] font-bold text-gray-400 uppercase">Latitude</span>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    value={editData.location?.coordinates[1] || 0}
+                                                    onChange={(e) => {
+                                                        const newCoords = [...editData.location.coordinates];
+                                                        newCoords[1] = parseFloat(e.target.value);
+                                                        onChange('location', { ...editData.location, coordinates: newCoords });
+                                                    }}
+                                                    className="w-full bg-white border rounded px-2 py-1 text-[10px] font-bold outline-none focus:ring-1 focus:ring-black"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1204,6 +1298,12 @@ const AdminHotelDetail = () => {
     const [editData, setEditData] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
+    // --- Google Maps Loader ---
+    const { isLoaded, loadError } = useJsApiLoader({
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API_KEY,
+        libraries: GOOGLE_MAPS_LIBRARIES
+    });
+
     const fetchHotelDetails = useCallback(async () => {
         try {
             setLoading(true);
@@ -1523,6 +1623,8 @@ const AdminHotelDetail = () => {
                             isEditing={isEditing}
                             editData={editData}
                             onChange={handleEditChange}
+                            isLoaded={isLoaded}
+                            loadError={loadError}
                         />
                     )}
                     {activeTab === 'gallery' && (

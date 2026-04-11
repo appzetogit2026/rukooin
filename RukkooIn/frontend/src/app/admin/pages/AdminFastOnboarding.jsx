@@ -8,7 +8,14 @@ import {
 import toast from 'react-hot-toast';
 import adminService from '../../../services/adminService';
 import { useNavigate } from 'react-router-dom';
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
+import { useJsApiLoader, GoogleMap, Autocomplete, MarkerF } from '@react-google-maps/api';
+
+const GOOGLE_MAPS_LIBRARIES = ['places'];
+const MAP_CONTAINER_STYLE = {
+  width: '100%',
+  height: '300px'
+};
 
 const STEPS = [
   { id: 'basics', title: 'Basics', icon: Building2 },
@@ -39,6 +46,83 @@ const AdminFastOnboarding = () => {
   const [onboardResult, setOnboardResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
+
+  // --- GOOGLE MAPS CONFIG ---
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES
+  });
+
+  const [autocomplete, setAutocomplete] = useState(null);
+  const mapRef = useRef(null);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) {
+        toast.error("No details available for input: '" + place.name + "'");
+        return;
+      }
+
+      // Extract Address Components
+      const addressComponents = place.address_components || [];
+      let city = 'Indore';
+      let state = 'Madhya Pradesh';
+      let pincode = '';
+
+      addressComponents.forEach(comp => {
+        if (comp.types.includes('locality')) city = comp.long_name;
+        if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+        if (comp.types.includes('postal_code')) pincode = comp.long_name;
+      });
+
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+
+      setFormData(prev => ({
+        ...prev,
+        propertyDetails: {
+          ...prev.propertyDetails,
+          propertyName: prev.propertyDetails.propertyName || place.name,
+          address: {
+            ...prev.propertyDetails.address,
+            fullAddress: place.formatted_address || '',
+            city,
+            state,
+            pincode
+          },
+          location: {
+            ...prev.propertyDetails.location,
+            coordinates: [lng, lat]
+          }
+        }
+      }));
+
+      // Center map on new location
+      if (mapRef.current) {
+        mapRef.current.panTo({ lat, lng });
+      }
+    }
+  };
+
+  const onMarkerDragEnd = (e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    setFormData(prev => ({
+      ...prev,
+      propertyDetails: {
+        ...prev.propertyDetails,
+        location: {
+          ...prev.propertyDetails.location,
+          coordinates: [lng, lat]
+        }
+      }
+    }));
+  };
 
   const [formData, setFormData] = useState({
     propertyDetails: {
@@ -298,7 +382,68 @@ const AdminFastOnboarding = () => {
                  <MapPin className="text-teal-600" /> Location & Landmarks
                </h2>
                <div className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Google Maps Search & Preview */}
+                  {isLoaded ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Search Property / Area (Google Maps)</label>
+                        <Autocomplete
+                          onLoad={(auto) => setAutocomplete(auto)}
+                          onPlaceChanged={onPlaceChanged}
+                        >
+                          <div className="relative">
+                            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                            <input
+                              type="text"
+                              placeholder="Search hotel name or location..."
+                              className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-100 focus:border-black outline-none shadow-sm transition-all font-medium"
+                            />
+                          </div>
+                        </Autocomplete>
+                        <p className="text-[10px] text-slate-400 mt-2 font-medium">✨ Selecting a location will auto-fill the address and coordinates below.</p>
+                      </div>
+
+                      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+                        <GoogleMap
+                          mapContainerStyle={MAP_CONTAINER_STYLE}
+                          zoom={15}
+                          center={{ 
+                            lat: formData.propertyDetails.location.coordinates[1], 
+                            lng: formData.propertyDetails.location.coordinates[0] 
+                          }}
+                          onLoad={onMapLoad}
+                          options={{
+                            disableDefaultUI: true,
+                            zoomControl: true,
+                          }}
+                        >
+                          <MarkerF 
+                            position={{ 
+                              lat: formData.propertyDetails.location.coordinates[1], 
+                              lng: formData.propertyDetails.location.coordinates[0] 
+                            }} 
+                            draggable={true}
+                            onDragEnd={onMarkerDragEnd}
+                          />
+                        </GoogleMap>
+                      </div>
+                      <p className="text-[10px] text-slate-400 text-center font-bold uppercase tracking-widest">Tip: Drag the pin to adjust exact location</p>
+                    </div>
+                  ) : (
+                    <div className="p-12 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center text-slate-300">
+                      {loadError ? (
+                        <span className="text-red-400 font-bold">Error loading Google Maps API</span>
+                      ) : (
+                        <>
+                          <Loader2 className="animate-spin mb-2" size={24} />
+                          <span className="text-xs font-bold">Loading Maps Interface...</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Address*</label>
                       <input 

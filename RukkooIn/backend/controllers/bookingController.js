@@ -452,6 +452,7 @@ export const createBooking = async (req, res) => {
             };
 
             razorpayOrder = await instance.orders.create(options);
+            booking.razorpayOrderId = razorpayOrder.id;
 
             // Set status to awaiting_payment so it doesn't show in user's list until paid
             booking.bookingStatus = 'awaiting_payment';
