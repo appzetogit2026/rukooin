@@ -112,7 +112,16 @@ const propertySchema = new mongoose.Schema({
   avgRating: { type: Number, default: 3 },
   totalReviews: { type: Number, default: 0 },
 
-  fakePrice: { type: Number, default: 0 }
+  fakePrice: { type: Number, default: 0 },
+
+  // Admin Fast-Track Onboarding
+  fastTracked: { type: Boolean, default: false },
+  kycStatus: {
+    type: String,
+    enum: ["pending", "submitted", "verified", "rejected"],
+    default: "pending"
+  },
+  kycDeadline: { type: Date }
 
 }, { timestamps: true });
 

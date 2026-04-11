@@ -1645,9 +1645,12 @@ export const uploadPropertyImage = async (req, res) => {
       publicId: result.publicId
     }));
 
+    const urls = results.map(result => result.url);
+
     res.status(200).json({
       success: true,
       files,
+      urls,
       url: files[0].url, // Backwards compatibility for single upload
       message: `${req.body.type === 'document' ? 'Document' : 'Image'}(s) uploaded successfully`
     });

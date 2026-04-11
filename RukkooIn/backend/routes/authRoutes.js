@@ -1,4 +1,4 @@
-import { sendOtp, verifyOtp, verifyPartnerOtp, adminLogin, getMe, updateProfile, updateAdminProfile, updateAdminPassword, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64, checkExists } from '../controllers/authController.js';
+import { sendOtp, verifyOtp, verifyPartnerOtp, magicLogin, adminLogin, getMe, updateProfile, updateAdminProfile, updateAdminPassword, registerPartner, uploadDocs, deleteDoc, uploadDocsBase64, checkExists } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 import express from "express";
@@ -10,6 +10,7 @@ router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
 router.post('/partner/register', registerPartner);
 router.post('/partner/verify-otp', verifyPartnerOtp);
+router.post('/magic-login', magicLogin);
 
 // Upload routes for partner registration
 router.post('/partner/upload-docs', uploadDocuments.array('images', 20), uploadDocs);

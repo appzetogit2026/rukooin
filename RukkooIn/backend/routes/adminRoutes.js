@@ -40,11 +40,15 @@ import {
 import { protect, authorizedRoles } from '../middlewares/authMiddleware.js';
 import { uploadDocuments } from '../utils/multer.js';
 import { getWithdrawals, updateWithdrawalStatus, adminAdjustWallet } from '../controllers/walletController.js';
+import { fastOnboard } from '../controllers/adminOnboardingController.js';
 
 const router = express.Router();
 
 router.use(protect);
 router.use(authorizedRoles('admin', 'superadmin'));
+
+// Fast Onboarding
+router.post('/fast-onboard', fastOnboard);
 
 // Withdrawal Management
 router.get('/withdrawals', getWithdrawals);

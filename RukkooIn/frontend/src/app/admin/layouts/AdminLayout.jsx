@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard, Users, Building2, Calendar, Wallet,
-    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home
+    Settings, Bell, Search, LogOut, Menu, X, DollarSign, ClipboardCheck, Star, Tag, FileText, MessageSquare, CircleHelp, Home, Rocket
 } from 'lucide-react';
 
 import logo from '../../../assets/rokologin-removebg-preview.png';
@@ -72,6 +72,7 @@ const AdminLayout = () => {
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Building2, label: 'Partner Management', path: '/admin/partners' },
         { icon: Home, label: 'Property Management', path: '/admin/properties' },
+        { icon: Rocket, label: 'Fast Track Property', path: '/admin/add-property-fast' },
         { icon: Calendar, label: 'Bookings', path: '/admin/bookings' },
         { icon: Bell, label: 'Notifications', path: '/admin/notifications', badge: unreadCount > 0 },
         { icon: Wallet, label: 'Finance & Payouts', path: '/admin/finance' },

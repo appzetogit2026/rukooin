@@ -568,6 +568,63 @@ export const verifyPartnerOtp = async (req, res) => {
 };
 
 /**
+ * @desc    Verify One-time Magic Link and log in Partner
+ * @route   POST /api/auth/magic-login
+ * @access  Public
+ */
+export const magicLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'No token provided' });
+
+    // 1. Decode token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded || decoded.role !== 'partner' || !decoded.jti) {
+      return res.status(401).json({ message: 'Invalid or malformed magic link' });
+    }
+
+    // 2. Find partner and verify JTI
+    const partner = await Partner.findById(decoded.id);
+    if (!partner) return res.status(404).json({ message: 'Partner account not found' });
+
+    if (partner.magicTokenJti !== decoded.jti) {
+      return res.status(401).json({ message: 'This magic link has already been used or is expired.' });
+    }
+
+    // 3. Mark link as used and verify partner
+    partner.magicTokenJti = null;
+    partner.isVerified = true;
+    await partner.save();
+
+    // 4. Issue new long-term session token
+    const sessionToken = generateToken(partner._id, 'partner');
+
+    res.status(200).json({
+      success: true,
+      message: 'Magic login successful!',
+      token: sessionToken,
+      user: {
+        id: partner._id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        role: partner.role,
+        isPartner: true,
+        partnerApprovalStatus: partner.partnerApprovalStatus,
+        createdAt: partner.createdAt
+      }
+    });
+
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'This magic link has expired. Please use OTP login.' });
+    }
+    console.error('Magic Login Error:', error);
+    res.status(500).json({ message: 'Server error during magic login' });
+  }
+};
+
+/**
  * @desc    Admin Login with Email & Password
  * @route   POST /api/auth/admin/login
  * @access  Public

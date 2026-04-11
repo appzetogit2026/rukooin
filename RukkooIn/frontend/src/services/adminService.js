@@ -240,6 +240,11 @@ const adminService = {
   updateWithdrawalStatus: async (id, payload) => {
     const response = await axiosInstance.put(`/admin/withdrawals/${id}/status`, payload);
     return response.data;
+  },
+
+  fastOnboard: async (payload) => {
+    const response = await axiosInstance.post('/admin/fast-onboard', payload);
+    return response.data;
   }
 };
 

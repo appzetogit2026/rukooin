@@ -83,6 +83,11 @@ const partnerSchema = new mongoose.Schema({
     default: null
   },
 
+  magicTokenJti: {
+    type: String,
+    default: null
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

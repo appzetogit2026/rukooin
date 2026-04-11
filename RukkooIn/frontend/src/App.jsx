@@ -77,6 +77,7 @@ const AdminLegalPages = React.lazy(() => import('./app/admin/pages/AdminLegalPag
 const AdminContactMessages = React.lazy(() => import('./app/admin/pages/AdminContactMessages'));
 const AdminNotifications = React.lazy(() => import('./app/admin/pages/AdminNotifications'));
 const AdminFaqs = React.lazy(() => import('./app/admin/pages/AdminFaqs'));
+const AdminFastOnboarding = React.lazy(() => import('./app/admin/pages/AdminFastOnboarding'));
 
 // Lazy Imports - Partner Pages
 const HotelLogin = React.lazy(() => import('./pages/auth/HotelLoginPage'));
@@ -113,6 +114,7 @@ const PartnerContact = React.lazy(() => import('./app/partner/pages/PartnerConta
 const PartnerBankDetails = React.lazy(() => import('./app/partner/pages/PartnerBankDetails'));
 const BlogManager = React.lazy(() => import('./pages/manager/BlogManager'));
 const BlogDetail = React.lazy(() => import('./pages/user/BlogDetail'));
+const MagicLogin = React.lazy(() => import('./pages/auth/MagicLoginPage'));
 
 // Lazy Imports - Layouts
 const HotelLayout = React.lazy(() => import('./layouts/HotelLayout'));
@@ -539,6 +541,7 @@ function App() {
               {/* Public Partner Pages — accessible without login */}
               <Route path="privacy" element={<PartnerPrivacy />} />
               <Route path="contact" element={<PartnerContact />} />
+              <Route path="magic-login" element={<MagicLogin />} />
             </Route>
 
             {/* Admin Auth Routes */}
@@ -563,6 +566,7 @@ function App() {
                 <Route path="settings" element={<AdminSettings />} />
                 <Route path="properties" element={<AdminProperties />} />
                 <Route path="properties/:id" element={<AdminHotelDetail />} />
+                <Route path="add-property-fast" element={<AdminFastOnboarding />} />
                 <Route path="offers" element={<AdminOffers />} />
                 <Route path="notifications" element={<AdminNotifications />} />
                 <Route path="faqs" element={<AdminFaqs />} />
