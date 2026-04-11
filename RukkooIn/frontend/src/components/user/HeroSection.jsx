@@ -74,7 +74,7 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
     };
 
     return (
-        <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-2 md:gap-4 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
+        <section className={`relative w-full px-5 pt-4 pb-2 flex flex-col gap-4 md:gap-6 md:pt-8 md:pb-10 bg-transparent transition-all duration-300`}>
 
             {/* 1. Header Row (Hides on Scroll) */}
             <div className={`flex md:hidden items-center justify-between relative h-20 transition-all duration-300 ${isSticky ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100 mb-0'}`}>
@@ -174,7 +174,7 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
             )}
 
             {/* 3. City Quick Filters */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1 mt-1">
                 {cities.map((city) => (
                     <button
                         key={city.name}

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ModernDatePicker from '../../components/ui/ModernDatePicker';
+import PropertyCard from '../../components/user/PropertyCard';
 
 const PropertyDetailsPage = () => {
   const { id } = useParams();
@@ -23,6 +24,8 @@ const PropertyDetailsPage = () => {
   const [taxRate, setTaxRate] = useState(0); // Fetched from backend
   const [availability, setAvailability] = useState(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [nearbyProperties, setNearbyProperties] = useState([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
 
   // Check Availability Logic
   const checkAvailability = async (directCall = false) => {
@@ -193,6 +196,52 @@ const PropertyDetailsPage = () => {
   useEffect(() => {
     loadPropertyDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (property) {
+      fetchNearbyProperties();
+    }
+  }, [property?._id]);
+
+  const fetchNearbyProperties = async () => {
+    if (!property) return;
+    setNearbyLoading(true);
+    try {
+      const filters = {
+        radius: 20, // 20km
+        limit: 10
+      };
+
+      // 1. Coordinates based search
+      if (property.location?.coordinates?.length === 2) {
+        filters.lng = property.location.coordinates[0];
+        filters.lat = property.location.coordinates[1];
+      } else {
+        // Fallback to City
+        filters.search = property.address?.city;
+      }
+
+      // 2. Price Similarity (+/- 40% range)
+      const currentPrice = property.inventory?.[0]?.price || property.minPrice;
+      if (currentPrice) {
+        filters.minPrice = Math.floor(currentPrice * 0.6);
+        filters.maxPrice = Math.ceil(currentPrice * 1.4);
+      }
+
+      const data = await propertyService.getPublic(filters);
+      
+      // Filter out the current property
+      const filtered = (Array.isArray(data) ? data : [])
+        .filter(p => String(p._id) !== String(id))
+        .slice(0, 8);
+
+      setNearbyProperties(filtered);
+    } catch (error) {
+      console.error("Failed to fetch nearby properties:", error);
+    } finally {
+      setNearbyLoading(false);
+    }
+  };
 
   // Helper derived state for hooks (safe access)
   const propertyType = property?.propertyType;
@@ -1448,6 +1497,24 @@ const PropertyDetailsPage = () => {
             )}
 
           </div>
+
+          {/* Nearby & Similar Properties */}
+          {nearbyProperties.length > 0 && (
+            <div className="mt-4 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-textDark">Similar Properties Nearby</h2>
+                <div className="text-xs text-gray-400 font-medium">In {property.address?.city}</div>
+              </div>
+
+              <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x">
+                {nearbyProperties.map((item) => (
+                  <div key={item._id} className="min-w-[260px] md:min-w-[300px] snap-center flex-shrink-0">
+                    <PropertyCard data={item} className="h-full border-none shadow-md" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
