@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, useAnimation, useMotionValue, animate } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { offerService } from '../../services/apiService';
@@ -10,6 +11,10 @@ const ExclusiveOffers = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isPaused, setIsPaused] = useState(false);
+    
+    // Motion controls for manual swipe and auto-scroll
+    const x = useMotionValue(0);
+    const controls = useAnimation();
 
     useEffect(() => {
         const fetchOffers = async () => {
@@ -27,6 +32,40 @@ const ExclusiveOffers = () => {
         fetchOffers();
     }, []);
 
+    // Handle Infinite Auto-Scroll Animation
+    useEffect(() => {
+        if (offers.length === 0 || isPaused) {
+            controls.stop();
+            return;
+        }
+
+        const bannerWidth = 232; // item width (220) + gap (12)
+        const totalWidth = offers.length * bannerWidth;
+
+        // Create a continuous animation
+        const startAnimation = () => {
+            const currentX = x.get();
+            const distanceLeft = totalWidth + currentX; // How much left before reset
+            const duration = (distanceLeft / 40); // 40 pixels per second speed approx
+
+            controls.start({
+                x: -totalWidth,
+                transition: {
+                    duration: duration,
+                    ease: "linear",
+                    onComplete: () => {
+                        x.set(0); // Reset to start for seamless loop
+                        startAnimation();
+                    }
+                }
+            });
+        };
+
+        startAnimation();
+
+        return () => controls.stop();
+    }, [offers.length, isPaused, controls, x]);
+
     if (loading) {
         return (
             <div className="py-2 pl-5">
@@ -43,11 +82,11 @@ const ExclusiveOffers = () => {
     }
 
     if (error || (offers.length === 0 && !loading)) {
-        return null; // Don't show section if no offers or error
+        return null;
     }
 
-    // Duplicate offers list for seamless infinite loop
-    const loopedOffers = [...offers, ...offers];
+    // Triple offers list to give enough buffer for dragging left/right
+    const loopedOffers = [...offers, ...offers, ...offers];
 
     const handleOfferClick = (offer) => {
         if (offer.offerType === 'banner') {
@@ -68,19 +107,29 @@ const ExclusiveOffers = () => {
                 <div className="bg-accent/10 px-2 py-0.5 rounded text-[10px] font-bold text-accent">NEW</div>
             </h2>
 
-            {/* Infinite auto-scroll container */}
-            <div className="flex w-full overflow-hidden">
-                <div
-                    className="flex gap-3 pl-5"
+            {/* Swipeable & Auto-scroll container */}
+            <div className="flex w-full overflow-hidden cursor-grab active:cursor-grabbing">
+                <motion.div
+                    drag="x"
+                    animate={controls}
+                    style={{ x, width: 'max-content' }}
+                    dragConstraints={{ 
+                        left: -((offers.length * 2) * 232), // Logic bound for cloned list
+                        right: 0 
+                    }}
+                    onDragStart={() => setIsPaused(true)}
+                    onDragEnd={(event, info) => {
+                        setIsPaused(false);
+                        // If we dragged too far left/right, snap to reset point
+                        const currentX = x.get();
+                        const singleListWidth = offers.length * 232;
+                        if (currentX < -singleListWidth) {
+                            x.set(currentX + singleListWidth);
+                        }
+                    }}
                     onMouseEnter={() => setIsPaused(true)}
                     onMouseLeave={() => setIsPaused(false)}
-                    onTouchStart={() => setIsPaused(true)}
-                    onTouchEnd={() => setIsPaused(false)}
-                    style={{
-                        animation: `marquee ${offers.length * 4}s linear infinite`,
-                        animationPlayState: isPaused ? 'paused' : 'running',
-                        width: 'max-content'
-                    }}
+                    className="flex gap-3 pl-5"
                 >
                     {loopedOffers.map((offer, idx) => (
                         <div
@@ -88,16 +137,14 @@ const ExclusiveOffers = () => {
                             onClick={() => handleOfferClick(offer)}
                             className="relative min-w-[220px] h-[120px] rounded-2xl overflow-hidden shadow-md shadow-gray-200/50 cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
                         >
-                            {/* Background Image */}
                             <img
                                 src={offer.image}
                                 alt={offer.title}
-                                className="absolute inset-0 w-full h-full object-cover"
+                                className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
                             />
 
-                            {/* Conditional Overlay based on offerType — only show for coupons with a valid discount */}
                             {offer.offerType !== 'banner' && offer.discountValue && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-4 text-white items-start">
+                                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-4 text-white items-start select-none">
                                     <span className="bg-accent text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase mb-1">
                                         {offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}
                                     </span>
@@ -105,7 +152,7 @@ const ExclusiveOffers = () => {
                                     <p className="text-[9px] font-semibold text-gray-300 mt-0.5 max-w-[75%] leading-relaxed drop-shadow-md line-clamp-1">{offer.subtitle}</p>
 
                                     <div className="mt-2 flex items-center gap-2">
-                                        <button className="px-3 py-1 bg-white text-black text-[9px] font-black rounded-lg shadow-md">
+                                        <button className="px-3 py-1 bg-white text-black text-[9px] font-black rounded-lg shadow-md pointer-events-none">
                                             {offer.btnText || "Copy Code"}
                                         </button>
                                         {offer.code && (
@@ -118,16 +165,8 @@ const ExclusiveOffers = () => {
                             )}
                         </div>
                     ))}
-                </div>
+                </motion.div>
             </div>
-
-            {/* Keyframe for continuous marquee scroll */}
-            <style>{`
-                @keyframes marquee {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
-                }
-            `}</style>
         </section>
     );
 };
