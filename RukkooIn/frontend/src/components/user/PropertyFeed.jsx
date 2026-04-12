@@ -22,12 +22,15 @@ const PropertyFeed = ({ selectedType, selectedCity, lat, lng }) => {
           filters.search = selectedCity;
         }
 
-        // Location filtering
-        if (selectedCity === 'Near Me' && lat && lng) {
+        // Always include coordinates if available to get distance calculations from backend
+        if (lat && lng) {
           filters.lat = lat;
           filters.lng = lng;
-          filters.radius = 50; // 50km
-          filters.sort = 'distance';
+          // Only force distance sort if 'Near Me' is explicitly chosen
+          if (selectedCity === 'Near Me') {
+            filters.radius = 50; // 50km
+            filters.sort = 'distance';
+          }
         }
 
         // Always fetch public properties
@@ -88,6 +91,7 @@ const PropertyFeed = ({ selectedType, selectedCity, lat, lng }) => {
           key={property._id}
           data={property}
           isSaved={savedHotelIds.includes(property._id)}
+          userLocation={(lat && lng) ? { lat, lng } : null}
         />
       ))}
     </div>

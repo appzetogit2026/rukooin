@@ -9,6 +9,36 @@ const Home = () => {
     const [selectedType, setSelectedType] = useState('All');
     const [selectedCity, setSelectedCity] = useState('All');
     const [coords, setCoords] = useState({ lat: null, lng: null });
+    
+    // Try to get location silently on mount if permission was previously granted
+    React.useEffect(() => {
+        // First, check if we have a cached location to show distances immediately
+        const cachedLoc = localStorage.getItem('last_user_location');
+        if (cachedLoc && !coords.lat) {
+            try {
+                setCoords(JSON.parse(cachedLoc));
+            } catch (e) {
+                console.error("Failed to parse cached location");
+            }
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const newCoords = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    setCoords(newCoords);
+                    localStorage.setItem('last_user_location', JSON.stringify(newCoords));
+                },
+                (error) => {
+                    console.log("Home silent location fetch skipped:", error.message);
+                },
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+            );
+        }
+    }, []);
 
     const handleCitySelect = (city) => {
         setSelectedCity(city);
@@ -31,8 +61,6 @@ const Home = () => {
                 toast.error("Geolocation is not supported by your browser.");
                 setSelectedCity('All');
             }
-        } else {
-            setCoords({ lat: null, lng: null });
         }
     };
 

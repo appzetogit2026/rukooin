@@ -39,6 +39,41 @@ const SearchPage = () => {
 
     const [location, setLocation] = useState(null); // { lat, lng }
 
+    // Try to get location silently on mount if permission was previously granted
+    useEffect(() => {
+        const trySilentLocation = async () => {
+             // Check cache first
+             const cachedLoc = localStorage.getItem('last_user_location');
+             if (cachedLoc && !location) {
+                 try {
+                     setLocation(JSON.parse(cachedLoc));
+                 } catch (e) {
+                     console.error("Cache parse failed");
+                 }
+             }
+
+            if (navigator.geolocation && !searchParams.get('lat')) {
+                // If the user already has lat/lng in URL, we don't override it
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const newLoc = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        setLocation(newLoc);
+                        localStorage.setItem('last_user_location', JSON.stringify(newLoc));
+                    },
+                    (error) => {
+                        // Silent fail - permission not granted or other error
+                        console.log("Silent location fetch skipped:", error.message);
+                    },
+                    { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+                );
+            }
+        };
+        trySilentLocation();
+    }, []);
+
     // Read location from URL params on mount
     useEffect(() => {
         const latParam = searchParams.get('lat');
@@ -398,6 +433,7 @@ const SearchPage = () => {
                                 key={property._id}
                                 property={property}
                                 isSaved={savedHotelIds.includes(property._id)}
+                                userLocation={location}
                             />
                         ))}
                     </div>

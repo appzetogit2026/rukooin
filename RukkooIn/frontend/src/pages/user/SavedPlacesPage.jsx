@@ -9,6 +9,35 @@ const SavedPlacesPage = () => {
     const navigate = useNavigate();
     const [savedHotels, setSavedHotels] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [userLocation, setUserLocation] = useState(null);
+
+    // Try to get location silently on mount
+    useEffect(() => {
+        // Load from cache first
+        const cached = localStorage.getItem('last_user_location');
+        if (cached) {
+            try {
+                setUserLocation(JSON.parse(cached));
+            } catch (e) {
+                console.error("Cache parsing error");
+            }
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const newLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    setUserLocation(newLocation);
+                    localStorage.setItem('last_user_location', JSON.stringify(newLocation));
+                },
+                null,
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+            );
+        }
+    }, []);
 
     // Fetch saved hotels from backend
     useEffect(() => {
@@ -50,7 +79,7 @@ const SavedPlacesPage = () => {
                 ) : savedHotels.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {savedHotels.map((hotel) => (
-                            <PropertyCard key={hotel._id || hotel.id} data={hotel} isSaved={true} />
+                            <PropertyCard key={hotel._id || hotel.id} data={hotel} isSaved={true} userLocation={userLocation} />
                         ))}
                     </div>
                 ) : (

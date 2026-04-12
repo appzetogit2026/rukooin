@@ -105,7 +105,7 @@ export const getSavedHotels = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate({
       path: 'savedHotels',
-      select: 'propertyName address coverImage avgRating totalReviews minPrice propertyType status isLive',
+      select: 'propertyName address location coverImage avgRating totalReviews minPrice propertyType status isLive',
       match: { status: 'approved' } // Only return approved hotels
     });
 
@@ -132,6 +132,7 @@ export const getSavedHotels = async (req, res) => {
       _id: hotel._id,
       propertyName: hotel.propertyName,
       address: hotel.address, // Pass full address object
+      location: hotel.location, // Pass coordinates for distance calculation
       coverImage: hotel.coverImage,
       propertyType: hotel.propertyType,
       avgRating: hotel.avgRating,

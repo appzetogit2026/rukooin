@@ -3,8 +3,9 @@ import { MapPin, Star, IndianRupee, Heart, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/apiService';
 import toast from 'react-hot-toast';
+import { calculateDistance } from '../../utils/locationUtils';
 
-const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved }) => {
+const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved, userLocation }) => {
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(initialIsSaved || false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -28,8 +29,21 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
     propertyType,
     rating,
     startingPrice,
-    details
+    details,
+    location: propLocation
   } = item;
+
+  // Calculate distance if it's not already provided by the backend
+  const displayDistance = item.distance ?? (
+    (userLocation?.lat && userLocation?.lng && (propLocation?.coordinates || item.location?.coordinates))
+      ? calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          (propLocation?.coordinates?.[1] ?? item.location?.coordinates?.[1]), // Latitude
+          (propLocation?.coordinates?.[0] ?? item.location?.coordinates?.[0])  // Longitude
+        )
+      : undefined
+  );
 
   const handleToggleSave = async (e) => {
     e.stopPropagation(); // Don't navigate to details
@@ -192,9 +206,31 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved 
               const city = address?.city || item.city;
               
               if (area && area.trim()) {
-                return `${area}, ${city}`;
+                return (
+                  <div className="flex flex-wrap items-center gap-x-1">
+                    <span>{area}, {city}</span>
+                    {displayDistance !== undefined && (
+                      <span className="text-[#004F4D] font-black">
+                        • {displayDistance > 1000 
+                          ? `${(displayDistance / 1000).toFixed(1)} km` 
+                          : `${Math.round(displayDistance)}m`} away
+                      </span>
+                    )}
+                  </div>
+                );
               }
-              return city || 'Location not available';
+              return (
+                <div className="flex flex-wrap items-center gap-x-1">
+                  <span>{city || 'Location not available'}</span>
+                  {displayDistance !== undefined && (
+                    <span className="text-[#004F4D] font-bold">
+                      • {displayDistance > 1000 
+                        ? `${(displayDistance / 1000).toFixed(1)} km` 
+                        : `${Math.round(displayDistance)}m`} away
+                    </span>
+                  )}
+                </div>
+              );
             })()}
           </span>
         </div>

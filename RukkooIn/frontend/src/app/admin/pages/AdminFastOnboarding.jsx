@@ -357,6 +357,19 @@ const AdminFastOnboarding = () => {
                     {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} Star</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Suitability</label>
+                  <select 
+                     value={formData.propertyDetails.suitability}
+                     onChange={(e) => setFormData({...formData, propertyDetails: {...formData.propertyDetails, suitability: e.target.value}})}
+                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-black outline-none"
+                  >
+                    <option value="Both">Both (Couple & Family)</option>
+                    <option value="Couple Friendly">Couple Friendly</option>
+                    <option value="Family Friendly">Family Friendly</option>
+                    <option value="none">None</option>
+                  </select>
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-2">Short Description</label>
                   <textarea 
@@ -746,6 +759,32 @@ const AdminFastOnboarding = () => {
                             className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-black outline-none"
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Max Adults</label>
+                          <input 
+                            type="number" 
+                            value={room.maxAdults}
+                            onChange={(e) => {
+                              const newRooms = [...formData.roomTypes];
+                              newRooms[idx].maxAdults = Number(e.target.value);
+                              setFormData({...formData, roomTypes: newRooms});
+                            }}
+                            className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-black outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Max Children</label>
+                          <input 
+                            type="number" 
+                            value={room.maxChildren}
+                            onChange={(e) => {
+                              const newRooms = [...formData.roomTypes];
+                              newRooms[idx].maxChildren = Number(e.target.value);
+                              setFormData({...formData, roomTypes: newRooms});
+                            }}
+                            className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:ring-1 focus:ring-black outline-none"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -921,6 +960,10 @@ const AdminFastOnboarding = () => {
                       <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-1">Inventory</span>
                       <span className="font-bold text-sm block">{formData.roomTypes.length} Room Types</span>
                       <span className="text-xs text-slate-500">Total {formData.roomTypes.reduce((acc, curr) => acc + curr.totalInventory, 0)} Units</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-1">Suitability</span>
+                      <span className="font-bold text-sm block">{formData.propertyDetails.suitability}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest block mb-1">Starting Price</span>
