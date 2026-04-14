@@ -1052,28 +1052,58 @@ const PropertyDetailsPage = () => {
             </div>
           )}
 
-          {/* Booking Inputs (Date & Guest) */}
-          <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <h3 className="font-bold text-textDark mb-3">Trip Details</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="col-span-1">
-                <ModernDatePicker
-                  label="Check-in"
-                  date={dates.checkIn}
-                  onChange={(newDate) => setDates({ ...dates, checkIn: newDate })}
-                  minDate={new Date().toISOString().split('T')[0]}
-                  placeholder="Select Check-in"
-                />
+          {/* Enhanced Booking Details Section */}
+          <div className={`mb-10 p-6 rounded-3xl border-2 transition-all duration-500 shadow-sm
+            ${(!dates.checkIn || !dates.checkOut) 
+              ? 'border-surface/30 bg-surface/[0.02] ring-4 ring-surface/5' 
+              : 'border-gray-100 bg-white'}`}>
+            
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${(!dates.checkIn || !dates.checkOut) ? 'bg-surface text-white animate-bounce' : 'bg-gray-100 text-gray-500'}`}>
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-textDark text-sm md:text-base uppercase tracking-tight">Select Trip Dates</h3>
+                  <p className="text-[10px] md:text-xs text-gray-400 font-medium tracking-wide">Select check-in and check-out to see final price</p>
+                </div>
               </div>
-              <div className="col-span-1">
-                <ModernDatePicker
-                  label="Check-out"
-                  date={dates.checkOut}
-                  onChange={(newDate) => setDates({ ...dates, checkOut: newDate })}
-                  minDate={dates.checkIn ? new Date(new Date(dates.checkIn).getTime() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                  placeholder="Select Check-out"
-                  align="right"
-                />
+              {(!dates.checkIn || !dates.checkOut) && (
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-surface text-white text-[10px] font-black uppercase tracking-tighter rounded-full animate-pulse shadow-md shadow-surface/20">
+                  <Info size={10} />
+                  Selection Required
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+              <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-100 relative group">
+                <div className="col-span-1">
+                  <ModernDatePicker
+                    label="Check-in Date"
+                    date={dates.checkIn}
+                    onChange={(newDate) => setDates({ ...dates, checkIn: newDate })}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    placeholder="Set Date"
+                  />
+                </div>
+                <div className="col-span-1">
+                  <ModernDatePicker
+                    label="Check-out Date"
+                    date={dates.checkOut}
+                    onChange={(newDate) => setDates({ ...dates, checkOut: newDate })}
+                    minDate={dates.checkIn ? new Date(new Date(dates.checkIn).getTime() + 86400000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                    placeholder="Set Date"
+                    align="right"
+                  />
+                </div>
+                
+                {/* Visual Arrow Connector */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pt-4 hidden md:block">
+                   <div className="w-8 h-8 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-surface group-hover:scale-110 transition-transform">
+                      <ChevronRight size={16} />
+                   </div>
+                </div>
               </div>
 
               {/* Dynamic Guest/Room Inputs */}
@@ -1554,14 +1584,21 @@ const PropertyDetailsPage = () => {
             <button
               onClick={handleBook}
               disabled={bookingLoading || checkingAvailability}
-              className="bg-surface text-white px-8 py-3 rounded-xl font-bold flex-1 md:w-64 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-surface-dark transition-colors flex items-center justify-center gap-2"
+              className={`px-8 py-3 rounded-xl font-black flex-1 md:w-64 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg
+                ${(!dates.checkIn || !dates.checkOut) 
+                  ? 'bg-gray-800 text-white shadow-gray-200' 
+                  : 'bg-surface text-white hover:bg-surface/90 shadow-surface/20 active:scale-95'}`}
             >
               {(bookingLoading || checkingAvailability) ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
                   <span>{checkingAvailability ? 'Checking...' : 'Processing...'}</span>
                 </>
-              ) : 'Book Now'}
+              ) : (
+                <>
+                  {(!dates.checkIn || !dates.checkOut) ? 'Select Stay Dates' : 'Book Your Stay'}
+                </>
+              )}
             </button>
           </div>
         </div>
