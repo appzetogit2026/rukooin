@@ -514,7 +514,7 @@ export const getPublicProperties = async (req, res) => {
       amenities,
       lat,
       lng,
-      radius = 50, // default 50km
+      radius = 10000, // default to a very large radius to avoid global filtering; components wanting tight radius (like "Near Me") will pass it explicitly.
       guests,
       sort,
       suitability
