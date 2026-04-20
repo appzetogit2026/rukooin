@@ -88,15 +88,8 @@ const ExclusiveOffers = () => {
     // Triple offers list to give enough buffer for dragging left/right
     const loopedOffers = [...offers, ...offers, ...offers];
 
-    const handleOfferClick = (offer) => {
-        if (offer.offerType === 'banner') {
-            navigate('/listings');
-            return;
-        }
-        if (offer.code) {
-            navigator.clipboard.writeText(offer.code);
-            toast.success(`Code ${offer.code} copied!`);
-        }
+    const handleOfferClick = () => {
+        // Just navigate to listings, no copying or extra logic.
         navigate('/listings');
     };
 
@@ -139,30 +132,9 @@ const ExclusiveOffers = () => {
                         >
                             <img
                                 src={offer.image}
-                                alt={offer.title}
+                                alt={offer.title || 'Offer'}
                                 className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none"
                             />
-
-                            {offer.offerType !== 'banner' && offer.discountValue && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-4 text-white items-start select-none">
-                                    <span className="bg-accent text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase mb-1">
-                                        {offer.discountType === 'percentage' ? `${offer.discountValue}% OFF` : `₹${offer.discountValue} OFF`}
-                                    </span>
-                                    <h3 className="text-base font-black leading-tight max-w-[85%] drop-shadow-md line-clamp-1">{offer.title}</h3>
-                                    <p className="text-[9px] font-semibold text-gray-300 mt-0.5 max-w-[75%] leading-relaxed drop-shadow-md line-clamp-1">{offer.subtitle}</p>
-
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <button className="px-3 py-1 bg-white text-black text-[9px] font-black rounded-lg shadow-md pointer-events-none">
-                                            {offer.btnText || "Copy Code"}
-                                        </button>
-                                        {offer.code && (
-                                            <span className="text-[8px] text-white/60 font-medium border-l border-white/20 pl-2">
-                                                Code: <span className="text-white font-bold">{offer.code}</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     ))}
                 </motion.div>
