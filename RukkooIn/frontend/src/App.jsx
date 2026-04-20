@@ -23,6 +23,8 @@ import { initAppMode, isWebView } from './utils/deviceDetect';
 // Init app mode from URL params on very first load
 initAppMode();
 
+const CategoriesPage = React.lazy(() => import('./pages/user/CategoriesPage'));
+
 // Lazy Imports - User Pages
 const Home = React.lazy(() => import('./pages/user/Home'));
 const UserPropertyDetailsPage = React.lazy(() => import('./pages/user/PropertyDetailsPage'));
@@ -580,6 +582,7 @@ function App() {
             ────────────────────────────────────── */}
             <Route element={<PublicOrProtectedRoute />}>
               <Route path="/" element={<Home />} />
+              <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
               <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
               <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />

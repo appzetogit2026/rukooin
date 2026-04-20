@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Menu, Wallet, Navigation } from 'lucide-react';
+import { 
+    Search, 
+    Menu, 
+    Wallet, 
+    Navigation, 
+    LayoutGrid, 
+    Building2, 
+    Building, 
+    Compass, 
+    Factory, 
+    Train, 
+    Shield, 
+    Waves,
+    MapPin
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/rokologin-removebg-preview.png';
 import MobileMenu from '../../components/ui/MobileMenu';
@@ -15,15 +29,15 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
     const [walletBalance, setWalletBalance] = useState(0);
 
     const cities = [
-        { name: 'Near Me', icon: <Navigation size={12} className="fill-current" /> },
-        { name: 'All' },
-        { name: 'Indore' },
-        { name: 'Bhopal' },
-        { name: 'Ujjain' },
-        { name: 'Dewas' },
-        { name: 'Ratlam' },
-        { name: 'Gwalior' },
-        { name: 'Jabalpur' }
+        { name: 'Near Me', icon: <Navigation size={20} /> },
+        { name: 'All', icon: <LayoutGrid size={20} /> },
+        { name: 'Indore', icon: <Building2 size={20} /> },
+        { name: 'Bhopal', icon: <Building size={20} /> },
+        { name: 'Ujjain', icon: <Compass size={20} /> },
+        { name: 'Dewas', icon: <Factory size={20} /> },
+        { name: 'Ratlam', icon: <Train size={20} /> },
+        { name: 'Gwalior', icon: <Shield size={20} /> },
+        { name: 'Jabalpur', icon: <Waves size={20} /> }
     ];
 
     const placeholders = [
@@ -174,21 +188,31 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
             )}
 
             {/* 3. City Quick Filters */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1 mt-1">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-1 mt-1">
                 {cities.map((city) => (
                     <button
                         key={city.name}
                         onClick={() => onSelectCity(city.name)}
                         className={`
-                            flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all
-                            ${selectedCity === city.name 
-                                ? 'bg-[#004F4D] text-white shadow-md shadow-[#004F4D]/20 scale-105' 
-                                : 'bg-white text-gray-500 border border-gray-100 hover:border-accent/30'
-                            }
+                            flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[64px] group outline-none transition-all duration-300
                         `}
                     >
-                        {city.icon && city.icon}
-                        {city.name}
+                        <div className={`
+                            w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm 
+                            transition-all duration-300
+                            ${selectedCity === city.name 
+                                ? 'bg-surface text-white scale-105 shadow-md shadow-surface/20' 
+                                : 'bg-white text-surface/60 border border-gray-100 hover:bg-gray-50'
+                            }
+                        `}>
+                            {city.icon}
+                        </div>
+                        <span className={`
+                            text-[10px] font-bold tracking-tight transition-colors 
+                            ${selectedCity === city.name ? 'text-surface' : 'text-gray-400'}
+                        `}>
+                            {city.name}
+                        </span>
                     </button>
                 ))}
             </div>

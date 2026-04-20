@@ -71,14 +71,6 @@ const Home = () => {
                 onSelectCity={handleCitySelect} 
             />
 
-            {/* Sticky Filter Bar */}
-            <div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-md pt-2">
-                <PropertyTypeFilter
-                    selectedType={selectedType}
-                    onSelectType={setSelectedType}
-                />
-            </div>
-
             <ExclusiveOffers />
 
             <div className="mt-2 max-w-7xl mx-auto">
