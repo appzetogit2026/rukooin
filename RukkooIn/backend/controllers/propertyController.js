@@ -35,7 +35,7 @@ const notifySubmission = async (property) => {
 
 export const createProperty = async (req, res) => {
   try {
-    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, resortType, activities, hotelCategory, starRating } = req.body;
+    const { propertyName, contactNumber, propertyType, description, shortDescription, coverImage, propertyImages, amenities, address, location, nearbyPlaces, checkInTime, checkOutTime, cancellationPolicy, houseRules, documents, roomTypes, pgType, hostelType, hostLivesOnProperty, resortType, activities, hotelCategory, starRating, petsAllowed } = req.body;
     if (!propertyName || !propertyType || !coverImage) return res.status(400).json({ message: 'Missing required fields' });
     
     // Validate contact number if provided (Indian mobile: 10 digits, starts with 6-9)
@@ -79,7 +79,8 @@ export const createProperty = async (req, res) => {
       activities: lowerType === 'resort' ? activities : undefined,
       hotelCategory: lowerType === 'hotel' ? hotelCategory : undefined,
       starRating: lowerType === 'hotel' ? starRating : undefined,
-      suitability: req.body.suitability || 'none'
+      suitability: req.body.suitability || 'none',
+      petsAllowed: petsAllowed === true || petsAllowed === 'true'
     });
     // Pricing is now handled in RoomType for ALL types
     await doc.save();
@@ -181,7 +182,8 @@ export const updateProperty = async (req, res) => {
       'contactNumber',
       'suitability',
       'isLive',
-      'fakePrice'
+      'fakePrice',
+      'petsAllowed'
     ];
 
     updatableFields.forEach(field => {
@@ -516,6 +518,9 @@ export const getPublicProperties = async (req, res) => {
       lng,
       radius = 10000, // default to a very large radius to avoid global filtering; components wanting tight radius (like "Near Me") will pass it explicitly.
       guests,
+      adults,
+      children,
+      pets,
       sort,
       suitability
     } = req.query;
@@ -578,6 +583,9 @@ export const getPublicProperties = async (req, res) => {
       }
     }
 
+    if (pets === 'true' || pets === true) {
+      matchConditions.petsAllowed = true;
+    }
 
     if (Object.keys(matchConditions).length > 0) {
       pipeline.push({ $match: matchConditions });
@@ -599,16 +607,20 @@ export const getPublicProperties = async (req, res) => {
     // 4. Filter Active Room Types & Guest Capacity
     let roomFilter = { $eq: ['$$rt.isActive', true] };
 
-    if (guests) {
-      const guestCount = parseInt(guests);
-      // Room must accommodate guests (base adults + children? simplified to maxAdults for now)
-      // Usually users search by "2 adults", so check maxAdults
-      roomFilter = {
-        $and: [
-          { $eq: ['$$rt.isActive', true] },
-          { $gte: ['$$rt.maxAdults', guestCount] }
-        ]
-      };
+    if (guests || adults || children) {
+      const guestCount = parseInt(guests || adults || 0);
+      const childCount = parseInt(children || 0);
+      
+      const conds = [{ $eq: ['$$rt.isActive', true] }];
+      
+      if (guestCount > 0) {
+        conds.push({ $gte: ['$$rt.maxAdults', guestCount] });
+      }
+      if (childCount > 0) {
+        conds.push({ $gte: ['$$rt.maxChildren', childCount] });
+      }
+
+      roomFilter = { $and: conds };
     }
 
     pipeline.push({

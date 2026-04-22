@@ -30,7 +30,12 @@ const SearchPage = () => {
         sort: searchParams.get('sort') || 'newest',
         amenities: [],
         suitability: searchParams.get('suitability') || '',
-        radius: 50
+        radius: 50,
+        checkIn: searchParams.get('checkIn') || '',
+        checkOut: searchParams.get('checkOut') || '',
+        adults: searchParams.get('adults') || '',
+        children: searchParams.get('children') || '',
+        pets: searchParams.get('pets') === 'true'
     });
 
     const [dynamicSuggestions, setDynamicSuggestions] = useState([]);

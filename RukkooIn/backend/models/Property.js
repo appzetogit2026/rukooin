@@ -96,6 +96,7 @@ const propertySchema = new mongoose.Schema({
   checkOutTime: String,
   cancellationPolicy: String,
   houseRules: [String],
+  petsAllowed: { type: Boolean, default: false },
 
   // STATUS
   status: {

@@ -20,10 +20,12 @@ import MobileMenu from '../../components/ui/MobileMenu';
 import { useNavigate } from 'react-router-dom';
 import walletService from '../../services/walletService';
 import toast from 'react-hot-toast';
+import SearchModal from './SearchModal';
 
 const HeroSection = ({ selectedCity, onSelectCity }) => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [isSticky, setIsSticky] = useState(false);
     const [walletBalance, setWalletBalance] = useState(0);
@@ -84,7 +86,19 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
     }, []);
 
     const handleSearchClick = () => {
-        navigate('/search');
+        setIsSearchModalOpen(true);
+    };
+
+    const handleAdvancedSearch = (data) => {
+        const params = new URLSearchParams();
+        if (data.search) params.set('search', data.search);
+        if (data.checkIn) params.set('checkIn', data.checkIn);
+        if (data.checkOut) params.set('checkOut', data.checkOut);
+        if (data.adults) params.set('adults', data.adults);
+        if (data.children) params.set('children', data.children);
+        if (data.withPet) params.set('pets', 'true');
+        
+        navigate(`/search?${params.toString()}`);
     };
 
     return (
@@ -218,6 +232,12 @@ const HeroSection = ({ selectedCity, onSelectCity }) => {
             </div>
 
             <MobileMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+            <SearchModal 
+                isOpen={isSearchModalOpen} 
+                onClose={() => setIsSearchModalOpen(false)}
+                onSearch={handleAdvancedSearch}
+            />
 
         </section>
     );

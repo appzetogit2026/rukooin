@@ -138,7 +138,7 @@ const PropertyCard = ({ property, data, className = "", isSaved: initialIsSaved,
 
   return (
     <div
-      onClick={() => navigate(`/hotel/${_id}`)}
+      onClick={() => navigate(`/hotel/${_id}${window.location.search}`)}
       className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-0 cursor-pointer active:scale-95 transition-transform duration-200 hover:shadow-md ${className}`}
     >
       <div className="relative h-40 w-full bg-gray-50 flex items-center justify-center overflow-hidden">
