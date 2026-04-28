@@ -581,14 +581,6 @@ function App() {
                 WebView: require login (same as before)
             ────────────────────────────────────── */}
             <Route element={<PublicOrProtectedRoute />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/categories" element={<CategoriesPage />} />
-              <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
-              <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
-              <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
-              <Route path="/hotel/:id/offers" element={<OffersPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/listings" element={<Navigate to="/search" replace />} />
               <Route path="/partner-landing" element={<PartnerLandingPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
@@ -604,6 +596,14 @@ function App() {
                 After login, redirected back via location.state.from
             ────────────────────────────────────── */}
             <Route element={<UserPrivateRoute />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/hotel/:id" element={<UserPropertyDetailsPage />} />
+              <Route path="/hotel/:id/amenities" element={<AmenitiesPage />} />
+              <Route path="/hotel/:id/reviews" element={<ReviewsPage />} />
+              <Route path="/hotel/:id/offers" element={<OffersPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/listings" element={<Navigate to="/search" replace />} />
               <Route path="/profile/edit" element={<ProfileEdit />} />
               <Route path="/bookings" element={<BookingsPage />} />
               <Route path="/wallet" element={<WalletPage />} />
