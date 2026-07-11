@@ -16,7 +16,7 @@ import notificationService from '../services/notificationService.js';
 import Wallet from '../models/Wallet.js';
 import Transaction from '../models/Transaction.js';
 import Admin from '../models/Admin.js';
-import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { uploadToLocal } from '../utils/localStorage.js';
 
 
 
@@ -1635,7 +1635,7 @@ export const uploadPropertyImage = async (req, res) => {
     }
 
     const uploadPromises = filesToUpload.map(file =>
-      uploadToCloudinary(file.path, folder)
+      uploadToLocal(file.path, folder)
     );
 
     const results = await Promise.all(uploadPromises);

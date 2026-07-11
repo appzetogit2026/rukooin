@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { uploadToCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
+import { uploadToLocal, uploadBase64ToLocal, deleteFile } from '../utils/localStorage.js';
 
 const mapAddressComponents = (components) => {
   const get = (type) => {
@@ -31,7 +31,7 @@ export const uploadImages = async (req, res) => {
     }
 
     const uploadPromises = filesToUpload.map(file =>
-      uploadToCloudinary(file.path, 'properties')
+      uploadToLocal(file.path, 'properties')
     );
 
     const results = await Promise.all(uploadPromises);
@@ -87,7 +87,7 @@ export const uploadImagesBase64 = async (req, res) => {
         ? `${Date.now()}-${randomSuffix}-${fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')}`
         : `${Date.now()}-${randomSuffix}-img-${index}`;
 
-      return uploadBase64ToCloudinary(base64Data, 'properties', publicId);
+      return uploadBase64ToLocal(base64Data, 'properties', publicId);
     });
 
     const results = await Promise.all(uploadPromises);
@@ -225,7 +225,7 @@ export const deleteImage = async (req, res) => {
     }
 
     console.log(`[Delete Image] Attempting to delete: ${pid}`);
-    const result = await deleteFromCloudinary(pid);
+    const result = await deleteFile(pid);
 
     res.json(result);
   } catch (error) {

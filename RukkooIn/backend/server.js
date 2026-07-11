@@ -2,10 +2,15 @@ import express from 'express';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initializeFirebase } from './config/firebase.js';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import morgan from 'morgan';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Firebase
 initializeFirebase();
@@ -67,6 +72,14 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve locally uploaded files as static assets
+// In production, Nginx handles this more efficiently via `location /uploads/`
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '30d', // 30-day browser cache
+  etag: true,
+}));
+
 
 // Dynamic CORS to allow local network IPs (192.168.x.x) and localhost
 app.use(cors({

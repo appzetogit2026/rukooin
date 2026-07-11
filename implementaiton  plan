@@ -1,0 +1,120 @@
+# Feasibility Analysis & Implementation Plan: Local Image Storage
+
+## Feasibility Report
+
+**Will this strategy work properly for your project?**
+**YES. This is an excellent and highly feasible strategy.** 
+
+Here is why your proposed architecture perfectly aligns with the current MERN setup:
+
+1.  **Memory Storage + Sharp:** You are already using `multer.memoryStorage()` in `Backend/src/middleware/upload.js` and `sharp` in `Backend/src/services/cloudinary.service.js`. Routing the `req.file.buffer` through Sharp and then `fs.promises.writeFile()` is cleaner and faster than using `multer.diskStorage()`, avoiding temporary disk writes.
+2.  **Backward Compatibility:** The database just stores URLs as strings. By returning `https://domain.com/uploads/images/filename.webp`, the database requires absolutely zero changes.
+3.  **Frontend (`OptimizedImage.jsx`) Compatibility:** Your frontend component `Frontend/src/modules/Food/components/OptimizedImage.jsx` already checks `isCloudinaryUrl(src)`. If it detects a Cloudinary URL, it runs its custom optimizations. If it detects a standard URL (which your new local URLs will be), it will simply fall back to requesting the standard image URL (with ignored query parameters). **It will not break.**
+4.  **Delete Logic:** By parsing the URL/publicId in the deletion flow, we can seamlessly branch the logic: local URLs get `fs.unlink()` and Cloudinary URLs get `cloudinary.uploader.destroy()`. Old uploads will be deleted cleanly from Cloudinary, and new ones from your VPS.
+
+---
+
+## User Review Required
+
+Please review the proposed architectural changes below. As per your strict instructions, **no code has been modified**. This is the blueprint for how the implementation will be executed once approved.
+
+> [!IMPORTANT]
+> The frontend will request local images with query parameters like `?w=400&q=80` because of how `OptimizedImage.jsx` handles non-Cloudinary URLs. Nginx will ignore these query parameters and serve the full-resolution image. This means local images won't be dynamically resized on-the-fly like Cloudinary, but the images will still display perfectly without breaking the UI.
+
+---
+
+## Proposed Changes
+
+### Configuration
+
+#### [MODIFY] `Backend/src/config/env.js`
+*   **Reason:** Need to ensure `UPLOAD_PATH` is correctly exported and add `BASE_URL` to construct absolute URLs for the frontend.
+*   **Risk Level:** Low.
+*   **Changes:**
+    *   Add `baseUrl: process.env.BASE_URL || 'http://localhost:5000',`
+    *   Ensure `uploadPath: process.env.UPLOAD_PATH || 'uploads/',` is present.
+
+### New Local Storage Service
+
+#### [NEW] `Backend/src/services/localStorage.service.js`
+*   **Reason:** To handle Sharp optimization, folder creation, and disk writing without cluttering existing services.
+*   **Risk Level:** Low. (Isolated new functionality).
+*   **Implementation:**
+    *   Export functions: `uploadLocalImage`, `uploadLocalVideo`, `uploadLocalFile`, `deleteLocalFile`.
+    *   Use `fs.promises.mkdir(..., { recursive: true })` to dynamically create `uploads/images/`, `uploads/videos/`, etc.
+    *   Use `sharp` to process buffers (WebP conversion, resize limits).
+    *   Use `crypto.randomUUID()` for filenames.
+    *   Construct and return the full URL: `${config.baseUrl}/${folder}/${filename}`.
+
+### Modifying Upload Routes
+
+#### [MODIFY] `Backend/src/modules/uploads/routes/upload.routes.js`
+*   **Reason:** To redirect the upload traffic from Cloudinary to the new `localStorage.service.js`.
+*   **Risk Level:** Medium. (Central entry point for all uploads).
+*   **Changes:**
+    *   Import `localStorage.service.js` instead of `cloudinary.service.js`.
+    *   In `/image`, `/file`, and `/video` routes, replace `uploadImageBuffer` with `uploadLocalImage`, etc.
+    *   Response format `{ success: true, data: { url, publicId: null } }` will remain completely identical.
+
+### Updating Deletion and Replacement Logic
+
+#### [MODIFY] `Backend/src/services/cloudinary.service.js`
+*   **Reason:** Need to intercept deletion requests so we don't accidentally send local URLs/paths to the Cloudinary API, which would cause errors.
+*   **Risk Level:** High. (Must ensure we don't accidentally fail on deleting old Cloudinary images or leave local orphaned files).
+*   **Changes:**
+    *   Update `deleteFromCloudinary` to check if the incoming `publicId` or `url` is a local URL. If local, extract the relative path and use `fs.unlink()`. If Cloudinary, proceed with `cloudinary.uploader.destroy()`.
+    *   Update `replaceCloudinaryImage` to utilize the new `localStorage.service.js` for the *new* upload, while retaining the logic that deletes the *old* image (using the safely modified `deleteFromCloudinary` logic).
+
+---
+
+## Nginx Configuration (VPS Action)
+
+You will need to manually add this block to your Nginx configuration on the VPS:
+
+```nginx
+location /uploads/ {
+    alias /var/www/uploads/;
+    
+    # Enable CORS if frontend and backend are on different domains
+    add_header Access-Control-Allow-Origin *;
+    
+    # Cache optimization
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000";
+    
+    # Disable logging to save disk I/O
+    access_log off;
+}
+```
+**Permissions Note:** The Node.js process (PM2) must have `write` access to `/var/www/uploads/`, and the Nginx user (`www-data` or `nginx`) must have `read` access.
+
+---
+
+## Verification & Testing Plan
+
+Once executed, the following testing checklist will guarantee system stability:
+
+### 1. Uploads
+- [ ] Upload an image via the admin panel/app. Verify it processes without errors.
+- [ ] Verify the returned URL is an absolute local URL (`https://.../uploads/...`).
+- [ ] Verify the file is physically present in the VPS `UPLOAD_PATH` directory.
+- [ ] Upload a PDF and a Video to verify non-image handling.
+
+### 2. Frontend Rendering
+- [ ] Verify newly uploaded local images render correctly in the browser.
+- [ ] Verify old Cloudinary images continue to render correctly with their optimization parameters.
+
+### 3. Deletion & Replacement
+- [ ] Update an entity holding a **Cloudinary** image with a new image. Verify the old Cloudinary image is deleted from the Cloudinary dashboard, and the new image is local.
+- [ ] Update an entity holding a **Local** image with another new image. Verify the old local file is removed from the VPS disk.
+
+### 4. Infrastructure
+- [ ] Restart PM2 (`pm2 restart all`) and ensure no startup errors.
+- [ ] Restart Nginx (`systemctl restart nginx`) and ensure images load.
+
+---
+
+## Rollback Plan
+If any critical issues arise, rolling back is completely non-destructive:
+1. Revert `Backend/src/modules/uploads/routes/upload.routes.js` to point back to `cloudinary.service.js`.
+2. Any local URLs saved during the test period will **still work** because Nginx will continue serving them, while new uploads will revert to Cloudinary. No database rollback is required.

@@ -1,7 +1,7 @@
 import Offer from '../models/Offer.js';
 import Booking from '../models/Booking.js';
 
-import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { uploadToLocal } from '../utils/localStorage.js';
 
 /**
  * @desc    Get active offers for users
@@ -141,7 +141,7 @@ export const createOffer = async (req, res) => {
 
     // If a file was uploaded via multer, upload to Cloudinary
     if (req.file) {
-      const result = await uploadToCloudinary(req.file.path, 'offers');
+      const result = await uploadToLocal(req.file.path, 'offers');
       offerData.image = result.url;
     } else if (!offerData.image) {
       return res.status(400).json({ message: "Banner/Offer image is required" });
@@ -176,7 +176,7 @@ export const updateOffer = async (req, res) => {
     const offerData = { ...req.body };
 
     if (req.file) {
-      const result = await uploadToCloudinary(req.file.path, 'offers');
+      const result = await uploadToLocal(req.file.path, 'offers');
       offerData.image = result.url;
     }
 

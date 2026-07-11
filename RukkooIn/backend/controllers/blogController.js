@@ -1,5 +1,5 @@
 import Blog from '../models/Blog.js';
-import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { uploadToLocal } from '../utils/localStorage.js';
 
 const generateSlug = (text) => {
   return text.toLowerCase().trim()
@@ -32,7 +32,7 @@ export const createBlog = async (req, res) => {
 
     // If a file is uploaded, use Cloudinary
     if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.path, 'blogs');
+      const uploadResult = await uploadToLocal(req.file.path, 'blogs');
       imageUrl = uploadResult.url;
     }
 
@@ -84,9 +84,9 @@ export const updateBlog = async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    // If a new file is uploaded, update image on Cloudinary
+    // If a new file is uploaded, save to local storage
     if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.path, 'blogs');
+      const uploadResult = await uploadToLocal(req.file.path, 'blogs');
       updateData.image = uploadResult.url;
     }
 

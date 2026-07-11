@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import smsService from '../utils/smsService.js';
 import referralService from '../services/referralService.js';
-import { uploadToCloudinary, deleteFromCloudinary, uploadBase64ToCloudinary } from '../utils/cloudinary.js';
+import { uploadToLocal, deleteFile, uploadBase64ToLocal } from '../utils/localStorage.js';
 
 const generateToken = (id, role) => {
   // No expiresIn: tokens never expire; users only get logged out manually
@@ -936,7 +936,7 @@ export const uploadDocs = async (req, res) => {
     }
 
     const uploadPromises = filesToUpload.map(file =>
-      uploadToCloudinary(file.path, 'partner-documents')
+      uploadToLocal(file.path, 'partner-documents')
     );
 
     const results = await Promise.all(uploadPromises);
@@ -968,7 +968,7 @@ export const deleteDoc = async (req, res) => {
       return res.status(400).json({ message: 'Public ID is required' });
     }
 
-    const result = await deleteFromCloudinary(publicId);
+    const result = await deleteFile(publicId);
     res.json(result);
   } catch (error) {
     console.error('Delete Doc Error:', error);
@@ -1011,7 +1011,7 @@ export const uploadDocsBase64 = async (req, res) => {
         ? `${Date.now()}-${randomSuffix}-${fileName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')}`
         : `${Date.now()}-${randomSuffix}-doc-${index}`;
 
-      return uploadBase64ToCloudinary(base64Data, 'partner-documents', publicId);
+      return uploadBase64ToLocal(base64Data, 'partner-documents', publicId);
     });
 
     const results = await Promise.all(uploadPromises);
