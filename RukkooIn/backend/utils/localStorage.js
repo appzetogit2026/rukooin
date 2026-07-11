@@ -212,7 +212,7 @@ export const deleteFile = async (publicIdOrUrl) => {
 
   // --- CLOUDINARY FILE (old images) ---
   try {
-    const { v2 as cloudinary } = await import('cloudinary');
+    const { v2: cloudinary } = await import('cloudinary');
     const result = await cloudinary.uploader.destroy(value);
     return {
       success: result.result === 'ok',
