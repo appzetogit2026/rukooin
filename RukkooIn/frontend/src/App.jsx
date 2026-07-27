@@ -117,6 +117,11 @@ const PartnerBankDetails = React.lazy(() => import('./app/partner/pages/PartnerB
 const BlogManager = React.lazy(() => import('./pages/manager/BlogManager'));
 const BlogDetail = React.lazy(() => import('./pages/user/BlogDetail'));
 const MagicLogin = React.lazy(() => import('./pages/auth/MagicLoginPage'));
+const PartnerStaffManagement = React.lazy(() => import('./app/partner/services/staff-management/StaffManagement'));
+const PartnerStaffList = React.lazy(() => import('./app/partner/services/staff-management/StaffList'));
+const PartnerStaffDetail = React.lazy(() => import('./app/partner/services/staff-management/StaffDetail'));
+const PartnerMarkAttendance = React.lazy(() => import('./app/partner/services/staff-management/MarkAttendance'));
+const PartnerSalaryRecords = React.lazy(() => import('./app/partner/services/staff-management/SalaryRecords'));
 
 // Lazy Imports - Layouts
 const HotelLayout = React.lazy(() => import('./layouts/HotelLayout'));
@@ -538,6 +543,11 @@ function App() {
                 <Route path="settings" element={<PartnerSettings />} />
                 <Route path="bank-details" element={<PartnerBankDetails />} />
                 <Route path="profile" element={<PartnerProfile />} />
+                <Route path="staff-management" element={<PartnerStaffManagement />} />
+                <Route path="staff-list" element={<PartnerStaffList />} />
+                <Route path="staff-detail/:id" element={<PartnerStaffDetail />} />
+                <Route path="mark-attendance" element={<PartnerMarkAttendance />} />
+                <Route path="salary-records" element={<PartnerSalaryRecords />} />
               </Route>
 
               {/* Public Partner Pages — accessible without login */}
