@@ -16,15 +16,21 @@ class SMSIndiaHubService {
   }
 
   async sendOTP(phone, otp, purpose = 'registration') {
-    const message = `Welcome to the Rukkoo.in powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
-    return this.sendSMS(phone, message);
+    // New Template: Welcome to the ##var## powered by Appzeto.Your OTP for registration is ##var##.BGADEC
+    const message = `Welcome to the Rukkoo.in powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
+    
+    return this.sendSMS(phone, message, {
+      senderId: 'BGADEC',
+      peid: '1001164203633432409',
+      tempid: '1007282516644508833'
+    });
   }
 
-  async sendSMS(phone, message) {
+  async sendSMS(phone, message, options = {}) {
     try {
       // Load credentials dynamically at runtime to ensure dotenv has loaded
       const apiKey = this.apiKey || process.env.SMSINDIAHUB_API_KEY;
-      const senderId = this.senderId || process.env.SMSINDIAHUB_SENDER_ID;
+      const senderId = options.senderId || this.senderId || process.env.SMSINDIAHUB_SENDER_ID;
 
       if (!apiKey) {
         console.warn('⚠️ [SMSIndiaHub] Missing API Key. SMS NOT SENT.');
@@ -42,6 +48,9 @@ class SMSIndiaHubService {
         dc: '0',
         gwid: '2'
       });
+
+      if (options.peid) params.append('peid', options.peid);
+      if (options.tempid) params.append('tempid', options.tempid);
 
       const apiUrl = `${this.baseUrl}?${params.toString()}`;
       console.log(`📨 Sending SMS to ${normalizedPhone}...`);
